@@ -424,3 +424,41 @@ Respuesta:
 
 - Archivo Excel.
 - O URL temporal de descarga.
+
+```mermaid
+sequenceDiagram
+    actor Solicitante
+    participant Mobile as Flutter Mobile
+    participant Auth as Firebase Auth
+    participant API as Backend API
+    participant DB as PostgreSQL
+    participant Storage as Cloud Storage
+
+    Solicitante->>Mobile: Crear solicitud
+    Mobile->>API: POST /payment-requests
+    API->>Auth: Validar token
+    Auth-->>API: Token válido
+    API->>DB: Crear solicitud en DRAFT
+    DB-->>API: Solicitud creada
+    API-->>Mobile: Solicitud creada
+
+    Solicitante->>Mobile: Adjuntar soporte
+    Mobile->>API: Solicitar URL firmada
+    API->>Storage: Generar URL firmada
+    Storage-->>API: URL firmada
+    API-->>Mobile: URL firmada
+
+    Mobile->>Storage: Subir archivo
+    Mobile->>API: Confirmar adjunto
+    API->>DB: Guardar metadatos
+    DB-->>API: Adjunto registrado
+    API-->>Mobile: Soporte adjuntado
+
+    Solicitante->>Mobile: Enviar solicitud
+    Mobile->>API: POST /payment-requests/{id}/submit
+    API->>DB: Validar solicitud y soporte
+    DB-->>API: Solicitud válida
+    API->>DB: Cambiar estado a SUBMITTED
+    API->>DB: Registrar historial
+    API-->>Mobile: Solicitud enviada
+```
