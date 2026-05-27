@@ -252,3 +252,91 @@ CREATE INDEX idx_status_history_payment_request ON status_history(payment_reques
 CREATE INDEX idx_comments_payment_request ON comments(payment_request_id);
 CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
 ```
+
+```mermaid
+erDiagram
+    USERS {
+        uuid id PK
+        string firebase_uid
+        string full_name
+        string email
+        boolean is_active
+    }
+
+    ROLES {
+        uuid id PK
+        string name
+        string description
+    }
+
+    USER_ROLES {
+        uuid user_id FK
+        uuid role_id FK
+    }
+
+    PROJECTS {
+        uuid id PK
+        string name
+        string code
+        string location
+        boolean is_active
+    }
+
+    PROVIDERS {
+        uuid id PK
+        string name
+        string document_number
+        string email
+        string phone
+        boolean is_active
+    }
+
+    PAYMENT_REQUESTS {
+        uuid id PK
+        string request_number
+        string item
+        text description
+        decimal gross_amount
+        decimal net_amount
+        string current_status
+        uuid created_by FK
+        uuid provider_id FK
+        uuid project_id FK
+    }
+
+    ATTACHMENTS {
+        uuid id PK
+        uuid payment_request_id FK
+        string file_name
+        string file_path
+        string bucket_name
+        string mime_type
+    }
+
+    STATUS_HISTORY {
+        uuid id PK
+        uuid payment_request_id FK
+        string previous_status
+        string new_status
+        uuid changed_by FK
+    }
+
+    COMMENTS {
+        uuid id PK
+        uuid payment_request_id FK
+        uuid user_id FK
+        text comment
+    }
+
+    USERS ||--o{ PAYMENT_REQUESTS : creates
+    USERS ||--o{ COMMENTS : writes
+    USERS ||--o{ STATUS_HISTORY : changes
+    USERS ||--o{ USER_ROLES : has
+    ROLES ||--o{ USER_ROLES : assigned
+
+    PROJECTS ||--o{ PAYMENT_REQUESTS : contains
+    PROVIDERS ||--o{ PAYMENT_REQUESTS : receives
+    PAYMENT_REQUESTS ||--o{ ATTACHMENTS : has
+    PAYMENT_REQUESTS ||--o{ STATUS_HISTORY : tracks
+    PAYMENT_REQUESTS ||--o{ COMMENTS : has
+```

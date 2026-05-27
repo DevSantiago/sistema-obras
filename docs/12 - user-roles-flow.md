@@ -889,3 +889,48 @@ Deben auditarse:
 - Exportación.
 - Cambio de roles.
 - Cambios de catálogos.
+
+
+```mermaid
+flowchart LR
+
+    subgraph Solicitante
+        A[Crear solicitud]
+        B[Adjuntar soporte]
+        C[Enviar solicitud]
+    end
+
+    subgraph Sistema
+        D[Validar datos]
+        E[Registrar historial]
+        F[Cambiar estado]
+    end
+
+    subgraph Revisor
+        G[Tomar en revisión]
+        H[Revisar soporte]
+        I[Rechazar si aplica]
+    end
+
+    subgraph Aprobador
+        J[Aprobar solicitud]
+        K[Rechazar solicitud]
+    end
+
+    subgraph Pagos
+        L[Programar pago]
+        M[Marcar como pagada]
+    end
+
+    A --> B --> C --> D
+    D --> F
+    F --> E
+    E --> G
+    G --> H
+    H --> J
+    H --> I
+    J --> L
+    L --> M
+    K --> A
+    I --> A
+```

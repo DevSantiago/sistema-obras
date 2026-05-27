@@ -140,3 +140,27 @@ export const allowedTransitions = {
   CANCELLED: [],
 };
 ```
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT: Crear solicitud
+
+    DRAFT --> SUBMITTED: Enviar solicitud
+    DRAFT --> CANCELLED: Anular
+
+    SUBMITTED --> IN_REVIEW: Tomar en revisión
+    SUBMITTED --> CANCELLED: Anular
+
+    IN_REVIEW --> APPROVED: Aprobar
+    IN_REVIEW --> REJECTED: Rechazar
+    IN_REVIEW --> CANCELLED: Anular
+
+    REJECTED --> DRAFT: Corregir
+
+    APPROVED --> SCHEDULED_FOR_PAYMENT: Programar pago
+
+    SCHEDULED_FOR_PAYMENT --> PAID: Marcar como pagada
+
+    PAID --> [*]
+    CANCELLED --> [*]
+```
