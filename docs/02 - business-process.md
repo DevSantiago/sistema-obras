@@ -38,3 +38,23 @@ Programada para pago
    ↓
 Pagada
 ```
+
+
+```mermaid
+flowchart TD
+    A[Crear solicitud] --> B[Guardar como borrador]
+    B --> C[Adjuntar soporte]
+    C --> D[Enviar solicitud]
+    D --> E[Enviada]
+    E --> F[Tomar en revisión]
+    F --> G[En revisión]
+    G --> H{¿La solicitud cumple?}
+    H -->|Sí| I[Aprobada]
+    H -->|No| J[Rechazada]
+    J --> K[Corregir solicitud]
+    K --> D
+    I --> L[Programar pago]
+    L --> M[Programada para pago]
+    M --> N[Marcar como pagada]
+    N --> O[Pagada]
+```
