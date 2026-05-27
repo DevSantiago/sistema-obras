@@ -30,31 +30,36 @@ Cada ambiente debe tener recursos separados:
 payment-system-dev
 payment-system-staging
 payment-system-prod
+```
 
-Despliegue de Flutter Web
+## Despliegue de Flutter Web
 
 Flutter Web se desplegará en Firebase Hosting.
 
 Flujo:
 
+```text
 Commit / Pull Request
         ↓
 Build Flutter Web
         ↓
 Firebase Hosting deploy
-
+```
 
 Comando base:
 
+```bash
 flutter build web
 firebase deploy --only hosting
+```
 
-Despliegue de Flutter Mobile
+## Despliegue de Flutter Mobile
 
-Android
+### Android
 
 Flujo recomendado:
 
+```text
 Build APK/AAB
         ↓
 Internal testing
@@ -62,23 +67,27 @@ Internal testing
 Closed testing
         ↓
 Production
+```
 
-iOS
+### iOS
 
 Flujo recomendado:
 
+```text
 Build iOS
         ↓
 TestFlight
         ↓
 App Store
+```
 
-Despliegue del backend
+## Despliegue del backend
 
 El backend se desplegará en Cloud Run como contenedor.
 
 Flujo recomendado:
 
+```text
 Commit / Pull Request
         ↓
 Tests
@@ -88,11 +97,13 @@ Build Docker image
 Push Artifact Registry
         ↓
 Deploy Cloud Run
+```
 
-Dockerfile base del backend
+### Dockerfile base del backend
 
 Ejemplo para NestJS:
 
+```dockerfile
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -113,9 +124,11 @@ RUN npm install --only=production
 COPY --from=builder /app/dist ./dist
 
 CMD ["node", "dist/main.js"]
+```
 
-Variables de entorno del backend
+### Variables de entorno del backend
 
+```text
 NODE_ENV
 PORT
 DATABASE_URL
@@ -123,53 +136,57 @@ FIREBASE_PROJECT_ID
 GOOGLE_CLOUD_PROJECT
 STORAGE_BUCKET
 OPENAI_API_KEY
+```
 
-Base de datos
+## Base de datos
 
 La base de datos debe manejarse mediante migraciones.
 
 Reglas:
 
-* No modificar producción manualmente.
-* Toda migración debe estar versionada.
-* Las migraciones deben probarse primero en dev.
-* Luego deben aplicarse en staging.
-* Solo después deben aplicarse en production.
+- No modificar producción manualmente.
+- Toda migración debe estar versionada.
+- Las migraciones deben probarse primero en dev.
+- Luego deben aplicarse en staging.
+- Solo después deben aplicarse en production.
 
-Backups
+## Backups
 
 Cloud SQL debe tener:
 
-* Backups automáticos diarios.
-* Retención mínima definida.
-* Pruebas periódicas de restauración.
-* Protección contra eliminación accidental en producción.
+- Backups automáticos diarios.
+- Retención mínima definida.
+- Pruebas periódicas de restauración.
+- Protección contra eliminación accidental en producción.
 
-Cloud Storage
+## Cloud Storage
 
 Buckets sugeridos:
 
+```text
 payment-supports-dev
 payment-supports-staging
 payment-supports-prod
+```
 
 Reglas:
 
-* No públicos.
-* Acceso mediante backend.
-* URLs firmadas.
-* Lifecycle rules para exportaciones temporales.
-* Separación de archivos originales y procesados, si aplica.
+- No públicos.
+- Acceso mediante backend.
+- URLs firmadas.
+- Lifecycle rules para exportaciones temporales.
+- Separación de archivos originales y procesados, si aplica.
 
-CI/CD recomendado
+## CI/CD recomendado
 
 Herramientas posibles:
 
-* GitHub Actions.
-* Cloud Build.
+- GitHub Actions.
+- Cloud Build.
 
 Pipeline mínimo:
 
+```text
 Lint
 Tests
 Build
@@ -178,59 +195,60 @@ Manual approval
 Deploy to staging
 Manual approval
 Deploy to production
+```
 
-Estrategia de releases
+## Estrategia de releases
 
-MVP
+### MVP
 
 Durante el MVP se puede trabajar con despliegue manual controlado a dev y staging.
 
-Producción
+### Producción
 
 Para producción se recomienda:
 
-* Pull Request obligatorio.
-* Revisión de código.
-* Tests mínimos.
-* Tag de versión.
-* Deploy controlado.
-* Plan de rollback.
+- Pull Request obligatorio.
+- Revisión de código.
+- Tests mínimos.
+- Tag de versión.
+- Deploy controlado.
+- Plan de rollback.
 
-Rollback
+## Rollback
 
 Cada release debe permitir volver a una versión anterior del backend.
 
 Estrategias:
 
-* Mantener revisiones anteriores de Cloud Run.
-* Versionar imágenes Docker.
-* No aplicar migraciones destructivas sin plan de reversa.
-* Probar migraciones en staging.
+- Mantener revisiones anteriores de Cloud Run.
+- Versionar imágenes Docker.
+- No aplicar migraciones destructivas sin plan de reversa.
+- Probar migraciones en staging.
 
-Monitoreo
+## Monitoreo
 
 Mínimo recomendado:
 
-* Logs de Cloud Run.
-* Errores de backend.
-* Latencia de APIs.
-* Consumo de base de datos.
-* Tamaño de buckets.
-* Costos de OpenAI OCR, cuando se habilite.
-* Errores de autenticación.
+- Logs de Cloud Run.
+- Errores de backend.
+- Latencia de APIs.
+- Consumo de base de datos.
+- Tamaño de buckets.
+- Costos de OpenAI OCR, cuando se habilite.
+- Errores de autenticación.
 
-Checklist antes de producción
+## Checklist antes de producción
 
-* Firebase Auth configurado.
-* Cloud Run desplegado.
-* Cloud SQL con backups.
-* Cloud Storage privado.
-* Variables de entorno configuradas.
-* Secretos fuera del código.
-* Migraciones aplicadas.
-* Roles iniciales creados.
-* Usuario administrador creado.
-* Logs activos.
-* Exportación probada.
-* Subida y descarga de adjuntos probada.
-* Flujo completo probado de borrador a pagada.
+- Firebase Auth configurado.
+- Cloud Run desplegado.
+- Cloud SQL con backups.
+- Cloud Storage privado.
+- Variables de entorno configuradas.
+- Secretos fuera del código.
+- Migraciones aplicadas.
+- Roles iniciales creados.
+- Usuario administrador creado.
+- Logs activos.
+- Exportación probada.
+- Subida y descarga de adjuntos probada.
+- Flujo completo probado de borrador a pagada.

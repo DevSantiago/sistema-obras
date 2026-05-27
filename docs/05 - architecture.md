@@ -29,3 +29,4 @@ Cloud SQL PostgreSQL
 Cloud Storage
         ↓
 OpenAI Vision
+```

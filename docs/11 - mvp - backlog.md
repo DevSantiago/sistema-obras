@@ -32,13 +32,15 @@ No se incluirá inicialmente:
 - Conciliación bancaria.
 - Notificaciones push avanzadas.
 
+---
+
 ## Épica 1: Configuración base del proyecto
 
 ### Historia 1.1: Crear monorepo
 
 Como equipo técnico, quiero tener un repositorio organizado para frontend, backend, paquetes compartidos e infraestructura.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Existe estructura base del monorepo.
 - Existe carpeta apps.
@@ -50,7 +52,7 @@ Criterios de aceptación:
 
 Como equipo técnico, quiero tener un backend inicial desplegable para comenzar a construir APIs.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Proyecto backend creado.
 - Endpoint health check disponible.
@@ -62,7 +64,7 @@ Criterios de aceptación:
 
 Como equipo técnico, quiero tener proyectos Flutter separados para web administrativa y móvil de campo.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Proyecto Flutter Web creado.
 - Proyecto Flutter Mobile creado.
@@ -76,7 +78,7 @@ Criterios de aceptación:
 
 Como usuario, quiero iniciar sesión para acceder al sistema.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - El usuario puede iniciar sesión.
 - Se obtiene token de Firebase.
@@ -87,7 +89,7 @@ Criterios de aceptación:
 
 Como sistema, quiero validar el token de Firebase para identificar al usuario autenticado.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Backend valida ID Token.
 - Backend rechaza requests sin token.
@@ -98,7 +100,7 @@ Criterios de aceptación:
 
 Como usuario autenticado, quiero consultar mi perfil y roles.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Existe endpoint `/me`.
 - Devuelve datos del usuario.
@@ -108,7 +110,7 @@ Criterios de aceptación:
 
 Como administrador, quiero asignar roles a usuarios.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Existen roles iniciales.
 - Se pueden consultar usuarios.
@@ -121,7 +123,7 @@ Criterios de aceptación:
 
 Como administrador, quiero crear y consultar obras para asociarlas a solicitudes.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se pueden listar obras.
 - Se puede crear obra.
@@ -132,7 +134,7 @@ Criterios de aceptación:
 
 Como administrador, quiero crear y consultar proveedores para asociarlos a solicitudes.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se pueden listar proveedores.
 - Se puede crear proveedor.
@@ -145,7 +147,7 @@ Criterios de aceptación:
 
 Como solicitante, quiero crear una solicitud de pago en estado borrador.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se crea solicitud con estado DRAFT.
 - Se valida proveedor.
@@ -158,7 +160,7 @@ Criterios de aceptación:
 
 Como solicitante, quiero editar una solicitud mientras esté en borrador.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Solo se puede editar en estado DRAFT.
 - Solo el creador o ADMIN puede editar.
@@ -168,7 +170,7 @@ Criterios de aceptación:
 
 Como solicitante, quiero adjuntar imágenes o documentos a una solicitud.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se solicita URL firmada.
 - Se sube archivo a Cloud Storage.
@@ -180,7 +182,7 @@ Criterios de aceptación:
 
 Como solicitante, quiero enviar una solicitud para revisión.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Solo se puede enviar desde DRAFT.
 - Debe tener al menos un soporte.
@@ -191,7 +193,7 @@ Criterios de aceptación:
 
 Como usuario administrativo, quiero consultar solicitudes para hacer seguimiento.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Lista paginada.
 - Filtro por estado.
@@ -205,7 +207,7 @@ Criterios de aceptación:
 
 Como usuario, quiero ver el detalle de una solicitud.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se muestran datos generales.
 - Se muestran soportes.
@@ -218,7 +220,7 @@ Criterios de aceptación:
 
 Como revisor, quiero tomar una solicitud enviada para revisarla.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Solo REVISOR o ADMIN puede tomar en revisión.
 - Solo solicitudes SUBMITTED.
@@ -229,7 +231,7 @@ Criterios de aceptación:
 
 Como aprobador, quiero aprobar una solicitud revisada.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Solo APROBADOR o ADMIN puede aprobar.
 - Solo solicitudes IN_REVIEW.
@@ -241,7 +243,7 @@ Criterios de aceptación:
 
 Como revisor o aprobador, quiero rechazar una solicitud con observación.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Solo REVISOR, APROBADOR o ADMIN puede rechazar.
 - La observación es obligatoria.
@@ -253,7 +255,7 @@ Criterios de aceptación:
 
 Como usuario de pagos, quiero programar una solicitud aprobada para pago.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Solo PAGOS o ADMIN puede programar.
 - Solo solicitudes APPROVED.
@@ -265,7 +267,7 @@ Criterios de aceptación:
 
 Como usuario de pagos, quiero marcar una solicitud programada como pagada.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Solo PAGOS o ADMIN puede marcar como pagada.
 - Solo solicitudes SCHEDULED_FOR_PAYMENT.
@@ -279,7 +281,7 @@ Criterios de aceptación:
 
 Como usuario, quiero agregar comentarios a una solicitud.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Comentario obligatorio.
 - Se registra usuario.
@@ -290,7 +292,7 @@ Criterios de aceptación:
 
 Como usuario, quiero consultar el historial de estados de una solicitud.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se muestra estado anterior.
 - Se muestra estado nuevo.
@@ -304,7 +306,7 @@ Criterios de aceptación:
 
 Como usuario administrativo, quiero exportar solicitudes para análisis y seguimiento.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se puede exportar con filtros.
 - El archivo incluye datos principales.
@@ -319,7 +321,7 @@ Criterios de aceptación:
 
 Como sistema, quiero registrar acciones críticas para trazabilidad.
 
-Criterios de aceptación:
+#### Criterios de aceptación
 
 - Se registra creación de solicitud.
 - Se registra cambio de estado.

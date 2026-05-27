@@ -139,3 +139,4 @@ export const allowedTransitions = {
   PAID: [],
   CANCELLED: [],
 };
+```

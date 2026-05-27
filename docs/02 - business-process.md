@@ -37,3 +37,4 @@ Aprobada / Rechazada
 Programada para pago
    ↓
 Pagada
+```

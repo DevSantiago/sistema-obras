@@ -48,41 +48,46 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+```
 
 ## Tabla roles
 
 Define los roles disponibles en el sistema.
 
+```sql
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(50) UNIQUE NOT NULL,
     description TEXT
 );
+```
 
 Roles iniciales:
 
-* ADMIN
-* SOLICITANTE
-* REVISOR
-* APROBADOR
-* PAGOS
+- ADMIN
+- SOLICITANTE
+- REVISOR
+- APROBADOR
+- PAGOS
 
 
 ## Tabla user_roles
 
 Permite asignar uno o varios roles a cada usuario.
 
+```sql
 CREATE TABLE user_roles (
     user_id UUID REFERENCES users(id),
     role_id UUID REFERENCES roles(id),
     PRIMARY KEY (user_id, role_id)
 );
-
+```
 
 ## Tabla projects
 
 Representa las obras o proyectos.
 
+```sql
 CREATE TABLE projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(150) NOT NULL,
@@ -92,12 +97,13 @@ CREATE TABLE projects (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
-
+```
 
 ## Tabla providers
 
 Representa proveedores asociados a solicitudes de pago.
 
+```sql
 CREATE TABLE providers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(150) NOT NULL,
@@ -108,11 +114,13 @@ CREATE TABLE providers (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+```
 
 ## Tabla payment_requests
 
 Entidad central del sistema.
 
+```sql
 CREATE TABLE payment_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_number VARCHAR(50) UNIQUE NOT NULL,
@@ -145,11 +153,13 @@ CREATE TABLE payment_requests (
     CONSTRAINT chk_amounts CHECK (net_amount <= gross_amount),
     CONSTRAINT chk_positive_amounts CHECK (gross_amount >= 0 AND net_amount >= 0)
 );
+```
 
 ## Tabla attachments
 
 Almacena metadatos de archivos. Los archivos físicos se guardan en Cloud Storage.
 
+```sql
 CREATE TABLE attachments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     payment_request_id UUID REFERENCES payment_requests(id) ON DELETE CASCADE,
@@ -167,11 +177,13 @@ CREATE TABLE attachments (
     ocr_text TEXT,
     ocr_json JSONB
 );
+```
 
 ## Tabla status_history
 
 Registra todos los cambios de estado de una solicitud de pago.
 
+```sql
 CREATE TABLE status_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     payment_request_id UUID REFERENCES payment_requests(id) ON DELETE CASCADE,
@@ -184,12 +196,13 @@ CREATE TABLE status_history (
 
     changed_at TIMESTAMP DEFAULT NOW()
 );
-
+```
 
 ## Tabla comments
 
 Permite comentarios asociados a una solicitud.
 
+```sql
 CREATE TABLE comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     payment_request_id UUID REFERENCES payment_requests(id) ON DELETE CASCADE,
@@ -199,12 +212,13 @@ CREATE TABLE comments (
 
     created_at TIMESTAMP DEFAULT NOW()
 );
-
+```
 
 ## Tabla audit_logs
 
 Registra eventos relevantes del sistema.
 
+```sql
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -221,9 +235,11 @@ CREATE TABLE audit_logs (
 
     created_at TIMESTAMP DEFAULT NOW()
 );
+```
 
+## Índices recomendados
 
-# Índices recomendados
+```sql
 
 CREATE INDEX idx_payment_requests_status ON payment_requests(current_status);
 CREATE INDEX idx_payment_requests_project ON payment_requests(project_id);
@@ -235,3 +251,4 @@ CREATE INDEX idx_attachments_payment_request ON attachments(payment_request_id);
 CREATE INDEX idx_status_history_payment_request ON status_history(payment_request_id);
 CREATE INDEX idx_comments_payment_request ON comments(payment_request_id);
 CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+```

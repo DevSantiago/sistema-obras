@@ -91,14 +91,17 @@ Backend guarda resultado OCR
 Flutter muestra sugerencias
         ↓
 Usuario acepta, corrige o descarta
+```
 
+## API OCR propuesta
 
-API OCR Propuesta
-
+```http
 POST /api/v1/attachments/{id}/ocr
+```
 
 Respuesta esperada:
 
+```json
 {
   "providerName": "Proveedor SAS",
   "grossAmount": 1000000,
@@ -109,9 +112,11 @@ Respuesta esperada:
   "confidence": "medium",
   "rawText": "Texto extraído..."
 }
+```
 
-Tabla ocr_results
+## Tabla ocr_results
 
+```sql
 CREATE TABLE ocr_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     attachment_id UUID REFERENCES attachments(id),
@@ -131,19 +136,22 @@ CREATE TABLE ocr_results (
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMP DEFAULT NOW()
 );
+```
 
-ESTADOS OCR
+## Estados OCR
 
+```text
 NOT_PROCESSED
 PROCESSING
 PROCESSED
 FAILED
 DISCARDED
 CONFIRMED
+```
 
+## Prompt base para OCR
 
-PROMPT base para OCR
-
+```text
 Analiza el documento adjunto y extrae únicamente la información relacionada con una solicitud de pago.
 
 Devuelve una respuesta JSON con los siguientes campos:
@@ -158,33 +166,34 @@ Devuelve una respuesta JSON con los siguientes campos:
 
 Si un campo no se identifica con claridad, retorna null.
 No inventes información.
+```
 
-Reglas de seguridad OCR
+## Reglas de seguridad OCR
 
-* No enviar documentos innecesarios.
-* No procesar archivos sin autorización.
-* Registrar quién solicitó el OCR.
-* Guardar respuesta original para auditoría técnica.
-* Permitir al usuario corregir la información.
-* No guardar automáticamente datos OCR como definitivos.
-* Controlar costos por usuario, archivo o ambiente.
+- No enviar documentos innecesarios.
+- No procesar archivos sin autorización.
+- Registrar quién solicitó el OCR.
+- Guardar respuesta original para auditoría técnica.
+- Permitir al usuario corregir la información.
+- No guardar automáticamente datos OCR como definitivos.
+- Controlar costos por usuario, archivo o ambiente.
 
-Riesgos
+## Riesgos
 
-* Lectura incorrecta de valores.
-* Documentos ilegibles.
-* Imágenes borrosas.
-* Proveedores escritos de forma inconsistente.
-* Costos por procesamiento masivo.
-* Dependencia de servicio externo.
-* Datos sensibles en documentos.
+- Lectura incorrecta de valores.
+- Documentos ilegibles.
+- Imágenes borrosas.
+- Proveedores escritos de forma inconsistente.
+- Costos por procesamiento masivo.
+- Dependencia de servicio externo.
+- Datos sensibles en documentos.
 
-Mitigaciones
+## Mitigaciones
 
-* OCR bajo demanda, no automático al subir.
-* Revisión humana obligatoria.
-* Límites por tamaño de archivo.
-* Manejo de errores.
-* Registro de resultados.
-* Campos con nivel de confianza.
-* Validaciones posteriores en backend.
+- OCR bajo demanda, no automático al subir.
+- Revisión humana obligatoria.
+- Límites por tamaño de archivo.
+- Manejo de errores.
+- Registro de resultados.
+- Campos con nivel de confianza.
+- Validaciones posteriores en backend.
