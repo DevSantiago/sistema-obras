@@ -2,1128 +2,1258 @@
 
 ## Objetivo
 
-Definir el modelo completo de base de datos relacional para el sistema de gestión de solicitudes de pago de una empresa de obras civiles.
+Definir el modelo completo de base de datos para solicitudes de pago, usuarios, roles, acceso por centro de costo y variante, beneficiarios, proveedores, trabajadores, nómina, carga de Excel, fondos por centro de costo, préstamos, anticipos, devoluciones, movimientos financieros, operaciones de efectivo, reingresos de sobrantes, cargos financieros, impuestos, retenciones, adjuntos, historial, comentarios, auditoría, referencias internas y OCR futuro.
 
-Este modelo cubre:
+## Convención de nombres en español
 
-- Usuarios.
-- Roles.
-- Asignación de roles.
-- Obras/proyectos.
-- Proveedores.
-- Solicitudes de pago.
-- Adjuntos.
-- Historial de estados.
-- Comentarios.
-- Auditoría.
-- Cuentas de fondos por obra.
-- Movimientos financieros de obra.
-- Préstamos de personas a obras.
-- Préstamos entre obras.
-- Prestamistas.
-- Resultados OCR futuros.
+Para reducir fricción entre desarrollo y operación, las convenciones técnicas del sistema se documentan en español.
 
-El sistema está diseñado para operar con una Aplicación Web, backend en Cloud Run y PostgreSQL en Cloud SQL.
+Esto aplica a:
 
-La Aplicación Web no debe conectarse directamente a la base de datos. Toda operación debe pasar por el backend.
+- Nombres de tablas.
+- Nombres de campos.
+- Estados.
+- Tipos de solicitud.
+- Tipos de beneficiario.
+- Tipos de movimiento financiero.
+- Estados de validación del Excel.
+- Endpoints de API.
 
----
+Los valores técnicos deben mantenerse consistentes entre frontend, backend y base de datos.
 
-# 1. Principios del modelo
+Ejemplos:
 
-- Usar PostgreSQL como base de datos transaccional.
-- Usar UUID como identificador principal.
-- No almacenar archivos binarios en PostgreSQL.
-- Guardar únicamente metadatos de archivos en `attachments`.
-- Mantener `current_status` en `payment_requests` como estado actual de consulta rápida.
-- Mantener `status_history` como fuente de trazabilidad de cambios de estado.
-- Mantener `project_fund_movements` como fuente de trazabilidad financiera.
-- Mantener `audit_logs` como fuente de auditoría operativa y administrativa.
-- Toda reserva, liberación, ajuste, préstamo, devolución o pago debe quedar registrado como movimiento financiero.
-- Todo cambio de estado que afecte fondos debe ejecutarse dentro de una transacción.
-- El Solicitante no selecciona cuenta de fondos.
-- El backend determina automáticamente la cuenta de fondos de la obra/proyecto de la solicitud.
+| Concepto | Convención |
+|---|---|
+| Solicitud en borrador | `BORRADOR` |
+| Pago a proveedor | `PAGO_PROVEEDOR` |
+| Nómina agrupada por Excel | `AGRUPADA_EXCEL` |
+| Reembolso | `REEMBOLSO` |
+| Beneficiario trabajador | `TRABAJADOR` |
+| Movimiento de egreso por solicitud pagada | `EGRESO_SOLICITUD_PAGO` |
+| Advertencia por nombre diferente | `ADVERTENCIA_NOMBRE_DIFERENTE` |
 
----
 
-# 2. Entidades principales
+## Entidades
 
-- `users`
+- `usuarios`
 - `roles`
-- `user_roles`
-- `projects`
-- `providers`
-- `lenders`
-- `project_funds`
-- `project_loans`
-- `payment_requests`
-- `project_fund_movements`
-- `attachments`
-- `status_history`
-- `comments`
-- `audit_logs`
-- `ocr_results`
+- `usuarios_roles`
+- `centros_costo`
+- `variantes_centro_costo`
+- `accesos_usuario_centro_costo`
+- `proveedores`
+- `beneficiarios_pago`
+- `prestamistas`
+- `secuencias_documentales`
+- `fondos_centro_costo`
+- `prestamos_obra`
+- `devoluciones_prestamo`
+- `anticipos_centro_costo`
+- `solicitudes_pago`
+- `items_solicitud_pago`
+- `impuestos_retenciones_solicitud`
+- `operaciones_efectivo`
+- `cargos_financieros`
+- `movimientos_fondo_centro_costo`
+- `adjuntos`
+- `historial_estados_solicitud`
+- `historial_estados_centro_costo`
+- `comentarios`
+- `auditoria`
+- `resultados_ocr`
 
----
+La entidad `obras` queda absorbida funcionalmente por el modelo de `centros_costo` y `variantes_centro_costo`. Si existiera por migración o compatibilidad histórica, no debe ser la entidad financiera principal.
 
-# 3. Roles iniciales
+## Regla financiera transversal
 
-```text
-ADMIN
-SOLICITANTE
-ACCOUNTING_ASSISTANT
-APPROVER_LEVEL_1
-APPROVER_LEVEL_2
-PAGOS
-```
+`solicitudes_pago.tipo_solicitud` clasifica la solicitud, pero no determina por sí solo el movimiento financiero.
 
----
-
-# 4. Estados de solicitud
-
-```text
-DRAFT
-PENDING_FIRST_APPROVAL
-PENDING_SECOND_APPROVAL
-RETURNED_TO_FIRST_APPROVER
-REJECTED
-APPROVED
-SCHEDULED_FOR_PAYMENT
-PAID
-CANCELLED
-```
-
----
-
-# 5. Estados de préstamo
+Toda operación que afecte el saldo consolidado del centro de costo debe registrarse en:
 
 ```text
-PENDING
-PARTIALLY_PAID
-PAID
-CANCELLED
+movimientos_fondo_centro_costo
 ```
 
----
+La tabla `fondos_centro_costo` conserva el saldo actual. Las variantes `PROYECTO`, `OBRA` e `INTERVENTORIA` clasifican la imputación, pero no tienen saldos independientes.
 
-# 6. Tipos de préstamo
+Para nómina agrupada, `items_solicitud_pago` almacena el detalle de trabajadores y conceptos, pero el descuento financiero se realiza sobre `solicitudes_pago.valor_neto`.
 
-```text
-PERSON_TO_PROJECT
-PROJECT_TO_PROJECT
-```
+Los reingresos de sobrantes de retiros, cargos financieros y pagos de impuestos o retenciones que afecten saldo también deben registrarse en `movimientos_fondo_centro_costo`.
 
----
-
-# 7. Tipos de movimiento financiero
-
-| Tipo técnico | Dirección | Descripción |
+| Caso | Tabla de detalle | Movimiento que afecta saldo |
 |---|---|---|
-| `INCOME_ADVANCE` | `INCOME` | Anticipo recibido por ejecución de obra |
-| `INCOME_LOAN_PERSON` | `INCOME` | Préstamo recibido de una persona o tercero |
-| `INCOME_LOAN_PROJECT` | `INCOME` | Préstamo recibido desde otra obra |
-| `INCOME_LOAN_REPAYMENT` | `INCOME` | Devolución recibida por préstamo hecho a otra obra |
-| `EXPENSE_PAYMENT_REQUEST` | `EXPENSE` | Pago efectivo de una solicitud |
-| `EXPENSE_LOAN_REPAYMENT` | `EXPENSE` | Devolución de préstamo a persona u obra |
-| `EXPENSE_LOAN_TO_PROJECT` | `EXPENSE` | Préstamo realizado a otra obra |
-| `RESERVE_PAYMENT_REQUEST` | `EXPENSE` | Reserva temporal para solicitud enviada |
-| `RELEASE_PAYMENT_REQUEST` | `INCOME` | Liberación de reserva por rechazo o anulación |
-| `ADJUSTMENT_INCOME` | `INCOME` | Ajuste positivo autorizado |
-| `ADJUSTMENT_EXPENSE` | `EXPENSE` | Ajuste negativo autorizado |
+| Pago de solicitud | `solicitudes_pago` | `EGRESO_SOLICITUD_PAGO` |
+| Reingreso de sobrante | `operaciones_efectivo` | `INGRESO_REINGRESO_SOBRANTE_EFECTIVO` |
+| Cargo financiero | `cargos_financieros` | `EGRESO_CARGO_FINANCIERO` |
+| Pago de impuesto o retención independiente | `impuestos_retenciones_solicitud` | `EGRESO_IMPUESTO_RETENCION` |
+| Anticipo recibido | `anticipos_centro_costo` | `INGRESO_ANTICIPO` |
+| Préstamo recibido | `prestamos_obra` | `INGRESO_PRESTAMO_PERSONA` o `INGRESO_PRESTAMO_OBRA` |
 
----
+## Reglas de beneficiarios y nómina en el modelo
 
-# 8. Diagrama ER
+La tabla `beneficiarios_pago` representa personas o entidades que reciben pagos. No todos los beneficiarios son usuarios del sistema.
+
+El campo `beneficiarios_pago.usuario_id` es opcional:
+
+- Si `usuario_id` es `NULL`, el beneficiario no tiene acceso al sistema.
+- Si `usuario_id` tiene valor, el beneficiario está asociado a un usuario interno.
+
+Para nómina agrupada, `items_solicitud_pago` conserva datos originales del Excel:
+
+- `nombre_beneficiario_original`
+- `tipo_documento_original`
+- `numero_documento_original`
+- `numero_fila_origen`
+
+Esto permite auditar diferencias entre el nombre registrado del beneficiario y el nombre cargado en el Excel.
+
+El sistema deduplica trabajadores por `tipo_documento_original + numero_documento_original`, no por nombre.
+
+Un documento puede aparecer varias veces en el Excel si corresponde a conceptos diferentes. En ese caso, el sistema debe marcar advertencia `ADVERTENCIA_DOCUMENTO_REPETIDO_ARCHIVO`, pero no bloquear automáticamente la carga.
+
+## Diagrama entidad-relación
 
 ```mermaid
 erDiagram
-    USERS {
+    USUARIOS {
         uuid id PK
-        string firebase_uid
-        string full_name
-        string email
-        string phone
-        boolean is_active
-        timestamp created_at
-        timestamp updated_at
+        string uid_firebase
+        string nombre_completo
+        string correo
+        string telefono
+        boolean activo
+        timestamp creado_en
+        timestamp actualizado_en
     }
 
     ROLES {
         uuid id PK
-        string name
-        text description
+        string nombre
+        text descripcion
     }
 
-    USER_ROLES {
-        uuid user_id FK
-        uuid role_id FK
+    USUARIOS_ROLES {
+        uuid usuario_id FK
+        uuid rol_id FK
+        timestamp creado_en
     }
 
-    PROJECTS {
+    CENTROS_COSTO {
         uuid id PK
-        string name
-        string code
-        string location
-        boolean is_active
-        timestamp created_at
-        timestamp updated_at
+        string codigo
+        string nombre
+        text descripcion
+        string estado_centro_costo
+        boolean creado_como_adjudicado
+        text motivo_creacion_adjudicada
+        timestamp fecha_adjudicacion
+        boolean activo
+        timestamp creado_en
+        timestamp actualizado_en
     }
 
-    PROVIDERS {
+    VARIANTES_CENTRO_COSTO {
         uuid id PK
-        string name
-        string document_number
-        string email
-        string phone
-        boolean is_active
-        timestamp created_at
-        timestamp updated_at
+        uuid centro_costo_id FK
+        string codigo
+        string nombre
+        string tipo_variante
+        boolean habilitada
+        boolean cerrada
+        timestamp creado_en
+        timestamp actualizado_en
     }
 
-    LENDERS {
+    ACCESOS_USUARIO_CENTRO_COSTO {
         uuid id PK
-        string name
-        string document_number
-        string phone
-        string email
-        text notes
-        timestamp created_at
-        timestamp updated_at
+        uuid usuario_id FK
+        uuid centro_costo_id FK
+        uuid variante_centro_costo_id FK
+        boolean puede_crear_solicitudes
+        boolean puede_ver_solicitudes
+        boolean puede_gestionar_fondos
+        boolean puede_ver_saldo
+        boolean puede_exportar
+        boolean activo
     }
 
-    PROJECT_FUNDS {
+    PROVEEDORES {
         uuid id PK
-        uuid project_id FK
-        decimal current_balance
-        timestamp created_at
-        timestamp updated_at
+        string nombre
+        string numero_documento
+        string correo
+        string telefono
+        text direccion
+        boolean activo
     }
 
-    PROJECT_LOANS {
+    BENEFICIARIOS_PAGO {
         uuid id PK
-        uuid borrower_project_id FK
-        uuid lender_project_id FK
-        uuid lender_id FK
-        string loan_type
-        decimal principal_amount
-        decimal outstanding_amount
-        string status
-        date loan_date
-        timestamp paid_at
-        uuid created_by FK
-        timestamp created_at
-        timestamp updated_at
+        string tipo_beneficiario
+        uuid proveedor_id FK
+        uuid usuario_id FK
+        string nombre
+        string tipo_documento
+        string numero_documento
+        string medio_pago_preferido
+        string banco
+        string tipo_cuenta_bancaria
+        string numero_cuenta_bancaria
+        boolean activo
     }
 
-    PAYMENT_REQUESTS {
+    PRESTAMISTAS {
         uuid id PK
-        string request_number
-        string item
-        uuid provider_id FK
-        uuid project_id FK
-        uuid project_fund_id FK
-        text description
-        decimal gross_amount
-        decimal net_amount
-        decimal reserved_amount
-        string current_status
-        uuid created_by FK
-        uuid first_approved_by FK
-        uuid second_approved_by FK
-        uuid paid_by FK
-        timestamp submitted_at
-        timestamp first_approved_at
-        timestamp second_approved_at
-        timestamp returned_to_first_approver_at
-        timestamp rejected_at
-        timestamp scheduled_payment_at
-        timestamp paid_at
-        timestamp created_at
-        timestamp updated_at
+        string nombre
+        string numero_documento
+        string telefono
+        string correo
     }
 
-    PROJECT_FUND_MOVEMENTS {
+    SECUENCIAS_DOCUMENTALES {
         uuid id PK
-        uuid project_fund_id FK
-        uuid project_id FK
-        uuid payment_request_id FK
-        uuid project_loan_id FK
-        uuid related_project_id FK
-        string movement_type
-        string direction
-        decimal amount
-        decimal previous_balance
-        decimal new_balance
-        text description
-        string reference
-        json metadata
-        uuid created_by FK
-        timestamp created_at
+        string tipo_secuencia
+        uuid centro_costo_id FK
+        string prefijo
+        int anio
+        int valor_actual
     }
 
-    ATTACHMENTS {
+    FONDOS_CENTRO_COSTO {
         uuid id PK
-        uuid payment_request_id FK
-        string file_name
-        text file_path
-        string bucket_name
-        string mime_type
-        bigint file_size
-        uuid uploaded_by FK
-        timestamp uploaded_at
-        string ocr_status
-        text ocr_text
-        json ocr_json
+        uuid centro_costo_id FK
+        decimal saldo_actual
+        boolean activo
     }
 
-    STATUS_HISTORY {
+    PRESTAMOS_OBRA {
         uuid id PK
-        uuid payment_request_id FK
-        string previous_status
-        string new_status
-        string action
-        uuid changed_by FK
-        text comment
-        json metadata
-        timestamp changed_at
+        string referencia_sistema
+        string referencia_documental
+        uuid centro_costo_deudor_id FK
+        uuid centro_costo_prestamista_id FK
+        uuid prestamista_id FK
+        string tipo_prestamo
+        decimal valor_principal
+        decimal saldo_pendiente
+        string estado
     }
 
-    COMMENTS {
+    DEVOLUCIONES_PRESTAMO {
         uuid id PK
-        uuid payment_request_id FK
-        uuid user_id FK
-        text comment
-        timestamp created_at
+        uuid prestamo_obra_id FK
+        uuid centro_costo_id FK
+        decimal valor
+        string referencia_sistema
+        string referencia_documental
+        timestamp creado_en
     }
 
-    AUDIT_LOGS {
+    ANTICIPOS_CENTRO_COSTO {
         uuid id PK
-        uuid user_id FK
-        string entity_type
-        uuid entity_id
-        string action
-        json old_data
-        json new_data
-        string ip_address
-        text user_agent
-        timestamp created_at
+        uuid centro_costo_id FK
+        uuid variante_centro_costo_id FK
+        decimal valor
+        string referencia_sistema
+        string referencia_documental
+        timestamp creado_en
     }
 
-    OCR_RESULTS {
+    SOLICITUDES_PAGO {
         uuid id PK
-        uuid attachment_id FK
-        uuid payment_request_id FK
-        text provider_name
-        decimal gross_amount
-        decimal net_amount
-        text description
-        date document_date
-        string document_number
-        text raw_text
-        json raw_response
-        string confidence
-        uuid created_by FK
-        timestamp created_at
+        string numero_solicitud
+        string tipo_solicitud
+        uuid centro_costo_id FK
+        uuid variante_centro_costo_id FK
+        uuid beneficiario_id FK
+        string categoria_gasto
+        string categoria_reembolso
+        string concepto_nomina
+        string modalidad_nomina
+        string medio_pago
+        decimal valor_bruto
+        decimal valor_impuestos
+        decimal valor_retenciones
+        decimal valor_descuentos
+        decimal valor_neto
+        string estado_actual
     }
 
-    USERS ||--o{ USER_ROLES : has
-    ROLES ||--o{ USER_ROLES : assigned
+    ITEMS_SOLICITUD_PAGO {
+        uuid id PK
+        uuid solicitud_pago_id FK
+        uuid beneficiario_id FK
+        int numero_fila_origen
+        string nombre_beneficiario_original
+        string tipo_documento_original
+        string numero_documento_original
+        string concepto_nomina
+        string estado_validacion
+        text mensaje_validacion
+        decimal valor_bruto
+        decimal valor_neto
+    }
 
-    PROJECTS ||--|| PROJECT_FUNDS : has
-    PROJECTS ||--o{ PAYMENT_REQUESTS : contains
-    PROJECTS ||--o{ PROJECT_LOANS : borrower
-    PROJECTS ||--o{ PROJECT_LOANS : lender_project
-    PROJECTS ||--o{ PROJECT_FUND_MOVEMENTS : has
+    IMPUESTOS_RETENCIONES_SOLICITUD {
+        uuid id PK
+        uuid solicitud_pago_id FK
+        string tipo_impuesto_retencion
+        string naturaleza
+        decimal base_calculo
+        decimal porcentaje
+        decimal valor
+        boolean afecta_valor_neto
+        string estado_registro
+    }
 
-    PROVIDERS ||--o{ PAYMENT_REQUESTS : receives
+    OPERACIONES_EFECTIVO {
+        uuid id PK
+        uuid centro_costo_id FK
+        uuid variante_centro_costo_id FK
+        uuid solicitud_pago_id FK
+        string referencia_sistema
+        string referencia_retiro
+        string referencia_reingreso
+        decimal valor_requerido
+        decimal valor_retirado
+        decimal valor_pagado
+        decimal valor_sobrante
+        decimal valor_reingresado
+        string estado_sobrante
+    }
 
-    LENDERS ||--o{ PROJECT_LOANS : lends
+    CARGOS_FINANCIEROS {
+        uuid id PK
+        uuid centro_costo_id FK
+        uuid variante_centro_costo_id FK
+        uuid solicitud_pago_id FK
+        uuid operacion_efectivo_id FK
+        uuid prestamo_obra_id FK
+        string tipo_cargo
+        decimal valor
+        string referencia_sistema
+        string referencia_documental
+    }
 
-    PROJECT_FUNDS ||--o{ PROJECT_FUND_MOVEMENTS : records
-    PROJECT_FUNDS ||--o{ PAYMENT_REQUESTS : funds
+    MOVIMIENTOS_FONDO_CENTRO_COSTO {
+        uuid id PK
+        uuid fondo_centro_costo_id FK
+        uuid centro_costo_id FK
+        uuid variante_centro_costo_id FK
+        uuid solicitud_pago_id FK
+        uuid prestamo_obra_id FK
+        uuid devolucion_prestamo_id FK
+        uuid anticipo_centro_costo_id FK
+        uuid operacion_efectivo_id FK
+        uuid cargo_financiero_id FK
+        uuid impuesto_retencion_id FK
+        string tipo_movimiento
+        string direccion
+        decimal valor
+        decimal saldo_anterior
+        decimal saldo_nuevo
+    }
 
-    PROJECT_LOANS ||--o{ PROJECT_FUND_MOVEMENTS : generates
-    PAYMENT_REQUESTS ||--o{ PROJECT_FUND_MOVEMENTS : generates
+    ADJUNTOS {
+        uuid id PK
+        uuid solicitud_pago_id FK
+        string nombre_archivo
+        text ruta_archivo
+        string estado_ocr
+    }
 
-    PAYMENT_REQUESTS ||--o{ ATTACHMENTS : has
-    PAYMENT_REQUESTS ||--o{ STATUS_HISTORY : tracks
-    PAYMENT_REQUESTS ||--o{ COMMENTS : has
-    PAYMENT_REQUESTS ||--o{ OCR_RESULTS : has
+    HISTORIAL_ESTADOS_SOLICITUD {
+        uuid id PK
+        uuid solicitud_pago_id FK
+        string estado_anterior
+        string estado_nuevo
+        string accion
+    }
 
-    ATTACHMENTS ||--o{ OCR_RESULTS : produces
+    HISTORIAL_ESTADOS_CENTRO_COSTO {
+        uuid id PK
+        uuid centro_costo_id FK
+        string estado_anterior
+        string estado_nuevo
+        uuid cambiado_por FK
+    }
 
-    USERS ||--o{ PAYMENT_REQUESTS : creates
-    USERS ||--o{ PROJECT_LOANS : creates
-    USERS ||--o{ PROJECT_FUND_MOVEMENTS : creates
-    USERS ||--o{ ATTACHMENTS : uploads
-    USERS ||--o{ STATUS_HISTORY : changes
-    USERS ||--o{ COMMENTS : writes
-    USERS ||--o{ AUDIT_LOGS : performs
-    USERS ||--o{ OCR_RESULTS : creates
+    COMENTARIOS {
+        uuid id PK
+        uuid solicitud_pago_id FK
+        uuid usuario_id FK
+        text comentario
+    }
+
+    AUDITORIA {
+        uuid id PK
+        uuid usuario_id FK
+        string tipo_entidad
+        uuid entidad_id
+        string accion
+    }
+
+    RESULTADOS_OCR {
+        uuid id PK
+        uuid adjunto_id FK
+        uuid solicitud_pago_id FK
+    }
+
+    USUARIOS ||--o{ USUARIOS_ROLES : tiene
+    ROLES ||--o{ USUARIOS_ROLES : asigna
+    USUARIOS ||--o{ ACCESOS_USUARIO_CENTRO_COSTO : recibe
+    CENTROS_COSTO ||--o{ ACCESOS_USUARIO_CENTRO_COSTO : controla
+    CENTROS_COSTO ||--o{ VARIANTES_CENTRO_COSTO : tiene
+    CENTROS_COSTO ||--|| FONDOS_CENTRO_COSTO : tiene
+    PROVEEDORES ||--o{ BENEFICIARIOS_PAGO : origina
+    USUARIOS ||--o{ BENEFICIARIOS_PAGO : puede_asociarse
+    BENEFICIARIOS_PAGO ||--o{ SOLICITUDES_PAGO : recibe
+    BENEFICIARIOS_PAGO ||--o{ ITEMS_SOLICITUD_PAGO : recibe
+    CENTROS_COSTO ||--o{ SOLICITUDES_PAGO : agrupa
+    VARIANTES_CENTRO_COSTO ||--o{ SOLICITUDES_PAGO : clasifica
+    SOLICITUDES_PAGO ||--o{ ITEMS_SOLICITUD_PAGO : contiene
+    SOLICITUDES_PAGO ||--o{ IMPUESTOS_RETENCIONES_SOLICITUD : desglosa
+    SOLICITUDES_PAGO ||--o{ OPERACIONES_EFECTIVO : puede_generar
+    OPERACIONES_EFECTIVO ||--o{ CARGOS_FINANCIEROS : puede_generar
+    FONDOS_CENTRO_COSTO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : registra
+    SOLICITUDES_PAGO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
+    OPERACIONES_EFECTIVO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
+    CARGOS_FINANCIEROS ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
+    IMPUESTOS_RETENCIONES_SOLICITUD ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : puede_originar
+    PRESTAMOS_OBRA ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
+    ANTICIPOS_CENTRO_COSTO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
+    SOLICITUDES_PAGO ||--o{ ADJUNTOS : tiene
+    SOLICITUDES_PAGO ||--o{ HISTORIAL_ESTADOS_SOLICITUD : registra
+    CENTROS_COSTO ||--o{ HISTORIAL_ESTADOS_CENTRO_COSTO : registra
+    SOLICITUDES_PAGO ||--o{ COMENTARIOS : tiene
+    ADJUNTOS ||--o{ RESULTADOS_OCR : produce
 ```
 
----
-
-# 9. Diagrama lógico
+## Diagrama lógico
 
 ```mermaid
 classDiagram
-    class users {
+    class usuarios {
         +uuid id
-        +string firebase_uid
-        +string full_name
-        +string email
-        +string phone
-        +boolean is_active
-        +timestamp created_at
-        +timestamp updated_at
+        +string uid_firebase
+        +string nombre_completo
+        +string correo
+        +string telefono
+        +boolean activo
+        +timestamp creado_en
+        +timestamp actualizado_en
     }
 
-    class roles {
+    class centros_costo {
         +uuid id
-        +string name
-        +text description
+        +string codigo
+        +string nombre
+        +string estado_centro_costo
+        +boolean creado_como_adjudicado
+        +timestamp fecha_adjudicacion
+        +boolean activo
     }
 
-    class user_roles {
-        +uuid user_id
-        +uuid role_id
-    }
-
-    class projects {
+    class variantes_centro_costo {
         +uuid id
-        +string name
-        +string code
-        +string location
-        +boolean is_active
+        +uuid centro_costo_id
+        +string codigo
+        +string nombre
+        +string tipo_variante
+        +boolean habilitada
+        +boolean cerrada
     }
 
-    class providers {
+    class fondos_centro_costo {
         +uuid id
-        +string name
-        +string document_number
-        +string email
-        +string phone
-        +boolean is_active
+        +uuid centro_costo_id
+        +decimal saldo_actual
+        +boolean activo
     }
 
-    class lenders {
+    class solicitudes_pago {
         +uuid id
-        +string name
-        +string document_number
-        +string phone
-        +string email
+        +string numero_solicitud
+        +string tipo_solicitud
+        +uuid centro_costo_id
+        +uuid variante_centro_costo_id
+        +uuid beneficiario_id
+        +string medio_pago
+        +decimal valor_bruto
+        +decimal valor_impuestos
+        +decimal valor_retenciones
+        +decimal valor_descuentos
+        +decimal valor_neto
+        +string estado_actual
     }
 
-    class project_funds {
+    class impuestos_retenciones_solicitud {
         +uuid id
-        +uuid project_id
-        +decimal current_balance
+        +uuid solicitud_pago_id
+        +string tipo_impuesto_retencion
+        +string naturaleza
+        +decimal base_calculo
+        +decimal porcentaje
+        +decimal valor
+        +string estado_registro
     }
 
-    class project_loans {
+    class operaciones_efectivo {
         +uuid id
-        +uuid borrower_project_id
-        +uuid lender_project_id
-        +uuid lender_id
-        +string loan_type
-        +decimal principal_amount
-        +decimal outstanding_amount
-        +string status
-        +date loan_date
+        +uuid centro_costo_id
+        +uuid variante_centro_costo_id
+        +uuid solicitud_pago_id
+        +decimal valor_requerido
+        +decimal valor_retirado
+        +decimal valor_pagado
+        +decimal valor_sobrante
+        +decimal valor_reingresado
+        +string estado_sobrante
     }
 
-    class payment_requests {
+    class cargos_financieros {
         +uuid id
-        +string request_number
-        +uuid project_id
-        +uuid provider_id
-        +uuid project_fund_id
-        +decimal gross_amount
-        +decimal net_amount
-        +decimal reserved_amount
-        +string current_status
+        +uuid centro_costo_id
+        +uuid variante_centro_costo_id
+        +uuid solicitud_pago_id
+        +uuid operacion_efectivo_id
+        +string tipo_cargo
+        +decimal valor
     }
 
-    class project_fund_movements {
+    class movimientos_fondo_centro_costo {
         +uuid id
-        +uuid project_fund_id
-        +uuid project_id
-        +uuid payment_request_id
-        +uuid project_loan_id
-        +uuid related_project_id
-        +string movement_type
-        +string direction
-        +decimal amount
-        +decimal previous_balance
-        +decimal new_balance
+        +uuid fondo_centro_costo_id
+        +uuid centro_costo_id
+        +uuid variante_centro_costo_id
+        +uuid solicitud_pago_id
+        +uuid operacion_efectivo_id
+        +uuid cargo_financiero_id
+        +uuid impuesto_retencion_id
+        +string tipo_movimiento
+        +string direccion
+        +decimal valor
+        +decimal saldo_anterior
+        +decimal saldo_nuevo
     }
 
-    class attachments {
-        +uuid id
-        +uuid payment_request_id
-        +string file_name
-        +text file_path
-        +string mime_type
-        +bigint file_size
-    }
-
-    class status_history {
-        +uuid id
-        +uuid payment_request_id
-        +string previous_status
-        +string new_status
-        +string action
-    }
-
-    class comments {
-        +uuid id
-        +uuid payment_request_id
-        +uuid user_id
-        +text comment
-    }
-
-    class audit_logs {
-        +uuid id
-        +uuid user_id
-        +string entity_type
-        +uuid entity_id
-        +string action
-    }
-
-    users "1" --> "0..*" user_roles
-    roles "1" --> "0..*" user_roles
-
-    projects "1" --> "1" project_funds
-    projects "1" --> "0..*" payment_requests
-    projects "1" --> "0..*" project_loans : borrower
-    projects "1" --> "0..*" project_loans : lender_project
-
-    providers "1" --> "0..*" payment_requests
-
-    lenders "1" --> "0..*" project_loans
-
-    project_funds "1" --> "0..*" project_fund_movements
-    project_funds "1" --> "0..*" payment_requests
-
-    project_loans "1" --> "0..*" project_fund_movements
-    payment_requests "1" --> "0..*" project_fund_movements
-    payment_requests "1" --> "0..*" attachments
-    payment_requests "1" --> "0..*" status_history
-    payment_requests "1" --> "0..*" comments
-
-    users "1" --> "0..*" payment_requests
-    users "1" --> "0..*" project_loans
-    users "1" --> "0..*" project_fund_movements
-    users "1" --> "0..*" audit_logs
+    centros_costo "1" --> "0..*" variantes_centro_costo : tiene
+    centros_costo "1" --> "1" fondos_centro_costo : tiene
+    centros_costo "1" --> "0..*" solicitudes_pago : agrupa
+    solicitudes_pago "1" --> "0..*" impuestos_retenciones_solicitud : desglosa
+    solicitudes_pago "1" --> "0..*" operaciones_efectivo : puede_generar
+    operaciones_efectivo "1" --> "0..*" cargos_financieros : puede_generar
+    fondos_centro_costo "1" --> "0..*" movimientos_fondo_centro_costo : registra
+    solicitudes_pago "1" --> "0..*" movimientos_fondo_centro_costo : origina
+    operaciones_efectivo "1" --> "0..*" movimientos_fondo_centro_costo : origina
+    cargos_financieros "1" --> "0..*" movimientos_fondo_centro_costo : origina
+    impuestos_retenciones_solicitud "1" --> "0..*" movimientos_fondo_centro_costo : puede_originar
 ```
 
----
-
-# 10. DDL completo
-
-## 10.1 Extensión requerida
+## DDL completo
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-```
 
----
-
-## 10.2 Tabla users
-
-```sql
-CREATE TABLE users (
+CREATE TABLE usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    firebase_uid VARCHAR(128) UNIQUE NOT NULL,
-    full_name VARCHAR(150) NOT NULL,
-    email VARCHAR(150) UNIQUE NOT NULL,
-    phone VARCHAR(50),
-
-    is_active BOOLEAN DEFAULT TRUE,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    uid_firebase VARCHAR(128) UNIQUE NOT NULL,
+    nombre_completo VARCHAR(150) NOT NULL,
+    correo VARCHAR(150) UNIQUE NOT NULL,
+    telefono VARCHAR(50),
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
 );
-```
 
----
-
-## 10.3 Tabla roles
-
-```sql
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(50) UNIQUE NOT NULL,
-    description TEXT
+    nombre VARCHAR(50) UNIQUE NOT NULL,
+    descripcion TEXT
 );
-```
 
----
-
-## 10.4 Tabla user_roles
-
-```sql
-CREATE TABLE user_roles (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-
-    PRIMARY KEY (user_id, role_id)
+CREATE TABLE usuarios_roles (
+    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    rol_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (usuario_id, rol_id)
 );
-```
 
----
-
-## 10.5 Tabla projects
-
-```sql
-CREATE TABLE projects (
+CREATE TABLE centros_costo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    name VARCHAR(150) NOT NULL,
-    code VARCHAR(50),
-    location VARCHAR(150),
-    description TEXT,
-
-    is_active BOOLEAN DEFAULT TRUE,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
----
-
-## 10.6 Tabla providers
-
-```sql
-CREATE TABLE providers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    name VARCHAR(150) NOT NULL,
-    document_number VARCHAR(50),
-    email VARCHAR(150),
-    phone VARCHAR(50),
-    address TEXT,
-
-    is_active BOOLEAN DEFAULT TRUE,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
----
-
-## 10.7 Tabla lenders
-
-```sql
-CREATE TABLE lenders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    name VARCHAR(150) NOT NULL,
-    document_number VARCHAR(50),
-    phone VARCHAR(50),
-    email VARCHAR(150),
-    notes TEXT,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
----
-
-## 10.8 Tabla project_funds
-
-```sql
-CREATE TABLE project_funds (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    project_id UUID NOT NULL REFERENCES projects(id),
-
-    current_balance NUMERIC(14,2) NOT NULL DEFAULT 0,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-
-    CONSTRAINT chk_project_fund_balance CHECK (current_balance >= 0)
-);
-
-CREATE UNIQUE INDEX uq_project_funds_project
-ON project_funds(project_id);
-```
-
----
-
-## 10.9 Tabla project_loans
-
-```sql
-CREATE TABLE project_loans (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    borrower_project_id UUID NOT NULL REFERENCES projects(id),
-    lender_project_id UUID REFERENCES projects(id),
-    lender_id UUID REFERENCES lenders(id),
-
-    loan_type VARCHAR(50) NOT NULL,
-
-    principal_amount NUMERIC(14,2) NOT NULL,
-    outstanding_amount NUMERIC(14,2) NOT NULL,
-
-    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-
-    loan_date DATE NOT NULL,
-    paid_at TIMESTAMP,
-
-    reference VARCHAR(100),
-    description TEXT,
-
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-
-    CONSTRAINT chk_project_loan_type CHECK (
-        loan_type IN ('PERSON_TO_PROJECT', 'PROJECT_TO_PROJECT')
-    ),
-
-    CONSTRAINT chk_project_loan_status CHECK (
-        status IN ('PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED')
-    ),
-
-    CONSTRAINT chk_project_loan_amounts CHECK (
-        principal_amount > 0
-        AND outstanding_amount >= 0
-        AND outstanding_amount <= principal_amount
-    ),
-
-    CONSTRAINT chk_project_loan_lender CHECK (
-        (
-            loan_type = 'PERSON_TO_PROJECT'
-            AND lender_id IS NOT NULL
-            AND lender_project_id IS NULL
+    codigo VARCHAR(50) UNIQUE NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    estado_centro_costo VARCHAR(40) NOT NULL DEFAULT 'EN_PROPUESTA',
+    creado_como_adjudicado BOOLEAN NOT NULL DEFAULT FALSE,
+    motivo_creacion_adjudicada TEXT,
+    fecha_adjudicacion TIMESTAMP,
+    soporte_adjudicacion_adjunto_id UUID,
+    observacion_adjudicacion TEXT,
+    adjudicado_por UUID REFERENCES usuarios(id),
+    adjudicado_en TIMESTAMP,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_estado_centro_costo CHECK (
+        estado_centro_costo IN (
+            'EN_PROPUESTA',
+            'NO_ADJUDICADO',
+            'ADJUDICADO',
+            'EN_EJECUCION',
+            'FINALIZADO',
+            'CERRADO'
         )
+    )
+);
+
+CREATE TABLE variantes_centro_costo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    tipo_variante VARCHAR(30) NOT NULL,
+    habilitada BOOLEAN NOT NULL DEFAULT TRUE,
+    habilitada_por UUID REFERENCES usuarios(id),
+    habilitada_en TIMESTAMP,
+    cerrada BOOLEAN NOT NULL DEFAULT FALSE,
+    cerrada_por UUID REFERENCES usuarios(id),
+    cerrada_en TIMESTAMP,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_tipo_variante CHECK (
+        tipo_variante IN ('PROYECTO', 'OBRA', 'INTERVENTORIA')
+    ),
+    CONSTRAINT unico_variante_por_centro_codigo UNIQUE (centro_costo_id, codigo),
+    CONSTRAINT unico_variante_por_centro_tipo UNIQUE (centro_costo_id, tipo_variante)
+);
+
+CREATE TABLE accesos_usuario_centro_costo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id) ON DELETE CASCADE,
+    variante_centro_costo_id UUID REFERENCES variantes_centro_costo(id),
+    puede_crear_solicitudes BOOLEAN NOT NULL DEFAULT TRUE,
+    puede_ver_solicitudes BOOLEAN NOT NULL DEFAULT TRUE,
+    puede_gestionar_fondos BOOLEAN NOT NULL DEFAULT FALSE,
+    puede_ver_saldo BOOLEAN NOT NULL DEFAULT FALSE,
+    puede_exportar BOOLEAN NOT NULL DEFAULT FALSE,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    asignado_por UUID REFERENCES usuarios(id),
+    asignado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    revocado_por UUID REFERENCES usuarios(id),
+    revocado_en TIMESTAMP,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE proveedores (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre VARCHAR(150) NOT NULL,
+    numero_documento VARCHAR(50),
+    correo VARCHAR(150),
+    telefono VARCHAR(50),
+    direccion TEXT,
+    banco VARCHAR(100),
+    tipo_cuenta_bancaria VARCHAR(50),
+    numero_cuenta_bancaria VARCHAR(100),
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE beneficiarios_pago (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tipo_beneficiario VARCHAR(50) NOT NULL,
+    proveedor_id UUID REFERENCES proveedores(id),
+    usuario_id UUID REFERENCES usuarios(id),
+    nombre VARCHAR(150) NOT NULL,
+    tipo_documento VARCHAR(30),
+    numero_documento VARCHAR(50),
+    medio_pago_preferido VARCHAR(30),
+    banco VARCHAR(100),
+    tipo_cuenta_bancaria VARCHAR(50),
+    numero_cuenta_bancaria VARCHAR(100),
+    telefono VARCHAR(50),
+    correo VARCHAR(150),
+    notas TEXT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_tipo_beneficiario CHECK (
+        tipo_beneficiario IN ('PROVEEDOR', 'TRABAJADOR', 'OTRO')
+    ),
+    CONSTRAINT restriccion_medio_pago_preferido CHECK (
+        medio_pago_preferido IS NULL OR medio_pago_preferido IN ('TRANSFERENCIA', 'EFECTIVO')
+    ),
+    CONSTRAINT restriccion_tipo_cuenta_bancaria CHECK (
+        tipo_cuenta_bancaria IS NULL OR tipo_cuenta_bancaria IN ('AHORROS', 'CORRIENTE', 'OTRO')
+    )
+);
+
+CREATE TABLE prestamistas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre VARCHAR(150) NOT NULL,
+    numero_documento VARCHAR(50),
+    telefono VARCHAR(50),
+    correo VARCHAR(150),
+    notas TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE secuencias_documentales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tipo_secuencia VARCHAR(50) NOT NULL,
+    centro_costo_id UUID REFERENCES centros_costo(id),
+    prefijo VARCHAR(20) NOT NULL,
+    anio INTEGER NOT NULL,
+    valor_actual INTEGER NOT NULL DEFAULT 0,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT unico_secuencia_centro_anio UNIQUE (tipo_secuencia, centro_costo_id, anio),
+    CONSTRAINT restriccion_tipo_secuencia CHECK (
+        tipo_secuencia IN (
+            'SOLICITUD_PAGO',
+            'ANTICIPO',
+            'PRESTAMO_PERSONA',
+            'PRESTAMO_OBRA',
+            'DEVOLUCION_PRESTAMO',
+            'MOVIMIENTO_FONDO',
+            'CONFIRMACION_PAGO',
+            'CARGO_FINANCIERO',
+            'OPERACION_EFECTIVO',
+            'IMPUESTO_RETENCION'
+        )
+    ),
+    CONSTRAINT restriccion_valor_actual_secuencia CHECK (valor_actual >= 0)
+);
+
+CREATE TABLE fondos_centro_costo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    centro_costo_id UUID NOT NULL UNIQUE REFERENCES centros_costo(id),
+    saldo_actual NUMERIC(14,2) NOT NULL DEFAULT 0,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_saldo_fondo_centro_costo CHECK (saldo_actual >= 0)
+);
+
+CREATE TABLE prestamos_obra (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    referencia_sistema VARCHAR(100) UNIQUE NOT NULL,
+    referencia_documental VARCHAR(100),
+    centro_costo_deudor_id UUID NOT NULL REFERENCES centros_costo(id),
+    centro_costo_prestamista_id UUID REFERENCES centros_costo(id),
+    prestamista_id UUID REFERENCES prestamistas(id),
+    tipo_prestamo VARCHAR(50) NOT NULL,
+    valor_principal NUMERIC(14,2) NOT NULL,
+    saldo_pendiente NUMERIC(14,2) NOT NULL,
+    estado VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE',
+    fecha_prestamo DATE NOT NULL,
+    pagado_en TIMESTAMP,
+    descripcion TEXT,
+    creado_por UUID REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_tipo_prestamo CHECK (tipo_prestamo IN ('PERSONA_A_OBRA', 'OBRA_A_OBRA')),
+    CONSTRAINT restriccion_estado_prestamo CHECK (estado IN ('PENDIENTE', 'PAGADO_PARCIAL', 'PAGADA', 'ANULADA')),
+    CONSTRAINT restriccion_valores_prestamo CHECK (
+        valor_principal > 0
+        AND saldo_pendiente >= 0
+        AND saldo_pendiente <= valor_principal
+    ),
+    CONSTRAINT restriccion_origen_prestamo CHECK (
+        (tipo_prestamo = 'PERSONA_A_OBRA' AND prestamista_id IS NOT NULL AND centro_costo_prestamista_id IS NULL)
         OR
-        (
-            loan_type = 'PROJECT_TO_PROJECT'
-            AND lender_project_id IS NOT NULL
-            AND lender_id IS NULL
-        )
+        (tipo_prestamo = 'OBRA_A_OBRA' AND centro_costo_prestamista_id IS NOT NULL AND prestamista_id IS NULL)
     ),
-
-    CONSTRAINT chk_project_loan_not_same_project CHECK (
-        lender_project_id IS NULL
-        OR borrower_project_id <> lender_project_id
+    CONSTRAINT restriccion_prestamo_no_mismo_centro CHECK (
+        centro_costo_prestamista_id IS NULL OR centro_costo_deudor_id <> centro_costo_prestamista_id
     )
 );
-```
 
----
-
-## 10.10 Tabla payment_requests
-
-```sql
-CREATE TABLE payment_requests (
+CREATE TABLE devoluciones_prestamo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prestamo_obra_id UUID NOT NULL REFERENCES prestamos_obra(id),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
+    referencia_sistema VARCHAR(100) UNIQUE NOT NULL,
+    referencia_documental VARCHAR(100),
+    descripcion TEXT,
+    creado_por UUID REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
-    request_number VARCHAR(50) UNIQUE NOT NULL,
+CREATE TABLE anticipos_centro_costo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    variante_centro_costo_id UUID REFERENCES variantes_centro_costo(id),
+    valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
+    referencia_sistema VARCHAR(100) UNIQUE NOT NULL,
+    referencia_documental VARCHAR(100),
+    descripcion TEXT,
+    creado_por UUID REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
-    item VARCHAR(100),
-
-    provider_id UUID REFERENCES providers(id),
-    project_id UUID NOT NULL REFERENCES projects(id),
-    project_fund_id UUID REFERENCES project_funds(id),
-
-    description TEXT NOT NULL,
-
-    gross_amount NUMERIC(14,2) NOT NULL,
-    net_amount NUMERIC(14,2) NOT NULL,
-    reserved_amount NUMERIC(14,2),
-
-    current_status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
-
-    created_by UUID REFERENCES users(id),
-    first_approved_by UUID REFERENCES users(id),
-    second_approved_by UUID REFERENCES users(id),
-    paid_by UUID REFERENCES users(id),
-
-    submitted_at TIMESTAMP,
-    first_approved_at TIMESTAMP,
-    second_approved_at TIMESTAMP,
-    returned_to_first_approver_at TIMESTAMP,
-    rejected_at TIMESTAMP,
-    scheduled_payment_at TIMESTAMP,
-    paid_at TIMESTAMP,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-
-    CONSTRAINT chk_payment_request_amounts CHECK (
-        net_amount <= gross_amount
+CREATE TABLE solicitudes_pago (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    numero_solicitud VARCHAR(80) UNIQUE NOT NULL,
+    tipo_solicitud VARCHAR(50) NOT NULL DEFAULT 'PAGO_PROVEEDOR',
+    modalidad_nomina VARCHAR(50),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
+    beneficiario_id UUID REFERENCES beneficiarios_pago(id),
+    proveedor_id UUID REFERENCES proveedores(id),
+    categoria_gasto VARCHAR(80),
+    categoria_reembolso VARCHAR(80),
+    concepto_nomina VARCHAR(80),
+    medio_pago VARCHAR(30),
+    adjunto_archivo_origen_id UUID,
+    descripcion TEXT NOT NULL,
+    valor_bruto NUMERIC(14,2) NOT NULL,
+    valor_impuestos NUMERIC(14,2) NOT NULL DEFAULT 0,
+    valor_retenciones NUMERIC(14,2) NOT NULL DEFAULT 0,
+    valor_descuentos NUMERIC(14,2) NOT NULL DEFAULT 0,
+    valor_neto NUMERIC(14,2) NOT NULL,
+    valor_reservado NUMERIC(14,2),
+    estado_actual VARCHAR(50) NOT NULL DEFAULT 'BORRADOR',
+    creado_por UUID REFERENCES usuarios(id),
+    aprobado_1_por UUID REFERENCES usuarios(id),
+    aprobado_2_por UUID REFERENCES usuarios(id),
+    pagado_por UUID REFERENCES usuarios(id),
+    enviado_en TIMESTAMP,
+    aprobado_1_en TIMESTAMP,
+    aprobado_2_en TIMESTAMP,
+    devuelto_aprobador_1_en TIMESTAMP,
+    devuelto_solicitante_en TIMESTAMP,
+    pagado_en TIMESTAMP,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_tipo_solicitud CHECK (
+        tipo_solicitud IN ('PAGO_PROVEEDOR', 'PAGO_NOMINA', 'REEMBOLSO', 'OTRO_PAGO')
     ),
-
-    CONSTRAINT chk_payment_request_positive_amounts CHECK (
-        gross_amount >= 0
-        AND net_amount >= 0
-        AND (reserved_amount IS NULL OR reserved_amount >= 0)
+    CONSTRAINT restriccion_modalidad_nomina CHECK (
+        modalidad_nomina IS NULL OR modalidad_nomina IN ('INDIVIDUAL', 'AGRUPADA_EXCEL')
     ),
-
-    CONSTRAINT chk_payment_request_status CHECK (
-        current_status IN (
-            'DRAFT',
-            'PENDING_FIRST_APPROVAL',
-            'PENDING_SECOND_APPROVAL',
-            'RETURNED_TO_FIRST_APPROVER',
-            'REJECTED',
-            'APPROVED',
-            'SCHEDULED_FOR_PAYMENT',
-            'PAID',
-            'CANCELLED'
+    CONSTRAINT restriccion_medio_pago CHECK (
+        medio_pago IS NULL OR medio_pago IN ('TRANSFERENCIA', 'EFECTIVO')
+    ),
+    CONSTRAINT restriccion_estado_solicitud CHECK (
+        estado_actual IN (
+            'BORRADOR',
+            'PENDIENTE_APROBADOR_1',
+            'PENDIENTE_APROBADOR_2',
+            'DEVUELTA_APROBADOR_1',
+            'DEVUELTA_SOLICITANTE',
+            'PROGRAMADA_PAGO',
+            'PAGADA',
+            'ANULADA'
         )
+    ),
+    CONSTRAINT restriccion_valores_solicitud CHECK (
+        valor_bruto >= 0
+        AND valor_impuestos >= 0
+        AND valor_retenciones >= 0
+        AND valor_descuentos >= 0
+        AND valor_neto >= 0
+        AND (valor_reservado IS NULL OR valor_reservado >= 0)
     )
 );
-```
 
----
-
-## 10.11 Tabla project_fund_movements
-
-```sql
-CREATE TABLE project_fund_movements (
+CREATE TABLE items_solicitud_pago (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    project_fund_id UUID NOT NULL REFERENCES project_funds(id),
-    project_id UUID NOT NULL REFERENCES projects(id),
-
-    payment_request_id UUID REFERENCES payment_requests(id),
-    project_loan_id UUID REFERENCES project_loans(id),
-    related_project_id UUID REFERENCES projects(id),
-
-    movement_type VARCHAR(80) NOT NULL,
-    direction VARCHAR(20) NOT NULL,
-
-    amount NUMERIC(14,2) NOT NULL,
-
-    previous_balance NUMERIC(14,2) NOT NULL,
-    new_balance NUMERIC(14,2) NOT NULL,
-
-    description TEXT,
-    reference VARCHAR(100),
-    metadata JSONB,
-
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT NOW(),
-
-    CONSTRAINT chk_project_fund_movement_direction CHECK (
-        direction IN ('INCOME', 'EXPENSE')
+    solicitud_pago_id UUID NOT NULL REFERENCES solicitudes_pago(id) ON DELETE CASCADE,
+    beneficiario_id UUID REFERENCES beneficiarios_pago(id),
+    numero_fila_origen INTEGER,
+    nombre_beneficiario_original VARCHAR(150),
+    tipo_documento_original VARCHAR(30),
+    numero_documento_original VARCHAR(50),
+    concepto_nomina VARCHAR(80),
+    categoria_gasto VARCHAR(80),
+    concepto_pago VARCHAR(80),
+    estado_validacion VARCHAR(80),
+    mensaje_validacion TEXT,
+    descripcion TEXT,
+    valor_bruto NUMERIC(14,2) NOT NULL,
+    valor_neto NUMERIC(14,2) NOT NULL,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_valores_item CHECK (
+        valor_bruto >= 0
+        AND valor_neto >= 0
+        AND valor_neto <= valor_bruto
     ),
-
-    CONSTRAINT chk_project_fund_movement_amount CHECK (
-        amount > 0
-    ),
-
-    CONSTRAINT chk_project_fund_movement_balances CHECK (
-        previous_balance >= 0
-        AND new_balance >= 0
-    ),
-
-    CONSTRAINT chk_project_fund_movement_type CHECK (
-        movement_type IN (
-            'INCOME_ADVANCE',
-            'INCOME_LOAN_PERSON',
-            'INCOME_LOAN_PROJECT',
-            'INCOME_LOAN_REPAYMENT',
-            'EXPENSE_PAYMENT_REQUEST',
-            'EXPENSE_LOAN_REPAYMENT',
-            'EXPENSE_LOAN_TO_PROJECT',
-            'RESERVE_PAYMENT_REQUEST',
-            'RELEASE_PAYMENT_REQUEST',
-            'ADJUSTMENT_INCOME',
-            'ADJUSTMENT_EXPENSE'
+    CONSTRAINT restriccion_estado_validacion_item CHECK (
+        estado_validacion IS NULL OR estado_validacion IN (
+            'VALIDO',
+            'NUEVO_BENEFICIARIO',
+            'ADVERTENCIA_NOMBRE_DIFERENTE',
+            'ADVERTENCIA_DOCUMENTO_REPETIDO_ARCHIVO',
+            'ERROR_DOCUMENTO_FALTANTE',
+            'ERROR_CUENTA_BANCARIA_FALTANTE',
+            'ERROR_VALOR_INVALIDO',
+            'ERROR_FILA_INVALIDA'
         )
     )
 );
-```
 
----
-
-## 10.12 Tabla attachments
-
-```sql
-CREATE TABLE attachments (
+CREATE TABLE impuestos_retenciones_solicitud (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    solicitud_pago_id UUID NOT NULL REFERENCES solicitudes_pago(id),
+    tipo_impuesto_retencion VARCHAR(50) NOT NULL,
+    naturaleza VARCHAR(30) NOT NULL,
+    base_calculo NUMERIC(14,2),
+    porcentaje NUMERIC(8,4),
+    valor NUMERIC(14,2) NOT NULL CHECK (valor >= 0),
+    afecta_valor_neto BOOLEAN NOT NULL DEFAULT TRUE,
+    estado_registro VARCHAR(30) NOT NULL DEFAULT 'REGISTRADO',
+    descripcion TEXT,
+    creado_por UUID NOT NULL REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    ajustado_por UUID REFERENCES usuarios(id),
+    ajustado_en TIMESTAMP,
+    motivo_ajuste TEXT,
+    CONSTRAINT restriccion_tipo_impuesto_retencion CHECK (
+        tipo_impuesto_retencion IN (
+            'IVA',
+            'RETEFUENTE',
+            'RETEICA',
+            'RETEIVA',
+            'ESTAMPILLA',
+            'ICA',
+            'IMPUESTO_CONSUMO',
+            'OTRO_IMPUESTO'
+        )
+    ),
+    CONSTRAINT restriccion_naturaleza_impuesto_retencion CHECK (
+        naturaleza IN ('IMPUESTO', 'RETENCION', 'DESCUENTO')
+    ),
+    CONSTRAINT restriccion_estado_registro_impuesto CHECK (
+        estado_registro IN ('REGISTRADO', 'AJUSTADO', 'ANULADO')
+    )
+);
 
-    payment_request_id UUID NOT NULL REFERENCES payment_requests(id) ON DELETE CASCADE,
+CREATE TABLE operaciones_efectivo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
+    solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
+    referencia_sistema VARCHAR(80) NOT NULL UNIQUE,
+    referencia_retiro VARCHAR(120),
+    referencia_reingreso VARCHAR(120),
+    valor_requerido NUMERIC(14,2) NOT NULL CHECK (valor_requerido > 0),
+    valor_retirado NUMERIC(14,2) NOT NULL CHECK (valor_retirado > 0),
+    valor_pagado NUMERIC(14,2) NOT NULL CHECK (valor_pagado > 0),
+    valor_sobrante NUMERIC(14,2) NOT NULL DEFAULT 0,
+    valor_reingresado NUMERIC(14,2) NOT NULL DEFAULT 0,
+    estado_sobrante VARCHAR(50) NOT NULL,
+    fecha_retiro TIMESTAMP,
+    fecha_pago TIMESTAMP,
+    fecha_reingreso TIMESTAMP,
+    soporte_retiro_adjunto_id UUID,
+    soporte_pago_adjunto_id UUID,
+    soporte_reingreso_adjunto_id UUID,
+    observacion TEXT,
+    creado_por UUID NOT NULL REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_estado_sobrante CHECK (
+        estado_sobrante IN (
+            'SIN_SOBRANTE',
+            'SOBRANTE_PENDIENTE_REINGRESO',
+            'SOBRANTE_REINGRESADO',
+            'SOBRANTE_AJUSTADO'
+        )
+    ),
+    CONSTRAINT restriccion_valores_efectivo CHECK (valor_retirado >= valor_pagado),
+    CONSTRAINT restriccion_sobrante_efectivo CHECK (valor_sobrante = valor_retirado - valor_pagado),
+    CONSTRAINT restriccion_reingreso_efectivo CHECK (valor_reingresado <= valor_sobrante)
+);
 
-    file_name VARCHAR(255) NOT NULL,
-    file_path TEXT NOT NULL,
-    bucket_name VARCHAR(150) NOT NULL,
-    mime_type VARCHAR(100),
-    file_size BIGINT,
-
-    uploaded_by UUID REFERENCES users(id),
-    uploaded_at TIMESTAMP DEFAULT NOW(),
-
-    ocr_status VARCHAR(50) DEFAULT 'NOT_PROCESSED',
-    ocr_text TEXT,
-    ocr_json JSONB,
-
-    CONSTRAINT chk_attachment_ocr_status CHECK (
-        ocr_status IN (
-            'NOT_PROCESSED',
-            'PENDING',
-            'PROCESSED',
-            'FAILED'
+CREATE TABLE cargos_financieros (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
+    solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
+    operacion_efectivo_id UUID REFERENCES operaciones_efectivo(id),
+    prestamo_obra_id UUID REFERENCES prestamos_obra(id),
+    tipo_cargo VARCHAR(50) NOT NULL,
+    valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
+    referencia_sistema VARCHAR(80) NOT NULL UNIQUE,
+    referencia_documental VARCHAR(120),
+    descripcion TEXT,
+    creado_por UUID NOT NULL REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_tipo_cargo_financiero CHECK (
+        tipo_cargo IN (
+            'GMF',
+            'CUATRO_POR_MIL',
+            'COMISION_BANCARIA',
+            'COSTO_RETIRO',
+            'DIFERENCIA_RETIRO_EFECTIVO',
+            'OTRO_CARGO_FINANCIERO'
         )
     )
 );
-```
 
----
-
-## 10.13 Tabla status_history
-
-```sql
-CREATE TABLE status_history (
+CREATE TABLE movimientos_fondo_centro_costo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fondo_centro_costo_id UUID NOT NULL REFERENCES fondos_centro_costo(id),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
+    solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
+    prestamo_obra_id UUID REFERENCES prestamos_obra(id),
+    devolucion_prestamo_id UUID REFERENCES devoluciones_prestamo(id),
+    anticipo_centro_costo_id UUID REFERENCES anticipos_centro_costo(id),
+    operacion_efectivo_id UUID REFERENCES operaciones_efectivo(id),
+    cargo_financiero_id UUID REFERENCES cargos_financieros(id),
+    impuesto_retencion_id UUID REFERENCES impuestos_retenciones_solicitud(id),
+    referencia_sistema VARCHAR(80) NOT NULL UNIQUE,
+    referencia_documental VARCHAR(120),
+    tipo_movimiento VARCHAR(80) NOT NULL,
+    direccion VARCHAR(20) NOT NULL,
+    valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
+    saldo_anterior NUMERIC(14,2) NOT NULL,
+    saldo_nuevo NUMERIC(14,2) NOT NULL,
+    descripcion TEXT,
+    creado_por UUID NOT NULL REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_direccion_movimiento CHECK (direccion IN ('INGRESO', 'EGRESO')),
+    CONSTRAINT restriccion_tipo_movimiento CHECK (
+        tipo_movimiento IN (
+            'INGRESO_ANTICIPO',
+            'INGRESO_PRESTAMO_PERSONA',
+            'INGRESO_PRESTAMO_OBRA',
+            'INGRESO_DEVOLUCION_PRESTAMO',
+            'INGRESO_REINGRESO_SOBRANTE_EFECTIVO',
+            'INGRESO_AJUSTE',
+            'EGRESO_SOLICITUD_PAGO',
+            'EGRESO_RETIRO_EFECTIVO',
+            'EGRESO_DEVOLUCION_PRESTAMO',
+            'EGRESO_PRESTAMO_A_OBRA',
+            'EGRESO_CARGO_FINANCIERO',
+            'EGRESO_IMPUESTO_RETENCION',
+            'EGRESO_AJUSTE'
+        )
+    )
+);
 
-    payment_request_id UUID NOT NULL REFERENCES payment_requests(id) ON DELETE CASCADE,
+CREATE TABLE adjuntos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    solicitud_pago_id UUID REFERENCES solicitudes_pago(id) ON DELETE CASCADE,
+    nombre_archivo VARCHAR(255) NOT NULL,
+    ruta_archivo TEXT NOT NULL,
+    nombre_bucket VARCHAR(150) NOT NULL,
+    tipo_mime VARCHAR(100),
+    tamano_archivo BIGINT,
+    subido_por UUID REFERENCES usuarios(id),
+    subido_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    estado_ocr VARCHAR(50) NOT NULL DEFAULT 'NO_PROCESADO',
+    texto_ocr TEXT,
+    json_ocr JSONB,
+    CONSTRAINT restriccion_estado_ocr CHECK (
+        estado_ocr IN ('NO_PROCESADO', 'PENDIENTE', 'PROCESADO', 'FALLIDO')
+    )
+);
 
-    previous_status VARCHAR(50),
-    new_status VARCHAR(50) NOT NULL,
+ALTER TABLE solicitudes_pago
+ADD CONSTRAINT fk_solicitudes_pago_adjunto_archivo_origen
+FOREIGN KEY (adjunto_archivo_origen_id) REFERENCES adjuntos(id);
 
-    action VARCHAR(100) NOT NULL,
+CREATE TABLE historial_estados_solicitud (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    solicitud_pago_id UUID NOT NULL REFERENCES solicitudes_pago(id) ON DELETE CASCADE,
+    estado_anterior VARCHAR(50),
+    estado_nuevo VARCHAR(50) NOT NULL,
+    accion VARCHAR(100) NOT NULL,
+    cambiado_por UUID REFERENCES usuarios(id),
+    comentario TEXT,
+    metadatos JSONB,
+    cambiado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
-    changed_by UUID REFERENCES users(id),
-    comment TEXT,
-    metadata JSONB,
+CREATE TABLE historial_estados_centro_costo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    estado_anterior VARCHAR(40),
+    estado_nuevo VARCHAR(40) NOT NULL,
+    comentario TEXT,
+    soporte_adjunto_id UUID REFERENCES adjuntos(id),
+    cambiado_por UUID NOT NULL REFERENCES usuarios(id),
+    cambiado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
-    changed_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE comentarios (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    solicitud_pago_id UUID NOT NULL REFERENCES solicitudes_pago(id) ON DELETE CASCADE,
+    usuario_id UUID REFERENCES usuarios(id),
+    comentario TEXT NOT NULL,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE auditoria (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES usuarios(id),
+    tipo_entidad VARCHAR(100) NOT NULL,
+    entidad_id UUID,
+    accion VARCHAR(100) NOT NULL,
+    datos_anteriores JSONB,
+    datos_nuevos JSONB,
+    direccion_ip VARCHAR(100),
+    agente_usuario TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE resultados_ocr (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    adjunto_id UUID REFERENCES adjuntos(id),
+    solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
+    nombre_proveedor TEXT,
+    valor_bruto NUMERIC(14,2),
+    valor_neto NUMERIC(14,2),
+    descripcion TEXT,
+    fecha_documento DATE,
+    numero_documento VARCHAR(100),
+    texto_original TEXT,
+    respuesta_original JSONB,
+    confianza VARCHAR(50),
+    creado_por UUID REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW()
 );
 ```
 
----
-
-## 10.14 Tabla comments
+## Índices recomendados
 
 ```sql
-CREATE TABLE comments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE INDEX indice_usuarios_uid_firebase ON usuarios(uid_firebase);
+CREATE INDEX indice_usuarios_correo ON usuarios(correo);
+CREATE INDEX indice_usuarios_activo ON usuarios(activo);
 
-    payment_request_id UUID NOT NULL REFERENCES payment_requests(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id),
+CREATE INDEX indice_usuarios_roles_usuario ON usuarios_roles(usuario_id);
+CREATE INDEX indice_usuarios_roles_rol ON usuarios_roles(rol_id);
 
-    comment TEXT NOT NULL,
+CREATE INDEX indice_centros_costo_codigo ON centros_costo(codigo);
+CREATE INDEX indice_centros_costo_estado ON centros_costo(estado_centro_costo);
+CREATE INDEX indice_centros_costo_activo ON centros_costo(activo);
 
-    created_at TIMESTAMP DEFAULT NOW()
-);
+CREATE INDEX indice_variantes_centro_costo_centro ON variantes_centro_costo(centro_costo_id);
+CREATE INDEX indice_variantes_centro_costo_tipo ON variantes_centro_costo(tipo_variante);
+CREATE INDEX indice_variantes_centro_costo_habilitada ON variantes_centro_costo(habilitada);
+
+CREATE INDEX indice_accesos_usuario_centro_costo_usuario ON accesos_usuario_centro_costo(usuario_id);
+CREATE INDEX indice_accesos_usuario_centro_costo_centro ON accesos_usuario_centro_costo(centro_costo_id);
+CREATE INDEX indice_accesos_usuario_centro_costo_variante ON accesos_usuario_centro_costo(variante_centro_costo_id);
+CREATE INDEX indice_accesos_usuario_centro_costo_activo ON accesos_usuario_centro_costo(activo);
+
+CREATE INDEX indice_proveedores_documento ON proveedores(numero_documento);
+CREATE INDEX indice_proveedores_nombre ON proveedores(nombre);
+CREATE INDEX indice_proveedores_activo ON proveedores(activo);
+
+CREATE INDEX indice_beneficiarios_pago_tipo ON beneficiarios_pago(tipo_beneficiario);
+CREATE INDEX indice_beneficiarios_pago_usuario ON beneficiarios_pago(usuario_id);
+CREATE INDEX indice_beneficiarios_pago_proveedor ON beneficiarios_pago(proveedor_id);
+CREATE INDEX indice_beneficiarios_pago_documento ON beneficiarios_pago(tipo_documento, numero_documento);
+CREATE INDEX indice_beneficiarios_pago_medio_pago ON beneficiarios_pago(medio_pago_preferido);
+CREATE INDEX indice_beneficiarios_pago_activo ON beneficiarios_pago(activo);
+
+CREATE INDEX indice_prestamistas_documento ON prestamistas(numero_documento);
+CREATE INDEX indice_secuencias_documentales_centro ON secuencias_documentales(centro_costo_id);
+CREATE INDEX indice_secuencias_documentales_tipo ON secuencias_documentales(tipo_secuencia);
+
+CREATE UNIQUE INDEX indice_fondos_centro_costo_centro_unico ON fondos_centro_costo(centro_costo_id);
+CREATE INDEX indice_fondos_centro_costo_activo ON fondos_centro_costo(activo);
+
+CREATE INDEX indice_prestamos_obra_centro_deudor ON prestamos_obra(centro_costo_deudor_id);
+CREATE INDEX indice_prestamos_obra_centro_prestamista ON prestamos_obra(centro_costo_prestamista_id);
+CREATE INDEX indice_prestamos_obra_prestamista ON prestamos_obra(prestamista_id);
+CREATE INDEX indice_prestamos_obra_estado ON prestamos_obra(estado);
+CREATE INDEX indice_prestamos_obra_tipo ON prestamos_obra(tipo_prestamo);
+
+CREATE INDEX indice_devoluciones_prestamo_prestamo ON devoluciones_prestamo(prestamo_obra_id);
+CREATE INDEX indice_devoluciones_prestamo_centro ON devoluciones_prestamo(centro_costo_id);
+
+CREATE INDEX indice_anticipos_centro_costo_centro ON anticipos_centro_costo(centro_costo_id);
+CREATE INDEX indice_anticipos_centro_costo_variante ON anticipos_centro_costo(variante_centro_costo_id);
+
+CREATE INDEX indice_solicitudes_pago_numero ON solicitudes_pago(numero_solicitud);
+CREATE INDEX indice_solicitudes_pago_centro ON solicitudes_pago(centro_costo_id);
+CREATE INDEX indice_solicitudes_pago_variante ON solicitudes_pago(variante_centro_costo_id);
+CREATE INDEX indice_solicitudes_pago_beneficiario ON solicitudes_pago(beneficiario_id);
+CREATE INDEX indice_solicitudes_pago_tipo ON solicitudes_pago(tipo_solicitud);
+CREATE INDEX indice_solicitudes_pago_estado ON solicitudes_pago(estado_actual);
+CREATE INDEX indice_solicitudes_pago_medio_pago ON solicitudes_pago(medio_pago);
+CREATE INDEX indice_solicitudes_pago_categoria_gasto ON solicitudes_pago(categoria_gasto);
+CREATE INDEX indice_solicitudes_pago_categoria_reembolso ON solicitudes_pago(categoria_reembolso);
+CREATE INDEX indice_solicitudes_pago_concepto_nomina ON solicitudes_pago(concepto_nomina);
+CREATE INDEX indice_solicitudes_pago_creado_por ON solicitudes_pago(creado_por);
+CREATE INDEX indice_solicitudes_pago_pagado_por ON solicitudes_pago(pagado_por);
+CREATE INDEX indice_solicitudes_pago_creado_en ON solicitudes_pago(creado_en);
+CREATE INDEX indice_solicitudes_pago_pagado_en ON solicitudes_pago(pagado_en);
+
+CREATE INDEX indice_items_solicitud_pago_solicitud ON items_solicitud_pago(solicitud_pago_id);
+CREATE INDEX indice_items_solicitud_pago_beneficiario ON items_solicitud_pago(beneficiario_id);
+CREATE INDEX indice_items_solicitud_pago_documento_original ON items_solicitud_pago(tipo_documento_original, numero_documento_original);
+CREATE INDEX indice_items_solicitud_pago_concepto_nomina ON items_solicitud_pago(concepto_nomina);
+CREATE INDEX indice_items_solicitud_pago_estado_validacion ON items_solicitud_pago(estado_validacion);
+
+CREATE INDEX indice_impuestos_retenciones_solicitud ON impuestos_retenciones_solicitud(solicitud_pago_id);
+CREATE INDEX indice_impuestos_retenciones_tipo ON impuestos_retenciones_solicitud(tipo_impuesto_retencion);
+CREATE INDEX indice_impuestos_retenciones_naturaleza ON impuestos_retenciones_solicitud(naturaleza);
+CREATE INDEX indice_impuestos_retenciones_estado ON impuestos_retenciones_solicitud(estado_registro);
+CREATE INDEX indice_impuestos_retenciones_creado_por ON impuestos_retenciones_solicitud(creado_por);
+
+CREATE INDEX indice_operaciones_efectivo_centro ON operaciones_efectivo(centro_costo_id);
+CREATE INDEX indice_operaciones_efectivo_variante ON operaciones_efectivo(variante_centro_costo_id);
+CREATE INDEX indice_operaciones_efectivo_solicitud ON operaciones_efectivo(solicitud_pago_id);
+CREATE INDEX indice_operaciones_efectivo_estado_sobrante ON operaciones_efectivo(estado_sobrante);
+CREATE INDEX indice_operaciones_efectivo_fecha_retiro ON operaciones_efectivo(fecha_retiro);
+CREATE INDEX indice_operaciones_efectivo_fecha_reingreso ON operaciones_efectivo(fecha_reingreso);
+
+CREATE INDEX indice_cargos_financieros_centro ON cargos_financieros(centro_costo_id);
+CREATE INDEX indice_cargos_financieros_variante ON cargos_financieros(variante_centro_costo_id);
+CREATE INDEX indice_cargos_financieros_solicitud ON cargos_financieros(solicitud_pago_id);
+CREATE INDEX indice_cargos_financieros_operacion_efectivo ON cargos_financieros(operacion_efectivo_id);
+CREATE INDEX indice_cargos_financieros_prestamo ON cargos_financieros(prestamo_obra_id);
+CREATE INDEX indice_cargos_financieros_tipo ON cargos_financieros(tipo_cargo);
+CREATE INDEX indice_cargos_financieros_creado_en ON cargos_financieros(creado_en);
+
+CREATE INDEX indice_movimientos_centro_costo ON movimientos_fondo_centro_costo(centro_costo_id);
+CREATE INDEX indice_movimientos_fondo ON movimientos_fondo_centro_costo(fondo_centro_costo_id);
+CREATE INDEX indice_movimientos_variante ON movimientos_fondo_centro_costo(variante_centro_costo_id);
+CREATE INDEX indice_movimientos_solicitud ON movimientos_fondo_centro_costo(solicitud_pago_id);
+CREATE INDEX indice_movimientos_operacion_efectivo ON movimientos_fondo_centro_costo(operacion_efectivo_id);
+CREATE INDEX indice_movimientos_cargo_financiero ON movimientos_fondo_centro_costo(cargo_financiero_id);
+CREATE INDEX indice_movimientos_impuesto_retencion ON movimientos_fondo_centro_costo(impuesto_retencion_id);
+CREATE INDEX indice_movimientos_prestamo ON movimientos_fondo_centro_costo(prestamo_obra_id);
+CREATE INDEX indice_movimientos_devolucion_prestamo ON movimientos_fondo_centro_costo(devolucion_prestamo_id);
+CREATE INDEX indice_movimientos_anticipo ON movimientos_fondo_centro_costo(anticipo_centro_costo_id);
+CREATE INDEX indice_movimientos_tipo ON movimientos_fondo_centro_costo(tipo_movimiento);
+CREATE INDEX indice_movimientos_direccion ON movimientos_fondo_centro_costo(direccion);
+CREATE INDEX indice_movimientos_creado_por ON movimientos_fondo_centro_costo(creado_por);
+CREATE INDEX indice_movimientos_creado_en ON movimientos_fondo_centro_costo(creado_en);
+
+CREATE INDEX indice_adjuntos_solicitud ON adjuntos(solicitud_pago_id);
+CREATE INDEX indice_adjuntos_subido_por ON adjuntos(subido_por);
+CREATE INDEX indice_adjuntos_estado_ocr ON adjuntos(estado_ocr);
+
+CREATE INDEX indice_historial_estados_solicitud ON historial_estados_solicitud(solicitud_pago_id);
+CREATE INDEX indice_historial_estados_cambiado_por ON historial_estados_solicitud(cambiado_por);
+CREATE INDEX indice_historial_estados_cambiado_en ON historial_estados_solicitud(cambiado_en);
+
+CREATE INDEX indice_historial_estados_centro_costo_centro ON historial_estados_centro_costo(centro_costo_id);
+CREATE INDEX indice_historial_estados_centro_costo_cambiado_por ON historial_estados_centro_costo(cambiado_por);
+
+CREATE INDEX indice_comentarios_solicitud ON comentarios(solicitud_pago_id);
+CREATE INDEX indice_comentarios_usuario ON comentarios(usuario_id);
+
+CREATE INDEX indice_auditoria_entidad ON auditoria(tipo_entidad, entidad_id);
+CREATE INDEX indice_auditoria_usuario ON auditoria(usuario_id);
+CREATE INDEX indice_auditoria_creado_en ON auditoria(creado_en);
+
+CREATE INDEX indice_resultados_ocr_adjunto ON resultados_ocr(adjunto_id);
+CREATE INDEX indice_resultados_ocr_solicitud ON resultados_ocr(solicitud_pago_id);
 ```
-
----
-
-## 10.15 Tabla audit_logs
-
-```sql
-CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    user_id UUID REFERENCES users(id),
-
-    entity_type VARCHAR(100) NOT NULL,
-    entity_id UUID,
-
-    action VARCHAR(100) NOT NULL,
-
-    old_data JSONB,
-    new_data JSONB,
-
-    ip_address VARCHAR(100),
-    user_agent TEXT,
-
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
----
-
-## 10.16 Tabla ocr_results
-
-```sql
-CREATE TABLE ocr_results (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    attachment_id UUID REFERENCES attachments(id),
-    payment_request_id UUID REFERENCES payment_requests(id),
-
-    provider_name TEXT,
-    gross_amount NUMERIC(14,2),
-    net_amount NUMERIC(14,2),
-    description TEXT,
-    document_date DATE,
-    document_number VARCHAR(100),
-
-    raw_text TEXT,
-    raw_response JSONB,
-
-    confidence VARCHAR(50),
-
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
----
-
-# 11. Índices recomendados
-
-```sql
-CREATE INDEX idx_users_firebase_uid ON users(firebase_uid);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_is_active ON users(is_active);
-
-CREATE INDEX idx_roles_name ON roles(name);
-
-CREATE INDEX idx_projects_code ON projects(code);
-CREATE INDEX idx_projects_is_active ON projects(is_active);
-
-CREATE INDEX idx_providers_document_number ON providers(document_number);
-CREATE INDEX idx_providers_is_active ON providers(is_active);
-
-CREATE INDEX idx_lenders_document_number ON lenders(document_number);
-CREATE INDEX idx_lenders_name ON lenders(name);
-
-CREATE INDEX idx_project_funds_project ON project_funds(project_id);
-
-CREATE INDEX idx_project_loans_borrower_project ON project_loans(borrower_project_id);
-CREATE INDEX idx_project_loans_lender_project ON project_loans(lender_project_id);
-CREATE INDEX idx_project_loans_lender ON project_loans(lender_id);
-CREATE INDEX idx_project_loans_type ON project_loans(loan_type);
-CREATE INDEX idx_project_loans_status ON project_loans(status);
-
-CREATE INDEX idx_payment_requests_status ON payment_requests(current_status);
-CREATE INDEX idx_payment_requests_project ON payment_requests(project_id);
-CREATE INDEX idx_payment_requests_provider ON payment_requests(provider_id);
-CREATE INDEX idx_payment_requests_created_by ON payment_requests(created_by);
-CREATE INDEX idx_payment_requests_project_fund ON payment_requests(project_fund_id);
-CREATE INDEX idx_payment_requests_status_created_at ON payment_requests(current_status, created_at);
-
-CREATE INDEX idx_project_fund_movements_fund ON project_fund_movements(project_fund_id);
-CREATE INDEX idx_project_fund_movements_project ON project_fund_movements(project_id);
-CREATE INDEX idx_project_fund_movements_request ON project_fund_movements(payment_request_id);
-CREATE INDEX idx_project_fund_movements_loan ON project_fund_movements(project_loan_id);
-CREATE INDEX idx_project_fund_movements_related_project ON project_fund_movements(related_project_id);
-CREATE INDEX idx_project_fund_movements_type ON project_fund_movements(movement_type);
-CREATE INDEX idx_project_fund_movements_direction ON project_fund_movements(direction);
-CREATE INDEX idx_project_fund_movements_created_at ON project_fund_movements(created_at);
-
-CREATE INDEX idx_attachments_payment_request ON attachments(payment_request_id);
-CREATE INDEX idx_attachments_uploaded_by ON attachments(uploaded_by);
-
-CREATE INDEX idx_status_history_payment_request ON status_history(payment_request_id);
-CREATE INDEX idx_status_history_changed_by ON status_history(changed_by);
-CREATE INDEX idx_status_history_action ON status_history(action);
-CREATE INDEX idx_status_history_changed_at ON status_history(changed_at);
-
-CREATE INDEX idx_comments_payment_request ON comments(payment_request_id);
-CREATE INDEX idx_comments_user ON comments(user_id);
-
-CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
-CREATE INDEX idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
-
-CREATE INDEX idx_ocr_results_attachment ON ocr_results(attachment_id);
-CREATE INDEX idx_ocr_results_payment_request ON ocr_results(payment_request_id);
-```
-
----
-
-# 12. Datos semilla sugeridos
-
-## Roles
-
-```sql
-INSERT INTO roles (name, description) VALUES
-('ADMIN', 'Administrador del sistema'),
-('SOLICITANTE', 'Usuario que crea solicitudes de pago'),
-('ACCOUNTING_ASSISTANT', 'Auxiliar contable que crea solicitudes y administra fondos de obra'),
-('APPROVER_LEVEL_1', 'Aprobador de primer nivel'),
-('APPROVER_LEVEL_2', 'Aprobador de segundo nivel'),
-('PAGOS', 'Usuario encargado de programación y confirmación de pagos');
-```
-
----
-
-# 13. Reglas transaccionales
-
-## Préstamo de persona a obra
-
-En una sola transacción:
-
-1. Crear o reutilizar prestamista en `lenders`.
-2. Crear préstamo `PERSON_TO_PROJECT` en `project_loans`.
-3. Aumentar `project_funds.current_balance` de la obra.
-4. Crear movimiento `INCOME_LOAN_PERSON`.
-5. Registrar auditoría.
-
-## Préstamo entre obras
-
-En una sola transacción:
-
-1. Validar saldo suficiente en la obra prestamista.
-2. Disminuir `project_funds.current_balance` de la obra prestamista.
-3. Aumentar `project_funds.current_balance` de la obra receptora.
-4. Crear préstamo `PROJECT_TO_PROJECT`.
-5. Crear movimiento `EXPENSE_LOAN_TO_PROJECT` en la obra prestamista.
-6. Crear movimiento `INCOME_LOAN_PROJECT` en la obra receptora.
-7. Registrar auditoría.
-
-## Anticipo de obra
-
-En una sola transacción:
-
-1. Aumentar `project_funds.current_balance`.
-2. Crear movimiento `INCOME_ADVANCE`.
-3. Registrar auditoría.
-
-## Devolución de préstamo
-
-En una sola transacción:
-
-1. Validar que el préstamo esté pendiente o parcialmente pagado.
-2. Validar que el valor no supere `outstanding_amount`.
-3. Validar saldo suficiente en la obra deudora.
-4. Disminuir saldo de obra deudora.
-5. Crear movimiento `EXPENSE_LOAN_REPAYMENT`.
-6. Si el préstamo es entre obras, aumentar saldo de obra prestamista.
-7. Si el préstamo es entre obras, crear movimiento `INCOME_LOAN_REPAYMENT`.
-8. Actualizar `outstanding_amount`.
-9. Actualizar estado del préstamo.
-10. Registrar auditoría.
-
-## Envío de solicitud
-
-En una sola transacción:
-
-1. Validar datos de la solicitud.
-2. Validar soportes.
-3. Identificar cuenta de fondos de la obra.
-4. Validar saldo suficiente si se maneja reserva.
-5. Registrar reserva `RESERVE_PAYMENT_REQUEST`, si aplica.
-6. Cambiar estado a `PENDING_FIRST_APPROVAL`.
-7. Registrar `status_history`.
-8. Registrar auditoría.
-
-## Pago de solicitud
-
-En una sola transacción:
-
-1. Validar solicitud en `SCHEDULED_FOR_PAYMENT`.
-2. Validar fondos de la obra.
-3. Registrar egreso `EXPENSE_PAYMENT_REQUEST`.
-4. Cambiar estado a `PAID`.
-5. Registrar `status_history`.
-6. Registrar auditoría.

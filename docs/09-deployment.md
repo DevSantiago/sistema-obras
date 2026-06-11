@@ -1,45 +1,96 @@
-# 09. Estrategia de despliegue
+# 09. Despliegue
 
-## Objetivo
-
-Definir la estrategia de despliegue para Aplicación Web, backend, base de datos, almacenamiento, autenticación, solicitudes de pago y fondos de obra.
-
-## Migraciones necesarias
-
-- `lenders`
-- `project_funds`
-- `project_fund_movements`
-- `project_loans`
-- cambios en `payment_requests`: `project_fund_id`, `reserved_amount`
-
-## Datos semilla
-
-Roles:
+## Ambientes
 
 ```text
-ADMIN
-PETITIONER
-ACCOUNTING_ASSISTANT
-APPROVER_LEVEL_1
-APPROVER_LEVEL_2
-PAYMENTS
+desarrollo
+pruebas
+produccion
 ```
 
-## Checklist antes de producción
+## Variables de entorno
 
-- Aplicación Web desplegada.
-- Backend desplegado.
-- Firebase Auth configurado.
-- Cloud SQL con backups.
-- Cloud Storage privado.
-- Migraciones aplicadas.
-- Cuenta de fondos por obra probada.
-- Ingreso por anticipo probado.
-- Préstamo de persona a obra probado.
-- Préstamo entre obras probado.
-- Devolución de préstamo a persona probada.
-- Devolución de préstamo entre obras probada.
-- Flujo completo de solicitud probado.
-- Pago de solicitud con egreso de fondos probado.
-- Auditoría de movimientos revisada.
-- Exportación probada.
+- Conexión a base de datos.
+- Configuración de autenticación.
+- Bucket de archivos.
+- Parámetros de correo si aplica.
+- Configuración OCR futura.
+
+## Migraciones
+
+Las migraciones deben crear primero:
+
+1. Usuarios y roles.
+2. Centros de costo.
+3. Variantes.
+4. Fondos.
+5. Beneficiarios.
+6. Solicitudes.
+7. Impuestos y retenciones.
+8. Operaciones de efectivo.
+9. Cargos financieros.
+10. Movimientos financieros.
+11. Adjuntos, auditoría y reportes.
+
+## Pruebas mínimas
+
+### Solicitudes
+
+- Crear solicitud.
+- Enviar.
+- Aprobar nivel 1.
+- Aprobar nivel 2.
+- Verificar estado `PROGRAMADA_PAGO`.
+- Marcar como `PAGADA`.
+
+### Centro de costo
+
+- Crear en `EN_PROPUESTA`.
+- Marcar como `ADJUDICADO`.
+- Crear directamente como `ADJUDICADO`.
+- Iniciar ejecución.
+- Verificar saldo único.
+
+### Movimientos
+
+- Registrar ingreso.
+- Registrar egreso.
+- Verificar saldo anterior y nuevo.
+- Impedir saldo negativo.
+
+### Efectivo
+
+- Pago exacto.
+- Pago con retiro superior.
+- Sobrante pendiente.
+- Reingreso de sobrante.
+- Verificar que no pasa por aprobación.
+
+### Impuestos
+
+- Registrar IVA.
+- Registrar retención.
+- Validar valor neto.
+- Verificar que no crea aprobación independiente.
+
+### Cargos financieros
+
+- Registrar GMF.
+- Registrar comisión.
+- Verificar egreso.
+
+## Respaldo
+
+- Backups automáticos de base de datos.
+- Versionamiento de adjuntos.
+- Exportación periódica de auditoría.
+
+## Validación de integridad documental antes de despliegue
+
+Antes de pasar a desarrollo, se debe verificar que:
+
+- El modelo de datos no contenga tablas reemplazadas por decisiones vigentes.
+- Los nombres de tablas y campos estén en español.
+- Los endpoints usen la misma nomenclatura del modelo.
+- Los flujos coincidan con los estados documentados.
+- El backlog cubra las decisiones funcionales vigentes.

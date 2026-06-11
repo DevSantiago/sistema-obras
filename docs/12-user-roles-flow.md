@@ -1,127 +1,169 @@
 # 12. Flujos por usuario y rol
 
-## Flujo del Solicitante
+## Administrador
+
+### Crear proyecto nuevo
 
 ```text
-Login
-    ↓
-Mis solicitudes
-    ↓
+Crear centro de costo
+↓
+Estado EN_PROPUESTA
+↓
+Sistema habilita PROYECTO
+↓
+Sistema crea fondo
+```
+
+### Marcar como adjudicado
+
+```text
+Centro de costo EN_PROPUESTA
+↓
+Administrador marca ADJUDICADO
+↓
+Sistema habilita OBRA
+↓
+Administrador habilita INTERVENTORIA si aplica
+```
+
+### Crear obra ya adjudicada
+
+```text
+Crear centro de costo
+↓
+Tipo OBRA_YA_ADJUDICADA
+↓
+Estado ADJUDICADO
+↓
+Sistema habilita OBRA
+↓
+INTERVENTORIA opcional
+```
+
+## Solicitante
+
+```text
 Crear solicitud
-    ↓
-Seleccionar obra
-    ↓
-Completar datos
-    ↓
-Adjuntar soporte
-    ↓
+↓
+Seleccionar centro de costo y variante
+↓
+Seleccionar tipo de solicitud
+↓
+Registrar categoría o concepto
+↓
+Registrar valores
+↓
+Adjuntar soportes
+↓
 Enviar
-    ↓
-Consultar estado
 ```
 
-## Flujo del Auxiliar contable: solicitud de pago
+## Aprobador 1
 
 ```text
-Login
-    ↓
-Crear solicitud
-    ↓
-Seleccionar obra
-    ↓
-Completar datos
-    ↓
-Adjuntar soporte
-    ↓
-Enviar
-    ↓
-Consultar estado
+Ver solicitudes PENDIENTE_APROBADOR_1
+↓
+Revisar soporte, valores, impuestos y categoría
+↓
+Aprobar o devolver
 ```
 
-## Flujo del Auxiliar contable: fondos de obra
+## Aprobador 2
 
 ```text
-Login
-    ↓
-Fondos de obra
-    ↓
-Seleccionar obra
-    ↓
-Registrar ingreso o egreso financiero
-    ↓
-Guardar movimiento
-    ↓
-Consultar saldo actualizado
+Ver resumen agrupado
+↓
+Entrar al detalle
+↓
+Aprobar o devolver
+↓
+Si aprueba, solicitud queda PROGRAMADA_PAGO
 ```
 
-## Registrar préstamo de persona
+## Pagos
 
 ```text
-Seleccionar obra
-    ↓
-Registrar prestamista
-    ↓
-Registrar valor
-    ↓
-Guardar
-    ↓
-Sistema aumenta saldo de obra
-    ↓
-Sistema crea préstamo pendiente
+Ver solicitudes PROGRAMADA_PAGO
+↓
+Revisar medio de pago
+↓
+Registrar pago
+↓
+Marcar como PAGADA
+↓
+Sistema genera movimiento financiero
 ```
 
-## Registrar anticipo
+## Pago en efectivo con sobrante
 
 ```text
-Seleccionar obra
-    ↓
-Registrar valor de anticipo
-    ↓
-Guardar
-    ↓
-Sistema aumenta saldo de obra
+Solicitud PROGRAMADA_PAGO
+↓
+Pagos registra valor requerido
+↓
+Registra valor retirado
+↓
+Registra valor pagado
+↓
+Sistema calcula sobrante
+↓
+Solicitud queda PAGADA
+↓
+Sobrante queda pendiente
+↓
+Usuario autorizado registra reingreso
+↓
+Sistema crea ingreso
 ```
 
-## Registrar préstamo entre obras
+## Cargos financieros
 
 ```text
-Seleccionar obra que presta
-    ↓
-Seleccionar obra que recibe
-    ↓
-Registrar valor
-    ↓
-Sistema disminuye saldo de obra que presta
-    ↓
-Sistema aumenta saldo de obra que recibe
-    ↓
-Sistema crea préstamo pendiente
+Usuario autorizado entra a Financiero
+↓
+Selecciona centro de costo
+↓
+Registra cargo financiero
+↓
+Sistema crea egreso
 ```
 
-## Registrar devolución de préstamo
+## Impuestos y retenciones
 
 ```text
-Seleccionar préstamo pendiente
-    ↓
-Registrar valor devuelto
-    ↓
-Sistema disminuye saldo de obra deudora
-    ↓
-Si aplica, aumenta saldo de obra prestamista
-    ↓
-Sistema actualiza estado del préstamo
+Usuario autorizado registra impuesto o retención en solicitud
+↓
+Sistema valida valores
+↓
+Sistema actualiza desglose
+↓
+Sistema audita
 ```
 
-## Flujo de Pagos
+No crea aprobación independiente.
+
+## Lectura
 
 ```text
-Login
-    ↓
-Solicitudes aprobadas
-    ↓
-Programar pago
-    ↓
-Marcar como pagada
-    ↓
-Sistema registra egreso de fondos
+Ingresar
+↓
+Consultar módulos autorizados
+↓
+Exportar si tiene permiso
+```
+
+## Flujo de consulta financiera
+
+```text
+Usuario autorizado ingresa al módulo Financiero
+↓
+Selecciona centro de costo
+↓
+Consulta saldo consolidado
+↓
+Consulta movimientos_fondo_centro_costo
+↓
+Filtra por variante, tipo de movimiento, fecha o entidad origen
+↓
+Exporta si tiene permiso
 ```

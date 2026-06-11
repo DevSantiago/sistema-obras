@@ -1,926 +1,1141 @@
-# 11. Backlog inicial del MVP
+# 11. Backlog MVP
 
 ## Objetivo
 
-Definir el backlog inicial completo para construir el MVP del sistema de gestión de solicitudes de pago para una empresa de obras civiles.
+Definir el backlog del MVP para el sistema de gestión de solicitudes de pago, fondos por centro de costo, aprobaciones, pagos, beneficiarios, nómina, reembolsos, préstamos, anticipos, cargos financieros, operaciones de efectivo, impuestos, retenciones, auditoría, exportaciones y OCR futuro.
 
-Este backlog integra todos los módulos definidos hasta el momento:
+Este backlog debe servir como base para planear desarrollo, estimar alcance, priorizar entregas y validar que las decisiones funcionales, técnicas y de negocio queden cubiertas.
 
-- Aplicación Web responsiva.
-- Autenticación con Firebase Auth.
-- Usuarios y roles.
-- Obras/proyectos.
-- Proveedores.
-- Solicitudes de pago.
-- Adjuntos y soportes.
-- Doble aprobación.
-- Programación de pagos.
-- Marcación como pagada.
-- Comentarios.
-- Historial de estados.
-- Auditoría.
-- Exportación a Excel.
-- Fondos de obra.
-- Préstamos de persona a obra.
-- Préstamos entre obras.
-- Anticipos de obra.
-- Devoluciones de préstamos.
-- Movimientos financieros de obra.
+## Convenciones
 
----
+### Prioridad
 
-# 1. Alcance del MVP
-
-## Incluido en el MVP
-
-- Login.
-- Aplicación Web responsiva.
-- Gestión básica de usuarios.
-- Gestión de roles.
-- Gestión de obras/proyectos.
-- Gestión de proveedores.
-- Crear solicitud de pago.
-- Editar solicitud en borrador.
-- Adjuntar soportes.
-- Enviar solicitud.
-- Consultar solicitudes.
-- Ver detalle de solicitud.
-- Flujo de doble aprobación.
-- Devolución al Solicitante.
-- Devolución del Aprobador 2 al Aprobador 1.
-- Programación de pago.
-- Marcación como pagada.
-- Roles y permisos básicos.
-- Exportación a Excel.
-- Historial de estados.
-- Comentarios.
-- Auditoría básica.
-- Cuenta de fondos por obra.
-- Registro de anticipos de obra.
-- Registro de préstamos de persona a obra.
-- Registro de préstamos entre obras.
-- Registro de devolución de préstamos.
-- Consulta de movimientos financieros por obra.
-- Consulta de préstamos pendientes.
-
-## Fuera del MVP
-
-- OCR avanzado automático.
-- Integraciones ERP.
-- Firma digital.
-- Offline avanzado.
-- Automatizaciones complejas.
-- Aprobaciones dinámicas por monto.
-- Aprobaciones multinivel configurables.
-- Conciliación bancaria.
-- Notificaciones push avanzadas.
-- Aplicación móvil nativa.
-- Publicación en Play Store.
-- Publicación en App Store.
-- Contabilidad completa.
-- Cuentas bancarias reales.
-- Intereses de préstamos.
-- Amortizaciones complejas.
-- Comprobantes contables automáticos.
-
----
-
-# 2. Roles del MVP
-
-| Rol técnico | Nombre visible |
+| Prioridad | Significado |
 |---|---|
-| `ADMIN` | Administrador |
-| `PETITIONER` | Solicitante |
-| `ACCOUNTING_ASSISTANT` | Auxiliar contable |
-| `APPROVER_LEVEL_1` | Aprobador 1 |
-| `APPROVER_LEVEL_2` | Aprobador 2 |
-| `PAYMENTS` | Pagos |
+| `MUST` | Obligatorio para el MVP |
+| `SHOULD` | Deseable para el MVP si no compromete el alcance |
+| `COULD` | Puede quedar para una iteración posterior |
+| `WONT` | Fuera del MVP |
 
----
-
-# 3. Estados del MVP
-
-## Estados de solicitud
+### Estados sugeridos de historia
 
 ```text
-DRAFT
-PENDING_FIRST_APPROVAL
-PENDING_SECOND_APPROVAL
-RETURNED_TO_FIRST_APPROVER
-REJECTED
-APPROVED
-SCHEDULED_FOR_PAYMENT
-PAID
-CANCELLED
+PENDIENTE
+EN_ANALISIS
+LISTA_DESARROLLO
+EN_DESARROLLO
+EN_PRUEBAS
+APROBADA
+BLOQUEADA
+DESCARTADA
 ```
 
-## Estados de préstamo
+### Formato de historia
 
 ```text
-PENDING
-PARTIALLY_PAID
-PAID
-CANCELLED
+Como [rol],
+quiero [capacidad],
+para [beneficio].
 ```
 
----
-
-# 4. Épica 1: Configuración base del proyecto
-
-## Historia 1.1: Crear monorepo
-
-Como equipo técnico, quiero tener un repositorio organizado para Aplicación Web, backend, documentación e infraestructura.
-
-### Criterios de aceptación
-
-- Existe estructura base del monorepo.
-- Existe carpeta para Aplicación Web.
-- Existe carpeta para backend.
-- Existe carpeta `docs`.
-- Existe carpeta `infra`.
-- Existe archivo `README.md`.
-- Existe archivo `.gitignore`.
-- Existe estructura base para variables de entorno.
-- Existe documentación inicial para instalación local.
-
-## Historia 1.2: Crear backend base
-
-Como equipo técnico, quiero tener un backend inicial desplegable para construir las APIs del sistema.
-
-### Criterios de aceptación
-
-- Proyecto backend creado.
-- Endpoint health check disponible.
-- Dockerfile creado.
-- Variables de entorno configuradas.
-- Servicio preparado para Cloud Run.
-- Configuración inicial de CORS.
-- Configuración inicial de logs.
-- Estructura modular inicial creada.
-
-## Historia 1.3: Crear Aplicación Web base
-
-Como equipo técnico, quiero tener una Aplicación Web base para construir las interfaces del sistema.
-
-### Criterios de aceptación
-
-- Proyecto frontend web creado.
-- Framework web definido.
-- Configuración base de rutas.
-- Layout responsivo inicial.
-- Cliente HTTP base configurado.
-- Configuración inicial de Firebase Auth.
-- Variables públicas del frontend configuradas por ambiente.
-- No existen secretos expuestos en frontend.
-
-## Historia 1.4: Configurar ambientes
-
-Como equipo técnico, quiero separar los ambientes del sistema para reducir riesgos.
-
-### Criterios de aceptación
-
-- Existe ambiente `dev`.
-- Existe ambiente `staging`.
-- Existe ambiente `production`.
-- Cada ambiente tiene variables separadas.
-- Cada ambiente puede apuntar a backend, base de datos y bucket independiente.
-- CORS se configura por ambiente.
+Cada historia debe tener criterios de aceptación verificables.
 
 ---
 
-# 5. Épica 2: Autenticación, usuarios y roles
+## Resumen de épicas
 
-## Historia 2.1: Login con Firebase Auth
-
-Como usuario, quiero iniciar sesión para acceder al sistema.
-
-### Criterios de aceptación
-
-- El usuario puede iniciar sesión desde la Aplicación Web.
-- Se obtiene ID Token de Firebase.
-- El token se envía al backend.
-- Se muestra error si el login falla.
-- Se muestra mensaje si el usuario no está activo.
-- No se almacenan secretos en la Aplicación Web.
-
-## Historia 2.2: Validación de token en backend
-
-Como sistema, quiero validar el token de Firebase para identificar al usuario autenticado.
-
-### Criterios de aceptación
-
-- Backend valida ID Token.
-- Backend rechaza requests sin token.
-- Backend rechaza tokens inválidos.
-- Backend resuelve usuario interno mediante `firebase_uid`.
-- Backend rechaza usuarios inactivos.
-- Backend no confía en roles enviados desde frontend.
-
-## Historia 2.3: Endpoint de perfil
-
-Como usuario autenticado, quiero consultar mi perfil y roles.
-
-### Criterios de aceptación
-
-- Existe endpoint `/me`.
-- Devuelve datos del usuario.
-- Devuelve roles asignados.
-- Devuelve únicamente roles obtenidos desde la base de datos.
-- El frontend usa esta información para mostrar u ocultar navegación.
-
-## Historia 2.4: Gestión básica de usuarios
-
-Como Administrador, quiero gestionar usuarios del sistema.
-
-### Criterios de aceptación
-
-- Se pueden listar usuarios.
-- Se puede crear usuario interno.
-- Se puede activar usuario.
-- Se puede desactivar usuario.
-- Se puede consultar detalle de usuario.
-- Solo `ADMIN` puede gestionar usuarios.
-
-## Historia 2.5: Gestión de roles
-
-Como Administrador, quiero asignar o retirar roles de usuarios.
-
-### Criterios de aceptación
-
-- Existen roles iniciales.
-- Se pueden asignar roles.
-- Se pueden retirar roles.
-- Un usuario puede tener más de un rol.
-- Solo `ADMIN` puede gestionar roles.
-- Los roles válidos son `ADMIN`, `SOLICITANTE`, `ACCOUNTING_ASSISTANT`, `APPROVER_LEVEL_1`, `APPROVER_LEVEL_2` y `PAGOS`.
+| No. | Épica | Prioridad | Resultado esperado |
+|---:|---|---|---|
+| 0 | Diseño UX/UI y prototipado | MUST | Wireframes funcionales validados para desarrollo |
+| 1 | Configuración base del proyecto | MUST | Proyecto técnico inicial listo |
+| 2 | Autenticación, usuarios y roles | MUST | Acceso seguro y controlado |
+| 3 | Centros de costo y variantes | MUST | Administración de centros, proyecto, obra e interventoría |
+| 4 | Beneficiarios | MUST | Registro de personas o entidades que reciben pagos |
+| 5 | Secuencias y referencias internas | MUST | Consecutivos y trazabilidad documental |
+| 6 | Fondos y movimientos financieros | MUST | Saldo único por centro de costo y movimientos trazables |
+| 7 | Préstamos, anticipos y devoluciones | MUST | Manejo financiero de entradas y salidas no asociadas a solicitudes ordinarias |
+| 8 | Solicitudes de pago | MUST | Creación y gestión de solicitudes |
+| 9 | Adjuntos y soportes | MUST | Carga y consulta de documentos soporte |
+| 10 | Aprobaciones | MUST | Flujo de doble aprobación |
+| 11 | Pagos | MUST | Marcación de solicitudes pagadas |
+| 12 | Operaciones de efectivo | MUST | Control de retiros, pagos en efectivo y sobrantes |
+| 13 | Cargos financieros | MUST | Registro de costos bancarios y financieros |
+| 14 | Impuestos y retenciones | MUST | Desglose tributario de solicitudes y registros asociados |
+| 15 | Auditoría | MUST | Trazabilidad de acciones sensibles |
+| 16 | Exportación | SHOULD | Exportación de información operativa y financiera |
+| 17 | Seguridad y hardening | MUST | Validaciones, permisos y protección básica |
+| 18 | OCR futuro | COULD | Base para procesamiento posterior de soportes |
 
 ---
 
-# 6. Épica 3: Catálogos
+# Épica 0. Diseño UX/UI y prototipado
 
-## Historia 3.1: Gestión de obras/proyectos
+## Objetivo
 
-Como Administrador, quiero crear y consultar obras para asociarlas a solicitudes y cuentas de fondos.
+Diseñar las pantallas necesarias para validar la operación del MVP sin priorizar detalle visual fino.
 
-### Criterios de aceptación
+## Criterios de aceptación de la épica
 
-- Se pueden listar obras.
-- Se puede crear obra.
-- Se puede actualizar obra.
-- Se puede activar o desactivar obra.
-- Una obra inactiva no aparece para nuevas solicitudes.
-- Una obra inactiva no permite nuevos movimientos financieros operativos.
-- No se elimina físicamente una obra con solicitudes o movimientos asociados.
+- Existen wireframes para módulos principales.
+- Los wireframes cubren los flujos de solicitud, aprobación, pago, financiero y administración.
+- Los nombres visibles son consistentes con la documentación.
+- No se usa “Proveedor” cuando el concepto funcional sea “Beneficiario”.
+- No se usa “Ítem” como clasificación principal cuando corresponde `categoria_gasto`, `categoria_reembolso` o `concepto_nomina`.
+- El módulo Pagos no contiene acción “programar pago”.
+- El módulo Financiero permite consultar saldo, movimientos, cargos, efectivo, impuestos y reingresos.
 
-## Historia 3.2: Crear cuenta de fondos al crear obra
+## Historias
 
-Como sistema, quiero crear una cuenta de fondos para cada obra nueva.
+### HU-0001. Diseñar wireframes del módulo Solicitudes
 
-### Criterios de aceptación
+Como usuario operativo, quiero contar con wireframes del módulo Solicitudes, para validar la creación y seguimiento de solicitudes.
 
-- Al crear una obra, se crea una cuenta en `project_funds`.
-- El saldo inicial de la cuenta es cero.
-- La cuenta queda asociada a la obra.
-- No puede existir más de una cuenta de fondos por obra.
-- Se registra auditoría de creación.
+Criterios:
 
-## Historia 3.3: Gestión de proveedores
+- Permite crear solicitud.
+- Permite seleccionar centro de costo.
+- Permite seleccionar variante.
+- Permite seleccionar beneficiario.
+- Permite seleccionar tipo de solicitud.
+- Muestra campos tributarios cuando aplique.
+- Muestra adjuntos.
+- Muestra estado actual.
+- Diferencia pago a proveedor, nómina, reembolso y otro pago.
 
-Como Administrador, quiero crear y consultar proveedores para asociarlos a solicitudes.
+### HU-0002. Diseñar wireframes del módulo Pagos
 
-### Criterios de aceptación
+Como usuario de Pagos, quiero ver solicitudes listas para pago, para marcar las solicitudes como pagadas.
 
-- Se pueden listar proveedores.
-- Se puede crear proveedor.
-- Se puede actualizar proveedor.
-- Se puede activar o desactivar proveedor.
-- Un proveedor inactivo no aparece para nuevas solicitudes.
-- No se elimina físicamente un proveedor con solicitudes asociadas.
+Criterios:
 
-## Historia 3.4: Gestión de prestamistas
+- Lista solo solicitudes en `PROGRAMADA_PAGO`.
+- Muestra beneficiario.
+- Muestra valor neto.
+- Muestra medio de pago.
+- Permite marcar como pagada.
+- Permite registrar pago en efectivo.
+- No permite aprobar.
+- No permite programar pago.
 
-Como Auxiliar contable, quiero registrar personas o terceros que prestan dinero a las obras.
+### HU-0003. Diseñar wireframes del módulo Financiero
 
-### Criterios de aceptación
+Como usuario financiero, quiero consultar el saldo y los movimientos de un centro de costo, para controlar la ejecución financiera.
 
-- Se pueden listar prestamistas.
-- Se puede crear prestamista.
-- Se puede actualizar prestamista.
-- Se puede consultar detalle de prestamista.
-- El prestamista puede tener nombre, documento, teléfono, correo y observaciones.
-- Se evita duplicidad básica por documento, cuando aplique.
+Criterios:
 
----
+- Muestra saldo consolidado del centro de costo.
+- Muestra movimientos por variante.
+- Muestra cargos financieros.
+- Muestra operaciones de efectivo.
+- Muestra pendientes de reingreso.
+- Muestra impuestos y retenciones.
+- Permite filtrar por fecha, tipo, dirección y variante.
 
-# 7. Épica 4: Fondos de obra
+### HU-0004. Diseñar wireframes del módulo Administrativo
 
-## Historia 4.1: Consultar fondos de obra
+Como Administrador, quiero gestionar usuarios, roles, beneficiarios y centros de costo, para parametrizar el sistema.
 
-Como Auxiliar contable, quiero consultar la cuenta de fondos de una obra.
+Criterios:
 
-### Criterios de aceptación
-
-- Se muestra obra.
-- Se muestra saldo actual.
-- Se muestran ingresos.
-- Se muestran egresos.
-- Se muestran préstamos pendientes.
-- Se muestran movimientos recientes.
-- Se puede filtrar por fecha.
-- Se puede filtrar por tipo de movimiento.
-
-## Historia 4.2: Registrar anticipo de obra
-
-Como Auxiliar contable, quiero registrar un anticipo recibido por ejecución de obra.
-
-### Criterios de aceptación
-
-- Solo `ACCOUNTING_ASSISTANT` o `ADMIN` puede registrar anticipos.
-- Se selecciona la obra.
-- Se registra valor, fecha, referencia y descripción.
-- El sistema aumenta el saldo de la obra.
-- Se registra movimiento `INCOME_ADVANCE`.
-- Se registra auditoría.
-- No permite valores menores o iguales a cero.
-
-## Historia 4.3: Registrar préstamo de persona a obra
-
-Como Auxiliar contable, quiero registrar dinero prestado por una persona o tercero a una obra.
-
-### Criterios de aceptación
-
-- Solo `ACCOUNTING_ASSISTANT` o `ADMIN`.
-- Se selecciona la obra deudora.
-- Se selecciona o crea prestamista.
-- Se registra valor, fecha, referencia y descripción.
-- El sistema aumenta el saldo de la obra.
-- Se crea préstamo `PERSON_TO_PROJECT`.
-- El préstamo queda en estado `PENDING`.
-- Se registra movimiento `INCOME_LOAN_PERSON`.
-- Se registra auditoría.
-
-## Historia 4.4: Registrar préstamo entre obras
-
-Como Auxiliar contable, quiero registrar que una obra le presta dinero a otra obra.
-
-### Criterios de aceptación
-
-- Solo `ACCOUNTING_ASSISTANT` o `ADMIN`.
-- Se selecciona obra que presta.
-- Se selecciona obra que recibe.
-- La obra que presta y la obra que recibe no pueden ser la misma.
-- Se registra valor, fecha, referencia y descripción.
-- El sistema valida saldo suficiente en la obra que presta.
-- El sistema disminuye saldo de la obra que presta.
-- El sistema aumenta saldo de la obra que recibe.
-- Se crea préstamo `PROJECT_TO_PROJECT`.
-- Se registra movimiento `EXPENSE_LOAN_TO_PROJECT` en la obra que presta.
-- Se registra movimiento `INCOME_LOAN_PROJECT` en la obra que recibe.
-- Todo ocurre en una sola transacción.
-- Se registra auditoría.
-
-## Historia 4.5: Registrar devolución de préstamo a persona
-
-Como Auxiliar contable, quiero registrar la devolución de dinero prestado por una persona.
-
-### Criterios de aceptación
-
-- Solo `ACCOUNTING_ASSISTANT` o `ADMIN`.
-- Se selecciona préstamo pendiente.
-- El préstamo debe ser `PERSON_TO_PROJECT`.
-- Se registra valor devuelto, fecha, referencia y descripción.
-- El valor no puede superar el saldo pendiente.
-- El sistema valida saldo suficiente en la obra deudora.
-- El sistema disminuye saldo de la obra.
-- Se registra movimiento `EXPENSE_LOAN_REPAYMENT`.
-- Se actualiza `outstanding_amount`.
-- Si el saldo pendiente queda en cero, el préstamo queda `PAID`.
-- Si queda saldo pendiente, el préstamo queda `PARTIALLY_PAID`.
-- Se registra auditoría.
-
-## Historia 4.6: Registrar devolución de préstamo entre obras
-
-Como Auxiliar contable, quiero registrar la devolución de un préstamo entre obras.
-
-### Criterios de aceptación
-
-- Solo `ACCOUNTING_ASSISTANT` o `ADMIN`.
-- Se selecciona préstamo pendiente.
-- El préstamo debe ser `PROJECT_TO_PROJECT`.
-- Se registra valor devuelto, fecha, referencia y descripción.
-- El valor no puede superar el saldo pendiente.
-- El sistema valida saldo suficiente en la obra deudora.
-- El sistema disminuye saldo de la obra deudora.
-- El sistema aumenta saldo de la obra prestamista.
-- Se registra movimiento `EXPENSE_LOAN_REPAYMENT` en la obra deudora.
-- Se registra movimiento `INCOME_LOAN_REPAYMENT` en la obra prestamista.
-- Se actualiza `outstanding_amount`.
-- Se actualiza estado del préstamo.
-- Todo ocurre en una sola transacción.
-- Se registra auditoría.
-
-## Historia 4.7: Registrar ajuste positivo de fondos
-
-Como Auxiliar contable, quiero registrar un ajuste positivo autorizado.
-
-### Criterios de aceptación
-
-- Solo `ACCOUNTING_ASSISTANT` o `ADMIN`.
-- Se selecciona obra.
-- Se registra valor, referencia y comentario obligatorio.
-- El sistema aumenta saldo de la obra.
-- Se registra movimiento `ADJUSTMENT_INCOME`.
-- Se registra auditoría.
-
-## Historia 4.8: Registrar ajuste negativo de fondos
-
-Como Auxiliar contable, quiero registrar un ajuste negativo autorizado.
-
-### Criterios de aceptación
-
-- Solo `ACCOUNTING_ASSISTANT` o `ADMIN`.
-- Se selecciona obra.
-- Se registra valor, referencia y comentario obligatorio.
-- El sistema valida saldo suficiente.
-- El sistema disminuye saldo de la obra.
-- Se registra movimiento `ADJUSTMENT_EXPENSE`.
-- Se registra auditoría.
-
-## Historia 4.9: Consultar movimientos financieros
-
-Como usuario autorizado, quiero consultar movimientos financieros de una obra.
-
-### Criterios de aceptación
-
-- Se listan movimientos paginados.
-- Se puede filtrar por obra.
-- Se puede filtrar por tipo.
-- Se puede filtrar por dirección.
-- Se puede filtrar por fecha.
-- Se muestra saldo anterior.
-- Se muestra saldo nuevo.
-- Se muestra usuario que registró el movimiento.
-- Se muestra referencia y descripción.
-
-## Historia 4.10: Consultar préstamos pendientes
-
-Como Auxiliar contable, quiero consultar préstamos pendientes para controlar devoluciones.
-
-### Criterios de aceptación
-
-- Se listan préstamos.
-- Se puede filtrar por obra deudora.
-- Se puede filtrar por obra prestamista.
-- Se puede filtrar por prestamista.
-- Se puede filtrar por estado.
-- Se puede filtrar por tipo de préstamo.
-- Se muestra valor inicial.
-- Se muestra saldo pendiente.
-- Se muestra estado.
+- Permite gestionar usuarios.
+- Permite gestionar roles.
+- Permite gestionar beneficiarios.
+- Permite crear centro de costo.
+- Permite crear obra ya adjudicada.
+- Permite habilitar variantes.
 
 ---
 
-# 8. Épica 5: Solicitudes de pago
+# Épica 1. Configuración base del proyecto
 
-## Historia 5.1: Crear solicitud en borrador
+## Objetivo
 
-Como Solicitante o Auxiliar contable, quiero crear una solicitud de pago en estado borrador.
+Crear la base técnica para desarrollar, probar y desplegar el sistema.
 
-### Criterios de aceptación
+## Criterios de aceptación de la épica
 
-- Se crea solicitud con estado `DRAFT`.
-- Se selecciona obra/proyecto.
-- Se selecciona proveedor.
-- Se registra ítem, descripción, valor bruto y valor neto.
-- Se valida que el valor neto sea menor o igual al valor bruto.
-- Se registra usuario creador.
-- Se registra fecha de creación.
-- Se registra auditoría.
-- No se genera egreso financiero en estado borrador.
+- Existe repositorio versionado.
+- Existe estructura base del frontend.
+- Existe estructura base del backend.
+- Existe conexión a base de datos.
+- Existe manejo de variables de entorno.
+- Existe estándar de nombres en español para dominio del negocio.
+- Existe entorno local ejecutable.
 
-## Historia 5.2: Editar solicitud en borrador
+## Historias
 
-Como creador, quiero editar una solicitud mientras esté en borrador.
+### HU-0101. Crear estructura base del proyecto
 
-### Criterios de aceptación
+Como equipo de desarrollo, quiero una estructura inicial del proyecto, para desarrollar con orden.
 
-- Solo se puede editar en estado `DRAFT`.
-- Solo el creador o `ADMIN` puede editar.
-- Se actualiza fecha de modificación.
-- Se valida nuevamente valor neto menor o igual a valor bruto.
-- No se pueden editar solicitudes aprobadas, programadas o pagadas.
+Criterios:
 
-## Historia 5.3: Adjuntar soporte
+- Tiene carpetas para frontend, backend, base de datos y documentación.
+- Tiene README inicial.
+- Tiene configuración de entorno.
+- Tiene scripts básicos de instalación y ejecución.
 
-Como creador, quiero adjuntar soportes a una solicitud.
+### HU-0102. Configurar conexión a base de datos
 
-### Criterios de aceptación
+Como desarrollador, quiero conectar el backend con PostgreSQL, para persistir información.
 
-- Se solicita URL firmada al backend.
-- Se sube archivo a Cloud Storage.
-- Se confirma adjunto en backend.
-- Se guarda metadato del archivo.
-- Se valida tipo de archivo.
-- Se valida tamaño de archivo.
-- Se registra usuario que subió el archivo.
-- Se registra auditoría de subida.
-- El bucket no es público.
+Criterios:
 
-## Historia 5.4: Enviar solicitud
+- Usa variables de entorno.
+- Permite ejecutar migraciones.
+- Permite probar conexión local.
+- Maneja errores de conexión.
 
-Como creador, quiero enviar una solicitud para revisión de Aprobador 1.
+### HU-0103. Configurar estándar de migraciones
 
-### Criterios de aceptación
+Como desarrollador, quiero manejar migraciones de base de datos, para controlar cambios del modelo.
 
-- Solo se puede enviar desde `DRAFT`.
-- Solo el creador o `ADMIN` puede enviar.
-- Debe tener al menos un soporte.
-- Debe tener proveedor, obra, descripción y valores.
-- El sistema identifica la cuenta de fondos de la obra.
-- El sistema valida fondos suficientes si se maneja reserva desde envío.
-- Cambia a `PENDING_FIRST_APPROVAL`.
-- Se registra `submitted_at`.
-- Se registra historial con `action = SUBMIT`.
-- Se registra auditoría.
-- Si se maneja reserva, se registra `RESERVE_PAYMENT_REQUEST`.
+Criterios:
 
-## Historia 5.5: Listar solicitudes
-
-Como usuario autorizado, quiero consultar solicitudes para hacer seguimiento.
-
-### Criterios de aceptación
-
-- Lista paginada.
-- Filtro por estado.
-- Filtro por obra.
-- Filtro por proveedor.
-- Filtro por fecha.
-- Filtro por solicitante.
-- `SOLICITANTE` ve sus propias solicitudes.
-- `ACCOUNTING_ASSISTANT` ve sus propias solicitudes y, si el negocio lo permite, solicitudes relacionadas con fondos.
-- `APPROVER_LEVEL_1` ve solicitudes en `PENDING_FIRST_APPROVAL` y `RETURNED_TO_FIRST_APPROVER`.
-- `APPROVER_LEVEL_2` ve solicitudes en `PENDING_SECOND_APPROVAL`.
-- `PAGOS` ve solicitudes en `APPROVED`, `SCHEDULED_FOR_PAYMENT` y `PAID`.
-- `ADMIN` ve todas.
-
-## Historia 5.6: Ver detalle de solicitud
-
-Como usuario autorizado, quiero ver el detalle de una solicitud.
-
-### Criterios de aceptación
-
-- Se muestran datos generales.
-- Se muestra obra.
-- Se muestra proveedor.
-- Se muestran valores.
-- Se muestran soportes.
-- Se muestran comentarios.
-- Se muestra historial de estados.
-- Se muestran usuarios relacionados con creación, aprobación y pago.
-- Se muestran fechas principales.
-- Se muestra información financiera relacionada, cuando aplique.
-
-## Historia 5.7: Corregir solicitud devuelta
-
-Como creador, quiero corregir una solicitud devuelta.
-
-### Criterios de aceptación
-
-- Solo aplica para solicitudes en `REJECTED`.
-- Solo el creador o `ADMIN` puede corregir.
-- La solicitud puede volver a editarse.
-- La observación de devolución se conserva.
-- Al guardar corrección, la solicitud puede quedar en `DRAFT`.
-- Al reenviar, cambia nuevamente a `PENDING_FIRST_APPROVAL`.
+- Existe carpeta de migraciones.
+- Las migraciones crean tablas en orden correcto.
+- Las migraciones incluyen restricciones e índices.
+- Las migraciones pueden ejecutarse en ambiente local.
 
 ---
 
-# 9. Épica 6: Flujo de doble aprobación
+# Épica 2. Autenticación, usuarios y roles
 
-## Historia 6.1: Aprobar en primer nivel
+## Objetivo
 
-Como Aprobador 1, quiero aprobar una solicitud para segunda validación.
+Permitir acceso seguro al sistema y asignar permisos por rol.
 
-### Criterios de aceptación
+## Criterios de aceptación de la épica
 
-- Solo `APPROVER_LEVEL_1` o `ADMIN`.
-- Solo aplica a `PENDING_FIRST_APPROVAL`.
-- La solicitud debe tener soporte.
-- Cambia a `PENDING_SECOND_APPROVAL`.
-- Guarda `first_approved_by`.
-- Guarda `first_approved_at`.
-- Registra `FIRST_APPROVE`.
+- El usuario puede iniciar sesión.
+- El sistema identifica roles.
+- El sistema restringe acciones por rol.
+- El sistema permite asociar beneficiarios a usuarios cuando aplique.
+- Los roles base existen.
+- Toda acción sensible valida permisos en backend.
+
+## Historias
+
+### HU-0201. Iniciar sesión
+
+Como usuario, quiero iniciar sesión, para acceder al sistema.
+
+Criterios:
+
+- El sistema valida identidad.
+- El sistema carga datos del usuario.
+- El sistema carga roles.
+- El sistema bloquea usuarios inactivos.
+
+### HU-0202. Gestionar usuarios
+
+Como Administrador, quiero crear y editar usuarios, para controlar quién accede al sistema.
+
+Criterios:
+
+- Permite crear usuario.
+- Permite editar nombre, correo, teléfono y estado.
+- Permite activar o desactivar usuario.
 - Registra auditoría.
 
-## Historia 6.2: Devolver al Solicitante desde primer nivel
+### HU-0203. Asignar roles
 
-Como Aprobador 1, quiero devolver una solicitud al Solicitante.
+Como Administrador, quiero asignar roles a usuarios, para controlar permisos.
 
-### Criterios de aceptación
+Criterios:
 
-- Solo `APPROVER_LEVEL_1` o `ADMIN`.
-- Solo aplica a `PENDING_FIRST_APPROVAL`.
-- Observación obligatoria.
-- Cambia a `REJECTED`.
-- Registra `FIRST_REJECT`.
-- Si existía reserva, se libera.
+- Permite asignar uno o varios roles.
+- Permite retirar roles.
+- Impide dejar sin rol a usuarios activos si la política lo exige.
 - Registra auditoría.
 
-## Historia 6.3: Aprobar en segundo nivel
+### HU-0204. Crear rol Lectura
 
-Como Aprobador 2, quiero aprobar definitivamente una solicitud.
+Como Administrador, quiero contar con rol `LECTURA`, para permitir consulta sin modificación.
 
-### Criterios de aceptación
+Criterios:
 
-- Solo `APPROVER_LEVEL_2` o `ADMIN`.
-- Solo aplica a `PENDING_SECOND_APPROVAL`.
-- Cambia a `APPROVED`.
-- Guarda `second_approved_by`.
-- Guarda `second_approved_at`.
-- Registra `SECOND_APPROVE`.
-- La solicitud queda disponible para Pagos.
-
-## Historia 6.4: Devolver al Aprobador 1
-
-Como Aprobador 2, quiero devolver una solicitud al Aprobador 1.
-
-### Criterios de aceptación
-
-- Solo `APPROVER_LEVEL_2` o `ADMIN`.
-- Solo aplica a `PENDING_SECOND_APPROVAL`.
-- Observación obligatoria.
-- Cambia a `RETURNED_TO_FIRST_APPROVER`.
-- Registra `RETURN_TO_FIRST_APPROVER`.
-- La solicitud vuelve a la bandeja del Aprobador 1.
-
-## Historia 6.5: Reenviar a segundo nivel
-
-Como Aprobador 1, quiero reenviar al Aprobador 2 una solicitud devuelta.
-
-### Criterios de aceptación
-
-- Solo `APPROVER_LEVEL_1` o `ADMIN`.
-- Solo aplica a `RETURNED_TO_FIRST_APPROVER`.
-- Cambia a `PENDING_SECOND_APPROVAL`.
-- Registra `RESUBMIT_TO_SECOND_APPROVER`.
-
-## Historia 6.6: Devolver al Solicitante después de revisión de segundo nivel
-
-Como Aprobador 1, quiero devolver al Solicitante una solicitud observada por Aprobador 2.
-
-### Criterios de aceptación
-
-- Solo `APPROVER_LEVEL_1` o `ADMIN`.
-- Solo aplica a `RETURNED_TO_FIRST_APPROVER`.
-- Observación obligatoria.
-- Cambia a `REJECTED`.
-- Registra `REJECT_AFTER_SECOND_REVIEW`.
-- Si existía reserva, se libera.
+- El rol existe en base de datos.
+- Puede consultar módulos autorizados.
+- No puede crear, editar, aprobar, pagar ni eliminar.
+- Respeta accesos por centro de costo.
 
 ---
 
-# 10. Épica 7: Pagos
+# Épica 3. Centros de costo y variantes
 
-## Historia 7.1: Programar pago
+## Objetivo
 
-Como usuario de Pagos, quiero programar una solicitud aprobada para pago.
+Gestionar centros de costo con saldo único y variantes de imputación.
 
-### Criterios de aceptación
+## Criterios de aceptación de la épica
 
-- Solo `PAGOS` o `ADMIN`.
-- Solo aplica a solicitudes en `APPROVED`.
-- Cambia a `SCHEDULED_FOR_PAYMENT`.
-- Guarda fecha estimada o programada de pago.
-- Registra `SCHEDULE_PAYMENT`.
+- Se puede crear centro de costo en `EN_PROPUESTA`.
+- Se puede crear centro de costo directamente en `ADJUDICADO` para obras ya adjudicadas.
+- Se crean variantes según el caso.
+- Las variantes no tienen saldo independiente.
+- El centro de costo tiene fondo único.
+- Existe trazabilidad de cambios de estado.
+- Solo Administrador puede cambiar estados.
+
+## Historias
+
+### HU-0301. Crear centro de costo en propuesta
+
+Como Administrador, quiero crear un centro de costo en `EN_PROPUESTA`, para registrar gastos previos a adjudicación.
+
+Criterios:
+
+- Crea registro en `centros_costo`.
+- Estado inicial `EN_PROPUESTA`.
+- Crea variante `PROYECTO`.
+- Crea registro en `fondos_centro_costo`.
 - Registra auditoría.
 
-## Historia 7.2: Marcar como pagada
+### HU-0302. Marcar centro de costo como adjudicado
 
-Como usuario de Pagos, quiero marcar una solicitud programada como pagada.
+Como Administrador, quiero marcar un centro de costo como `ADJUDICADO`, para habilitar operación de obra.
 
-### Criterios de aceptación
+Criterios:
 
-- Solo `PAGOS` o `ADMIN`.
-- Solo aplica a `SCHEDULED_FOR_PAYMENT`.
-- Cambia a `PAID`.
-- Guarda usuario de pago.
-- Guarda fecha de pago.
-- Confirma egreso de fondos de la obra.
-- Registra movimiento `EXPENSE_PAYMENT_REQUEST`.
-- Registra `MARK_AS_PAID`.
+- Solo aplica desde `EN_PROPUESTA`.
+- Registra fecha de adjudicación.
+- Permite adjuntar soporte.
+- Habilita variante `OBRA`.
+- Permite habilitar `INTERVENTORIA`.
+- No modifica movimientos anteriores.
+
+### HU-0303. Marcar centro de costo como no adjudicado
+
+Como Administrador, quiero marcar un centro de costo como `NO_ADJUDICADO`, para cerrar proyectos no ganados.
+
+Criterios:
+
+- Solo aplica desde `EN_PROPUESTA`.
+- No habilita `OBRA`.
+- No habilita `INTERVENTORIA`.
+- Conserva movimientos históricos.
 - Registra auditoría.
-- Una solicitud pagada no puede editarse.
+
+### HU-0304. Crear obra ya adjudicada
+
+Como Administrador, quiero crear un centro de costo directamente en `ADJUDICADO`, para registrar obras ya ganadas antes de iniciar el sistema.
+
+Criterios:
+
+- El estado inicial es `ADJUDICADO`.
+- `creado_como_adjudicado = TRUE`.
+- Exige motivo de creación adjudicada.
+- Crea variante `OBRA`.
+- Permite crear variante `INTERVENTORIA`.
+- No marca automáticamente `EN_EJECUCION`.
+
+### HU-0305. Iniciar ejecución
+
+Como Administrador, quiero cambiar un centro de costo de `ADJUDICADO` a `EN_EJECUCION`, para indicar inicio operativo.
+
+Criterios:
+
+- Solo aplica desde `ADJUDICADO`.
+- Registra usuario y fecha.
+- Conserva variantes.
+- Registra historial.
+
+### HU-0306. Habilitar interventoría
+
+Como Administrador, quiero habilitar la variante `INTERVENTORIA`, para imputar gastos de interventoría.
+
+Criterios:
+
+- Solo se habilita en centros adjudicados o en ejecución.
+- No crea saldo independiente.
+- Registra auditoría.
 
 ---
 
-# 11. Épica 8: Comentarios e historial
+# Épica 4. Beneficiarios
 
-## Historia 8.1: Agregar comentario
+## Objetivo
 
-Como usuario autorizado, quiero agregar comentarios a una solicitud.
+Gestionar personas o entidades que reciben pagos.
 
-### Criterios de aceptación
+## Criterios de aceptación de la épica
 
-- Comentario obligatorio.
-- Se registra usuario.
-- Se registra fecha.
-- El comentario aparece en el detalle.
-- El comentario no necesariamente cambia estado.
-- Los comentarios de cambio de estado se registran en `status_history`.
+- Permite beneficiarios tipo `PROVEEDOR`, `TRABAJADOR` y `OTRO`.
+- No todos los beneficiarios requieren usuario.
+- Permite definir medio de pago preferido.
+- Permite datos bancarios cuando aplique.
+- Permite deduplicación por documento.
+- Permite creación desde carga de nómina si el usuario confirma.
 
-## Historia 8.2: Ver historial de estados
+## Historias
 
-Como usuario autorizado, quiero consultar el historial de estados.
+### HU-0401. Crear beneficiario
 
-### Criterios de aceptación
+Como usuario autorizado, quiero crear beneficiarios, para usarlos en solicitudes de pago.
 
-- Se muestra estado anterior.
-- Se muestra estado nuevo.
-- Se muestra acción.
-- Se muestra usuario.
-- Se muestra fecha.
-- Se muestra comentario si existe.
-- El historial no se puede eliminar desde la Aplicación Web.
+Criterios:
 
----
+- Registra tipo de beneficiario.
+- Registra nombre.
+- Registra tipo y número de documento.
+- Permite medio de pago preferido.
+- Permite datos bancarios.
+- Permite dejar usuario asociado como nulo.
+- Registra auditoría.
 
-# 12. Épica 9: Exportación
+### HU-0402. Editar beneficiario
 
-## Historia 9.1: Exportar solicitudes a Excel
+Como usuario autorizado, quiero editar beneficiarios, para mantener información actualizada.
 
-Como usuario autorizado, quiero exportar solicitudes.
+Criterios:
 
-### Criterios de aceptación
+- Permite editar datos de contacto.
+- Permite editar datos bancarios.
+- Permite activar o inactivar.
+- Registra auditoría.
 
-- Se puede exportar con filtros.
-- Incluye datos principales.
-- Incluye estado actual.
-- Incluye fechas principales.
-- Incluye obra y proveedor.
-- Incluye solicitante.
-- Incluye responsables de aprobación y pago.
-- Solo roles autorizados pueden exportar.
+### HU-0403. Crear beneficiario desde Excel de nómina
 
-## Historia 9.2: Exportar fondos y movimientos
+Como usuario autorizado, quiero crear trabajadores desde el Excel de nómina, para no duplicar captura.
 
-Como Auxiliar contable, Pagos o Administrador, quiero exportar información financiera de obras.
+Criterios:
 
-### Criterios de aceptación
-
-- Se exportan fondos por obra.
-- Se exportan movimientos financieros.
-- Se exportan préstamos.
-- Se puede filtrar por obra.
-- Se puede filtrar por fecha.
-- Se puede filtrar por tipo de movimiento.
-- Se puede filtrar por estado del préstamo.
+- Identifica beneficiarios nuevos.
+- Muestra advertencia `NUEVO_BENEFICIARIO`.
+- Requiere confirmación.
+- Crea beneficiario tipo `TRABAJADOR`.
+- No crea usuario del sistema automáticamente.
 
 ---
 
-# 13. Épica 10: Auditoría
+# Épica 5. Secuencias y referencias internas
 
-## Historia 10.1: Registrar auditoría de acciones críticas
+## Objetivo
 
-Como sistema, quiero registrar acciones críticas para trazabilidad.
+Generar referencias internas para solicitudes, movimientos, cargos, operaciones, préstamos, anticipos y pagos.
 
-### Criterios de aceptación
+## Criterios de aceptación de la épica
 
-Se auditan como mínimo:
+- Cada entidad documental tiene referencia única.
+- Las referencias son trazables.
+- Las referencias pueden estar asociadas a centro de costo.
+- No se repiten por concurrencia.
+- Se registran en base de datos.
 
-- Crear solicitud.
-- Actualizar solicitud.
-- Enviar solicitud.
-- Aprobar en primer nivel.
-- Devolver al Solicitante.
-- Aprobar en segundo nivel.
-- Devolver al Aprobador 1.
-- Reenviar al Aprobador 2.
-- Programar pago.
-- Marcar como pagada.
-- Crear obra.
-- Crear proveedor.
-- Crear usuario.
-- Cambiar roles.
-- Subir adjunto.
-- Descargar adjunto.
-- Exportar.
-- Registrar anticipo.
-- Registrar préstamo de persona.
-- Registrar préstamo entre obras.
-- Registrar devolución de préstamo.
-- Registrar ajuste financiero.
+## Historias
 
-## Historia 10.2: Ver auditoría
+### HU-0501. Generar número de solicitud
 
-Como Administrador, quiero consultar eventos auditados.
+Como sistema, quiero generar número de solicitud, para identificar cada solicitud.
 
-### Criterios de aceptación
+Criterios:
 
-- Lista paginada.
-- Filtro por usuario.
-- Filtro por acción.
-- Filtro por entidad.
-- Filtro por fecha.
-- Muestra datos anteriores y nuevos cuando aplique.
+- Es único.
+- Es legible.
+- No se repite.
+- Se guarda en `solicitudes_pago.numero_solicitud`.
 
----
+### HU-0502. Generar referencia de movimiento financiero
 
-# 14. Épica 11: Hardening del MVP
+Como sistema, quiero generar referencia de movimiento, para auditar ingresos y egresos.
 
-## Historia 11.1: Validaciones de seguridad básicas
+Criterios:
 
-Como sistema, quiero aplicar validaciones básicas de seguridad.
+- Es única.
+- Se guarda en `movimientos_fondo_centro_costo.referencia_sistema`.
+- Permite filtrar por centro de costo.
 
-### Criterios de aceptación
+### HU-0503. Generar referencias de cargos y efectivo
 
-- CORS configurado.
-- Tokens validados en backend.
-- Roles validados en backend.
-- Estados validados en backend.
-- Buckets privados.
-- URLs firmadas para archivos.
-- Errores controlados.
-- No se exponen secretos en frontend.
-- No se confían cálculos financieros del frontend.
+Como sistema, quiero generar referencias para cargos financieros y operaciones de efectivo, para trazabilidad.
 
-## Historia 11.2: Pruebas de flujo completo
+Criterios:
 
-Como equipo técnico, quiero validar los flujos principales.
-
-### Criterios de aceptación
-
-- Flujo de creación a envío probado.
-- Flujo de Aprobador 1 probado.
-- Flujo de Aprobador 2 probado.
-- Flujo de devolución probado.
-- Flujo de Pagos probado.
-- Flujo de préstamo de persona probado.
-- Flujo de anticipo probado.
-- Flujo de préstamo entre obras probado.
-- Flujo de devolución de préstamo probado.
-- Exportación probada.
-- Historial validado.
-- Auditoría validada.
+- Cargos financieros tienen referencia.
+- Operaciones de efectivo tienen referencia.
+- Reingresos pueden tener referencia documental externa.
 
 ---
 
-# 15. Priorización sugerida por sprints
+# Épica 6. Fondos y movimientos financieros
 
-## Sprint 1
+## Objetivo
 
-- Setup monorepo.
-- Backend base.
-- Aplicación Web base.
-- Firebase Auth.
-- Validación de token.
-- Modelo inicial de base de datos.
-- Roles iniciales.
-- Configuración de ambientes.
+Controlar el saldo único por centro de costo y registrar todos los ingresos y egresos.
 
-## Sprint 2
+## Criterios de aceptación de la épica
 
-- Usuarios y roles.
-- Catálogo de obras.
-- Catálogo de proveedores.
-- Cuenta de fondos por obra.
-- Crear solicitud.
-- Editar borrador.
-- Adjuntar soportes.
+- Cada centro de costo tiene un fondo único.
+- Las variantes no tienen saldo independiente.
+- Todo impacto financiero se registra en `movimientos_fondo_centro_costo`.
+- Cada movimiento tiene saldo anterior y saldo nuevo.
+- Cada movimiento tiene dirección `INGRESO` o `EGRESO`.
+- El sistema impide saldo negativo.
+- La actualización de saldo es transaccional.
 
-## Sprint 3
+## Historias
 
-- Enviar solicitud.
-- Bandeja de Aprobador 1.
-- Aprobar primer nivel.
-- Devolver al Solicitante.
-- Listar solicitudes.
-- Ver detalle.
-- Historial de estados.
+### HU-0601. Consultar saldo de centro de costo
 
-## Sprint 4
+Como usuario autorizado, quiero consultar el saldo consolidado, para conocer disponibilidad.
 
-- Bandeja de Aprobador 2.
-- Aprobar segundo nivel.
-- Devolver al Aprobador 1.
-- Reenviar a segundo nivel.
-- Programar pago.
-- Marcar como pagada.
+Criterios:
 
-## Sprint 5
+- Muestra saldo actual.
+- Muestra centro de costo.
+- Muestra estado del centro de costo.
+- Respeta permisos.
 
-- Registrar anticipo.
-- Registrar préstamo de persona.
-- Registrar préstamo entre obras.
-- Consultar fondos de obra.
-- Consultar movimientos.
-- Consultar préstamos pendientes.
+### HU-0602. Registrar movimiento financiero
 
-## Sprint 6
+Como sistema, quiero registrar movimientos financieros, para actualizar saldos.
 
-- Registrar devolución de préstamo.
-- Registrar ajustes financieros.
-- Exportación de solicitudes.
-- Exportación de fondos.
-- Auditoría.
-- Hardening.
-- Pruebas de flujo completo.
+Criterios:
+
+- Registra tipo de movimiento.
+- Registra dirección.
+- Registra valor.
+- Registra saldo anterior.
+- Registra saldo nuevo.
+- Relaciona entidad origen si aplica.
+- Actualiza `fondos_centro_costo.saldo_actual`.
+
+### HU-0603. Consultar movimientos por variante
+
+Como usuario financiero, quiero ver movimientos por variante, para analizar gasto por proyecto, obra o interventoría.
+
+Criterios:
+
+- Filtra por centro de costo.
+- Filtra por variante.
+- Filtra por dirección.
+- Filtra por tipo de movimiento.
+- Muestra saldo anterior y saldo nuevo.
+
+---
+
+# Épica 7. Préstamos, anticipos y devoluciones
+
+## Objetivo
+
+Registrar entradas y salidas financieras asociadas a préstamos, anticipos y devoluciones.
+
+## Criterios de aceptación de la épica
+
+- Permite préstamos de persona a obra.
+- Permite préstamos entre obras o centros de costo.
+- Permite anticipos.
+- Permite devoluciones.
+- Cada operación que afecte saldo genera movimiento financiero.
+- Se conserva saldo pendiente de préstamos.
+
+## Historias
+
+### HU-0701. Registrar anticipo
+
+Como usuario autorizado, quiero registrar un anticipo, para aumentar el saldo de un centro de costo.
+
+Criterios:
+
+- Crea registro en `anticipos_centro_costo`.
+- Crea movimiento `INGRESO_ANTICIPO`.
+- Actualiza saldo.
+- Registra auditoría.
+
+### HU-0702. Registrar préstamo de persona a obra
+
+Como usuario autorizado, quiero registrar préstamo de una persona a una obra, para controlar financiación externa.
+
+Criterios:
+
+- Crea `prestamos_obra`.
+- Tipo `PERSONA_A_OBRA`.
+- Crea movimiento de ingreso.
+- Actualiza saldo pendiente.
+
+### HU-0703. Registrar préstamo entre obras
+
+Como usuario autorizado, quiero registrar préstamo entre centros de costo, para controlar traslado temporal de recursos.
+
+Criterios:
+
+- Tipo `OBRA_A_OBRA`.
+- Crea egreso en centro origen.
+- Crea ingreso en centro destino.
+- Actualiza saldos de ambos centros.
+- Registra auditoría.
+
+### HU-0704. Registrar devolución de préstamo
+
+Como usuario autorizado, quiero registrar devolución, para disminuir saldo pendiente.
+
+Criterios:
+
+- Crea `devoluciones_prestamo`.
+- Crea movimiento financiero.
+- Actualiza saldo pendiente.
+- Cambia estado del préstamo si queda pagado.
+
+---
+
+# Épica 8. Solicitudes de pago
+
+## Objetivo
+
+Crear, editar, enviar y consultar solicitudes de pago.
+
+## Criterios de aceptación de la épica
+
+- Permite solicitudes por centro de costo y variante.
+- Permite pago a proveedor.
+- Permite nómina.
+- Permite reembolso.
+- Permite otro pago.
+- Calcula valor neto.
+- Permite adjuntos.
+- Permite impuestos y retenciones.
+- Valida medio de pago.
+- Valida categoría o concepto según tipo.
+
+## Historias
+
+### HU-0801. Crear solicitud de pago a proveedor
+
+Como Solicitante, quiero crear una solicitud de pago a proveedor, para tramitar una obligación.
+
+Criterios:
+
+- Selecciona centro de costo.
+- Selecciona variante.
+- Selecciona beneficiario.
+- Selecciona categoría de gasto.
+- Registra valor bruto y valor neto.
+- Permite impuestos y retenciones.
+- Permite adjuntos.
+- Estado inicial `BORRADOR`.
+
+### HU-0802. Crear solicitud de reembolso
+
+Como Solicitante, quiero crear una solicitud de reembolso, para recuperar gastos realizados.
+
+Criterios:
+
+- Selecciona categoría de reembolso.
+- Registra beneficiario.
+- Registra soportes.
+- Valida descripción cuando categoría es `OTRO`.
+
+### HU-0803. Crear solicitud de nómina individual
+
+Como usuario autorizado, quiero crear una solicitud de nómina individual, para pagar a un trabajador.
+
+Criterios:
+
+- Tipo `PAGO_NOMINA`.
+- Modalidad `INDIVIDUAL`.
+- Selecciona beneficiario tipo `TRABAJADOR`.
+- Selecciona concepto de nómina.
+
+### HU-0804. Crear solicitud de nómina agrupada por Excel
+
+Como usuario autorizado, quiero cargar nómina agrupada, para pagar varios trabajadores.
+
+Criterios:
+
+- Modalidad `AGRUPADA_EXCEL`.
+- Carga archivo.
+- Valida filas.
+- Detecta nuevos beneficiarios.
+- Detecta documentos repetidos.
+- Permite confirmar carga.
+- Crea ítems de solicitud.
+
+### HU-0805. Enviar solicitud
+
+Como Solicitante, quiero enviar una solicitud, para iniciar aprobación.
+
+Criterios:
+
+- Solo desde `BORRADOR`.
+- Requiere datos mínimos completos.
+- Cambia a `PENDIENTE_APROBADOR_1`.
+- Registra `enviado_en`.
+
+---
+
+# Épica 9. Adjuntos y soportes
+
+## Objetivo
+
+Permitir carga, consulta y trazabilidad de archivos soporte.
+
+## Criterios de aceptación de la épica
+
+- Permite cargar archivos a solicitudes.
+- Permite cargar soportes de pago.
+- Permite cargar soportes de retiro y reingreso.
+- Permite cargar soporte de adjudicación.
+- Guarda metadatos.
+- Respeta permisos de acceso.
+
+## Historias
+
+### HU-0901. Cargar adjunto en solicitud
+
+Como usuario autorizado, quiero adjuntar soportes, para respaldar la solicitud.
+
+Criterios:
+
+- Guarda nombre de archivo.
+- Guarda ruta.
+- Guarda tipo MIME.
+- Guarda usuario que subió.
+- Relaciona con solicitud.
+
+### HU-0902. Cargar soporte de operación de efectivo
+
+Como usuario de Pagos, quiero cargar soporte de retiro, pago y reingreso, para trazabilidad.
+
+Criterios:
+
+- Permite soporte de retiro.
+- Permite soporte de pago.
+- Permite soporte de reingreso.
+- Relaciona con `operaciones_efectivo`.
+
+---
+
+# Épica 10. Aprobaciones
+
+## Objetivo
+
+Implementar el flujo de doble aprobación.
+
+## Criterios de aceptación de la épica
+
+- Aprobador 1 revisa primero.
+- Aprobador 2 revisa después.
+- Aprobador 2 deja la solicitud en `PROGRAMADA_PAGO`.
+- Se permiten devoluciones.
+- Se registra historial.
+- Se registra auditoría.
+- Pagos no aprueba.
+
+## Historias
+
+### HU-1001. Aprobar nivel 1
+
+Como Aprobador 1, quiero aprobar solicitudes, para enviarlas a segundo nivel.
+
+Criterios:
+
+- Solo desde `PENDIENTE_APROBADOR_1`.
+- Cambia a `PENDIENTE_APROBADOR_2`.
+- Registra usuario y fecha.
+
+### HU-1002. Devolver al Solicitante
+
+Como Aprobador 1, quiero devolver solicitudes, para que sean corregidas.
+
+Criterios:
+
+- Cambia a `DEVUELTA_SOLICITANTE`.
+- Exige comentario.
+- Registra historial.
+
+### HU-1003. Aprobar nivel 2
+
+Como Aprobador 2, quiero aprobar solicitudes, para dejarlas listas para pago.
+
+Criterios:
+
+- Solo desde `PENDIENTE_APROBADOR_2`.
+- Cambia a `PROGRAMADA_PAGO`.
+- No usa estado operativo `APROBADA`.
+- Registra `aprobado_2_en`.
+
+### HU-1004. Devolver a Aprobador 1
+
+Como Aprobador 2, quiero devolver solicitudes a Aprobador 1, para revisión previa.
+
+Criterios:
+
+- Cambia a `DEVUELTA_APROBADOR_1`.
+- Exige comentario.
+- Registra historial.
+
+---
+
+# Épica 11. Pagos
+
+## Objetivo
+
+Permitir que el rol Pagos marque solicitudes como pagadas.
+
+## Criterios de aceptación de la épica
+
+- Solo opera solicitudes en `PROGRAMADA_PAGO`.
+- No programa pagos.
+- No aprueba.
+- Registra referencia y soporte.
+- Crea movimiento financiero.
+- Soporta transferencia y efectivo.
+
+## Historias
+
+### HU-1101. Ver bandeja de pagos
+
+Como usuario de Pagos, quiero ver solicitudes en `PROGRAMADA_PAGO`, para gestionar pagos.
+
+Criterios:
+
+- Muestra beneficiario.
+- Muestra centro de costo.
+- Muestra variante.
+- Muestra valor neto.
+- Muestra medio de pago.
+- Permite filtrar.
+
+### HU-1102. Marcar transferencia como pagada
+
+Como usuario de Pagos, quiero marcar una transferencia como pagada, para cerrar la solicitud.
+
+Criterios:
+
+- Solo si medio de pago es `TRANSFERENCIA`.
+- Crea `EGRESO_SOLICITUD_PAGO`.
+- Cambia solicitud a `PAGADA`.
+- Registra `pagado_en`.
+
+### HU-1103. Marcar pago en efectivo
+
+Como usuario de Pagos, quiero registrar pago en efectivo, para controlar retiro y pago.
+
+Criterios:
+
+- Crea `operaciones_efectivo`.
+- Registra valor requerido.
+- Registra valor retirado.
+- Registra valor pagado.
+- Calcula sobrante.
+- Cambia solicitud a `PAGADA`.
+
+---
+
+# Épica 12. Operaciones de efectivo
+
+## Objetivo
+
+Controlar retiros, pagos en efectivo y reingresos de sobrantes.
+
+## Criterios de aceptación de la épica
+
+- Registra retiro.
+- Registra pago.
+- Calcula sobrante.
+- Permite reingreso.
+- Reingreso no pasa por aprobación.
+- Crea movimiento financiero de ingreso cuando se reingresa sobrante.
+
+## Historias
+
+### HU-1201. Registrar operación de efectivo
+
+Como usuario de Pagos, quiero registrar operación de efectivo, para dejar trazabilidad del retiro y pago.
+
+Criterios:
+
+- `valor_retirado >= valor_pagado`.
+- Calcula `valor_sobrante`.
+- Estado `SIN_SOBRANTE` si no sobra.
+- Estado `SOBRANTE_PENDIENTE_REINGRESO` si sobra.
+
+### HU-1202. Registrar reingreso de sobrante
+
+Como usuario autorizado, quiero registrar reingreso de sobrante, para devolver dinero al fondo.
+
+Criterios:
+
+- Solo si existe sobrante pendiente.
+- No pasa por aprobación.
+- Crea movimiento `INGRESO_REINGRESO_SOBRANTE_EFECTIVO`.
+- Actualiza saldo.
+- Cambia estado a `SOBRANTE_REINGRESADO`.
+
+### HU-1203. Consultar pendientes de reingreso
+
+Como usuario financiero, quiero consultar sobrantes pendientes, para hacer seguimiento.
+
+Criterios:
+
+- Lista operaciones con `SOBRANTE_PENDIENTE_REINGRESO`.
+- Muestra centro de costo.
+- Muestra solicitud.
+- Muestra valor sobrante.
+- Permite exportar.
+
+---
+
+# Épica 13. Cargos financieros
+
+## Objetivo
+
+Registrar costos bancarios y financieros asociados a operaciones o centros de costo.
+
+## Criterios de aceptación de la épica
+
+- Registra cargos financieros.
+- No mezcla retenciones con cargos financieros.
+- Puede asociarse a solicitud, operación de efectivo o préstamo.
+- Crea movimiento financiero de egreso.
+- Actualiza saldo.
+- Registra auditoría.
+
+## Historias
+
+### HU-1301. Registrar cargo financiero
+
+Como usuario autorizado, quiero registrar un cargo financiero, para afectar el saldo del centro de costo.
+
+Criterios:
+
+- Selecciona centro de costo.
+- Selecciona variante.
+- Selecciona tipo de cargo.
+- Registra valor.
+- Crea `cargos_financieros`.
+- Crea `EGRESO_CARGO_FINANCIERO`.
+
+### HU-1302. Asociar cargo a operación de efectivo
+
+Como usuario financiero, quiero asociar un cargo a una operación de efectivo, para explicar costos de retiro.
+
+Criterios:
+
+- Permite seleccionar `operacion_efectivo_id`.
+- Mantiene trazabilidad.
+- No cambia valores de la operación original.
+
+---
+
+# Épica 14. Impuestos y retenciones
+
+## Objetivo
+
+Registrar impuestos, retenciones y descuentos tributarios asociados a solicitudes.
+
+## Criterios de aceptación de la épica
+
+- Registra impuestos por solicitud.
+- Registra retenciones por solicitud.
+- Calcula valores de desglose.
+- No los registra como cargos financieros.
+- No crea aprobación independiente.
+- Permite ajuste con auditoría.
+- Si generan egreso independiente, se registra en `movimientos_fondo_centro_costo`.
+
+## Historias
+
+### HU-1401. Registrar impuesto o retención en solicitud
+
+Como usuario autorizado, quiero registrar impuestos y retenciones, para calcular correctamente el valor neto.
+
+Criterios:
+
+- Crea `impuestos_retenciones_solicitud`.
+- Valida tipo.
+- Valida naturaleza.
+- Valida valor no negativo.
+- Actualiza totales de la solicitud.
+
+### HU-1402. Ajustar impuesto o retención
+
+Como usuario autorizado, quiero ajustar un registro tributario, para corregir errores.
+
+Criterios:
+
+- Cambia estado a `AJUSTADO`.
+- Exige motivo.
+- Registra usuario y fecha.
+- Registra auditoría.
+
+### HU-1403. Registrar egreso por pago tributario independiente
+
+Como usuario financiero autorizado, quiero registrar pago de impuesto o retención como egreso, cuando aplique.
+
+Criterios:
+
+- Crea movimiento `EGRESO_IMPUESTO_RETENCION`.
+- Relaciona `impuesto_retencion_id`.
+- Actualiza saldo.
+- No crea solicitud de pago aprobable.
+
+---
+
+# Épica 15. Auditoría
+
+## Objetivo
+
+Registrar trazabilidad de acciones sensibles.
+
+## Criterios de aceptación de la épica
+
+- Registra usuario.
+- Registra acción.
+- Registra entidad.
+- Registra fecha.
+- Registra datos anteriores y nuevos cuando aplique.
+- Permite consulta por filtros.
+
+## Historias
+
+### HU-1501. Registrar auditoría de solicitudes
+
+Como sistema, quiero auditar cambios de solicitud, para trazabilidad.
+
+Criterios:
+
+- Audita creación.
+- Audita envío.
+- Audita aprobación.
+- Audita devolución.
+- Audita pago.
+
+### HU-1502. Registrar auditoría financiera
+
+Como sistema, quiero auditar movimientos financieros, para control.
+
+Criterios:
+
+- Audita movimientos.
+- Audita cargos financieros.
+- Audita operaciones de efectivo.
+- Audita reingresos.
+- Audita impuestos.
+
+---
+
+# Épica 16. Exportación
+
+## Objetivo
+
+Permitir exportar información operativa y financiera.
+
+## Criterios de aceptación de la épica
+
+- Exporta solicitudes.
+- Exporta movimientos.
+- Exporta impuestos.
+- Exporta cargos financieros.
+- Exporta operaciones de efectivo.
+- Respeta permisos.
+- Permite filtros.
+
+## Historias
+
+### HU-1601. Exportar solicitudes
+
+Como usuario autorizado, quiero exportar solicitudes, para análisis externo.
+
+Criterios:
+
+- Permite filtrar por fecha.
+- Permite filtrar por estado.
+- Permite filtrar por centro de costo.
+- Exporta valor bruto, impuestos, retenciones y valor neto.
+
+### HU-1602. Exportar movimientos financieros
+
+Como usuario financiero, quiero exportar movimientos, para control de saldos.
+
+Criterios:
+
+- Incluye centro de costo.
+- Incluye variante.
+- Incluye tipo de movimiento.
+- Incluye dirección.
+- Incluye saldo anterior y saldo nuevo.
+
+---
+
+# Épica 17. Seguridad y hardening
+
+## Objetivo
+
+Proteger el sistema y garantizar integridad.
+
+## Criterios de aceptación de la épica
+
+- Valida permisos en backend.
+- Valida estados en backend.
+- Valida saldos en transacción.
+- Impide doble pago.
+- Impide doble descuento.
+- Impide modificación no autorizada.
+- Protege adjuntos.
+
+## Historias
+
+### HU-1701. Validar permisos por rol
+
+Como sistema, quiero validar permisos por rol, para evitar acciones no autorizadas.
+
+Criterios:
+
+- Valida rol.
+- Valida centro de costo.
+- Valida variante.
+- Bloquea acciones no autorizadas.
+
+### HU-1702. Evitar doble movimiento financiero
+
+Como sistema, quiero evitar movimientos duplicados, para proteger saldos.
+
+Criterios:
+
+- Usa referencias únicas.
+- Valida entidad origen.
+- Impide doble pago de una solicitud.
+- Impide doble reingreso de sobrante.
+
+---
+
+# Épica 18. OCR futuro
+
+## Objetivo
+
+Preparar base para extracción futura de datos desde soportes.
+
+## Criterios de aceptación de la épica
+
+- Guarda adjuntos.
+- Guarda resultados OCR.
+- No decide automáticamente.
+- No crea movimientos automáticamente.
+- Exige validación humana.
+
+## Historias
+
+### HU-1801. Registrar resultado OCR
+
+Como sistema, quiero guardar resultado OCR, para futura asistencia en captura.
+
+Criterios:
+
+- Relaciona adjunto.
+- Relaciona solicitud si aplica.
+- Guarda texto original.
+- Guarda respuesta estructurada.
+- Guarda confianza.
+
+### HU-1802. Validar datos OCR antes de aplicar
+
+Como usuario autorizado, quiero revisar datos OCR, para evitar errores.
+
+Criterios:
+
+- Muestra datos sugeridos.
+- Permite aceptar o rechazar.
+- No crea aprobación automática.
+- Registra auditoría.

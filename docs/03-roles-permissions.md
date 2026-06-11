@@ -1,64 +1,148 @@
 # 03. Roles y permisos
 
-## Objetivo
+## Roles
 
-Definir los roles iniciales del sistema y las acciones permitidas para solicitudes de pago, fondos de obra, préstamos, anticipos, devoluciones, catálogos y auditoría.
+```text
+ADMINISTRADOR
+SOLICITANTE
+AUXILIAR_CONTABLE
+APROBADOR_1
+APROBADOR_2
+PAGOS
+LECTURA
+```
 
-## Roles iniciales
+## Administrador
 
-| Rol técnico | Nombre visible | Descripción |
-|---|---|---|
-| `ADMIN` | Administrador | Gestiona usuarios, roles, catálogos, fondos, solicitudes y auditoría |
-| `PETITIONER` | Solicitante | Crea solicitudes, adjunta soportes y consulta estados |
-| `ACCOUNTING_ASSISTANT` | Auxiliar contable | Crea solicitudes y administra fondos, préstamos, anticipos y devoluciones |
-| `APPROVER_LEVEL_1` | Aprobador 1 | Aprueba primer nivel o devuelve al Solicitante |
-| `APPROVER_LEVEL_2` | Aprobador 2 | Aprueba segundo nivel o devuelve al Aprobador 1 |
-| `PAYMENTS` | Pagos | Programa pagos y marca solicitudes como pagadas |
+Puede:
 
-## Matriz de permisos
+- Crear usuarios y roles.
+- Crear centros de costo.
+- Crear centros de costo en `EN_PROPUESTA`.
+- Crear centros de costo directamente en `ADJUDICADO` para obras ya adjudicadas.
+- Marcar centro de costo como `ADJUDICADO`, `NO_ADJUDICADO`, `EN_EJECUCION`, `FINALIZADO` o `CERRADO`.
+- Habilitar variantes `PROYECTO`, `OBRA` e `INTERVENTORIA`.
+- Gestionar beneficiarios.
+- Registrar o ajustar impuestos y retenciones.
+- Registrar cargos financieros.
+- Registrar o ajustar operaciones de efectivo.
+- Consultar auditoría.
+- Exportar información.
 
-| Acción | Admin | Solicitante | Aux. contable | Aprobador 1 | Aprobador 2 | Pagos |
-|---|---:|---:|---:|---:|---:|---:|
-| Iniciar sesión | Sí | Sí | Sí | Sí | Sí | Sí |
-| Crear solicitud | Sí | Sí | Sí | No | No | No |
-| Editar solicitud propia en borrador | Sí | Sí | Sí | No | No | No |
-| Corregir solicitud devuelta propia | Sí | Sí | Sí | No | No | No |
-| Adjuntar soporte | Sí | Sí | Sí | No | No | No |
-| Enviar solicitud | Sí | Sí | Sí | No | No | No |
-| Ver solicitudes propias | Sí | Sí | Sí | Sí | Sí | Sí |
-| Ver todas las solicitudes | Sí | No | Opcional | Sí | Sí | Sí |
-| Aprobar primer nivel | Sí | No | No | Sí | No | No |
-| Devolver al Solicitante | Sí | No | No | Sí | No | No |
-| Aprobar segundo nivel | Sí | No | No | No | Sí | No |
-| Devolver al Aprobador 1 | Sí | No | No | No | Sí | No |
-| Reenviar a Aprobador 2 | Sí | No | No | Sí | No | No |
-| Programar pago | Sí | No | No | No | No | Sí |
-| Marcar como pagada | Sí | No | No | No | No | Sí |
-| Crear cuenta de fondos de obra | Sí | No | Sí | No | No | No |
-| Registrar anticipo de obra | Sí | No | Sí | No | No | No |
-| Registrar préstamo de persona a obra | Sí | No | Sí | No | No | No |
-| Registrar préstamo entre obras | Sí | No | Sí | No | No | No |
-| Registrar devolución de préstamo | Sí | No | Sí | No | No | No |
-| Registrar ajuste de fondos | Sí | No | Sí | No | No | No |
-| Ver fondos de obra | Sí | No | Sí | Sí | Sí | Sí |
-| Ver préstamos pendientes | Sí | No | Sí | Sí | Sí | No |
-| Ver movimientos financieros | Sí | No | Sí | Sí | Sí | Sí |
-| Exportar solicitudes | Sí | No | Opcional | Sí | Sí | Sí |
-| Exportar fondos y movimientos | Sí | No | Sí | No | No | Sí |
-| Gestionar usuarios | Sí | No | No | No | No | No |
-| Gestionar roles | Sí | No | No | No | No | No |
-| Gestionar obras | Sí | No | No | No | No | No |
-| Gestionar proveedores | Sí | No | Opcional | No | No | Opcional |
-| Consultar auditoría | Sí | No | No | No | No | No |
+## Solicitante
 
-## Reglas de autorización
+Puede:
 
-- El backend valida todos los permisos.
-- La Aplicación Web no es fuente de verdad para saldos ni movimientos.
-- Solo `ADMIN` y `ACCOUNTING_ASSISTANT` pueden crear ingresos, egresos, préstamos, devoluciones y ajustes.
-- Ningún usuario debe poder crear movimientos que dejen saldo negativo.
-- Los préstamos entre obras deben registrar movimiento de egreso en la obra que presta e ingreso en la obra que recibe.
-- Las devoluciones de préstamos deben actualizar el préstamo pendiente.
-- Pagos solo confirma pagos de solicitudes; no administra préstamos ni anticipos.
-- El Solicitante no puede seleccionar cuenta de fondos.
-- El backend debe resolver la cuenta de fondos según la obra/proyecto de la solicitud.
+- Crear solicitudes en centros de costo y variantes autorizadas.
+- Crear reembolsos.
+- Adjuntar soportes.
+- Enviar solicitudes.
+- Corregir solicitudes devueltas.
+- Consultar sus solicitudes.
+
+No puede aprobar, pagar, adjudicar centros de costo ni modificar fondos.
+
+## Auxiliar contable
+
+Puede, según permisos:
+
+- Crear solicitudes autorizadas.
+- Gestionar beneficiarios.
+- Registrar cargos financieros.
+- Registrar reingresos de sobrantes.
+- Registrar impuestos y retenciones.
+- Consultar movimientos.
+- Exportar información financiera.
+
+No puede aprobar como Aprobador 1 o 2 salvo que tenga el rol correspondiente.
+
+## Aprobador 1
+
+Puede:
+
+- Revisar solicitudes en `PENDIENTE_APROBADOR_1`.
+- Aprobar a nivel 1.
+- Devolver al Solicitante.
+- Editar únicamente descripción menor si la política lo permite y con auditoría.
+
+No puede cambiar categoría, impuestos, valor neto, centro de costo, variante ni medio de pago.
+
+## Aprobador 2
+
+Puede:
+
+- Ver resumen agrupado por centro de costo y variante.
+- Revisar solicitudes en `PENDIENTE_APROBADOR_2`.
+- Aprobar a nivel 2.
+- Devolver a Aprobador 1.
+
+Cuando aprueba, la solicitud queda en `PROGRAMADA_PAGO`.
+
+## Pagos
+
+Puede:
+
+- Ver solicitudes en `PROGRAMADA_PAGO`.
+- Registrar información de pago.
+- Marcar como `PAGADA`.
+- Registrar operación de efectivo.
+- Registrar valor retirado, valor pagado y sobrante.
+- Registrar reingreso de sobrante si la política lo permite.
+- Cargar soporte de pago.
+
+No puede:
+
+- Programar pagos.
+- Aprobar solicitudes.
+- Devolver solicitudes.
+- Modificar impuestos.
+- Modificar categorías.
+- Crear centros de costo.
+- Crear movimientos manuales no autorizados.
+
+## Lectura
+
+Puede consultar módulos autorizados sin modificar información.
+
+## Permisos por centro de costo y variante
+
+Los permisos deben poder asignarse por:
+
+- Centro de costo.
+- Variante: `PROYECTO`, `OBRA`, `INTERVENTORIA`.
+- Tipo de acción.
+
+Ejemplo:
+
+| Permiso | Descripción |
+|---|---|
+| `puede_crear_solicitudes` | Crear solicitudes |
+| `puede_ver_solicitudes` | Consultar solicitudes |
+| `puede_gestionar_fondos` | Registrar movimientos financieros autorizados |
+| `puede_ver_saldo` | Ver saldo consolidado |
+| `puede_exportar` | Exportar información |
+
+## Registros que no pasan por aprobación
+
+No requieren Aprobador 1 ni Aprobador 2:
+
+- Reingreso de sobrante de retiro.
+- Registro de impuestos y retenciones.
+- Ajustes tributarios autorizados.
+- Cargos financieros autorizados, según permisos.
+
+Se controlan por permisos, soportes y auditoría.
+
+## Matriz resumida de permisos críticos
+
+| Acción | Administrador | Solicitante | Auxiliar contable | Aprobador 1 | Aprobador 2 | Pagos | Lectura |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Crear centro de costo | Sí | No | No | No | No | No | No |
+| Crear solicitud | Sí | Sí | Sí | No | No | No | No |
+| Aprobar nivel 1 | No | No | No | Sí | No | No | No |
+| Aprobar nivel 2 | No | No | No | No | Sí | No | No |
+| Marcar como pagada | No | No | No | No | No | Sí | No |
+| Registrar reingreso de sobrante | Sí | No | Sí | No | No | Según política | No |
+| Registrar cargo financiero | Sí | No | Sí | No | No | Según política | No |
+| Registrar impuesto o retención | Sí | No | Sí | No | No | No | No |
+| Consultar | Sí | Según acceso | Según acceso | Según acceso | Según acceso | Según acceso | Sí |

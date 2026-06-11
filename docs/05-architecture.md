@@ -1,89 +1,144 @@
-# 05. Arquitectura del sistema
+# 05. Arquitectura
 
-## Objetivo
+## Tipo de aplicación
 
-Definir la arquitectura técnica completa del sistema de solicitudes de pago y fondos de obra.
+Aplicación web responsiva con backend API, base de datos relacional y almacenamiento de archivos.
 
-## Arquitectura general
+## Componentes
 
-```mermaid
-flowchart TD
-    subgraph Frontend
-        Web[Aplicación Web Responsiva]
-    end
-    subgraph Auth
-        Firebase[Firebase Auth]
-    end
-    subgraph Backend
-        API[Cloud Run API Backend]
-        AuthModule[Auth Module]
-        RBAC[Roles and Permissions]
-        Requests[Payment Requests Module]
-        ProjectFunds[Project Funds Module]
-        Movements[Fund Movements Module]
-        Loans[Project Loans Module]
-        Lenders[Lenders Module]
-        Projects[Projects Module]
-        Providers[Providers Module]
-        Files[Attachments Module]
-        Audit[Audit Service]
-        Export[Export Module]
-        OCR[OCR Module futuro]
-    end
-    subgraph Data
-        DB[(Cloud SQL PostgreSQL)]
-        Storage[(Cloud Storage)]
-    end
-    Web --> Firebase
-    Web --> API
-    API --> AuthModule
-    API --> RBAC
-    API --> Requests
-    API --> ProjectFunds
-    API --> Movements
-    API --> Loans
-    API --> Lenders
-    API --> Projects
-    API --> Providers
-    API --> Files
-    API --> Audit
-    API --> Export
-    API --> OCR
-    Requests --> DB
-    ProjectFunds --> DB
-    Movements --> DB
-    Loans --> DB
-    Lenders --> DB
-    Projects --> DB
-    Providers --> DB
-    Files --> DB
-    Files --> Storage
-    Audit --> DB
+```text
+Frontend web responsivo
+Backend API
+Base de datos PostgreSQL
+Almacenamiento de archivos
+Autenticación
+Servicios de dominio
+Auditoría
+Exportación
+OCR futuro
 ```
 
-## Principios
+## Servicios de dominio
 
-- La Aplicación Web nunca se conecta directamente a la base de datos.
-- Toda lógica de negocio vive en el backend.
-- Firebase Auth autentica; el backend autoriza.
-- Los archivos se almacenan en Cloud Storage.
-- Los fondos de obra y movimientos financieros se gestionan únicamente desde backend.
-- Toda afectación de fondos debe ser transaccional.
-- Todo ingreso, egreso, préstamo, devolución, ajuste o pago debe quedar trazado.
-- El backend resuelve la cuenta de fondos según el proyecto de la solicitud.
+```text
+ServicioAutenticacion
+ServicioUsuarios
+ServicioCentrosCosto
+ServicioBeneficiarios
+ServicioSolicitudesPago
+ServicioAprobaciones
+ServicioPagos
+ServicioFinanciero
+ServicioMovimientosFondo
+ServicioOperacionesEfectivo
+ServicioCargosFinancieros
+ServicioImpuestosRetenciones
+ServicioPrestamos
+ServicioAdjuntos
+ServicioAuditoria
+ServicioExportacion
+ServicioOCR
+```
 
-## Módulos principales
+## Capas recomendadas
 
-- Auth Module.
-- Users and Roles Module.
-- Projects Module.
-- Providers Module.
-- Payment Requests Module.
-- Project Funds Module.
-- Project Fund Movements Module.
-- Project Loans Module.
-- Lenders Module.
-- Attachments Module.
-- Audit Module.
-- Export Module.
-- OCR Module futuro.
+```text
+Rutas / Controladores
+↓
+Servicios de aplicación
+↓
+Servicios de dominio
+↓
+Repositorios
+↓
+Base de datos
+```
+
+## Reglas arquitectónicas
+
+- El frontend no accede directamente a la base de datos.
+- El backend valida permisos, estados, saldos y transiciones.
+- El saldo se actualiza exclusivamente mediante `movimientos_fondo_centro_costo`.
+- Toda operación que afecte saldo debe ser transaccional.
+- No se crean tablas separadas de ingresos y egresos.
+- Cargos financieros e impuestos se mantienen separados.
+- Reingresos de sobrantes e impuestos no usan workflow de aprobación.
+- Toda acción sensible queda auditada.
+
+## Centro de costo
+
+El saldo vive en `fondos_centro_costo`.
+
+Las variantes clasifican:
+
+```text
+PROYECTO
+OBRA
+INTERVENTORIA
+```
+
+No tienen saldo independiente.
+
+## Flujo financiero transaccional
+
+Para un egreso:
+
+```text
+Validar usuario
+Validar estado
+Validar saldo
+Crear movimiento
+Actualizar saldo
+Registrar auditoría
+Confirmar transacción
+```
+
+Para un ingreso:
+
+```text
+Validar usuario
+Validar origen
+Crear movimiento
+Actualizar saldo
+Registrar auditoría
+Confirmar transacción
+```
+
+## Pagos en efectivo
+
+Política recomendada:
+
+- Si se retira más de lo pagado, registrar egreso por el valor retirado.
+- Registrar valor pagado al beneficiario dentro de `operaciones_efectivo`.
+- Mantener sobrante pendiente.
+- Registrar ingreso cuando el sobrante vuelva al fondo.
+- Evitar doble descuento entre `EGRESO_RETIRO_EFECTIVO` y `EGRESO_SOLICITUD_PAGO`.
+
+## Cargos financieros
+
+Se manejan como submódulo financiero.
+
+No son impuestos ni retenciones.
+
+## Impuestos y retenciones
+
+Se manejan con servicio propio. Pueden afectar el valor neto de la solicitud o generar movimientos financieros independientes si el negocio decide registrar pagos tributarios separados.
+
+## Entidades de soporte financiero en arquitectura
+
+El servicio financiero debe coordinar estas tablas principales:
+
+```text
+fondos_centro_costo
+movimientos_fondo_centro_costo
+operaciones_efectivo
+cargos_financieros
+impuestos_retenciones_solicitud
+```
+
+Regla:
+
+```text
+cargos_financieros guarda el detalle del cargo.
+movimientos_fondo_centro_costo guarda el egreso que afecta el saldo.
+```

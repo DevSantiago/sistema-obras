@@ -1,36 +1,82 @@
 # 08. Seguridad
 
-## Objetivo
+## Principios
 
-Definir controles de seguridad para autenticación, autorización, solicitudes de pago, fondos de obra, préstamos, anticipos, devoluciones, adjuntos y auditoría.
+- Autenticación obligatoria.
+- Autorización por rol.
+- Autorización por centro de costo y variante.
+- Validación de estado antes de cada acción.
+- Auditoría de acciones sensibles.
+- Backend como fuente de verdad.
+- No confiar en validaciones del frontend.
 
-## Reglas de autorización sobre fondos
+## Reglas por flujo
 
-- Solo `ADMIN` y `ACCOUNTING_ASSISTANT` pueden registrar anticipos.
-- Solo `ADMIN` y `ACCOUNTING_ASSISTANT` pueden registrar préstamos de persona a obra.
-- Solo `ADMIN` y `ACCOUNTING_ASSISTANT` pueden registrar préstamos entre obras.
-- Solo `ADMIN` y `ACCOUNTING_ASSISTANT` pueden registrar devoluciones de préstamos.
-- Solo `ADMIN` y `ACCOUNTING_ASSISTANT` pueden registrar ajustes de fondos.
-- Pagos solo puede programar y marcar solicitudes como pagadas.
-- El Solicitante no administra fondos.
+### Solicitudes
 
-## Reglas de integridad financiera
+- Solo usuarios autorizados pueden crear solicitudes.
+- Solo el creador o roles autorizados pueden editar en `BORRADOR`.
+- Aprobadores no modifican valores financieros.
+- Pagos no modifica impuestos, categorías ni aprobaciones.
 
-- No se permite saldo negativo en una obra.
-- Un préstamo entre obras debe registrar egreso e ingreso en la misma transacción.
-- Una devolución entre obras debe registrar egreso e ingreso en la misma transacción.
-- Una devolución a persona debe disminuir el saldo de la obra deudora.
-- Toda devolución debe disminuir `outstanding_amount`.
-- No se puede devolver más del saldo pendiente del préstamo.
-- Todo movimiento debe tener usuario, fecha, tipo, monto, saldo anterior y saldo nuevo.
-- Todo movimiento financiero debe auditarse.
-- El frontend no es fuente de verdad para saldos o cálculos financieros.
+### Centro de costo
 
-## Seguridad web y backend
+- Solo `ADMINISTRADOR` crea centros de costo.
+- Solo `ADMINISTRADOR` adjudica o inicia ejecución.
+- Crear directamente como `ADJUDICADO` es excepción controlada.
+- Debe quedar auditado.
 
-- Validar token de Firebase en backend.
-- Consultar roles desde base de datos.
-- Configurar CORS restrictivo.
-- No exponer secretos en frontend.
-- Usar URLs firmadas para adjuntos.
-- No exponer trazas internas en errores.
+### Saldos
+
+- Solo `movimientos_fondo_centro_costo` afecta saldos.
+- Toda actualización de saldo debe ser transaccional.
+- No se permite saldo negativo.
+- No se permite doble descuento.
+- Reingresos no pueden superar sobrantes.
+
+### Operaciones de efectivo
+
+Validaciones:
+
+- `valor_retirado >= valor_pagado`.
+- `valor_sobrante = valor_retirado - valor_pagado`.
+- `valor_reingresado <= valor_sobrante`.
+- Toda operación debe tener centro de costo y variante.
+- Reingreso de sobrante no pasa por aprobación.
+
+### Impuestos y retenciones
+
+- Valores no negativos.
+- Tipos permitidos.
+- Naturaleza permitida.
+- Pagos no puede modificar impuestos.
+- Ajustes posteriores requieren auditoría.
+- No crean workflow independiente de aprobación.
+
+### Cargos financieros
+
+- Deben tener centro de costo y variante.
+- Deben tener tipo permitido.
+- No deben mezclarse con retenciones.
+- Generan egreso en `movimientos_fondo_centro_costo`.
+
+## Auditoría obligatoria
+
+Auditar:
+
+- Creación y cambio de centro de costo.
+- Habilitación de variantes.
+- Creación, envío, aprobación, devolución y pago de solicitudes.
+- Registro de impuestos.
+- Ajuste de impuestos.
+- Registro de cargos financieros.
+- Retiro de efectivo.
+- Reingreso de sobrante.
+- Ajustes financieros.
+- Exportaciones sensibles.
+
+## Control de archivos
+
+- Los adjuntos deben almacenarse fuera de la base de datos.
+- La base de datos guarda ruta, metadatos y relación.
+- Los enlaces deben tener control de acceso.
