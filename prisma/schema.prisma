@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model prueba_conexion {
+  id        String   @id @default(uuid())
+  mensaje   String
+  creado_en DateTime @default(now())
+}
+
+model usuarios {
+  id             String           @id @default(uuid())
+  nombre         String
+  correo         String           @unique
+  telefono       String?
+  password_hash  String?
+  estado         String           @default("ACTIVO")
+  creado_en      DateTime         @default(now())
+  actualizado_en DateTime         @updatedAt
+
+  roles usuarios_roles[]
+}
+
+model roles {
+  id             String           @id @default(uuid())
+  nombre         String           @unique
+  descripcion    String?
+  activo         Boolean          @default(true)
+  creado_en      DateTime         @default(now())
+  actualizado_en DateTime         @updatedAt
+  usuariosRoles  usuarios_roles[]
+}
+
+model usuarios_roles {
+  id         String               @id @default(uuid())
+  usuario_id String
+  rol_id     String
+  creado_en  DateTime             @default(now())
+  usuario usuarios                @relation(fields: [usuario_id], references: [id])
+  rol     roles                   @relation(fields: [rol_id], references: [id])
+
+  @@unique([usuario_id, rol_id])
+}
