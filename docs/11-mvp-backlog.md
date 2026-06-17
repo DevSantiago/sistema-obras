@@ -4,7 +4,7 @@
 
 Definir el backlog del MVP para el sistema de gestión de solicitudes de pago, fondos por centro de costo, aprobaciones, pagos, beneficiarios, nómina, reembolsos, préstamos, anticipos, cargos financieros, operaciones de efectivo, impuestos, retenciones, auditoría, exportaciones y OCR futuro.
 
-Este backlog debe servir como base para planear desarrollo, estimar alcance, priorizar entregas y validar que las decisiones funcionales, técnicas y de negocio queden cubiertas.
+Este backlog debe servir como base para planear desarrollo, estimar alcance, priorizar entregas y validar que las decisiones funcionales, técnicas y de negocio queden cubiertas. La ejecución del backlog se realizará por módulos funcionales, procurando cerrar primero el backend del módulo, validarlo mediante pruebas técnicas, y posteriormente construir e integrar el frontend correspondiente antes de avanzar al siguiente módulo principal.
 
 ## Convenciones
 
@@ -30,6 +30,42 @@ BLOQUEADA
 DESCARTADA
 ```
 
+### Dinámica de entrega por módulo
+
+El desarrollo del MVP se organizará por módulos funcionales completos. Para cada módulo se deberá ejecutar la siguiente secuencia:
+
+```text
+1. Diseño funcional mínimo del módulo
+2. Backend del módulo
+3. Pruebas técnicas del backend
+4. Frontend del módulo
+5. Integración frontend-backend
+6. Validación funcional en navegador
+7. Cierre del entregable del módulo
+```
+
+El backend de un módulo se considera listo cuando existen endpoints, services, repositories, validaciones, permisos, migraciones o seeds cuando apliquen, y pruebas verificables mediante `curl`, cliente HTTP o pruebas equivalentes.
+
+El frontend de un módulo se considera listo cuando existen pantallas, formularios, navegación, manejo de estados de carga y error, consumo real de endpoints, validaciones visibles para el usuario y validación funcional en navegador.
+
+Como regla de planificación, no se debe avanzar al siguiente módulo funcional principal sin contar con un entregable mínimo integrado del módulo anterior, salvo que exista una dependencia técnica que obligue a preparar una base común. Las funcionalidades transversales, como auditoría, seguridad y exportación, podrán implementarse por iteraciones, integrándose progresivamente a los módulos ya construidos.
+
+### Estados sugeridos por fase de entrega
+
+Los estados generales anteriores se conservan. Para seguimiento más fino, cada historia o módulo podrá indicar la fase específica de ejecución:
+
+```text
+PENDIENTE_BACKEND
+EN_DESARROLLO_BACKEND
+BACKEND_EN_PRUEBAS
+BACKEND_APROBADO
+PENDIENTE_FRONTEND
+EN_DESARROLLO_FRONTEND
+FRONTEND_EN_PRUEBAS
+FRONTEND_APROBADO
+INTEGRADA
+```
+
 ### Formato de historia
 
 ```text
@@ -38,7 +74,7 @@ quiero [capacidad],
 para [beneficio].
 ```
 
-Cada historia debe tener criterios de aceptación verificables.
+Cada historia debe tener criterios de aceptación verificables. Cuando una historia tenga impacto en interfaz de usuario, los criterios deberán cubrir tanto la validación backend como la validación frontend integrada.
 
 ---
 
@@ -46,25 +82,29 @@ Cada historia debe tener criterios de aceptación verificables.
 
 | No. | Épica | Prioridad | Resultado esperado |
 |---:|---|---|---|
-| 0 | Diseño UX/UI y prototipado | MUST | Wireframes funcionales validados para desarrollo |
-| 1 | Configuración base del proyecto | MUST | Proyecto técnico inicial listo |
-| 2 | Autenticación, usuarios y roles | MUST | Acceso seguro y controlado |
-| 3 | Centros de costo y variantes | MUST | Administración de centros, proyecto, obra e interventoría |
-| 4 | Beneficiarios | MUST | Registro de personas o entidades que reciben pagos |
-| 5 | Secuencias y referencias internas | MUST | Consecutivos y trazabilidad documental |
-| 6 | Fondos y movimientos financieros | MUST | Saldo único por centro de costo y movimientos trazables |
-| 7 | Préstamos, anticipos y devoluciones | MUST | Manejo financiero de entradas y salidas no asociadas a solicitudes ordinarias |
-| 8 | Solicitudes de pago | MUST | Creación y gestión de solicitudes |
-| 9 | Adjuntos y soportes | MUST | Carga y consulta de documentos soporte |
-| 10 | Aprobaciones | MUST | Flujo de doble aprobación |
-| 11 | Pagos | MUST | Marcación de solicitudes pagadas |
-| 12 | Operaciones de efectivo | MUST | Control de retiros, pagos en efectivo y sobrantes |
-| 13 | Cargos financieros | MUST | Registro de costos bancarios y financieros |
-| 14 | Impuestos y retenciones | MUST | Desglose tributario de solicitudes y registros asociados |
-| 15 | Auditoría | MUST | Trazabilidad de acciones sensibles |
-| 16 | Exportación | SHOULD | Exportación de información operativa y financiera |
-| 17 | Seguridad y hardening | MUST | Validaciones, permisos y protección básica |
-| 18 | OCR futuro | COULD | Base para procesamiento posterior de soportes |
+| 0 | Diseño UX/UI y prototipado | MUST | Wireframes funcionales validados por módulo antes de construir frontend |
+| 1 | Configuración base del proyecto | MUST | Proyecto técnico inicial listo para backend y frontend |
+| 2 | Autenticación, usuarios y roles | MUST | Acceso seguro, gestión de usuarios y pantallas iniciales integradas |
+| 3 | Centros de costo y variantes | MUST | Administración de centros, proyecto, obra e interventoría con API y frontend operativo |
+| 4 | Beneficiarios | MUST | Registro de personas o entidades que reciben pagos con backend y pantallas de gestión |
+| 5 | Secuencias y referencias internas | MUST | Consecutivos y trazabilidad documental integrados a los módulos que los consumen |
+| 6 | Fondos y movimientos financieros | MUST | Saldo único por centro de costo y movimientos trazables con vista financiera |
+| 7 | Préstamos, anticipos y devoluciones | MUST | Manejo financiero de entradas y salidas con formularios y consultas integradas |
+| 8 | Solicitudes de pago | MUST | Creación y gestión de solicitudes con backend y flujo frontend funcional |
+| 9 | Adjuntos y soportes | MUST | Carga y consulta de documentos soporte integrada a las pantallas operativas |
+| 10 | Aprobaciones | MUST | Flujo de doble aprobación con bandejas y acciones frontend integradas |
+| 11 | Pagos | MUST | Marcación de solicitudes pagadas con bandeja operativa y backend transaccional |
+| 12 | Operaciones de efectivo | MUST | Control de retiros, pagos en efectivo y sobrantes con pantallas de seguimiento |
+| 13 | Cargos financieros | MUST | Registro de costos bancarios y financieros con formulario y consulta integrada |
+| 14 | Impuestos y retenciones | MUST | Desglose tributario de solicitudes y registros asociados visibles en frontend |
+| 15 | Auditoría | MUST | Trazabilidad de acciones sensibles con consulta básica por filtros |
+| 16 | Exportación | SHOULD | Exportación de información operativa y financiera desde vistas integradas |
+| 17 | Seguridad y hardening | MUST | Validaciones, permisos y protección básica aplicadas en backend y frontend |
+| 18 | OCR futuro | COULD | Base para procesamiento posterior de soportes con validación humana futura |
+
+## Criterio transversal de entrega incremental
+
+Para las épicas funcionales del MVP, el avance se planeará como entregables verticales. Cada módulo deberá tener backend probado y frontend integrado en una versión mínima antes de pasar al siguiente módulo funcional principal. Esta regla aplica especialmente a autenticación, usuarios, centros de costo, beneficiarios, solicitudes, aprobaciones, pagos y financiero.
 
 ---
 
@@ -72,11 +112,12 @@ Cada historia debe tener criterios de aceptación verificables.
 
 ## Objetivo
 
-Diseñar las pantallas necesarias para validar la operación del MVP sin priorizar detalle visual fino.
+Diseñar las pantallas necesarias para validar la operación del MVP sin priorizar detalle visual fino. El diseño UX/UI se ejecutará de forma progresiva por módulo, de manera que cada backend construido tenga posteriormente una interfaz mínima funcional para su validación.
 
 ## Criterios de aceptación de la épica
 
 - Existen wireframes para módulos principales.
+- Los wireframes se organizan por módulo funcional y sirven como insumo inmediato del frontend posterior al backend.
 - Los wireframes cubren los flujos de solicitud, aprobación, pago, financiero y administración.
 - Los nombres visibles son consistentes con la documentación.
 - No se usa “Proveedor” cuando el concepto funcional sea “Beneficiario”.
@@ -213,6 +254,9 @@ Permitir acceso seguro al sistema y asignar permisos por rol.
 - El sistema permite asociar beneficiarios a usuarios cuando aplique.
 - Los roles base existen.
 - Toda acción sensible valida permisos en backend.
+- Existe frontend funcional para iniciar sesión.
+- Existe frontend funcional mínimo para consultar y gestionar usuarios.
+- El desarrollo del módulo contempla cierre backend y posterior integración frontend antes de avanzar al siguiente módulo principal.
 
 ## Historias
 
@@ -259,6 +303,61 @@ Criterios:
 - Puede consultar módulos autorizados.
 - No puede crear, editar, aprobar, pagar ni eliminar.
 - Respeta accesos por centro de costo.
+
+
+### HU-0205. Construir frontend de inicio de sesión
+
+Como usuario, quiero ingresar al sistema desde una pantalla de inicio de sesión, para acceder de forma segura.
+
+Criterios:
+
+- Muestra formulario de correo y contraseña.
+- Consume `POST /api/v1/auth/login`.
+- Muestra errores de credenciales inválidas.
+- Maneja estados de carga.
+- Redirige a una ruta privada cuando el inicio de sesión es correcto.
+- No expone el token en pantalla ni en código cliente.
+
+### HU-0206. Construir layout privado y validación de sesión
+
+Como usuario autenticado, quiero navegar dentro de un layout privado, para acceder a los módulos permitidos.
+
+Criterios:
+
+- Consulta `GET /api/v1/auth/me`.
+- Redirige a login si no existe sesión activa.
+- Muestra datos básicos del usuario autenticado.
+- Permite identificar roles cargados.
+- Define estructura inicial de navegación privada.
+
+### HU-0207. Construir frontend de gestión de usuarios
+
+Como Administrador, quiero gestionar usuarios desde una interfaz, para controlar el acceso al sistema sin usar herramientas técnicas.
+
+Criterios:
+
+- Lista usuarios consumiendo `GET /api/v1/usuarios`.
+- Permite crear usuario consumiendo `POST /api/v1/usuarios`.
+- Permite consultar usuario por ID consumiendo `GET /api/v1/usuarios/[id]`.
+- Permite editar nombre, correo y teléfono consumiendo `PATCH /api/v1/usuarios/[id]`.
+- Permite activar o desactivar usuario consumiendo `PATCH /api/v1/usuarios/[id]/estado`.
+- Muestra mensajes de éxito y error.
+- Maneja estados de carga.
+- No muestra `password_hash`.
+
+### HU-0208. Validar entrega integrada del módulo Autenticación y Usuarios
+
+Como equipo de desarrollo, quiero validar el módulo completo desde backend y frontend, para cerrar un entregable funcional antes de avanzar al siguiente módulo principal.
+
+Criterios:
+
+- El login funciona desde navegador.
+- La sesión se mantiene mediante cookie `httpOnly`.
+- La pantalla privada valida `/auth/me`.
+- La gestión de usuarios funciona desde frontend.
+- Los endpoints fueron probados técnicamente.
+- La interfaz fue validada funcionalmente.
+- Auditoría queda identificada como pendiente técnico transversal si no se implementa en esta iteración.
 
 ---
 
