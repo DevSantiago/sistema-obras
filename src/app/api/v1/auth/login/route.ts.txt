@@ -30,13 +30,12 @@ export async function POST(request: Request) {
         maxAge: 60 * 60 * 8,
       });
 
+      const { sessionToken, ...dataSinToken } = resultado.body.data;
+
       return Response.json(
         {
-          ok: resultado.body.ok,
-          message: resultado.body.message,
-          data: {
-            usuario: resultado.body.data.usuario,
-          },
+          ...resultado.body,
+          data: dataSinToken,
         },
         { status: resultado.status }
       );
