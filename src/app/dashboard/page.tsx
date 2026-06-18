@@ -1,7 +1,8 @@
+import { PrivateLayout } from "@/components/layout/PrivateLayout";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { LogoutButton } from "@/components/auth/LogoutButton";
+import styles from "./page.module.css";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -16,14 +17,35 @@ export default async function DashboardPage() {
   const { usuario } = resultado.body.data;
 
   return (
-    <main>
-      <h1>Dashboard</h1>
-      <p>Sesión iniciada correctamente.</p>
-      <p>Usuario: {usuario.nombre}</p>
-      <p>Correo: {usuario.correo}</p>
-      <p>Roles: {usuario.roles.join(", ")}</p>
+    <PrivateLayout usuario={usuario}>
+      <section className={styles.header}>
+        <p className={styles.eyebrow}>Panel principal</p>
+        <h1 className={styles.title}>Dashboard</h1>
+        <p className={styles.description}>
+          Bienvenido, {usuario.nombre}. Desde este panel podrá acceder a los
+          módulos principales del sistema.
+        </p>
+      </section>
 
-      <LogoutButton />
-    </main>
+      <section className={styles.grid}>
+        <article className={styles.card}>
+          <p className={styles.cardLabel}>Usuario</p>
+          <h2 className={styles.cardValue}>{usuario.nombre}</h2>
+          <p className={styles.cardText}>{usuario.correo}</p>
+        </article>
+
+        <article className={styles.card}>
+          <p className={styles.cardLabel}>Roles</p>
+          <h2 className={styles.cardValue}>{usuario.roles.length}</h2>
+          <p className={styles.cardText}>{usuario.roles.join(", ")}</p>
+        </article>
+
+        <article className={styles.card}>
+          <p className={styles.cardLabel}>Estado</p>
+          <h2 className={styles.cardValue}>{usuario.estado}</h2>
+          <p className={styles.cardText}>Sesión validada correctamente.</p>
+        </article>
+      </section>
+    </PrivateLayout>
   );
 }

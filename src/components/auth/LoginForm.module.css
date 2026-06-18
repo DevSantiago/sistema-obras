@@ -65,3 +65,13 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+@media (max-width: 480px) {
+  .input {
+    font-size: 16px;
+  }
+
+  .button {
+    font-size: 14px;
+  }
+}
