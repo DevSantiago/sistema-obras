@@ -4,6 +4,12 @@ import type { UsuarioListado } from "@/modules/usuarios/usuarios.types";
 import { UserStatusButton } from "./UserStatusButton";
 import styles from "./UsersTable.module.css";
 
+
+type UsersTableProps = {
+  usuarios: UsuarioListado[];
+  onEditarUsuario: (usuario: UsuarioListado) => void;
+};
+
 function formatearFechaColombia(fecha: string | Date) {
   const fechaOriginal = new Date(fecha);
 
@@ -25,11 +31,6 @@ function formatearFechaColombia(fecha: string | Date) {
   return `${dia}/${mes}/${anio}, ${hora12}:${minutos} ${periodo}`;
 }
 
-type UsersTableProps = {
-  usuarios: UsuarioListado[];
-  onEditarUsuario: (usuario: UsuarioListado) => void;
-};
-
 export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
   if (usuarios.length === 0) {
     return (
@@ -47,6 +48,7 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Identificación</th>
               <th>Correo</th>
               <th>Teléfono</th>
               <th>Estado</th>
@@ -62,8 +64,18 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                 <td>
                   <strong>{usuario.nombre}</strong>
                 </td>
+
+                <td>
+                  <span className={styles.document}>
+                    {usuario.tipo_documento && usuario.numero_documento
+                      ? `${usuario.tipo_documento} ${usuario.numero_documento}`
+                      : "Sin identificación"}
+                  </span>
+                </td>
+
                 <td>{usuario.correo}</td>
                 <td>{usuario.telefono ?? "Sin teléfono"}</td>
+
                 <td>
                   <span
                     className={
@@ -75,6 +87,7 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                     {usuario.estado}
                   </span>
                 </td>
+
                 <td>
                   <div className={styles.roles}>
                     {usuario.roles.map((rol) => (
@@ -84,9 +97,9 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                     ))}
                   </div>
                 </td>
-                <td>
-                  {formatearFechaColombia(usuario.creado_en)}
-                </td>
+
+                <td>{formatearFechaColombia(usuario.creado_en)}</td>
+
                 <td>
                   <div className={styles.actions}>
                     <button

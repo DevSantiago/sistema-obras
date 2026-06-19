@@ -17,14 +17,16 @@ model prueba_conexion {
 }
 
 model usuarios {
-  id             String           @id @default(uuid())
-  nombre         String
-  correo         String           @unique
-  telefono       String?
-  password_hash  String?
-  estado         String           @default("ACTIVO")
-  creado_en      DateTime         @default(now())
-  actualizado_en DateTime         @updatedAt
+  id               String   @id @default(uuid())
+  tipo_documento   String
+  numero_documento String   @unique
+  nombre           String
+  correo           String   @unique
+  telefono         String?
+  password_hash    String?
+  estado           String   @default("ACTIVO")
+  creado_en        DateTime @default(now())
+  actualizado_en   DateTime @updatedAt
 
   roles usuarios_roles[]
 }

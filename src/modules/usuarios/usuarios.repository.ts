@@ -45,23 +45,37 @@ export async function listarUsuariosConRoles() {
   });
 }
 
-export async function buscarUsuarioPorCorreo (correo: string) {
+export async function buscarUsuarioPorCorreo(correo: string) {
   return prisma.usuarios.findUnique({
     where: {
       correo,
-    }
+    },
+  });
+}
+
+export async function buscarUsuarioPorNumeroDocumento(
+  numeroDocumento: string
+) {
+  return prisma.usuarios.findUnique({
+    where: {
+      numero_documento: numeroDocumento,
+    },
   });
 }
 
 export async function crearUsuarioEnBD(data: {
+  tipo_documento: string;
+  numero_documento: string;
   nombre: string;
   correo: string;
-  telefono?: string | null,
+  telefono?: string | null;
   password_hash: string;
   estado: string;
 }) {
   return prisma.usuarios.create({
     data: {
+      tipo_documento: data.tipo_documento,
+      numero_documento: data.numero_documento,
       nombre: data.nombre,
       correo: data.correo,
       telefono: data.telefono,

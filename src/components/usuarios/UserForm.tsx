@@ -11,6 +11,8 @@ type UsuarioResponse = {
   data?: {
     usuario: {
       id: string;
+      tipo_documento: string;
+      numero_documento: string;
       nombre: string;
       correo: string;
       telefono: string | null;
@@ -35,6 +37,12 @@ export function UserForm({
 
   const esEdicion = Boolean(usuarioEditando);
 
+  const [tipoDocumento, setTipoDocumento] = useState(
+    usuarioEditando?.tipo_documento ?? "CC"
+  );
+  const [numeroDocumento, setNumeroDocumento] = useState(
+    usuarioEditando?.numero_documento ?? ""
+  );
   const [nombre, setNombre] = useState(usuarioEditando?.nombre ?? "");
   const [correo, setCorreo] = useState(usuarioEditando?.correo ?? "");
   const [telefono, setTelefono] = useState(usuarioEditando?.telefono ?? "");
@@ -68,6 +76,8 @@ export function UserForm({
             telefono: telefono.trim() === "" ? null : telefono,
           }
         : {
+            tipo_documento: tipoDocumento,
+            numero_documento: numeroDocumento,
             nombre,
             correo,
             telefono: telefono.trim() === "" ? null : telefono,
@@ -93,6 +103,8 @@ export function UserForm({
       setMensajeExito(data.message || "Usuario guardado correctamente.");
 
       if (!esEdicion) {
+        setTipoDocumento("CC");
+        setNumeroDocumento("");
         setNombre("");
         setCorreo("");
         setTelefono("");
@@ -121,13 +133,50 @@ export function UserForm({
         </h2>
         <p className={styles.description}>
           {esEdicion
-            ? "Actualice los datos básicos del usuario seleccionado."
+            ? "Actualice los datos básicos del usuario seleccionado. El tipo y número de identificación no se pueden modificar."
             : "Registre un nuevo usuario para permitirle acceder al sistema."}
         </p>
       </div>
 
       <form className={styles.form} onSubmit={manejarSubmit} method="post">
         <div className={styles.grid}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="tipo_documento">
+              Tipo de identificación
+            </label>
+            <select
+              className={styles.input}
+              id="tipo_documento"
+              name="tipo_documento"
+              value={tipoDocumento}
+              onChange={(event) => setTipoDocumento(event.target.value)}
+              disabled={esEdicion}
+              required
+            >
+              <option value="CC">Cédula de ciudadanía</option>
+              <option value="CE">Cédula de extranjería</option>
+              <option value="PASAPORTE">Pasaporte</option>
+              <option value="OTRO">Otro</option>
+            </select>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="numero_documento">
+              Número de identificación
+            </label>
+            <input
+              className={styles.input}
+              id="numero_documento"
+              name="numero_documento"
+              type="text"
+              value={numeroDocumento}
+              onChange={(event) => setNumeroDocumento(event.target.value)}
+              placeholder="Número de documento"
+              disabled={esEdicion}
+              required
+            />
+          </div>
+
           <div className={styles.field}>
             <label className={styles.label} htmlFor="nombre">
               Nombre

@@ -1,5 +1,7 @@
 export type UsuarioListado = {
   id: string;
+  tipo_documento: string;
+  numero_documento: string;
   nombre: string;
   correo: string;
   telefono: string | null;
@@ -10,6 +12,8 @@ export type UsuarioListado = {
 };
 
 export type CrearUsuarioInput = {
+  tipo_documento?: string;
+  numero_documento?: string;
   nombre?: string;
   correo?: string;
   telefono?: string | null;

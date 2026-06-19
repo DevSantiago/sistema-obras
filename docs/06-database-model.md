@@ -118,11 +118,13 @@ Un documento puede aparecer varias veces en el Excel si corresponde a conceptos 
 erDiagram
     USUARIOS {
         uuid id PK
-        string uid_firebase
-        string nombre_completo
+        string tipo_documento
+        string numero_documento
+        string nombre
         string correo
         string telefono
-        boolean activo
+        string password_hash
+        string estado
         timestamp creado_en
         timestamp actualizado_en
     }
@@ -436,11 +438,13 @@ erDiagram
 classDiagram
     class usuarios {
         +uuid id
-        +string uid_firebase
-        +string nombre_completo
+        +string tipo_documento
+        +string numero_documento
+        +string nombre
         +string correo
         +string telefono
-        +boolean activo
+        +string password_hash
+        +string estado
         +timestamp creado_en
         +timestamp actualizado_en
     }
@@ -558,13 +562,18 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    uid_firebase VARCHAR(128) UNIQUE NOT NULL,
-    nombre_completo VARCHAR(150) NOT NULL,
+    tipo_documento VARCHAR(30) NOT NULL,
+    numero_documento VARCHAR(50) UNIQUE NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
     correo VARCHAR(150) UNIQUE NOT NULL,
     telefono VARCHAR(50),
-    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    password_hash TEXT,
+    estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_estado_usuario CHECK (
+        estado IN ('ACTIVO', 'INACTIVO')
+    )
 );
 
 CREATE TABLE roles (
@@ -1129,9 +1138,10 @@ CREATE TABLE resultados_ocr (
 ## Índices recomendados
 
 ```sql
-CREATE INDEX indice_usuarios_uid_firebase ON usuarios(uid_firebase);
+CREATE INDEX indice_usuarios_tipo_documento ON usuarios(tipo_documento);
+CREATE INDEX indice_usuarios_numero_documento ON usuarios(numero_documento);
 CREATE INDEX indice_usuarios_correo ON usuarios(correo);
-CREATE INDEX indice_usuarios_activo ON usuarios(activo);
+CREATE INDEX indice_usuarios_estado ON usuarios(estado);
 
 CREATE INDEX indice_usuarios_roles_usuario ON usuarios_roles(usuario_id);
 CREATE INDEX indice_usuarios_roles_rol ON usuarios_roles(rol_id);

@@ -67,12 +67,16 @@ async function main() {
       correo: "admin@sistema-obras.local",
     },
     update: {
+      tipo_documento: "CC",
+      numero_documento: "1000000000",
       nombre: "Administrador Sistema",
       telefono: null,
       password_hash: passwordHash,
       estado: "ACTIVO",
     },
     create: {
+      tipo_documento: "CC",
+      numero_documento: "1000000000",
       nombre: "Administrador Sistema",
       correo: "admin@sistema-obras.local",
       telefono: null,

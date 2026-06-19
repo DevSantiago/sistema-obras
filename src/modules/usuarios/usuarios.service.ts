@@ -1,16 +1,17 @@
-import { 
-  listarUsuariosConRoles, 
-  buscarUsuarioPorCorreo, 
-  crearUsuarioEnBD, 
+import {
+  listarUsuariosConRoles,
+  buscarUsuarioPorCorreo,
+  buscarUsuarioPorNumeroDocumento,
+  crearUsuarioEnBD,
   buscarUsuarioPorIdConRoles,
   buscarUsuarioPorCorreoDiferenteId,
   actualizarUsuarioEnBD,
-  actualizarEstadoUsuarioEnBD
+  actualizarEstadoUsuarioEnBD,
 } from "@/modules/usuarios/usuarios.repository";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
-import type { 
+import type {
   ServiceResponse,
-  UsuarioListado, 
+  UsuarioListado,
   CrearUsuarioInput,
   ActualizarUsuarioInput,
   CambiarEstadoUsuarioInput,
@@ -26,6 +27,8 @@ function convertirUsuarioListado(
 ): UsuarioListado {
   return {
     id: usuario.id,
+    tipo_documento: usuario.tipo_documento,
+    numero_documento: usuario.numero_documento,
     nombre: usuario.nombre,
     correo: usuario.correo,
     telefono: usuario.telefono,
@@ -50,6 +53,7 @@ export async function listarUsuarios(
   }
 
   const usuarios = await listarUsuariosConRoles();
+  // console.log("usuarios crudes desde repository: ", usuarios);
 
   return {
     status: 200,
@@ -77,14 +81,23 @@ export async function crearUsuario(
     };
   }
 
-  const { nombre, correo, telefono, password, estado } = input;
+  const {
+    tipo_documento,
+    numero_documento,
+    nombre,
+    correo,
+    telefono,
+    password,
+    estado,
+  } = input;
 
-  if (!nombre || !correo || !password) {
+  if (!tipo_documento || !numero_documento || !nombre || !correo || !password) {
     return {
       status: 400,
       body: {
         ok: false,
-        message: "Nombre, correo y contraseña son obligatorios.",
+        message:
+          "Tipo de documento, número de documento, nombre, correo y contraseña son obligatorios.",
       },
     };
   }
@@ -101,9 +114,9 @@ export async function crearUsuario(
     };
   }
 
-  const usuarioExistente = await buscarUsuarioPorCorreo(correo);
+  const usuarioExistentePorCorreo = await buscarUsuarioPorCorreo(correo);
 
-  if (usuarioExistente) {
+  if (usuarioExistentePorCorreo) {
     return {
       status: 409,
       body: {
@@ -113,9 +126,25 @@ export async function crearUsuario(
     };
   }
 
+  const usuarioExistentePorDocumento = await buscarUsuarioPorNumeroDocumento(
+    numero_documento
+  );
+
+  if (usuarioExistentePorDocumento) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message: "Ya existe un usuario con ese número de documento.",
+      },
+    };
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
 
   const usuarioCreado = await crearUsuarioEnBD({
+    tipo_documento,
+    numero_documento,
     nombre,
     correo,
     telefono,
@@ -186,7 +215,10 @@ export async function obtenerUsuarioPorId(
 export async function actualizarUsuario(
   usuarioAutenticado: UsuarioSesion,
   id: string,
-  input: ActualizarUsuarioInput
+  input: ActualizarUsuarioInput & {
+    tipo_documento?: string;
+    numero_documento?: string;
+  }
 ): Promise<ServiceResponse<{ usuario: UsuarioListado }>> {
   if (!usuarioTieneRol(usuarioAutenticado, "ADMINISTRADOR")) {
     return {
@@ -204,6 +236,17 @@ export async function actualizarUsuario(
       body: {
         ok: false,
         message: "El id del usuario es obligatorio.",
+      },
+    };
+  }
+
+  if (input.tipo_documento !== undefined || input.numero_documento !== undefined) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El tipo y número de documento no se pueden modificar desde esta operación.",
       },
     };
   }
@@ -263,7 +306,6 @@ export async function actualizarUsuario(
     },
   };
 }
-
 
 export async function cambiarEstadoUsuario(
   usuarioAutenticado: UsuarioSesion,
