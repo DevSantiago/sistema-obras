@@ -8,7 +8,9 @@ import {
 } from "../usuarios.service";
 import {
   actualizarEstadoUsuarioEnBD,
+  actualizarRolesUsuarioEnBD,
   actualizarUsuarioEnBD,
+  buscarRolesPorNombres,
   buscarUsuarioPorCorreo,
   buscarUsuarioPorCorreoDiferenteId,
   buscarUsuarioPorIdConRoles,
@@ -22,10 +24,12 @@ vi.mock("@/modules/usuarios/usuarios.repository", () => ({
   listarUsuariosConRoles: vi.fn(),
   buscarUsuarioPorCorreo: vi.fn(),
   buscarUsuarioPorNumeroDocumento: vi.fn(),
+  buscarRolesPorNombres: vi.fn(),
   crearUsuarioEnBD: vi.fn(),
   buscarUsuarioPorIdConRoles: vi.fn(),
   buscarUsuarioPorCorreoDiferenteId: vi.fn(),
   actualizarUsuarioEnBD: vi.fn(),
+  actualizarRolesUsuarioEnBD: vi.fn(),
   actualizarEstadoUsuarioEnBD: vi.fn(),
 }));
 
@@ -58,6 +62,24 @@ const rolLecturaMock = {
   actualizado_en: fechaMock,
 };
 
+const rolSolicitanteMock = {
+  id: "rol-2",
+  nombre: "SOLICITANTE",
+  descripcion: "Rol solicitante",
+  activo: true,
+  creado_en: fechaMock,
+  actualizado_en: fechaMock,
+};
+
+const rolPagosMock = {
+  id: "rol-3",
+  nombre: "PAGOS",
+  descripcion: "Rol pagos",
+  activo: true,
+  creado_en: fechaMock,
+  actualizado_en: fechaMock,
+};
+
 const usuarioConRolesMock = {
   id: "usuario-1",
   tipo_documento: "CC",
@@ -76,6 +98,26 @@ const usuarioConRolesMock = {
       rol_id: "rol-1",
       creado_en: fechaMock,
       rol: rolLecturaMock,
+    },
+  ],
+};
+
+const usuarioConRolesActualizadosMock = {
+  ...usuarioConRolesMock,
+  roles: [
+    {
+      id: "usuario-rol-2",
+      usuario_id: "usuario-1",
+      rol_id: "rol-2",
+      creado_en: fechaMock,
+      rol: rolSolicitanteMock,
+    },
+    {
+      id: "usuario-rol-3",
+      usuario_id: "usuario-1",
+      rol_id: "rol-3",
+      creado_en: fechaMock,
+      rol: rolPagosMock,
     },
   ],
 };
@@ -122,7 +164,9 @@ describe("usuarios.service - listarUsuarios", () => {
     expect(resultado.body.data?.usuarios).toHaveLength(1);
     expect(resultado.body.data?.usuarios[0].id).toBe("usuario-1");
     expect(resultado.body.data?.usuarios[0].tipo_documento).toBe("CC");
-    expect(resultado.body.data?.usuarios[0].numero_documento).toBe("1000000000");
+    expect(resultado.body.data?.usuarios[0].numero_documento).toBe(
+      "1000000000"
+    );
     expect(resultado.body.data?.usuarios[0].roles).toEqual(["LECTURA"]);
 
     expect(resultado.body.data?.usuarios[0]).not.toHaveProperty(
@@ -146,6 +190,7 @@ describe("usuarios.service - crearUsuario", () => {
       telefono: "3001234567",
       password: "Usuario123*",
       estado: "ACTIVO",
+      roles: ["SOLICITANTE"],
     });
 
     expect(resultado.status).toBe(403);
@@ -156,6 +201,7 @@ describe("usuarios.service - crearUsuario", () => {
 
     expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
     expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
+    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
     expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
@@ -165,8 +211,8 @@ describe("usuarios.service - crearUsuario", () => {
       numero_documento: "1000000001",
       nombre: "Usuario Nuevo",
       correo: "nuevo@test.com",
-      // password faltante a propósito
       estado: "ACTIVO",
+      roles: ["SOLICITANTE"],
     });
 
     expect(resultado.status).toBe(400);
@@ -177,6 +223,31 @@ describe("usuarios.service - crearUsuario", () => {
 
     expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
     expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
+    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
+    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe devolver 400 si no se asignan roles al usuario", async () => {
+    const resultado = await crearUsuario(usuarioAdministrador, {
+      tipo_documento: "CC",
+      numero_documento: "1000000001",
+      nombre: "Usuario Nuevo",
+      correo: "nuevo@test.com",
+      telefono: "3001234567",
+      password: "Usuario123*",
+      estado: "ACTIVO",
+      roles: [],
+    });
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Debe asignar al menos un rol al usuario."
+    );
+
+    expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
+    expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
+    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
     expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
@@ -191,6 +262,7 @@ describe("usuarios.service - crearUsuario", () => {
       telefono: "3001234567",
       password: "Usuario123*",
       estado: "ACTIVO",
+      roles: ["SOLICITANTE"],
     });
 
     expect(resultado.status).toBe(409);
@@ -199,6 +271,7 @@ describe("usuarios.service - crearUsuario", () => {
 
     expect(buscarUsuarioPorCorreo).toHaveBeenCalledWith("usuario@test.com");
     expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
+    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
     expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
@@ -216,6 +289,7 @@ describe("usuarios.service - crearUsuario", () => {
       telefono: "3001234567",
       password: "Usuario123*",
       estado: "ACTIVO",
+      roles: ["SOLICITANTE"],
     });
 
     expect(resultado.status).toBe(409);
@@ -226,6 +300,7 @@ describe("usuarios.service - crearUsuario", () => {
 
     expect(buscarUsuarioPorCorreo).toHaveBeenCalledWith("nuevo@test.com");
     expect(buscarUsuarioPorNumeroDocumento).toHaveBeenCalledWith("1000000000");
+    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
     expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
@@ -238,6 +313,7 @@ describe("usuarios.service - crearUsuario", () => {
       telefono: "3001234567",
       password: "Usuario123*",
       estado: "BLOQUEADO",
+      roles: ["SOLICITANTE"],
     });
 
     expect(resultado.status).toBe(400);
@@ -246,12 +322,40 @@ describe("usuarios.service - crearUsuario", () => {
 
     expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
     expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
+    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
+    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe devolver 400 si uno o más roles no existen o no están activos", async () => {
+    vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(null);
+    vi.mocked(buscarUsuarioPorNumeroDocumento).mockResolvedValue(null);
+    vi.mocked(buscarRolesPorNombres).mockResolvedValue([]);
+
+    const resultado = await crearUsuario(usuarioAdministrador, {
+      tipo_documento: "CC",
+      numero_documento: "1000000001",
+      nombre: "Usuario Nuevo",
+      correo: "nuevo@test.com",
+      telefono: "3001234567",
+      password: "Usuario123*",
+      estado: "ACTIVO",
+      roles: ["ROL_INEXISTENTE"],
+    });
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Uno o más roles enviados no existen o no están activos."
+    );
+
+    expect(buscarRolesPorNombres).toHaveBeenCalledWith(["ROL_INEXISTENTE"]);
     expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
   it("debe devolver 201 si crea el usuario correctamente", async () => {
     vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(null);
     vi.mocked(buscarUsuarioPorNumeroDocumento).mockResolvedValue(null);
+    vi.mocked(buscarRolesPorNombres).mockResolvedValue([rolSolicitanteMock]);
 
     vi.mocked(crearUsuarioEnBD).mockResolvedValue({
       id: "usuario-nuevo",
@@ -264,7 +368,15 @@ describe("usuarios.service - crearUsuario", () => {
       estado: "ACTIVO",
       creado_en: fechaMock,
       actualizado_en: fechaMock,
-      roles: [],
+      roles: [
+        {
+          id: "usuario-rol-2",
+          usuario_id: "usuario-nuevo",
+          rol_id: "rol-2",
+          creado_en: fechaMock,
+          rol: rolSolicitanteMock,
+        },
+      ],
     });
 
     const resultado = await crearUsuario(usuarioAdministrador, {
@@ -275,6 +387,7 @@ describe("usuarios.service - crearUsuario", () => {
       telefono: "3001234567",
       password: "Usuario123*",
       estado: "ACTIVO",
+      roles: ["SOLICITANTE"],
     });
 
     expect(resultado.status).toBe(201);
@@ -286,12 +399,13 @@ describe("usuarios.service - crearUsuario", () => {
     expect(resultado.body.data?.usuario.numero_documento).toBe("1000000001");
     expect(resultado.body.data?.usuario.nombre).toBe("Usuario Nuevo");
     expect(resultado.body.data?.usuario.correo).toBe("nuevo@test.com");
-    expect(resultado.body.data?.usuario.roles).toEqual([]);
+    expect(resultado.body.data?.usuario.roles).toEqual(["SOLICITANTE"]);
 
     expect(resultado.body.data?.usuario).not.toHaveProperty("password_hash");
 
     expect(buscarUsuarioPorCorreo).toHaveBeenCalledWith("nuevo@test.com");
     expect(buscarUsuarioPorNumeroDocumento).toHaveBeenCalledWith("1000000001");
+    expect(buscarRolesPorNombres).toHaveBeenCalledWith(["SOLICITANTE"]);
     expect(crearUsuarioEnBD).toHaveBeenCalledTimes(1);
     expect(crearUsuarioEnBD).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -301,6 +415,7 @@ describe("usuarios.service - crearUsuario", () => {
         correo: "nuevo@test.com",
         telefono: "3001234567",
         estado: "ACTIVO",
+        roles_ids: ["rol-2"],
       })
     );
   });
@@ -445,6 +560,7 @@ describe("usuarios.service - actualizarUsuario", () => {
 
     expect(buscarUsuarioPorIdConRoles).toHaveBeenCalledWith("usuario-1");
     expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
+    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
   });
 
   it("debe devolver 409 si el correo pertenece a otro usuario", async () => {
@@ -466,6 +582,42 @@ describe("usuarios.service - actualizarUsuario", () => {
       "usuario-1"
     );
     expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
+    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe devolver 400 si intenta dejar al usuario sin roles", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
+
+    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
+      roles: [],
+    });
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Debe asignar al menos un rol al usuario."
+    );
+
+    expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
+    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe devolver 400 si intenta asignar roles inexistentes o inactivos", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
+    vi.mocked(buscarRolesPorNombres).mockResolvedValue([]);
+
+    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
+      roles: ["ROL_INEXISTENTE"],
+    });
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Uno o más roles enviados no existen o no están activos."
+    );
+
+    expect(buscarRolesPorNombres).toHaveBeenCalledWith(["ROL_INEXISTENTE"]);
+    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
   });
 
   it("debe devolver 200 si actualiza el usuario correctamente", async () => {
@@ -499,6 +651,38 @@ describe("usuarios.service - actualizarUsuario", () => {
       correo: "actualizado@test.com",
       telefono: "3001234567",
     });
+    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe devolver 200 si actualiza roles del usuario correctamente", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
+    vi.mocked(buscarRolesPorNombres).mockResolvedValue([
+      rolSolicitanteMock,
+      rolPagosMock,
+    ]);
+    vi.mocked(actualizarRolesUsuarioEnBD).mockResolvedValue(
+      usuarioConRolesActualizadosMock
+    );
+
+    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
+      roles: ["SOLICITANTE", "PAGOS"],
+    });
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.ok).toBe(true);
+    expect(resultado.body.message).toBe("Usuario actualizado correctamente.");
+
+    expect(resultado.body.data?.usuario.roles).toEqual(["SOLICITANTE", "PAGOS"]);
+
+    expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
+    expect(buscarRolesPorNombres).toHaveBeenCalledWith([
+      "SOLICITANTE",
+      "PAGOS",
+    ]);
+    expect(actualizarRolesUsuarioEnBD).toHaveBeenCalledWith("usuario-1", [
+      "rol-2",
+      "rol-3",
+    ]);
   });
 });
 

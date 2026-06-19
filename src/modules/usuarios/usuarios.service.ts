@@ -2,10 +2,12 @@ import {
   listarUsuariosConRoles,
   buscarUsuarioPorCorreo,
   buscarUsuarioPorNumeroDocumento,
+  buscarRolesPorNombres,
   crearUsuarioEnBD,
   buscarUsuarioPorIdConRoles,
   buscarUsuarioPorCorreoDiferenteId,
   actualizarUsuarioEnBD,
+  actualizarRolesUsuarioEnBD,
   actualizarEstadoUsuarioEnBD,
 } from "@/modules/usuarios/usuarios.repository";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
@@ -20,6 +22,16 @@ import bcrypt from "bcryptjs";
 
 function usuarioTieneRol(usuario: UsuarioSesion, rol: string) {
   return usuario.roles.includes(rol);
+}
+
+function normalizarRoles(roles: string[]) {
+  return Array.from(
+    new Set(
+      roles
+        .map((rol) => rol.trim())
+        .filter((rol) => rol.length > 0)
+    )
+  );
 }
 
 function convertirUsuarioListado(
@@ -53,7 +65,6 @@ export async function listarUsuarios(
   }
 
   const usuarios = await listarUsuariosConRoles();
-  // console.log("usuarios crudes desde repository: ", usuarios);
 
   return {
     status: 200,
@@ -89,6 +100,7 @@ export async function crearUsuario(
     telefono,
     password,
     estado,
+    roles,
   } = input;
 
   if (!tipo_documento || !numero_documento || !nombre || !correo || !password) {
@@ -98,6 +110,28 @@ export async function crearUsuario(
         ok: false,
         message:
           "Tipo de documento, número de documento, nombre, correo y contraseña son obligatorios.",
+      },
+    };
+  }
+
+  if (!roles || !Array.isArray(roles) || roles.length === 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Debe asignar al menos un rol al usuario.",
+      },
+    };
+  }
+
+  const rolesUnicos = normalizarRoles(roles);
+
+  if (rolesUnicos.length === 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Debe asignar al menos un rol al usuario.",
       },
     };
   }
@@ -140,6 +174,18 @@ export async function crearUsuario(
     };
   }
 
+  const rolesEncontrados = await buscarRolesPorNombres(rolesUnicos);
+
+  if (rolesEncontrados.length !== rolesUnicos.length) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Uno o más roles enviados no existen o no están activos.",
+      },
+    };
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
 
   const usuarioCreado = await crearUsuarioEnBD({
@@ -150,6 +196,7 @@ export async function crearUsuario(
     telefono,
     password_hash: passwordHash,
     estado: estadoUsuario,
+    roles_ids: rolesEncontrados.map((rol) => rol.id),
   });
 
   return {
@@ -240,7 +287,10 @@ export async function actualizarUsuario(
     };
   }
 
-  if (input.tipo_documento !== undefined || input.numero_documento !== undefined) {
+  if (
+    input.tipo_documento !== undefined ||
+    input.numero_documento !== undefined
+  ) {
     return {
       status: 400,
       body: {
@@ -251,9 +301,9 @@ export async function actualizarUsuario(
     };
   }
 
-  const { nombre, correo, telefono } = input;
+  const { nombre, correo, telefono, roles } = input;
 
-  if (!nombre && !correo && telefono === undefined) {
+  if (!nombre && !correo && telefono === undefined && roles === undefined) {
     return {
       status: 400,
       body: {
@@ -289,11 +339,56 @@ export async function actualizarUsuario(
     }
   }
 
-  const usuarioActualizado = await actualizarUsuarioEnBD(id, {
-    nombre,
-    correo,
-    telefono,
-  });
+  let usuarioActualizado = usuarioExistente;
+
+  if (nombre || correo || telefono !== undefined) {
+    usuarioActualizado = await actualizarUsuarioEnBD(id, {
+      nombre,
+      correo,
+      telefono,
+    });
+  }
+
+  if (roles !== undefined) {
+    if (!Array.isArray(roles) || roles.length === 0) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message: "Debe asignar al menos un rol al usuario.",
+        },
+      };
+    }
+
+    const rolesUnicos = normalizarRoles(roles);
+
+    if (rolesUnicos.length === 0) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message: "Debe asignar al menos un rol al usuario.",
+        },
+      };
+    }
+
+    const rolesEncontrados = await buscarRolesPorNombres(rolesUnicos);
+
+    if (rolesEncontrados.length !== rolesUnicos.length) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message: "Uno o más roles enviados no existen o no están activos.",
+        },
+      };
+    }
+
+    usuarioActualizado = await actualizarRolesUsuarioEnBD(
+      id,
+      rolesEncontrados.map((rol) => rol.id)
+    );
+  }
 
   return {
     status: 200,
