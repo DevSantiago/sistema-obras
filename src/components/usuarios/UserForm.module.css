@@ -41,6 +41,7 @@
 }
 
 .label {
+  margin: 0;
   font-size: 14px;
   font-weight: 700;
   color: #374151;
@@ -61,6 +62,48 @@
 .input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.input:disabled {
+  color: #6b7280;
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.rolesField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rolesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.roleOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.roleOption:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.roleOption input {
+  cursor: pointer;
 }
 
 .error {
@@ -84,6 +127,7 @@
 .actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .button {
@@ -120,15 +164,14 @@
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
 .secondaryButton:hover:not(:disabled) {
   background: #f3f4f6;
   transform: translateY(-1px);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
@@ -136,11 +179,17 @@
     grid-template-columns: 1fr;
   }
 
+  .rolesGrid {
+    grid-template-columns: 1fr;
+  }
+
   .actions {
+    flex-direction: column-reverse;
     justify-content: stretch;
   }
 
-  .button {
+  .button,
+  .secondaryButton {
     width: 100%;
   }
 

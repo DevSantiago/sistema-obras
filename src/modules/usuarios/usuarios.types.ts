@@ -19,13 +19,15 @@ export type CrearUsuarioInput = {
   telefono?: string | null;
   password?: string;
   estado?: string;
+  roles?: string[];
 };
 
 export type ActualizarUsuarioInput = {
   nombre?: string;
   correo?: string;
   telefono?: string | null;
-}
+  roles?: string[];
+};
 
 export type CambiarEstadoUsuarioInput = {
   estado?: "ACTIVO" | "INACTIVO";

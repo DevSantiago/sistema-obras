@@ -5,6 +5,16 @@ import { FormEvent, useState } from "react";
 import type { UsuarioListado } from "@/modules/usuarios/usuarios.types";
 import styles from "./UserForm.module.css";
 
+const ROLES_DISPONIBLES = [
+  "ADMINISTRADOR",
+  "SOLICITANTE",
+  "AUXILIAR_CONTABLE",
+  "APROBADOR_1",
+  "APROBADOR_2",
+  "PAGOS",
+  "LECTURA",
+];
+
 type UsuarioResponse = {
   ok: boolean;
   message: string;
@@ -50,10 +60,23 @@ export function UserForm({
   const [estado, setEstado] = useState<"ACTIVO" | "INACTIVO">(
     usuarioEditando?.estado === "INACTIVO" ? "INACTIVO" : "ACTIVO"
   );
+  const [rolesSeleccionados, setRolesSeleccionados] = useState<string[]>(
+    usuarioEditando?.roles ?? []
+  );
 
   const [mensajeError, setMensajeError] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+
+  function manejarCambioRol(rol: string) {
+    setRolesSeleccionados((rolesActuales) => {
+      if (rolesActuales.includes(rol)) {
+        return rolesActuales.filter((rolActual) => rolActual !== rol);
+      }
+
+      return [...rolesActuales, rol];
+    });
+  }
 
   async function manejarSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,6 +97,7 @@ export function UserForm({
             nombre,
             correo,
             telefono: telefono.trim() === "" ? null : telefono,
+            roles: rolesSeleccionados,
           }
         : {
             tipo_documento: tipoDocumento,
@@ -83,6 +107,7 @@ export function UserForm({
             telefono: telefono.trim() === "" ? null : telefono,
             password,
             estado,
+            roles: rolesSeleccionados,
           };
 
       const respuesta = await fetch(url, {
@@ -110,6 +135,7 @@ export function UserForm({
         setTelefono("");
         setPassword("");
         setEstado("ACTIVO");
+        setRolesSeleccionados([]);
       }
 
       onGuardado?.();
@@ -133,7 +159,7 @@ export function UserForm({
         </h2>
         <p className={styles.description}>
           {esEdicion
-            ? "Actualice los datos básicos del usuario seleccionado. El tipo y número de identificación no se pueden modificar."
+            ? "Actualice los datos básicos y roles del usuario seleccionado. El tipo y número de identificación no se pueden modificar."
             : "Registre un nuevo usuario para permitirle acceder al sistema."}
         </p>
       </div>
@@ -155,6 +181,7 @@ export function UserForm({
             >
               <option value="CC">Cédula de ciudadanía</option>
               <option value="CE">Cédula de extranjería</option>
+              <option value="NIT">NIT</option>
               <option value="PASAPORTE">Pasaporte</option>
               <option value="OTRO">Otro</option>
             </select>
@@ -263,6 +290,23 @@ export function UserForm({
               </div>
             </>
           )}
+        </div>
+
+        <div className={styles.rolesField}>
+          <p className={styles.label}>Roles</p>
+
+          <div className={styles.rolesGrid}>
+            {ROLES_DISPONIBLES.map((rol) => (
+              <label key={rol} className={styles.roleOption}>
+                <input
+                  type="checkbox"
+                  checked={rolesSeleccionados.includes(rol)}
+                  onChange={() => manejarCambioRol(rol)}
+                />
+                <span>{rol}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         {mensajeError && <p className={styles.error}>{mensajeError}</p>}

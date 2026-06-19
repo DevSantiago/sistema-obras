@@ -63,6 +63,17 @@ export async function buscarUsuarioPorNumeroDocumento(
   });
 }
 
+export async function buscarRolesPorNombres(nombres: string[]) {
+  return prisma.roles.findMany({
+    where: {
+      nombre: {
+        in: nombres,
+      },
+      activo: true,
+    },
+  });
+}
+
 export async function crearUsuarioEnBD(data: {
   tipo_documento: string;
   numero_documento: string;
@@ -71,24 +82,40 @@ export async function crearUsuarioEnBD(data: {
   telefono?: string | null;
   password_hash: string;
   estado: string;
+  roles_ids: string[];
 }) {
-  return prisma.usuarios.create({
-    data: {
-      tipo_documento: data.tipo_documento,
-      numero_documento: data.numero_documento,
-      nombre: data.nombre,
-      correo: data.correo,
-      telefono: data.telefono,
-      password_hash: data.password_hash,
-      estado: data.estado,
-    },
-    include: {
-      roles: {
-        include: {
-          rol: true,
+  return prisma.$transaction(async (tx) => {
+    const usuarioCreado = await tx.usuarios.create({
+      data: {
+        tipo_documento: data.tipo_documento,
+        numero_documento: data.numero_documento,
+        nombre: data.nombre,
+        correo: data.correo,
+        telefono: data.telefono,
+        password_hash: data.password_hash,
+        estado: data.estado,
+      },
+    });
+
+    await tx.usuarios_roles.createMany({
+      data: data.roles_ids.map((rolId) => ({
+        usuario_id: usuarioCreado.id,
+        rol_id: rolId,
+      })),
+    });
+
+    return tx.usuarios.findUniqueOrThrow({
+      where: {
+        id: usuarioCreado.id,
+      },
+      include: {
+        roles: {
+          include: {
+            rol: true,
+          },
         },
       },
-    },
+    });
   });
 }
 
@@ -130,6 +157,39 @@ export async function actualizarUsuarioEnBD(
         },
       },
     },
+  });
+}
+
+export async function actualizarRolesUsuarioEnBD(
+  usuarioId: string,
+  rolesIds: string[]
+) {
+  return prisma.$transaction(async (tx) => {
+    await tx.usuarios_roles.deleteMany({
+      where: {
+        usuario_id: usuarioId,
+      },
+    });
+
+    await tx.usuarios_roles.createMany({
+      data: rolesIds.map((rolId) => ({
+        usuario_id: usuarioId,
+        rol_id: rolId,
+      })),
+    });
+
+    return tx.usuarios.findUniqueOrThrow({
+      where: {
+        id: usuarioId,
+      },
+      include: {
+        roles: {
+          include: {
+            rol: true,
+          },
+        },
+      },
+    });
   });
 }
 
