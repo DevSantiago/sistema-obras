@@ -40,3 +40,42 @@ curl -i -b cookies.txt -X PATCH http://localhost:3000/api/v1/usuarios/ID_DEL_USU
   }'
 
 
+## Crear Centro de Costo
+
+url -X POST "http://localhost:3000/api/v1/proyectos-base" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session_token=eyJhbGciOiJIUzI1NiJ9.eyJ1c3VhcmlvSWQiOiIzM2JjOGNhNS04MjE5LTRhMjItYTkzMS1kOTFjMWMyOWJkNTQiLCJjb3JyZW8iOiJhZG1pbkBzaXN0ZW1hLW9icmFzLmxvY2FsIiwicm9sZXMiOlsiQURNSU5JU1RSQURPUiJdLCJpYXQiOjE3ODIyNDUxOTksImV4cCI6MTc4MjI3Mzk5OX0.pLMoLhqpXW0G-kh6pT1V5vXKjO91D_DCvbfc-9tEi2k" \
+  -d '{
+    "nombre": "Construcción sede administrativa",
+    "descripcion": "Proyecto de prueba para HU-0301",
+    "centros_costo": [
+      {
+        "linea_negocio": "OBRA",
+        "fase_centro_costo": "LICITACION"
+      },
+      {
+        "linea_negocio": "INTERVENTORIA",
+        "fase_centro_costo": "LICITACION"
+      }
+    ]
+  }'
+
+## Listar todos los centros de costo
+
+curl -X GET "http://localhost:3000/api/v1/proyectos-base" \
+  -H "Cookie: session_token=$SESSION_TOKEN"
+
+## Consultar por ID
+
+curl -X GET "http://localhost:3000/api/v1/proyectos-base/3bab98c0-2001-4b8c-93b0-7a9af1eeb4ed" \
+  -H "Cookie: session_token=$SESSION_TOKEN"
+
+## Consultar con estado EN_LICITACION
+
+curl -X GET "http://localhost:3000/api/v1/proyectos-base?estado_proyecto=EN_LICITACION" \
+  -H "Cookie: session_token=$SESSION_TOKEN"
+
+## ## Consultar con estado TRUE
+
+curl -X GET "http://localhost:3000/api/v1/proyectos-base?activo=true" \
+  -H "Cookie: session_token=$SESSION_TOKEN"

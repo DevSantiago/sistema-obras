@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Definir el modelo completo de base de datos para solicitudes de pago, usuarios, roles, acceso por centro de costo y variante, beneficiarios, proveedores, trabajadores, nómina, carga de Excel, fondos por centro de costo, préstamos, anticipos, devoluciones, movimientos financieros, operaciones de efectivo, reingresos de sobrantes, cargos financieros, impuestos, retenciones, adjuntos, historial, comentarios, auditoría, referencias internas y OCR futuro.
+Definir el modelo completo de base de datos para solicitudes de pago, usuarios, roles, acceso por proyecto base y centro de costo, beneficiarios, proveedores, trabajadores, nómina, carga de Excel, fondos generales por proyecto base, préstamos, anticipos, devoluciones, movimientos financieros, operaciones de efectivo, reingresos de sobrantes, cargos financieros, impuestos, retenciones, adjuntos, historial, comentarios, auditoría, referencias internas y OCR futuro.
 
 ## Convención de nombres en español
 
@@ -39,23 +39,23 @@ Ejemplos:
 - `usuarios`
 - `roles`
 - `usuarios_roles`
+- `proyectos_base`
 - `centros_costo`
-- `variantes_centro_costo`
 - `accesos_usuario_centro_costo`
 - `proveedores`
 - `beneficiarios_pago`
 - `prestamistas`
 - `secuencias_documentales`
-- `fondos_centro_costo`
-- `prestamos_obra`
+- `fondos`
+- `prestamos_proyecto`
 - `devoluciones_prestamo`
-- `anticipos_centro_costo`
+- `anticipos_proyecto`
 - `solicitudes_pago`
 - `items_solicitud_pago`
 - `impuestos_retenciones_solicitud`
 - `operaciones_efectivo`
 - `cargos_financieros`
-- `movimientos_fondo_centro_costo`
+- `movimientos_fondo`
 - `adjuntos`
 - `historial_estados_solicitud`
 - `historial_estados_centro_costo`
@@ -63,23 +63,57 @@ Ejemplos:
 - `auditoria`
 - `resultados_ocr`
 
-La entidad `obras` queda absorbida funcionalmente por el modelo de `centros_costo` y `variantes_centro_costo`. Si existiera por migración o compatibilidad histórica, no debe ser la entidad financiera principal.
+La entidad `obras` queda absorbida funcionalmente por el modelo de `proyectos_base` y `centros_costo`. Si existiera por migración o compatibilidad histórica, no debe ser la entidad financiera principal.
+
+## Regla de proyecto base, centros de costo y fases
+
+`proyectos_base` representa el negocio, oportunidad o contrato general. Sobre este nivel se registra el fondo general y se consolidan los saldos, préstamos, anticipos y devoluciones.
+
+`centros_costo` representa la clasificación operativa donde se imputa el gasto. No conserva saldo propio. Su función principal es responder en qué línea y fase se gastó el dinero del proyecto base.
+
+El centro de costo combina dos dimensiones:
+
+| Dimensión | Valores | Uso |
+|---|---|---|
+| Línea de negocio | `OBRA`, `INTERVENTORIA` | Define si el gasto pertenece a obra o interventoría. |
+| Fase | `LICITACION`, `EJECUCION` | Define si el gasto pertenece a la fase de propuesta/proyecto o a la fase adjudicada/en ejecución. |
+
+Con esta regla se pueden representar estos escenarios:
+
+| Caso | Centros de costo posibles |
+|---|---|
+| Licitación de obra | `PRO-OBRA - NOMBRE DEL PROYECTO` |
+| Ejecución de obra adjudicada | `OBRA - NOMBRE DEL PROYECTO` |
+| Licitación de interventoría | `PRO-INT - NOMBRE DEL PROYECTO` |
+| Ejecución de interventoría adjudicada | `INT - NOMBRE DEL PROYECTO` |
+| Proyecto que incluye obra e interventoría | `PRO-OBRA`, `PRO-INT`, `OBRA` e `INT`, según aplique |
+| Proyecto donde solo se adjudica interventoría | `PRO-INT` e `INT`, sin obligar a crear centros de costo de obra |
+
+Con esta definición, `PRO-OBRA`, `OBRA`, `PRO-INT` e `INT` son centros de costo independientes asociados al mismo proyecto base. No se requiere una tabla adicional para representar fases o líneas de negocio.
 
 ## Regla financiera transversal
 
 `solicitudes_pago.tipo_solicitud` clasifica la solicitud, pero no determina por sí solo el movimiento financiero.
 
-Toda operación que afecte el saldo consolidado del centro de costo debe registrarse en:
+Toda operación que afecte el saldo consolidado del proyecto base debe registrarse en:
 
 ```text
-movimientos_fondo_centro_costo
+movimientos_fondo
 ```
 
-La tabla `fondos_centro_costo` conserva el saldo actual. Las variantes `PROYECTO`, `OBRA` e `INTERVENTORIA` clasifican la imputación, pero no tienen saldos independientes.
+La tabla `fondos` conserva el saldo actual general del proyecto base. Los centros de costo clasifican la imputación del gasto, pero no tienen saldos independientes.
+
+El fondo responde: de dónde sale la plata. El centro de costo responde: en qué línea y fase se gastó.
 
 Para nómina agrupada, `items_solicitud_pago` almacena el detalle de trabajadores y conceptos, pero el descuento financiero se realiza sobre `solicitudes_pago.valor_neto`.
 
-Los reingresos de sobrantes de retiros, cargos financieros y pagos de impuestos o retenciones que afecten saldo también deben registrarse en `movimientos_fondo_centro_costo`.
+Cuando una solicitud se paga por transferencia directa, el fondo se afecta con `EGRESO_SOLICITUD_PAGO`. Cuando una solicitud se paga mediante retiro de efectivo, el fondo se afecta con `EGRESO_RETIRO_EFECTIVO` por el valor retirado y, si sobra dinero, con `INGRESO_REINGRESO_SOBRANTE_EFECTIVO` por el valor reingresado. En este caso no debe generarse adicionalmente `EGRESO_SOLICITUD_PAGO`, para evitar doble descuento.
+
+Los reingresos de sobrantes de retiros, cargos financieros y pagos de impuestos o retenciones que afecten saldo también deben registrarse en `movimientos_fondo`.
+
+Los préstamos se registran como una deuda en `prestamos_proyecto` y como un ingreso al fondo general mediante `movimientos_fondo`. Cuando el prestamista recoge dinero, la devolución disminuye el saldo del fondo y disminuye el saldo pendiente del préstamo. La devolución puede ocurrir aunque todavía exista dinero disponible del préstamo inicial.
+
+Los cargos financieros corresponden a costos bancarios o financieros generados al retirar, consignar, transferir o mover dinero. Incluyen, entre otros, GMF, 4x1000, comisiones bancarias, costos de retiro, costos de transferencia, costos de consignación y diferencias asociadas a operaciones de efectivo. Estos cargos no se calculan automáticamente como valor oficial; deben registrarse manualmente desde la plataforma por un usuario autorizado, normalmente auxiliar contable o financiero, con soporte cuando aplique. Cuando afecten el saldo del fondo, deben generar un movimiento `EGRESO_CARGO_FINANCIERO`.
 
 | Caso | Tabla de detalle | Movimiento que afecta saldo |
 |---|---|---|
@@ -87,8 +121,23 @@ Los reingresos de sobrantes de retiros, cargos financieros y pagos de impuestos 
 | Reingreso de sobrante | `operaciones_efectivo` | `INGRESO_REINGRESO_SOBRANTE_EFECTIVO` |
 | Cargo financiero | `cargos_financieros` | `EGRESO_CARGO_FINANCIERO` |
 | Pago de impuesto o retención independiente | `impuestos_retenciones_solicitud` | `EGRESO_IMPUESTO_RETENCION` |
-| Anticipo recibido | `anticipos_centro_costo` | `INGRESO_ANTICIPO` |
-| Préstamo recibido | `prestamos_obra` | `INGRESO_PRESTAMO_PERSONA` o `INGRESO_PRESTAMO_OBRA` |
+| Anticipo recibido | `anticipos_proyecto` | `INGRESO_ANTICIPO` |
+| Préstamo recibido | `prestamos_proyecto` | `INGRESO_PRESTAMO` |
+| Devolución a prestamista | `devoluciones_prestamo` | `EGRESO_DEVOLUCION_PRESTAMO` |
+
+## Reglas de acceso a centros de costo
+
+Los roles definen qué tipo de usuario es una persona dentro del sistema. Los accesos definen sobre qué centro de costo puede operar.
+
+Al crear o editar usuarios, el sistema debe permitir asignar centros de costo mediante `accesos_usuario_centro_costo`.
+
+Reglas principales:
+
+- Un usuario puede tener uno o varios roles.
+- Un usuario puede tener acceso a uno o varios centros de costo.
+- La creación de solicitudes debe validar rol y acceso activo al centro de costo seleccionado.
+- El permiso `puede_ver_saldo` permite consultar el saldo del fondo general del proyecto base asociado, no un saldo independiente del centro de costo.
+- El permiso `puede_gestionar_fondos` debe reservarse para usuarios autorizados a registrar ingresos, anticipos, préstamos, devoluciones, ajustes o movimientos financieros.
 
 ## Reglas de beneficiarios y nómina en el modelo
 
@@ -141,8 +190,22 @@ erDiagram
         timestamp creado_en
     }
 
+    PROYECTOS_BASE {
+        uuid id PK
+        string nombre
+        text descripcion
+        string estado_proyecto
+        boolean activo
+        timestamp creado_en
+        timestamp actualizado_en
+    }
+
     CENTROS_COSTO {
         uuid id PK
+        uuid proyecto_base_id FK
+        string linea_negocio
+        string fase_centro_costo
+        string prefijo
         string codigo
         string nombre
         text descripcion
@@ -155,23 +218,10 @@ erDiagram
         timestamp actualizado_en
     }
 
-    VARIANTES_CENTRO_COSTO {
-        uuid id PK
-        uuid centro_costo_id FK
-        string codigo
-        string nombre
-        string tipo_variante
-        boolean habilitada
-        boolean cerrada
-        timestamp creado_en
-        timestamp actualizado_en
-    }
-
     ACCESOS_USUARIO_CENTRO_COSTO {
         uuid id PK
         uuid usuario_id FK
         uuid centro_costo_id FK
-        uuid variante_centro_costo_id FK
         boolean puede_crear_solicitudes
         boolean puede_ver_solicitudes
         boolean puede_gestionar_fondos
@@ -216,25 +266,27 @@ erDiagram
     SECUENCIAS_DOCUMENTALES {
         uuid id PK
         string tipo_secuencia
+        uuid proyecto_base_id FK
         uuid centro_costo_id FK
         string prefijo
         int anio
         int valor_actual
     }
 
-    FONDOS_CENTRO_COSTO {
+    FONDOS {
         uuid id PK
-        uuid centro_costo_id FK
+        uuid proyecto_base_id FK
+        string nombre
         decimal saldo_actual
         boolean activo
     }
 
-    PRESTAMOS_OBRA {
+    PRESTAMOS_PROYECTO {
         uuid id PK
+        uuid fondo_id FK
+        uuid proyecto_base_id FK
         string referencia_sistema
         string referencia_documental
-        uuid centro_costo_deudor_id FK
-        uuid centro_costo_prestamista_id FK
         uuid prestamista_id FK
         string tipo_prestamo
         decimal valor_principal
@@ -244,18 +296,19 @@ erDiagram
 
     DEVOLUCIONES_PRESTAMO {
         uuid id PK
-        uuid prestamo_obra_id FK
-        uuid centro_costo_id FK
+        uuid prestamo_proyecto_id FK
+        uuid fondo_id FK
         decimal valor
         string referencia_sistema
         string referencia_documental
         timestamp creado_en
     }
 
-    ANTICIPOS_CENTRO_COSTO {
+    ANTICIPOS_PROYECTO {
         uuid id PK
+        uuid fondo_id FK
+        uuid proyecto_base_id FK
         uuid centro_costo_id FK
-        uuid variante_centro_costo_id FK
         decimal valor
         string referencia_sistema
         string referencia_documental
@@ -266,8 +319,9 @@ erDiagram
         uuid id PK
         string numero_solicitud
         string tipo_solicitud
+        uuid proyecto_base_id FK
+        uuid fondo_id FK
         uuid centro_costo_id FK
-        uuid variante_centro_costo_id FK
         uuid beneficiario_id FK
         string categoria_gasto
         string categoria_reembolso
@@ -279,6 +333,7 @@ erDiagram
         decimal valor_retenciones
         decimal valor_descuentos
         decimal valor_neto
+        decimal valor_pagado
         string estado_actual
     }
 
@@ -311,8 +366,9 @@ erDiagram
 
     OPERACIONES_EFECTIVO {
         uuid id PK
+        uuid fondo_id FK
+        uuid proyecto_base_id FK
         uuid centro_costo_id FK
-        uuid variante_centro_costo_id FK
         uuid solicitud_pago_id FK
         string referencia_sistema
         string referencia_retiro
@@ -322,31 +378,39 @@ erDiagram
         decimal valor_pagado
         decimal valor_sobrante
         decimal valor_reingresado
+        string estado_operacion
         string estado_sobrante
     }
 
     CARGOS_FINANCIEROS {
         uuid id PK
+        uuid fondo_id FK
+        uuid proyecto_base_id FK
         uuid centro_costo_id FK
-        uuid variante_centro_costo_id FK
         uuid solicitud_pago_id FK
         uuid operacion_efectivo_id FK
-        uuid prestamo_obra_id FK
+        uuid prestamo_proyecto_id FK
         string tipo_cargo
         decimal valor
         string referencia_sistema
         string referencia_documental
+        date fecha_cargo
+        string banco
+        string referencia_bancaria
+        string origen_registro
+        uuid soporte_adjunto_id FK
+        string estado_registro
     }
 
-    MOVIMIENTOS_FONDO_CENTRO_COSTO {
+    MOVIMIENTOS_FONDO {
         uuid id PK
-        uuid fondo_centro_costo_id FK
+        uuid fondo_id FK
+        uuid proyecto_base_id FK
         uuid centro_costo_id FK
-        uuid variante_centro_costo_id FK
         uuid solicitud_pago_id FK
-        uuid prestamo_obra_id FK
+        uuid prestamo_proyecto_id FK
         uuid devolucion_prestamo_id FK
-        uuid anticipo_centro_costo_id FK
+        uuid anticipo_proyecto_id FK
         uuid operacion_efectivo_id FK
         uuid cargo_financiero_id FK
         uuid impuesto_retencion_id FK
@@ -405,26 +469,40 @@ erDiagram
     USUARIOS ||--o{ USUARIOS_ROLES : tiene
     ROLES ||--o{ USUARIOS_ROLES : asigna
     USUARIOS ||--o{ ACCESOS_USUARIO_CENTRO_COSTO : recibe
+    PROYECTOS_BASE ||--o{ CENTROS_COSTO : agrupa
+    PROYECTOS_BASE ||--|| FONDOS : tiene
+    PROYECTOS_BASE ||--o{ SECUENCIAS_DOCUMENTALES : maneja
     CENTROS_COSTO ||--o{ ACCESOS_USUARIO_CENTRO_COSTO : controla
-    CENTROS_COSTO ||--o{ VARIANTES_CENTRO_COSTO : tiene
-    CENTROS_COSTO ||--|| FONDOS_CENTRO_COSTO : tiene
+    CENTROS_COSTO ||--o{ SECUENCIAS_DOCUMENTALES : puede_manejar
     PROVEEDORES ||--o{ BENEFICIARIOS_PAGO : origina
     USUARIOS ||--o{ BENEFICIARIOS_PAGO : puede_asociarse
     BENEFICIARIOS_PAGO ||--o{ SOLICITUDES_PAGO : recibe
     BENEFICIARIOS_PAGO ||--o{ ITEMS_SOLICITUD_PAGO : recibe
+    FONDOS ||--o{ SOLICITUDES_PAGO : financia
+    PROYECTOS_BASE ||--o{ SOLICITUDES_PAGO : agrupa
     CENTROS_COSTO ||--o{ SOLICITUDES_PAGO : agrupa
-    VARIANTES_CENTRO_COSTO ||--o{ SOLICITUDES_PAGO : clasifica
     SOLICITUDES_PAGO ||--o{ ITEMS_SOLICITUD_PAGO : contiene
     SOLICITUDES_PAGO ||--o{ IMPUESTOS_RETENCIONES_SOLICITUD : desglosa
     SOLICITUDES_PAGO ||--o{ OPERACIONES_EFECTIVO : puede_generar
     OPERACIONES_EFECTIVO ||--o{ CARGOS_FINANCIEROS : puede_generar
-    FONDOS_CENTRO_COSTO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : registra
-    SOLICITUDES_PAGO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
-    OPERACIONES_EFECTIVO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
-    CARGOS_FINANCIEROS ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
-    IMPUESTOS_RETENCIONES_SOLICITUD ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : puede_originar
-    PRESTAMOS_OBRA ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
-    ANTICIPOS_CENTRO_COSTO ||--o{ MOVIMIENTOS_FONDO_CENTRO_COSTO : origina
+    FONDOS ||--o{ PRESTAMOS_PROYECTO : recibe
+    PRESTAMISTAS ||--o{ PRESTAMOS_PROYECTO : presta
+    PRESTAMOS_PROYECTO ||--o{ DEVOLUCIONES_PRESTAMO : recibe
+    FONDOS ||--o{ DEVOLUCIONES_PRESTAMO : paga
+    FONDOS ||--o{ ANTICIPOS_PROYECTO : recibe
+    PROYECTOS_BASE ||--o{ ANTICIPOS_PROYECTO : registra
+    CENTROS_COSTO ||--o{ ANTICIPOS_PROYECTO : clasifica_opcionalmente
+    FONDOS ||--o{ CARGOS_FINANCIEROS : financia
+    FONDOS ||--o{ MOVIMIENTOS_FONDO : registra
+    PROYECTOS_BASE ||--o{ MOVIMIENTOS_FONDO : consolida
+    CENTROS_COSTO ||--o{ MOVIMIENTOS_FONDO : clasifica
+    SOLICITUDES_PAGO ||--o{ MOVIMIENTOS_FONDO : origina
+    OPERACIONES_EFECTIVO ||--o{ MOVIMIENTOS_FONDO : origina
+    CARGOS_FINANCIEROS ||--o{ MOVIMIENTOS_FONDO : origina
+    IMPUESTOS_RETENCIONES_SOLICITUD ||--o{ MOVIMIENTOS_FONDO : puede_originar
+    PRESTAMOS_PROYECTO ||--o{ MOVIMIENTOS_FONDO : origina
+    DEVOLUCIONES_PRESTAMO ||--o{ MOVIMIENTOS_FONDO : origina
+    ANTICIPOS_PROYECTO ||--o{ MOVIMIENTOS_FONDO : origina
     SOLICITUDES_PAGO ||--o{ ADJUNTOS : tiene
     SOLICITUDES_PAGO ||--o{ HISTORIAL_ESTADOS_SOLICITUD : registra
     CENTROS_COSTO ||--o{ HISTORIAL_ESTADOS_CENTRO_COSTO : registra
@@ -449,8 +527,19 @@ classDiagram
         +timestamp actualizado_en
     }
 
+    class proyectos_base {
+        +uuid id
+        +string nombre
+        +string estado_proyecto
+        +boolean activo
+    }
+
     class centros_costo {
         +uuid id
+        +uuid proyecto_base_id
+        +string linea_negocio
+        +string fase_centro_costo
+        +string prefijo
         +string codigo
         +string nombre
         +string estado_centro_costo
@@ -459,29 +548,39 @@ classDiagram
         +boolean activo
     }
 
-    class variantes_centro_costo {
+    class fondos {
         +uuid id
-        +uuid centro_costo_id
-        +string codigo
+        +uuid proyecto_base_id
         +string nombre
-        +string tipo_variante
-        +boolean habilitada
-        +boolean cerrada
-    }
-
-    class fondos_centro_costo {
-        +uuid id
-        +uuid centro_costo_id
         +decimal saldo_actual
         +boolean activo
+    }
+
+    class prestamos_proyecto {
+        +uuid id
+        +uuid fondo_id
+        +uuid proyecto_base_id
+        +uuid prestamista_id
+        +decimal valor_principal
+        +decimal saldo_pendiente
+        +string estado
+    }
+
+    class anticipos_proyecto {
+        +uuid id
+        +uuid fondo_id
+        +uuid proyecto_base_id
+        +uuid centro_costo_id
+        +decimal valor
     }
 
     class solicitudes_pago {
         +uuid id
         +string numero_solicitud
         +string tipo_solicitud
+        +uuid proyecto_base_id
+        +uuid fondo_id
         +uuid centro_costo_id
-        +uuid variante_centro_costo_id
         +uuid beneficiario_id
         +string medio_pago
         +decimal valor_bruto
@@ -489,6 +588,7 @@ classDiagram
         +decimal valor_retenciones
         +decimal valor_descuentos
         +decimal valor_neto
+        +decimal valor_pagado
         +string estado_actual
     }
 
@@ -505,32 +605,39 @@ classDiagram
 
     class operaciones_efectivo {
         +uuid id
+        +uuid fondo_id
+        +uuid proyecto_base_id
         +uuid centro_costo_id
-        +uuid variante_centro_costo_id
         +uuid solicitud_pago_id
         +decimal valor_requerido
         +decimal valor_retirado
         +decimal valor_pagado
         +decimal valor_sobrante
         +decimal valor_reingresado
+        +string estado_operacion
         +string estado_sobrante
     }
 
     class cargos_financieros {
         +uuid id
+        +uuid fondo_id
+        +uuid proyecto_base_id
         +uuid centro_costo_id
-        +uuid variante_centro_costo_id
         +uuid solicitud_pago_id
         +uuid operacion_efectivo_id
         +string tipo_cargo
         +decimal valor
+        +date fecha_cargo
+        +string banco
+        +string origen_registro
+        +string estado_registro
     }
 
-    class movimientos_fondo_centro_costo {
+    class movimientos_fondo {
         +uuid id
-        +uuid fondo_centro_costo_id
+        +uuid fondo_id
+        +uuid proyecto_base_id
         +uuid centro_costo_id
-        +uuid variante_centro_costo_id
         +uuid solicitud_pago_id
         +uuid operacion_efectivo_id
         +uuid cargo_financiero_id
@@ -542,17 +649,23 @@ classDiagram
         +decimal saldo_nuevo
     }
 
-    centros_costo "1" --> "0..*" variantes_centro_costo : tiene
-    centros_costo "1" --> "1" fondos_centro_costo : tiene
+    proyectos_base "1" --> "1" fondos : tiene
+    proyectos_base "1" --> "0..*" centros_costo : agrupa
     centros_costo "1" --> "0..*" solicitudes_pago : agrupa
+    fondos "1" --> "0..*" solicitudes_pago : financia
+    fondos "1" --> "0..*" prestamos_proyecto : recibe
+    prestamos_proyecto "1" --> "0..*" movimientos_fondo : origina
+    fondos "1" --> "0..*" anticipos_proyecto : recibe
+    anticipos_proyecto "1" --> "0..*" movimientos_fondo : origina
     solicitudes_pago "1" --> "0..*" impuestos_retenciones_solicitud : desglosa
     solicitudes_pago "1" --> "0..*" operaciones_efectivo : puede_generar
     operaciones_efectivo "1" --> "0..*" cargos_financieros : puede_generar
-    fondos_centro_costo "1" --> "0..*" movimientos_fondo_centro_costo : registra
-    solicitudes_pago "1" --> "0..*" movimientos_fondo_centro_costo : origina
-    operaciones_efectivo "1" --> "0..*" movimientos_fondo_centro_costo : origina
-    cargos_financieros "1" --> "0..*" movimientos_fondo_centro_costo : origina
-    impuestos_retenciones_solicitud "1" --> "0..*" movimientos_fondo_centro_costo : puede_originar
+    fondos "1" --> "0..*" movimientos_fondo : registra
+    centros_costo "1" --> "0..*" movimientos_fondo : clasifica
+    solicitudes_pago "1" --> "0..*" movimientos_fondo : origina
+    operaciones_efectivo "1" --> "0..*" movimientos_fondo : origina
+    cargos_financieros "1" --> "0..*" movimientos_fondo : origina
+    impuestos_retenciones_solicitud "1" --> "0..*" movimientos_fondo : puede_originar
 ```
 
 ## DDL completo
@@ -589,12 +702,37 @@ CREATE TABLE usuarios_roles (
     PRIMARY KEY (usuario_id, rol_id)
 );
 
-CREATE TABLE centros_costo (
+CREATE TABLE proyectos_base (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    codigo VARCHAR(50) UNIQUE NOT NULL,
     nombre VARCHAR(150) NOT NULL,
     descripcion TEXT,
-    estado_centro_costo VARCHAR(40) NOT NULL DEFAULT 'EN_PROPUESTA',
+    estado_proyecto VARCHAR(40) NOT NULL DEFAULT 'EN_LICITACION',
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_por UUID REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_estado_proyecto_base CHECK (
+        estado_proyecto IN (
+            'EN_LICITACION',
+            'ADJUDICADO',
+            'NO_ADJUDICADO',
+            'EN_EJECUCION',
+            'FINALIZADO',
+            'CANCELADO'
+        )
+    )
+);
+
+CREATE TABLE centros_costo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
+    linea_negocio VARCHAR(30) NOT NULL,
+    fase_centro_costo VARCHAR(30) NOT NULL,
+    prefijo VARCHAR(20) NOT NULL,
+    codigo VARCHAR(80) UNIQUE NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    estado_centro_costo VARCHAR(40) NOT NULL DEFAULT 'EN_LICITACION',
     creado_como_adjudicado BOOLEAN NOT NULL DEFAULT FALSE,
     motivo_creacion_adjudicada TEXT,
     fecha_adjudicacion TIMESTAMP,
@@ -605,44 +743,33 @@ CREATE TABLE centros_costo (
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_linea_negocio_centro_costo CHECK (
+        linea_negocio IN ('OBRA', 'INTERVENTORIA')
+    ),
+    CONSTRAINT restriccion_fase_centro_costo CHECK (
+        fase_centro_costo IN ('LICITACION', 'EJECUCION')
+    ),
     CONSTRAINT restriccion_estado_centro_costo CHECK (
         estado_centro_costo IN (
-            'EN_PROPUESTA',
+            'EN_LICITACION',
             'NO_ADJUDICADO',
             'ADJUDICADO',
             'EN_EJECUCION',
             'FINALIZADO',
             'CERRADO'
         )
-    )
-);
-
-CREATE TABLE variantes_centro_costo (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
-    codigo VARCHAR(50) NOT NULL,
-    nombre VARCHAR(150) NOT NULL,
-    tipo_variante VARCHAR(30) NOT NULL,
-    habilitada BOOLEAN NOT NULL DEFAULT TRUE,
-    habilitada_por UUID REFERENCES usuarios(id),
-    habilitada_en TIMESTAMP,
-    cerrada BOOLEAN NOT NULL DEFAULT FALSE,
-    cerrada_por UUID REFERENCES usuarios(id),
-    cerrada_en TIMESTAMP,
-    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT restriccion_tipo_variante CHECK (
-        tipo_variante IN ('PROYECTO', 'OBRA', 'INTERVENTORIA')
     ),
-    CONSTRAINT unico_variante_por_centro_codigo UNIQUE (centro_costo_id, codigo),
-    CONSTRAINT unico_variante_por_centro_tipo UNIQUE (centro_costo_id, tipo_variante)
+    CONSTRAINT unico_centro_por_proyecto_linea_fase UNIQUE (
+        proyecto_base_id,
+        linea_negocio,
+        fase_centro_costo
+    )
 );
 
 CREATE TABLE accesos_usuario_centro_costo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     centro_costo_id UUID NOT NULL REFERENCES centros_costo(id) ON DELETE CASCADE,
-    variante_centro_costo_id UUID REFERENCES variantes_centro_costo(id),
     puede_crear_solicitudes BOOLEAN NOT NULL DEFAULT TRUE,
     puede_ver_solicitudes BOOLEAN NOT NULL DEFAULT TRUE,
     puede_gestionar_fondos BOOLEAN NOT NULL DEFAULT FALSE,
@@ -715,19 +842,19 @@ CREATE TABLE prestamistas (
 CREATE TABLE secuencias_documentales (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tipo_secuencia VARCHAR(50) NOT NULL,
+    proyecto_base_id UUID REFERENCES proyectos_base(id),
     centro_costo_id UUID REFERENCES centros_costo(id),
     prefijo VARCHAR(20) NOT NULL,
     anio INTEGER NOT NULL,
     valor_actual INTEGER NOT NULL DEFAULT 0,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT unico_secuencia_centro_anio UNIQUE (tipo_secuencia, centro_costo_id, anio),
+    CONSTRAINT unico_secuencia_proyecto_centro_anio UNIQUE (tipo_secuencia, proyecto_base_id, centro_costo_id, anio),
     CONSTRAINT restriccion_tipo_secuencia CHECK (
         tipo_secuencia IN (
             'SOLICITUD_PAGO',
             'ANTICIPO',
-            'PRESTAMO_PERSONA',
-            'PRESTAMO_OBRA',
+            'PRESTAMO_PROYECTO',
             'DEVOLUCION_PRESTAMO',
             'MOVIMIENTO_FONDO',
             'CONFIRMACION_PAGO',
@@ -739,24 +866,27 @@ CREATE TABLE secuencias_documentales (
     CONSTRAINT restriccion_valor_actual_secuencia CHECK (valor_actual >= 0)
 );
 
-CREATE TABLE fondos_centro_costo (
+CREATE TABLE fondos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    centro_costo_id UUID NOT NULL UNIQUE REFERENCES centros_costo(id),
+    proyecto_base_id UUID NOT NULL UNIQUE REFERENCES proyectos_base(id),
+    nombre VARCHAR(150) NOT NULL,
+    descripcion TEXT,
     saldo_actual NUMERIC(14,2) NOT NULL DEFAULT 0,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_por UUID REFERENCES usuarios(id),
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT restriccion_saldo_fondo_centro_costo CHECK (saldo_actual >= 0)
+    CONSTRAINT restriccion_saldo_fondo CHECK (saldo_actual >= 0)
 );
 
-CREATE TABLE prestamos_obra (
+CREATE TABLE prestamos_proyecto (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
     referencia_sistema VARCHAR(100) UNIQUE NOT NULL,
     referencia_documental VARCHAR(100),
-    centro_costo_deudor_id UUID NOT NULL REFERENCES centros_costo(id),
-    centro_costo_prestamista_id UUID REFERENCES centros_costo(id),
-    prestamista_id UUID REFERENCES prestamistas(id),
-    tipo_prestamo VARCHAR(50) NOT NULL,
+    prestamista_id UUID NOT NULL REFERENCES prestamistas(id),
+    tipo_prestamo VARCHAR(50) NOT NULL DEFAULT 'PERSONA_A_PROYECTO',
     valor_principal NUMERIC(14,2) NOT NULL,
     saldo_pendiente NUMERIC(14,2) NOT NULL,
     estado VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE',
@@ -766,27 +896,19 @@ CREATE TABLE prestamos_obra (
     creado_por UUID REFERENCES usuarios(id),
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT restriccion_tipo_prestamo CHECK (tipo_prestamo IN ('PERSONA_A_OBRA', 'OBRA_A_OBRA')),
+    CONSTRAINT restriccion_tipo_prestamo CHECK (tipo_prestamo IN ('PERSONA_A_PROYECTO')),
     CONSTRAINT restriccion_estado_prestamo CHECK (estado IN ('PENDIENTE', 'PAGADO_PARCIAL', 'PAGADA', 'ANULADA')),
     CONSTRAINT restriccion_valores_prestamo CHECK (
         valor_principal > 0
         AND saldo_pendiente >= 0
         AND saldo_pendiente <= valor_principal
-    ),
-    CONSTRAINT restriccion_origen_prestamo CHECK (
-        (tipo_prestamo = 'PERSONA_A_OBRA' AND prestamista_id IS NOT NULL AND centro_costo_prestamista_id IS NULL)
-        OR
-        (tipo_prestamo = 'OBRA_A_OBRA' AND centro_costo_prestamista_id IS NOT NULL AND prestamista_id IS NULL)
-    ),
-    CONSTRAINT restriccion_prestamo_no_mismo_centro CHECK (
-        centro_costo_prestamista_id IS NULL OR centro_costo_deudor_id <> centro_costo_prestamista_id
     )
 );
 
 CREATE TABLE devoluciones_prestamo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    prestamo_obra_id UUID NOT NULL REFERENCES prestamos_obra(id),
-    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    prestamo_proyecto_id UUID NOT NULL REFERENCES prestamos_proyecto(id),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
     valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
     referencia_sistema VARCHAR(100) UNIQUE NOT NULL,
     referencia_documental VARCHAR(100),
@@ -795,10 +917,11 @@ CREATE TABLE devoluciones_prestamo (
     creado_en TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE anticipos_centro_costo (
+CREATE TABLE anticipos_proyecto (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
-    variante_centro_costo_id UUID REFERENCES variantes_centro_costo(id),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
+    centro_costo_id UUID REFERENCES centros_costo(id),
     valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
     referencia_sistema VARCHAR(100) UNIQUE NOT NULL,
     referencia_documental VARCHAR(100),
@@ -812,8 +935,9 @@ CREATE TABLE solicitudes_pago (
     numero_solicitud VARCHAR(80) UNIQUE NOT NULL,
     tipo_solicitud VARCHAR(50) NOT NULL DEFAULT 'PAGO_PROVEEDOR',
     modalidad_nomina VARCHAR(50),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
     centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
-    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
     beneficiario_id UUID REFERENCES beneficiarios_pago(id),
     proveedor_id UUID REFERENCES proveedores(id),
     categoria_gasto VARCHAR(80),
@@ -827,6 +951,7 @@ CREATE TABLE solicitudes_pago (
     valor_retenciones NUMERIC(14,2) NOT NULL DEFAULT 0,
     valor_descuentos NUMERIC(14,2) NOT NULL DEFAULT 0,
     valor_neto NUMERIC(14,2) NOT NULL,
+    valor_pagado NUMERIC(14,2),
     valor_reservado NUMERIC(14,2),
     estado_actual VARCHAR(50) NOT NULL DEFAULT 'BORRADOR',
     creado_por UUID REFERENCES usuarios(id),
@@ -842,7 +967,7 @@ CREATE TABLE solicitudes_pago (
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT restriccion_tipo_solicitud CHECK (
-        tipo_solicitud IN ('PAGO_PROVEEDOR', 'PAGO_NOMINA', 'REEMBOLSO', 'OTRO_PAGO')
+        tipo_solicitud IN ('PAGO_PROVEEDOR', 'PAGO_NOMINA', 'REEMBOLSO', 'PAGO_IMPUESTO', 'OTRO_PAGO')
     ),
     CONSTRAINT restriccion_modalidad_nomina CHECK (
         modalidad_nomina IS NULL OR modalidad_nomina IN ('INDIVIDUAL', 'AGRUPADA_EXCEL')
@@ -868,6 +993,7 @@ CREATE TABLE solicitudes_pago (
         AND valor_retenciones >= 0
         AND valor_descuentos >= 0
         AND valor_neto >= 0
+        AND (valor_pagado IS NULL OR valor_pagado >= 0)
         AND (valor_reservado IS NULL OR valor_reservado >= 0)
     )
 );
@@ -948,8 +1074,9 @@ CREATE TABLE impuestos_retenciones_solicitud (
 
 CREATE TABLE operaciones_efectivo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
     centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
-    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
     solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
     referencia_sistema VARCHAR(80) NOT NULL UNIQUE,
     referencia_retiro VARCHAR(120),
@@ -959,6 +1086,7 @@ CREATE TABLE operaciones_efectivo (
     valor_pagado NUMERIC(14,2) NOT NULL CHECK (valor_pagado > 0),
     valor_sobrante NUMERIC(14,2) NOT NULL DEFAULT 0,
     valor_reingresado NUMERIC(14,2) NOT NULL DEFAULT 0,
+    estado_operacion VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE_RETIRO',
     estado_sobrante VARCHAR(50) NOT NULL,
     fecha_retiro TIMESTAMP,
     fecha_pago TIMESTAMP,
@@ -970,6 +1098,17 @@ CREATE TABLE operaciones_efectivo (
     creado_por UUID NOT NULL REFERENCES usuarios(id),
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_estado_operacion_efectivo CHECK (
+        estado_operacion IN (
+            'PENDIENTE_RETIRO',
+            'RETIRADO',
+            'PAGADO',
+            'SOBRANTE_PENDIENTE_REINGRESO',
+            'SOBRANTE_REINGRESADO',
+            'CERRADO',
+            'ANULADO'
+        )
+    ),
     CONSTRAINT restriccion_estado_sobrante CHECK (
         estado_sobrante IN (
             'SIN_SOBRANTE',
@@ -985,15 +1124,22 @@ CREATE TABLE operaciones_efectivo (
 
 CREATE TABLE cargos_financieros (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
     centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
-    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
     solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
     operacion_efectivo_id UUID REFERENCES operaciones_efectivo(id),
-    prestamo_obra_id UUID REFERENCES prestamos_obra(id),
+    prestamo_proyecto_id UUID REFERENCES prestamos_proyecto(id),
     tipo_cargo VARCHAR(50) NOT NULL,
     valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
     referencia_sistema VARCHAR(80) NOT NULL UNIQUE,
     referencia_documental VARCHAR(120),
+    fecha_cargo DATE NOT NULL,
+    banco VARCHAR(100),
+    referencia_bancaria VARCHAR(120),
+    origen_registro VARCHAR(30) NOT NULL DEFAULT 'MANUAL',
+    soporte_adjunto_id UUID,
+    estado_registro VARCHAR(30) NOT NULL DEFAULT 'REGISTRADO',
     descripcion TEXT,
     creado_por UUID NOT NULL REFERENCES usuarios(id),
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -1003,21 +1149,29 @@ CREATE TABLE cargos_financieros (
             'CUATRO_POR_MIL',
             'COMISION_BANCARIA',
             'COSTO_RETIRO',
+            'COSTO_TRANSFERENCIA',
+            'COSTO_CONSIGNACION',
             'DIFERENCIA_RETIRO_EFECTIVO',
             'OTRO_CARGO_FINANCIERO'
         )
+    ),
+    CONSTRAINT restriccion_origen_registro_cargo_financiero CHECK (
+        origen_registro IN ('MANUAL')
+    ),
+    CONSTRAINT restriccion_estado_registro_cargo_financiero CHECK (
+        estado_registro IN ('REGISTRADO', 'AJUSTADO', 'ANULADO')
     )
 );
 
-CREATE TABLE movimientos_fondo_centro_costo (
+CREATE TABLE movimientos_fondo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    fondo_centro_costo_id UUID NOT NULL REFERENCES fondos_centro_costo(id),
-    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
-    variante_centro_costo_id UUID NOT NULL REFERENCES variantes_centro_costo(id),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
+    centro_costo_id UUID REFERENCES centros_costo(id),
     solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
-    prestamo_obra_id UUID REFERENCES prestamos_obra(id),
+    prestamo_proyecto_id UUID REFERENCES prestamos_proyecto(id),
     devolucion_prestamo_id UUID REFERENCES devoluciones_prestamo(id),
-    anticipo_centro_costo_id UUID REFERENCES anticipos_centro_costo(id),
+    anticipo_proyecto_id UUID REFERENCES anticipos_proyecto(id),
     operacion_efectivo_id UUID REFERENCES operaciones_efectivo(id),
     cargo_financiero_id UUID REFERENCES cargos_financieros(id),
     impuesto_retencion_id UUID REFERENCES impuestos_retenciones_solicitud(id),
@@ -1035,15 +1189,12 @@ CREATE TABLE movimientos_fondo_centro_costo (
     CONSTRAINT restriccion_tipo_movimiento CHECK (
         tipo_movimiento IN (
             'INGRESO_ANTICIPO',
-            'INGRESO_PRESTAMO_PERSONA',
-            'INGRESO_PRESTAMO_OBRA',
-            'INGRESO_DEVOLUCION_PRESTAMO',
+            'INGRESO_PRESTAMO',
             'INGRESO_REINGRESO_SOBRANTE_EFECTIVO',
             'INGRESO_AJUSTE',
             'EGRESO_SOLICITUD_PAGO',
             'EGRESO_RETIRO_EFECTIVO',
             'EGRESO_DEVOLUCION_PRESTAMO',
-            'EGRESO_PRESTAMO_A_OBRA',
             'EGRESO_CARGO_FINANCIERO',
             'EGRESO_IMPUESTO_RETENCION',
             'EGRESO_AJUSTE'
@@ -1072,6 +1223,10 @@ CREATE TABLE adjuntos (
 ALTER TABLE solicitudes_pago
 ADD CONSTRAINT fk_solicitudes_pago_adjunto_archivo_origen
 FOREIGN KEY (adjunto_archivo_origen_id) REFERENCES adjuntos(id);
+
+ALTER TABLE cargos_financieros
+ADD CONSTRAINT fk_cargos_financieros_soporte_adjunto
+FOREIGN KEY (soporte_adjunto_id) REFERENCES adjuntos(id);
 
 CREATE TABLE historial_estados_solicitud (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1146,18 +1301,23 @@ CREATE INDEX indice_usuarios_estado ON usuarios(estado);
 CREATE INDEX indice_usuarios_roles_usuario ON usuarios_roles(usuario_id);
 CREATE INDEX indice_usuarios_roles_rol ON usuarios_roles(rol_id);
 
+CREATE INDEX indice_proyectos_base_nombre ON proyectos_base(nombre);
+CREATE INDEX indice_proyectos_base_estado ON proyectos_base(estado_proyecto);
+CREATE INDEX indice_proyectos_base_activo ON proyectos_base(activo);
+
+CREATE INDEX indice_centros_costo_proyecto ON centros_costo(proyecto_base_id);
 CREATE INDEX indice_centros_costo_codigo ON centros_costo(codigo);
+CREATE INDEX indice_centros_costo_linea_negocio ON centros_costo(linea_negocio);
+CREATE INDEX indice_centros_costo_fase ON centros_costo(fase_centro_costo);
 CREATE INDEX indice_centros_costo_estado ON centros_costo(estado_centro_costo);
 CREATE INDEX indice_centros_costo_activo ON centros_costo(activo);
 
-CREATE INDEX indice_variantes_centro_costo_centro ON variantes_centro_costo(centro_costo_id);
-CREATE INDEX indice_variantes_centro_costo_tipo ON variantes_centro_costo(tipo_variante);
-CREATE INDEX indice_variantes_centro_costo_habilitada ON variantes_centro_costo(habilitada);
-
 CREATE INDEX indice_accesos_usuario_centro_costo_usuario ON accesos_usuario_centro_costo(usuario_id);
 CREATE INDEX indice_accesos_usuario_centro_costo_centro ON accesos_usuario_centro_costo(centro_costo_id);
-CREATE INDEX indice_accesos_usuario_centro_costo_variante ON accesos_usuario_centro_costo(variante_centro_costo_id);
 CREATE INDEX indice_accesos_usuario_centro_costo_activo ON accesos_usuario_centro_costo(activo);
+CREATE UNIQUE INDEX indice_accesos_usuario_centro_activo_unico
+ON accesos_usuario_centro_costo(usuario_id, centro_costo_id)
+WHERE activo = TRUE;
 
 CREATE INDEX indice_proveedores_documento ON proveedores(numero_documento);
 CREATE INDEX indice_proveedores_nombre ON proveedores(nombre);
@@ -1171,27 +1331,30 @@ CREATE INDEX indice_beneficiarios_pago_medio_pago ON beneficiarios_pago(medio_pa
 CREATE INDEX indice_beneficiarios_pago_activo ON beneficiarios_pago(activo);
 
 CREATE INDEX indice_prestamistas_documento ON prestamistas(numero_documento);
+CREATE INDEX indice_secuencias_documentales_proyecto ON secuencias_documentales(proyecto_base_id);
 CREATE INDEX indice_secuencias_documentales_centro ON secuencias_documentales(centro_costo_id);
 CREATE INDEX indice_secuencias_documentales_tipo ON secuencias_documentales(tipo_secuencia);
 
-CREATE UNIQUE INDEX indice_fondos_centro_costo_centro_unico ON fondos_centro_costo(centro_costo_id);
-CREATE INDEX indice_fondos_centro_costo_activo ON fondos_centro_costo(activo);
+CREATE UNIQUE INDEX indice_fondos_proyecto_unico ON fondos(proyecto_base_id);
+CREATE INDEX indice_fondos_activo ON fondos(activo);
 
-CREATE INDEX indice_prestamos_obra_centro_deudor ON prestamos_obra(centro_costo_deudor_id);
-CREATE INDEX indice_prestamos_obra_centro_prestamista ON prestamos_obra(centro_costo_prestamista_id);
-CREATE INDEX indice_prestamos_obra_prestamista ON prestamos_obra(prestamista_id);
-CREATE INDEX indice_prestamos_obra_estado ON prestamos_obra(estado);
-CREATE INDEX indice_prestamos_obra_tipo ON prestamos_obra(tipo_prestamo);
+CREATE INDEX indice_prestamos_proyecto_fondo ON prestamos_proyecto(fondo_id);
+CREATE INDEX indice_prestamos_proyecto_proyecto ON prestamos_proyecto(proyecto_base_id);
+CREATE INDEX indice_prestamos_proyecto_prestamista ON prestamos_proyecto(prestamista_id);
+CREATE INDEX indice_prestamos_proyecto_estado ON prestamos_proyecto(estado);
+CREATE INDEX indice_prestamos_proyecto_tipo ON prestamos_proyecto(tipo_prestamo);
 
-CREATE INDEX indice_devoluciones_prestamo_prestamo ON devoluciones_prestamo(prestamo_obra_id);
-CREATE INDEX indice_devoluciones_prestamo_centro ON devoluciones_prestamo(centro_costo_id);
+CREATE INDEX indice_devoluciones_prestamo_prestamo ON devoluciones_prestamo(prestamo_proyecto_id);
+CREATE INDEX indice_devoluciones_prestamo_fondo ON devoluciones_prestamo(fondo_id);
 
-CREATE INDEX indice_anticipos_centro_costo_centro ON anticipos_centro_costo(centro_costo_id);
-CREATE INDEX indice_anticipos_centro_costo_variante ON anticipos_centro_costo(variante_centro_costo_id);
+CREATE INDEX indice_anticipos_proyecto_fondo ON anticipos_proyecto(fondo_id);
+CREATE INDEX indice_anticipos_proyecto_proyecto ON anticipos_proyecto(proyecto_base_id);
+CREATE INDEX indice_anticipos_proyecto_centro ON anticipos_proyecto(centro_costo_id);
 
 CREATE INDEX indice_solicitudes_pago_numero ON solicitudes_pago(numero_solicitud);
+CREATE INDEX indice_solicitudes_pago_proyecto ON solicitudes_pago(proyecto_base_id);
+CREATE INDEX indice_solicitudes_pago_fondo ON solicitudes_pago(fondo_id);
 CREATE INDEX indice_solicitudes_pago_centro ON solicitudes_pago(centro_costo_id);
-CREATE INDEX indice_solicitudes_pago_variante ON solicitudes_pago(variante_centro_costo_id);
 CREATE INDEX indice_solicitudes_pago_beneficiario ON solicitudes_pago(beneficiario_id);
 CREATE INDEX indice_solicitudes_pago_tipo ON solicitudes_pago(tipo_solicitud);
 CREATE INDEX indice_solicitudes_pago_estado ON solicitudes_pago(estado_actual);
@@ -1216,35 +1379,42 @@ CREATE INDEX indice_impuestos_retenciones_naturaleza ON impuestos_retenciones_so
 CREATE INDEX indice_impuestos_retenciones_estado ON impuestos_retenciones_solicitud(estado_registro);
 CREATE INDEX indice_impuestos_retenciones_creado_por ON impuestos_retenciones_solicitud(creado_por);
 
+CREATE INDEX indice_operaciones_efectivo_fondo ON operaciones_efectivo(fondo_id);
+CREATE INDEX indice_operaciones_efectivo_proyecto ON operaciones_efectivo(proyecto_base_id);
 CREATE INDEX indice_operaciones_efectivo_centro ON operaciones_efectivo(centro_costo_id);
-CREATE INDEX indice_operaciones_efectivo_variante ON operaciones_efectivo(variante_centro_costo_id);
 CREATE INDEX indice_operaciones_efectivo_solicitud ON operaciones_efectivo(solicitud_pago_id);
 CREATE INDEX indice_operaciones_efectivo_estado_sobrante ON operaciones_efectivo(estado_sobrante);
 CREATE INDEX indice_operaciones_efectivo_fecha_retiro ON operaciones_efectivo(fecha_retiro);
 CREATE INDEX indice_operaciones_efectivo_fecha_reingreso ON operaciones_efectivo(fecha_reingreso);
 
+CREATE INDEX indice_cargos_financieros_fondo ON cargos_financieros(fondo_id);
+CREATE INDEX indice_cargos_financieros_proyecto ON cargos_financieros(proyecto_base_id);
 CREATE INDEX indice_cargos_financieros_centro ON cargos_financieros(centro_costo_id);
-CREATE INDEX indice_cargos_financieros_variante ON cargos_financieros(variante_centro_costo_id);
 CREATE INDEX indice_cargos_financieros_solicitud ON cargos_financieros(solicitud_pago_id);
 CREATE INDEX indice_cargos_financieros_operacion_efectivo ON cargos_financieros(operacion_efectivo_id);
-CREATE INDEX indice_cargos_financieros_prestamo ON cargos_financieros(prestamo_obra_id);
+CREATE INDEX indice_cargos_financieros_prestamo ON cargos_financieros(prestamo_proyecto_id);
 CREATE INDEX indice_cargos_financieros_tipo ON cargos_financieros(tipo_cargo);
+CREATE INDEX indice_cargos_financieros_fecha_cargo ON cargos_financieros(fecha_cargo);
+CREATE INDEX indice_cargos_financieros_banco ON cargos_financieros(banco);
+CREATE INDEX indice_cargos_financieros_origen ON cargos_financieros(origen_registro);
+CREATE INDEX indice_cargos_financieros_estado ON cargos_financieros(estado_registro);
+CREATE INDEX indice_cargos_financieros_soporte ON cargos_financieros(soporte_adjunto_id);
 CREATE INDEX indice_cargos_financieros_creado_en ON cargos_financieros(creado_en);
 
-CREATE INDEX indice_movimientos_centro_costo ON movimientos_fondo_centro_costo(centro_costo_id);
-CREATE INDEX indice_movimientos_fondo ON movimientos_fondo_centro_costo(fondo_centro_costo_id);
-CREATE INDEX indice_movimientos_variante ON movimientos_fondo_centro_costo(variante_centro_costo_id);
-CREATE INDEX indice_movimientos_solicitud ON movimientos_fondo_centro_costo(solicitud_pago_id);
-CREATE INDEX indice_movimientos_operacion_efectivo ON movimientos_fondo_centro_costo(operacion_efectivo_id);
-CREATE INDEX indice_movimientos_cargo_financiero ON movimientos_fondo_centro_costo(cargo_financiero_id);
-CREATE INDEX indice_movimientos_impuesto_retencion ON movimientos_fondo_centro_costo(impuesto_retencion_id);
-CREATE INDEX indice_movimientos_prestamo ON movimientos_fondo_centro_costo(prestamo_obra_id);
-CREATE INDEX indice_movimientos_devolucion_prestamo ON movimientos_fondo_centro_costo(devolucion_prestamo_id);
-CREATE INDEX indice_movimientos_anticipo ON movimientos_fondo_centro_costo(anticipo_centro_costo_id);
-CREATE INDEX indice_movimientos_tipo ON movimientos_fondo_centro_costo(tipo_movimiento);
-CREATE INDEX indice_movimientos_direccion ON movimientos_fondo_centro_costo(direccion);
-CREATE INDEX indice_movimientos_creado_por ON movimientos_fondo_centro_costo(creado_por);
-CREATE INDEX indice_movimientos_creado_en ON movimientos_fondo_centro_costo(creado_en);
+CREATE INDEX indice_movimientos_centro_costo ON movimientos_fondo(centro_costo_id);
+CREATE INDEX indice_movimientos_fondo ON movimientos_fondo(fondo_id);
+CREATE INDEX indice_movimientos_proyecto ON movimientos_fondo(proyecto_base_id);
+CREATE INDEX indice_movimientos_solicitud ON movimientos_fondo(solicitud_pago_id);
+CREATE INDEX indice_movimientos_operacion_efectivo ON movimientos_fondo(operacion_efectivo_id);
+CREATE INDEX indice_movimientos_cargo_financiero ON movimientos_fondo(cargo_financiero_id);
+CREATE INDEX indice_movimientos_impuesto_retencion ON movimientos_fondo(impuesto_retencion_id);
+CREATE INDEX indice_movimientos_prestamo ON movimientos_fondo(prestamo_proyecto_id);
+CREATE INDEX indice_movimientos_devolucion_prestamo ON movimientos_fondo(devolucion_prestamo_id);
+CREATE INDEX indice_movimientos_anticipo ON movimientos_fondo(anticipo_proyecto_id);
+CREATE INDEX indice_movimientos_tipo ON movimientos_fondo(tipo_movimiento);
+CREATE INDEX indice_movimientos_direccion ON movimientos_fondo(direccion);
+CREATE INDEX indice_movimientos_creado_por ON movimientos_fondo(creado_por);
+CREATE INDEX indice_movimientos_creado_en ON movimientos_fondo(creado_en);
 
 CREATE INDEX indice_adjuntos_solicitud ON adjuntos(solicitud_pago_id);
 CREATE INDEX indice_adjuntos_subido_por ON adjuntos(subido_por);

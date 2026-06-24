@@ -29,6 +29,14 @@ model usuarios {
   actualizado_en   DateTime @updatedAt
 
   roles usuarios_roles[]
+
+  proyectos_creados   proyectos_base[] @relation("ProyectosBaseCreadoPor")
+  centros_adjudicados centros_costo[]  @relation("CentrosCostoAdjudicadoPor")
+  fondos_creados      fondos[]         @relation("FondosCreadoPor")
+
+  accesos_recibidos accesos_usuario_centro_costo[] @relation("AccesosUsuario")
+  accesos_asignados accesos_usuario_centro_costo[] @relation("AccesosAsignadoPor")
+  accesos_revocados accesos_usuario_centro_costo[] @relation("AccesosRevocadoPor")
 }
 
 model roles {
@@ -42,12 +50,110 @@ model roles {
 }
 
 model usuarios_roles {
-  id         String               @id @default(uuid())
+  id         String   @id @default(uuid())
   usuario_id String
   rol_id     String
-  creado_en  DateTime             @default(now())
-  usuario usuarios                @relation(fields: [usuario_id], references: [id])
-  rol     roles                   @relation(fields: [rol_id], references: [id])
+  creado_en  DateTime @default(now())
+  usuario    usuarios @relation(fields: [usuario_id], references: [id])
+  rol        roles    @relation(fields: [rol_id], references: [id])
 
   @@unique([usuario_id, rol_id])
+}
+
+model proyectos_base {
+  id              String   @id @default(uuid())
+  nombre          String
+  descripcion     String?
+  estado_proyecto String   @default("EN_LICITACION")
+  activo          Boolean  @default(true)
+  creado_por      String?
+  creado_en       DateTime @default(now())
+  actualizado_en  DateTime @updatedAt
+
+  creador       usuarios?       @relation("ProyectosBaseCreadoPor", fields: [creado_por], references: [id])
+  centros_costo centros_costo[]
+  fondo         fondos?
+
+  @@index([nombre])
+  @@index([estado_proyecto])
+  @@index([activo])
+}
+
+model centros_costo {
+  id                              String    @id @default(uuid())
+  proyecto_base_id                String
+  linea_negocio                   String
+  fase_centro_costo               String
+  prefijo                         String
+  codigo                          String    @unique
+  nombre                          String
+  descripcion                     String?
+  estado_centro_costo             String    @default("EN_LICITACION")
+  creado_como_adjudicado          Boolean   @default(false)
+  motivo_creacion_adjudicada      String?
+  fecha_adjudicacion              DateTime?
+  soporte_adjudicacion_adjunto_id String?
+  observacion_adjudicacion        String?
+  adjudicado_por                  String?
+  adjudicado_en                   DateTime?
+  activo                          Boolean   @default(true)
+  creado_en                       DateTime  @default(now())
+  actualizado_en                  DateTime  @updatedAt
+
+  proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
+  adjudicador   usuarios?      @relation("CentrosCostoAdjudicadoPor", fields: [adjudicado_por], references: [id])
+
+  accesos accesos_usuario_centro_costo[]
+
+  @@unique([proyecto_base_id, linea_negocio, fase_centro_costo])
+  @@index([proyecto_base_id])
+  @@index([codigo])
+  @@index([linea_negocio])
+  @@index([fase_centro_costo])
+  @@index([estado_centro_costo])
+  @@index([activo])
+}
+
+model fondos {
+  id               String   @id @default(uuid())
+  proyecto_base_id String   @unique
+  nombre           String
+  descripcion      String?
+  saldo_actual     Decimal  @default(0) @db.Decimal(14, 2)
+  activo           Boolean  @default(true)
+  creado_por       String?
+  creado_en        DateTime @default(now())
+  actualizado_en   DateTime @updatedAt
+
+  proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
+  creador       usuarios?      @relation("FondosCreadoPor", fields: [creado_por], references: [id])
+
+  @@index([activo])
+}
+
+model accesos_usuario_centro_costo {
+  id                      String    @id @default(uuid())
+  usuario_id              String
+  centro_costo_id         String
+  puede_crear_solicitudes Boolean   @default(true)
+  puede_ver_solicitudes   Boolean   @default(true)
+  puede_gestionar_fondos  Boolean   @default(false)
+  puede_ver_saldo         Boolean   @default(false)
+  puede_exportar          Boolean   @default(false)
+  activo                  Boolean   @default(true)
+  asignado_por            String?
+  asignado_en             DateTime  @default(now())
+  revocado_por            String?
+  revocado_en             DateTime?
+  creado_en               DateTime  @default(now())
+  actualizado_en          DateTime  @updatedAt
+
+  usuario      usuarios      @relation("AccesosUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
+  centro_costo centros_costo @relation(fields: [centro_costo_id], references: [id], onDelete: Cascade)
+  asignador    usuarios?     @relation("AccesosAsignadoPor", fields: [asignado_por], references: [id])
+  revocador    usuarios?     @relation("AccesosRevocadoPor", fields: [revocado_por], references: [id])
+
+  @@index([usuario_id])
+  @@index([centro_costo_id])
+  @@index([activo])
 }
