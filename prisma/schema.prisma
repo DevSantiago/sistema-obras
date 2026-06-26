@@ -30,9 +30,9 @@ model usuarios {
 
   roles usuarios_roles[]
 
-  proyectos_creados   proyectos_base[] @relation("ProyectosBaseCreadoPor")
-  centros_adjudicados centros_costo[]  @relation("CentrosCostoAdjudicadoPor")
-  fondos_creados      fondos[]         @relation("FondosCreadoPor")
+  proyectos_creados           proyectos_base[] @relation("ProyectosBaseCreadoPor")
+  centros_iniciados_ejecucion centros_costo[]  @relation("CentrosCostoInicioEjecucionPor")
+  fondos_creados              fondos[]         @relation("FondosCreadoPor")
 
   accesos_recibidos accesos_usuario_centro_costo[] @relation("AccesosUsuario")
   accesos_asignados accesos_usuario_centro_costo[] @relation("AccesosAsignadoPor")
@@ -54,8 +54,9 @@ model usuarios_roles {
   usuario_id String
   rol_id     String
   creado_en  DateTime @default(now())
-  usuario    usuarios @relation(fields: [usuario_id], references: [id])
-  rol        roles    @relation(fields: [rol_id], references: [id])
+
+  usuario usuarios @relation(fields: [usuario_id], references: [id])
+  rol     roles    @relation(fields: [rol_id], references: [id])
 
   @@unique([usuario_id, rol_id])
 }
@@ -80,28 +81,28 @@ model proyectos_base {
 }
 
 model centros_costo {
-  id                              String    @id @default(uuid())
-  proyecto_base_id                String
-  linea_negocio                   String
-  fase_centro_costo               String
-  prefijo                         String
-  codigo                          String    @unique
-  nombre                          String
-  descripcion                     String?
-  estado_centro_costo             String    @default("EN_LICITACION")
-  creado_como_adjudicado          Boolean   @default(false)
-  motivo_creacion_adjudicada      String?
-  fecha_adjudicacion              DateTime?
-  soporte_adjudicacion_adjunto_id String?
-  observacion_adjudicacion        String?
-  adjudicado_por                  String?
-  adjudicado_en                   DateTime?
-  activo                          Boolean   @default(true)
-  creado_en                       DateTime  @default(now())
-  actualizado_en                  DateTime  @updatedAt
+  id                                  String    @id @default(uuid())
+  proyecto_base_id                    String
+  linea_negocio                       String
+  fase_centro_costo                   String
+  prefijo                             String
+  codigo                              String    @unique
+  nombre                              String
+  descripcion                         String?
+  estado_centro_costo                 String    @default("EN_LICITACION")
+  creado_directamente_en_ejecucion    Boolean   @default(false)
+  motivo_creacion_ejecucion           String?
+  fecha_inicio_ejecucion              DateTime?
+  soporte_inicio_ejecucion_adjunto_id String?
+  observacion_inicio_ejecucion        String?
+  inicio_ejecucion_por                String?
+  inicio_ejecucion_en                 DateTime?
+  activo                              Boolean   @default(true)
+  creado_en                           DateTime  @default(now())
+  actualizado_en                      DateTime  @updatedAt
 
-  proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
-  adjudicador   usuarios?      @relation("CentrosCostoAdjudicadoPor", fields: [adjudicado_por], references: [id])
+  proyecto_base            proyectos_base @relation(fields: [proyecto_base_id], references: [id])
+  usuario_inicio_ejecucion usuarios?      @relation("CentrosCostoInicioEjecucionPor", fields: [inicio_ejecucion_por], references: [id])
 
   accesos accesos_usuario_centro_costo[]
 
