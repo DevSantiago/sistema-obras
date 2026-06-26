@@ -4,19 +4,13 @@ export type FaseCentroCosto = "LICITACION" | "EJECUCION";
 
 export type EstadoProyectoBase =
   | "EN_LICITACION"
-  | "ADJUDICADO"
-  | "NO_ADJUDICADO"
   | "EN_EJECUCION"
-  | "FINALIZADO"
-  | "CANCELADO";
+  | "FINALIZADO";
 
 export type EstadoCentroCosto =
   | "EN_LICITACION"
-  | "NO_ADJUDICADO"
-  | "ADJUDICADO"
   | "EN_EJECUCION"
-  | "FINALIZADO"
-  | "CERRADO";
+  | "FINALIZADO";
 
 export type CentroCostoInicialInput = {
   linea_negocio: LineaNegocioCentroCosto;
