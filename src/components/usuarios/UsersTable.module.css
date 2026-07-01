@@ -1,31 +1,36 @@
-.card {
-  border-radius: 16px;
+.card,
+.empty {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.card {
   overflow: hidden;
 }
 
-.tableWrapper {
+.desktopTable {
   width: 100%;
   overflow-x: auto;
 }
 
 .table {
   width: 100%;
-  min-width: 1100px;
+  min-width: 1120px;
   border-collapse: collapse;
 }
 
 .table th,
 .table td {
-  padding: 14px 16px;
-  text-align: left;
+  padding: 13px 14px;
   border-bottom: 1px solid #e5e7eb;
-  font-size: 14px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
 }
 
 .table th {
-  background: #f9fafb;
+  background: #f8fafc;
   color: #374151;
   font-weight: 700;
 }
@@ -34,17 +39,44 @@
   color: #4b5563;
 }
 
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .table tbody tr:hover {
   background: #f9fafb;
 }
 
+.userName,
+.document,
+.contact {
+  display: block;
+}
+
+.userName {
+  margin-bottom: 5px;
+  color: #111827;
+}
+
+.document,
+.contact,
+.muted {
+  color: #6b7280;
+}
+
+.contact + .contact {
+  margin-top: 5px;
+}
+
 .statusActive,
-.statusInactive {
+.statusInactive,
+.role,
+.roleMissing {
   display: inline-flex;
-  padding: 5px 9px;
+  padding: 4px 7px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 750;
 }
 
 .statusActive {
@@ -57,125 +89,211 @@
   color: #991b1b;
 }
 
-.roles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .role {
-  padding: 5px 8px;
-  border-radius: 999px;
   background: #dbeafe;
   color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 700;
 }
 
-.empty {
-  padding: 32px;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+.roleMissing {
+  background: #fef3c7;
+  color: #92400e;
 }
 
-.empty h2 {
-  margin: 0;
-  color: #111827;
+.accesses {
+  display: flex;
+  max-width: 320px;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
-.empty p {
-  margin: 8px 0 0;
-  color: #6b7280;
-}
-
-.editButton {
-  padding: 8px 10px;
-  border: 1px solid #bfdbfe;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #1d4ed8;
-  background: #eff6ff;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.editButton:hover {
-  background: #dbeafe;
-  transform: translateY(-1px);
+.access {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.editButton,
+.activateButton,
+.deactivateButton {
+  padding: 7px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.editButton {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.activateButton {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.deactivateButton {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.editButton:hover,
+.activateButton:hover:not(:disabled),
+.deactivateButton:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.activateButton:disabled,
+.deactivateButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .statusAction {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.activateButton,
-.deactivateButton {
-  padding: 8px 10px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.activateButton {
-  border: 1px solid #bbf7d0;
-  color: #166534;
-  background: #f0fdf4;
-}
-
-.activateButton:hover:not(:disabled) {
-  background: #dcfce7;
-  transform: translateY(-1px);
-}
-
-.deactivateButton {
-  border: 1px solid #fecaca;
-  color: #991b1b;
-  background: #fef2f2;
-}
-
-.deactivateButton:hover:not(:disabled) {
-  background: #fee2e2;
-  transform: translateY(-1px);
-}
-
-.activateButton:disabled,
-.deactivateButton:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+  gap: 5px;
 }
 
 .actionError {
-  max-width: 180px;
+  max-width: 190px;
   margin: 0;
-  font-size: 12px;
   color: #991b1b;
+  font-size: 11px;
 }
 
-.document {
-  font-weight: 700;
-  color: #374151;
-  white-space: nowrap;
+.empty {
+  padding: 28px;
 }
 
-@media (max-width: 768px) {
-  .card {
-    border-radius: 14px;
+.empty h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.empty p {
+  margin: 7px 0 0;
+  color: #6b7280;
+}
+
+.mobileList {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .desktopTable {
+    display: none;
   }
 
-  .table th,
-  .table td {
+  .mobileList {
+    display: grid;
+    gap: 12px;
     padding: 12px;
+    background: #f8fafc;
+  }
+
+  .mobileUser {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .mobileHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .mobileHeader h3,
+  .mobileHeader p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .mobileHeader h3 {
+    color: #111827;
+    font-size: 16px;
+  }
+
+  .mobileHeader p {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 12px;
+  }
+
+  .mobileDetails {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+
+  .mobileDetails div {
+    min-width: 0;
+  }
+
+  .mobileDetails dt,
+  .mobileAccesses > p {
+    margin: 0 0 3px;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .mobileDetails dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #374151;
+    font-size: 13px;
+  }
+
+  .mobileAccesses {
+    margin-bottom: 16px;
+  }
+
+  .mobileAccesses .accesses {
+    max-width: none;
+  }
+
+  .mobileUser > .actions {
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobileDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .mobileUser > .actions {
+    flex-direction: column;
+  }
+
+  .mobileUser > .actions > *,
+  .mobileUser .editButton,
+  .mobileUser .activateButton,
+  .mobileUser .deactivateButton {
+    width: 100%;
   }
 }

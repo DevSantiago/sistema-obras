@@ -1,9 +1,9 @@
 .card {
   margin-bottom: 24px;
   padding: 20px;
-  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
 }
 
 .header {
@@ -12,20 +12,22 @@
 
 .title {
   margin: 0;
-  font-size: 20px;
   color: #111827;
+  font-size: 20px;
 }
 
-.description {
+.description,
+.accessDescription {
   margin: 6px 0 0;
-  font-size: 14px;
   color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .grid {
@@ -36,92 +38,142 @@
 
 .field {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 6px;
 }
 
-.label {
+.label,
+.legend {
   margin: 0;
+  color: #374151;
   font-size: 14px;
   font-weight: 700;
-  color: #374151;
 }
 
 .input {
   width: 100%;
+  min-width: 0;
   padding: 11px 12px;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
-  font-size: 14px;
-  color: #111827;
-  background: #ffffff;
+  border-radius: 6px;
   outline: none;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 14px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .input:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
 }
 
 .input:disabled {
-  color: #6b7280;
   background: #f3f4f6;
+  color: #6b7280;
   cursor: not-allowed;
 }
 
-.rolesField {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.accessFieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
 }
 
-.rolesGrid {
+.legend {
+  padding: 0 6px;
+}
+
+.projectList {
+  display: grid;
+  gap: 0;
+  margin-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.projectRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(300px, 1.6fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.projectName {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.accessOptions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.roleOption {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-  background: #ffffff;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.roleOption:hover {
+.accessOption,
+.accessOptionDisabled {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid #dbe3ee;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.accessOption {
+  cursor: pointer;
+}
+
+.accessOption:hover {
   border-color: #93c5fd;
   background: #eff6ff;
 }
 
-.roleOption input {
-  cursor: pointer;
+.accessOptionDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.error {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
+.accessOption input,
+.accessOptionDisabled input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.noProjects {
+  margin: 14px 0 0;
+  color: #6b7280;
   font-size: 14px;
-  color: #991b1b;
-  background: #fee2e2;
 }
 
+.error,
 .success {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 14px;
-  color: #166534;
+}
+
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.success {
   background: #dcfce7;
+  color: #166534;
 }
 
 .actions {
@@ -130,62 +182,58 @@
   gap: 10px;
 }
 
-.button {
-  padding: 11px 16px;
-  border: none;
-  border-radius: 10px;
+.button,
+.secondaryButton {
+  padding: 10px 14px;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 700;
-  color: #ffffff;
-  background: #2563eb;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.button {
+  border: 1px solid #1d4ed8;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.secondaryButton {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
 }
 
 .button:hover:not(:disabled) {
   background: #1d4ed8;
-  transform: translateY(-1px);
-}
-
-.button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.secondaryButton {
-  padding: 11px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #374151;
-  background: #ffffff;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .secondaryButton:hover:not(:disabled) {
   background: #f3f4f6;
-  transform: translateY(-1px);
 }
 
+.button:disabled,
 .secondaryButton:disabled {
-  opacity: 0.7;
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
-  .grid {
+@media (max-width: 760px) {
+  .card {
+    padding: 16px;
+  }
+
+  .grid,
+  .projectRow,
+  .accessOptions {
     grid-template-columns: 1fr;
   }
 
-  .rolesGrid {
-    grid-template-columns: 1fr;
+  .projectRow {
+    gap: 10px;
   }
 
   .actions {
     flex-direction: column-reverse;
-    justify-content: stretch;
   }
 
   .button,

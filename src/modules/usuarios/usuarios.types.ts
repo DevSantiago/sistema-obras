@@ -1,3 +1,19 @@
+export type LineaNegocioAcceso = "OBRA" | "INTERVENTORIA";
+
+export type AccesoUsuarioInput = {
+  proyecto_base_id: string;
+  linea_negocio: LineaNegocioAcceso;
+};
+
+export type AccesoUsuarioListado = {
+  id: string;
+  proyecto_base_id: string;
+  proyecto_nombre: string;
+  linea_negocio: LineaNegocioAcceso;
+  activo: boolean;
+  asignado_en: Date;
+};
+
 export type UsuarioListado = {
   id: string;
   tipo_documento: string;
@@ -8,7 +24,8 @@ export type UsuarioListado = {
   estado: string;
   creado_en: Date;
   actualizado_en: Date;
-  roles: string[];
+  rol: string;
+  accesos: AccesoUsuarioListado[];
 };
 
 export type CrearUsuarioInput = {
@@ -19,14 +36,16 @@ export type CrearUsuarioInput = {
   telefono?: string | null;
   password?: string;
   estado?: string;
-  roles?: string[];
+  rol?: string;
+  accesos?: AccesoUsuarioInput[];
 };
 
 export type ActualizarUsuarioInput = {
   nombre?: string;
   correo?: string;
   telefono?: string | null;
-  roles?: string[];
+  rol?: string;
+  accesos?: AccesoUsuarioInput[];
 };
 
 export type CambiarEstadoUsuarioInput = {
