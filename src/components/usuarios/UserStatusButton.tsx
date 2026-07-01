@@ -7,16 +7,6 @@ import styles from "./UsersTable.module.css";
 type CambiarEstadoResponse = {
   ok: boolean;
   message: string;
-  data?: {
-    usuario: {
-      id: string;
-      nombre: string;
-      correo: string;
-      telefono: string | null;
-      estado: string;
-      roles: string[];
-    };
-  };
 };
 
 type UserStatusButtonProps = {
@@ -31,7 +21,6 @@ export function UserStatusButton({
   const router = useRouter();
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [mensajeError, setMensajeError] = useState<string | null>(null);
-
   const nuevoEstado = estadoActual === "ACTIVO" ? "INACTIVO" : "ACTIVO";
   const esDesactivacion = nuevoEstado === "INACTIVO";
 
@@ -39,7 +28,7 @@ export function UserStatusButton({
     const confirmarCambio = window.confirm(
       `¿Está seguro de ${
         nuevoEstado === "ACTIVO" ? "activar" : "desactivar"
-      } este usuario?`
+      } este usuario?`,
     );
 
     if (!confirmarCambio) {
@@ -55,11 +44,8 @@ export function UserStatusButton({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          estado: nuevoEstado,
-        }),
+        body: JSON.stringify({ estado: nuevoEstado }),
       });
-
       const data: CambiarEstadoResponse = await respuesta.json();
 
       if (!respuesta.ok || !data.ok) {
@@ -88,10 +74,9 @@ export function UserStatusButton({
         {cambiandoEstado
           ? "Procesando..."
           : esDesactivacion
-          ? "Desactivar"
-          : "Activar"}
+            ? "Desactivar"
+            : "Activar"}
       </button>
-
       {mensajeError && <p className={styles.actionError}>{mensajeError}</p>}
     </div>
   );

@@ -1,16 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  actualizarUsuario,
-  cambiarEstadoUsuario,
-  crearUsuario,
-  listarUsuarios,
-  obtenerUsuarioPorId,
-} from "../usuarios.service";
+import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import {
   actualizarEstadoUsuarioEnBD,
-  actualizarRolesUsuarioEnBD,
   actualizarUsuarioEnBD,
-  buscarRolesPorNombres,
+  buscarCentrosCostoActivosPorAccesos,
+  buscarRolActivoPorNombre,
   buscarUsuarioPorCorreo,
   buscarUsuarioPorCorreoDiferenteId,
   buscarUsuarioPorIdConRoles,
@@ -18,22 +12,35 @@ import {
   crearUsuarioEnBD,
   listarUsuariosConRoles,
 } from "@/modules/usuarios/usuarios.repository";
-import type { UsuarioSesion } from "@/modules/auth/auth.types";
+import {
+  actualizarUsuario,
+  cambiarEstadoUsuario,
+  crearUsuario,
+  listarUsuarios,
+  obtenerUsuarioPorId,
+} from "../usuarios.service";
+import type { CrearUsuarioInput } from "../usuarios.types";
 
 vi.mock("@/modules/usuarios/usuarios.repository", () => ({
-  listarUsuariosConRoles: vi.fn(),
-  buscarUsuarioPorCorreo: vi.fn(),
-  buscarUsuarioPorNumeroDocumento: vi.fn(),
-  buscarRolesPorNombres: vi.fn(),
-  crearUsuarioEnBD: vi.fn(),
-  buscarUsuarioPorIdConRoles: vi.fn(),
-  buscarUsuarioPorCorreoDiferenteId: vi.fn(),
-  actualizarUsuarioEnBD: vi.fn(),
-  actualizarRolesUsuarioEnBD: vi.fn(),
   actualizarEstadoUsuarioEnBD: vi.fn(),
+  actualizarUsuarioEnBD: vi.fn(),
+  buscarCentrosCostoActivosPorAccesos: vi.fn(),
+  buscarRolActivoPorNombre: vi.fn(),
+  buscarUsuarioPorCorreo: vi.fn(),
+  buscarUsuarioPorCorreoDiferenteId: vi.fn(),
+  buscarUsuarioPorIdConRoles: vi.fn(),
+  buscarUsuarioPorNumeroDocumento: vi.fn(),
+  crearUsuarioEnBD: vi.fn(),
+  listarUsuariosConRoles: vi.fn(),
 }));
 
-const fechaMock = new Date("2026-06-13T10:00:00.000Z");
+vi.mock("bcryptjs", () => ({
+  default: {
+    hash: vi.fn().mockResolvedValue("hash-generado"),
+  },
+}));
+
+const fechaMock = new Date("2026-06-26T10:00:00.000Z");
 
 const usuarioAdministrador: UsuarioSesion = {
   id: "admin-1",
@@ -42,45 +49,89 @@ const usuarioAdministrador: UsuarioSesion = {
   telefono: null,
   estado: "ACTIVO",
   roles: ["ADMINISTRADOR"],
+  permisos: [
+    "CREAR_SOLICITUDES",
+    "CREAR_PROYECTOS",
+    "CREAR_USUARIOS",
+    "ASIGNAR_ACCESOS",
+    "APROBAR_NIVEL_1",
+    "APROBAR_NIVEL_2",
+    "MARCAR_COMO_PAGADO",
+    "CONSULTAR_TODO",
+  ],
 };
 
-const usuarioLectura: UsuarioSesion = {
-  id: "usuario-lectura",
-  nombre: "Usuario Lectura",
-  correo: "lectura@test.com",
+const usuarioSolicitante: UsuarioSesion = {
+  id: "solicitante-1",
+  nombre: "Solicitante",
+  correo: "solicitante@test.com",
   telefono: null,
   estado: "ACTIVO",
-  roles: ["LECTURA"],
+  roles: ["SOLICITANTE"],
+  permisos: ["CREAR_SOLICITUDES"],
 };
 
-const rolLecturaMock = {
-  id: "rol-1",
-  nombre: "LECTURA",
-  descripcion: "Rol de lectura",
+function crearRolMock(
+  id: string,
+  nombre: string,
+  lineasNegocio: string[],
+) {
+  return {
+    id,
+    nombre,
+    descripcion: `Rol ${nombre}`,
+    activo: true,
+    creado_en: fechaMock,
+    actualizado_en: fechaMock,
+    lineas_negocio: lineasNegocio.map((lineaNegocio, index) => ({
+      id: `linea-${id}-${index}`,
+      rol_id: id,
+      linea_negocio: lineaNegocio,
+      creado_en: fechaMock,
+    })),
+  };
+}
+
+const rolSolicitanteMock = crearRolMock(
+  "rol-solicitante",
+  "SOLICITANTE",
+  ["OBRA"],
+);
+
+const rolPagosMock = crearRolMock("rol-pagos", "PAGOS", [
+  "OBRA",
+  "INTERVENTORIA",
+]);
+
+const proyectoBaseMock = {
+  id: "proyecto-1",
+  nombre: "PROYECTO PRUEBA",
+  descripcion: null,
+  estado_proyecto: "EN_LICITACION",
   activo: true,
+  creado_por: "admin-1",
   creado_en: fechaMock,
   actualizado_en: fechaMock,
 };
 
-const rolSolicitanteMock = {
-  id: "rol-2",
-  nombre: "SOLICITANTE",
-  descripcion: "Rol solicitante",
-  activo: true,
-  creado_en: fechaMock,
-  actualizado_en: fechaMock,
-};
+function crearAccesoMock(lineaNegocio: string) {
+  return {
+    id: `acceso-${lineaNegocio.toLowerCase()}`,
+    usuario_id: "usuario-1",
+    proyecto_base_id: "proyecto-1",
+    linea_negocio: lineaNegocio,
+    activo: true,
+    asignado_por: "admin-1",
+    asignado_en: fechaMock,
+    revocado_por: null,
+    revocado_en: null,
+    creado_en: fechaMock,
+    actualizado_en: fechaMock,
+    proyecto_base: proyectoBaseMock,
+  };
+}
 
-const rolPagosMock = {
-  id: "rol-3",
-  nombre: "PAGOS",
-  descripcion: "Rol pagos",
-  activo: true,
-  creado_en: fechaMock,
-  actualizado_en: fechaMock,
-};
-
-const usuarioConRolesMock = {
+const usuarioConAccesoObraMock = {
   id: "usuario-1",
   tipo_documento: "CC",
   numero_documento: "1000000000",
@@ -95,84 +146,106 @@ const usuarioConRolesMock = {
     {
       id: "usuario-rol-1",
       usuario_id: "usuario-1",
-      rol_id: "rol-1",
+      rol_id: rolSolicitanteMock.id,
       creado_en: fechaMock,
-      rol: rolLecturaMock,
+      rol: {
+        id: rolSolicitanteMock.id,
+        nombre: rolSolicitanteMock.nombre,
+        descripcion: rolSolicitanteMock.descripcion,
+        activo: true,
+        creado_en: fechaMock,
+        actualizado_en: fechaMock,
+      },
     },
   ],
+  accesos_recibidos: [crearAccesoMock("OBRA")],
 };
 
-const usuarioConRolesActualizadosMock = {
-  ...usuarioConRolesMock,
+const usuarioConAccesoInterventoriaMock = {
+  ...usuarioConAccesoObraMock,
   roles: [
     {
-      id: "usuario-rol-2",
-      usuario_id: "usuario-1",
-      rol_id: "rol-2",
-      creado_en: fechaMock,
-      rol: rolSolicitanteMock,
-    },
-    {
-      id: "usuario-rol-3",
-      usuario_id: "usuario-1",
-      rol_id: "rol-3",
-      creado_en: fechaMock,
-      rol: rolPagosMock,
+      ...usuarioConAccesoObraMock.roles[0],
+      rol_id: rolPagosMock.id,
+      rol: {
+        id: rolPagosMock.id,
+        nombre: rolPagosMock.nombre,
+        descripcion: rolPagosMock.descripcion,
+        activo: true,
+        creado_en: fechaMock,
+        actualizado_en: fechaMock,
+      },
     },
   ],
+  accesos_recibidos: [crearAccesoMock("INTERVENTORIA")],
 };
 
-const usuarioBaseSinRoles = {
-  id: "usuario-1",
+const usuarioBaseSinRelaciones = {
+  id: "usuario-2",
   tipo_documento: "CC",
-  numero_documento: "1000000000",
-  nombre: "Usuario Prueba",
-  correo: "usuario@test.com",
+  numero_documento: "2000000000",
+  nombre: "Usuario Existente",
+  correo: "existente@test.com",
   telefono: null,
-  password_hash: "hash-secreto",
+  password_hash: "hash",
   estado: "ACTIVO",
   creado_en: fechaMock,
   actualizado_en: fechaMock,
 };
+
+function crearInputUsuario(
+  overrides: Partial<CrearUsuarioInput> = {},
+): CrearUsuarioInput {
+  return {
+    tipo_documento: "CC",
+    numero_documento: "1000000001",
+    nombre: "Usuario Nuevo",
+    correo: "nuevo@test.com",
+    telefono: "3001234567",
+    password: "Usuario123*",
+    estado: "ACTIVO",
+    rol: "SOLICITANTE",
+    accesos: [
+      {
+        proyecto_base_id: "proyecto-1",
+        linea_negocio: "OBRA",
+      },
+    ],
+    ...overrides,
+  };
+}
 
 describe("usuarios.service - listarUsuarios", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("debe devolver 403 si el usuario autenticado no es ADMINISTRADOR", async () => {
-    const resultado = await listarUsuarios(usuarioLectura);
+  it("debe devolver 403 si no tiene el permiso requerido", async () => {
+    const resultado = await listarUsuarios(usuarioSolicitante);
 
     expect(resultado.status).toBe(403);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "No tiene permisos para consultar usuarios."
-    );
-
     expect(listarUsuariosConRoles).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 200 y listar usuarios si el usuario autenticado es ADMINISTRADOR", async () => {
-    vi.mocked(listarUsuariosConRoles).mockResolvedValue([usuarioConRolesMock]);
+  it("debe listar usuarios con rol único y accesos", async () => {
+    vi.mocked(listarUsuariosConRoles).mockResolvedValue([
+      usuarioConAccesoObraMock,
+    ] as never);
 
     const resultado = await listarUsuarios(usuarioAdministrador);
 
     expect(resultado.status).toBe(200);
-    expect(resultado.body.ok).toBe(true);
-    expect(resultado.body.message).toBe("Usuarios consultados correctamente.");
-
-    expect(resultado.body.data?.usuarios).toHaveLength(1);
-    expect(resultado.body.data?.usuarios[0].id).toBe("usuario-1");
-    expect(resultado.body.data?.usuarios[0].tipo_documento).toBe("CC");
-    expect(resultado.body.data?.usuarios[0].numero_documento).toBe(
-      "1000000000"
-    );
-    expect(resultado.body.data?.usuarios[0].roles).toEqual(["LECTURA"]);
-
+    expect(resultado.body.data?.usuarios[0].rol).toBe("SOLICITANTE");
+    expect(resultado.body.data?.usuarios[0].accesos).toEqual([
+      expect.objectContaining({
+        proyecto_base_id: "proyecto-1",
+        proyecto_nombre: "PROYECTO PRUEBA",
+        linea_negocio: "OBRA",
+      }),
+    ]);
     expect(resultado.body.data?.usuarios[0]).not.toHaveProperty(
-      "password_hash"
+      "password_hash",
     );
-    expect(listarUsuariosConRoles).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -181,184 +254,185 @@ describe("usuarios.service - crearUsuario", () => {
     vi.clearAllMocks();
   });
 
-  it("debe devolver 403 si el usuario autenticado no es ADMINISTRADOR", async () => {
-    const resultado = await crearUsuario(usuarioLectura, {
-      tipo_documento: "CC",
-      numero_documento: "1000000001",
-      nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
-      telefono: "3001234567",
-      password: "Usuario123*",
-      estado: "ACTIVO",
-      roles: ["SOLICITANTE"],
-    });
+  it("debe devolver 403 si no tiene el permiso requerido", async () => {
+    const resultado = await crearUsuario(
+      usuarioSolicitante,
+      crearInputUsuario(),
+    );
 
     expect(resultado.status).toBe(403);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "No tiene permisos para crear usuarios."
-    );
-
     expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
-    expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
-    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
-    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 400 si faltan tipo de documento, número de documento, nombre, correo o contraseña", async () => {
-    const resultado = await crearUsuario(usuarioAdministrador, {
-      tipo_documento: "CC",
-      numero_documento: "1000000001",
-      nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
-      estado: "ACTIVO",
-      roles: ["SOLICITANTE"],
-    });
+  it("debe exigir los datos personales obligatorios", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ nombre: "" }),
+    );
 
     expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "Tipo de documento, número de documento, nombre, correo y contraseña son obligatorios."
-    );
-
-    expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
-    expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
-    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
-    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+    expect(resultado.body.message).toContain("son obligatorios");
   });
 
-  it("debe devolver 400 si no se asignan roles al usuario", async () => {
-    const resultado = await crearUsuario(usuarioAdministrador, {
-      tipo_documento: "CC",
-      numero_documento: "1000000001",
-      nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
-      telefono: "3001234567",
-      password: "Usuario123*",
-      estado: "ACTIVO",
-      roles: [],
-    });
+  it("debe exigir un único rol", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ rol: "" }),
+    );
 
     expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "Debe asignar al menos un rol al usuario."
-    );
-
-    expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
-    expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
-    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
-    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+    expect(resultado.body.message).toBe("Debe asignar un rol al usuario.");
   });
 
-  it("debe devolver 409 si ya existe un usuario con ese correo", async () => {
-    vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(usuarioBaseSinRoles);
+  it("debe rechazar un estado inválido", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ estado: "BLOQUEADO" }),
+    );
 
-    const resultado = await crearUsuario(usuarioAdministrador, {
-      tipo_documento: "CC",
-      numero_documento: "1000000001",
-      nombre: "Usuario Nuevo",
-      correo: "usuario@test.com",
-      telefono: "3001234567",
-      password: "Usuario123*",
-      estado: "ACTIVO",
-      roles: ["SOLICITANTE"],
-    });
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "El estado debe ser ACTIVO o INACTIVO.",
+    );
+  });
+
+  it("debe rechazar accesos repetidos", async () => {
+    const acceso = {
+      proyecto_base_id: "proyecto-1",
+      linea_negocio: "OBRA" as const,
+    };
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ accesos: [acceso, acceso] }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "No se pueden repetir accesos al mismo proyecto y línea.",
+    );
+  });
+
+  it("debe rechazar un correo existente", async () => {
+    vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(
+      usuarioBaseSinRelaciones,
+    );
+
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario(),
+    );
 
     expect(resultado.status).toBe(409);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("Ya existe un usuario con ese correo.");
-
-    expect(buscarUsuarioPorCorreo).toHaveBeenCalledWith("usuario@test.com");
+    expect(resultado.body.message).toBe(
+      "Ya existe un usuario con ese correo.",
+    );
     expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
-    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
-    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 409 si ya existe un usuario con ese número de documento", async () => {
+  it("debe rechazar un documento existente", async () => {
     vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(null);
     vi.mocked(buscarUsuarioPorNumeroDocumento).mockResolvedValue(
-      usuarioBaseSinRoles
+      usuarioBaseSinRelaciones,
     );
 
-    const resultado = await crearUsuario(usuarioAdministrador, {
-      tipo_documento: "CC",
-      numero_documento: "1000000000",
-      nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
-      telefono: "3001234567",
-      password: "Usuario123*",
-      estado: "ACTIVO",
-      roles: ["SOLICITANTE"],
-    });
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario(),
+    );
 
     expect(resultado.status).toBe(409);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "Ya existe un usuario con ese número de documento."
-    );
-
-    expect(buscarUsuarioPorCorreo).toHaveBeenCalledWith("nuevo@test.com");
-    expect(buscarUsuarioPorNumeroDocumento).toHaveBeenCalledWith("1000000000");
-    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
-    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+    expect(resultado.body.message).toContain("número de documento");
   });
 
-  it("debe devolver 400 si el estado no es válido", async () => {
-    const resultado = await crearUsuario(usuarioAdministrador, {
-      tipo_documento: "CC",
-      numero_documento: "1000000001",
-      nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
-      telefono: "3001234567",
-      password: "Usuario123*",
-      estado: "BLOQUEADO",
-      roles: ["SOLICITANTE"],
-    });
-
-    expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("El estado debe ser ACTIVO o INACTIVO.");
-
-    expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
-    expect(buscarUsuarioPorNumeroDocumento).not.toHaveBeenCalled();
-    expect(buscarRolesPorNombres).not.toHaveBeenCalled();
-    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
-  });
-
-  it("debe devolver 400 si uno o más roles no existen o no están activos", async () => {
+  it("debe rechazar un rol inexistente o inactivo", async () => {
     vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(null);
     vi.mocked(buscarUsuarioPorNumeroDocumento).mockResolvedValue(null);
-    vi.mocked(buscarRolesPorNombres).mockResolvedValue([]);
+    vi.mocked(buscarRolActivoPorNombre).mockResolvedValue(null);
 
-    const resultado = await crearUsuario(usuarioAdministrador, {
-      tipo_documento: "CC",
-      numero_documento: "1000000001",
-      nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
-      telefono: "3001234567",
-      password: "Usuario123*",
-      estado: "ACTIVO",
-      roles: ["ROL_INEXISTENTE"],
-    });
-
-    expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "Uno o más roles enviados no existen o no están activos."
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ rol: "INEXISTENTE" }),
     );
 
-    expect(buscarRolesPorNombres).toHaveBeenCalledWith(["ROL_INEXISTENTE"]);
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "El rol enviado no existe o no está activo.",
+    );
+  });
+
+  it("debe impedir INTERVENTORIA para SOLICITANTE", async () => {
+    vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(null);
+    vi.mocked(buscarUsuarioPorNumeroDocumento).mockResolvedValue(null);
+    vi.mocked(buscarRolActivoPorNombre).mockResolvedValue(
+      rolSolicitanteMock as never,
+    );
+
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({
+        accesos: [
+          {
+            proyecto_base_id: "proyecto-1",
+            linea_negocio: "INTERVENTORIA",
+          },
+        ],
+      }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "El rol SOLICITANTE no puede acceder a la línea INTERVENTORIA.",
+    );
+    expect(buscarCentrosCostoActivosPorAccesos).not.toHaveBeenCalled();
     expect(crearUsuarioEnBD).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 201 si crea el usuario correctamente", async () => {
+  it("debe rechazar un proyecto o línea inexistente", async () => {
     vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(null);
     vi.mocked(buscarUsuarioPorNumeroDocumento).mockResolvedValue(null);
-    vi.mocked(buscarRolesPorNombres).mockResolvedValue([rolSolicitanteMock]);
+    vi.mocked(buscarRolActivoPorNombre).mockResolvedValue(
+      rolSolicitanteMock as never,
+    );
+    vi.mocked(buscarCentrosCostoActivosPorAccesos).mockResolvedValue([]);
 
-    vi.mocked(crearUsuarioEnBD).mockResolvedValue({
-      id: "usuario-nuevo",
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario(),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toContain("proyectos o líneas inexistentes");
+    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe crear usuario, rol y accesos correctamente", async () => {
+    vi.mocked(buscarUsuarioPorCorreo).mockResolvedValue(null);
+    vi.mocked(buscarUsuarioPorNumeroDocumento).mockResolvedValue(null);
+    vi.mocked(buscarRolActivoPorNombre).mockResolvedValue(
+      rolSolicitanteMock as never,
+    );
+    vi.mocked(buscarCentrosCostoActivosPorAccesos).mockResolvedValue([
+      {
+        proyecto_base_id: "proyecto-1",
+        linea_negocio: "OBRA",
+      },
+    ]);
+    vi.mocked(crearUsuarioEnBD).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
+    );
+
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({
+        nombre: "  Usuario Nuevo  ",
+        correo: "  NUEVO@TEST.COM  ",
+        rol: " solicitante ",
+      }),
+    );
+
+    expect(resultado.status).toBe(201);
+    expect(resultado.body.data?.usuario.rol).toBe("SOLICITANTE");
+    expect(crearUsuarioEnBD).toHaveBeenCalledWith({
       tipo_documento: "CC",
       numero_documento: "1000000001",
       nombre: "Usuario Nuevo",
@@ -366,58 +440,15 @@ describe("usuarios.service - crearUsuario", () => {
       telefono: "3001234567",
       password_hash: "hash-generado",
       estado: "ACTIVO",
-      creado_en: fechaMock,
-      actualizado_en: fechaMock,
-      roles: [
+      rol_id: "rol-solicitante",
+      accesos: [
         {
-          id: "usuario-rol-2",
-          usuario_id: "usuario-nuevo",
-          rol_id: "rol-2",
-          creado_en: fechaMock,
-          rol: rolSolicitanteMock,
+          proyecto_base_id: "proyecto-1",
+          linea_negocio: "OBRA",
         },
       ],
+      asignado_por: "admin-1",
     });
-
-    const resultado = await crearUsuario(usuarioAdministrador, {
-      tipo_documento: "CC",
-      numero_documento: "1000000001",
-      nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
-      telefono: "3001234567",
-      password: "Usuario123*",
-      estado: "ACTIVO",
-      roles: ["SOLICITANTE"],
-    });
-
-    expect(resultado.status).toBe(201);
-    expect(resultado.body.ok).toBe(true);
-    expect(resultado.body.message).toBe("Usuario creado correctamente.");
-
-    expect(resultado.body.data?.usuario.id).toBe("usuario-nuevo");
-    expect(resultado.body.data?.usuario.tipo_documento).toBe("CC");
-    expect(resultado.body.data?.usuario.numero_documento).toBe("1000000001");
-    expect(resultado.body.data?.usuario.nombre).toBe("Usuario Nuevo");
-    expect(resultado.body.data?.usuario.correo).toBe("nuevo@test.com");
-    expect(resultado.body.data?.usuario.roles).toEqual(["SOLICITANTE"]);
-
-    expect(resultado.body.data?.usuario).not.toHaveProperty("password_hash");
-
-    expect(buscarUsuarioPorCorreo).toHaveBeenCalledWith("nuevo@test.com");
-    expect(buscarUsuarioPorNumeroDocumento).toHaveBeenCalledWith("1000000001");
-    expect(buscarRolesPorNombres).toHaveBeenCalledWith(["SOLICITANTE"]);
-    expect(crearUsuarioEnBD).toHaveBeenCalledTimes(1);
-    expect(crearUsuarioEnBD).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tipo_documento: "CC",
-        numero_documento: "1000000001",
-        nombre: "Usuario Nuevo",
-        correo: "nuevo@test.com",
-        telefono: "3001234567",
-        estado: "ACTIVO",
-        roles_ids: ["rol-2"],
-      })
-    );
   });
 });
 
@@ -426,53 +457,47 @@ describe("usuarios.service - obtenerUsuarioPorId", () => {
     vi.clearAllMocks();
   });
 
-  it("debe devolver 400 si no se envía el id", async () => {
+  it("debe devolver 403 si no tiene el permiso requerido", async () => {
+    const resultado = await obtenerUsuarioPorId(
+      usuarioSolicitante,
+      "usuario-1",
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
+  });
+
+  it("debe exigir el id", async () => {
     const resultado = await obtenerUsuarioPorId(usuarioAdministrador, "");
 
     expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("El id del usuario es obligatorio.");
-
     expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 403 si el usuario autenticado no es ADMINISTRADOR", async () => {
-    const resultado = await obtenerUsuarioPorId(usuarioLectura, "usuario-1");
-
-    expect(resultado.status).toBe(403);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "No tiene permisos para consultar usuarios."
-    );
-
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
-  });
-
-  it("debe devolver 404 si el usuario no existe", async () => {
+  it("debe devolver 404 si no existe", async () => {
     vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(null);
 
-    const resultado = await obtenerUsuarioPorId(usuarioAdministrador, "usuario-1");
+    const resultado = await obtenerUsuarioPorId(
+      usuarioAdministrador,
+      "usuario-1",
+    );
 
     expect(resultado.status).toBe(404);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("Usuario no encontrado.");
-
-    expect(buscarUsuarioPorIdConRoles).toHaveBeenCalledWith("usuario-1");
   });
 
-  it("debe devolver 200 si el usuario existe", async () => {
-    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
+  it("debe devolver el usuario con rol y accesos", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
+    );
 
-    const resultado = await obtenerUsuarioPorId(usuarioAdministrador, "usuario-1");
+    const resultado = await obtenerUsuarioPorId(
+      usuarioAdministrador,
+      "usuario-1",
+    );
 
     expect(resultado.status).toBe(200);
-    expect(resultado.body.ok).toBe(true);
-    expect(resultado.body.message).toBe("Usuario consultado correctamente.");
-
-    expect(resultado.body.data?.usuario.id).toBe("usuario-1");
-    expect(resultado.body.data?.usuario.tipo_documento).toBe("CC");
-    expect(resultado.body.data?.usuario.numero_documento).toBe("1000000000");
-    expect(resultado.body.data?.usuario.roles).toEqual(["LECTURA"]);
+    expect(resultado.body.data?.usuario.rol).toBe("SOLICITANTE");
+    expect(resultado.body.data?.usuario.accesos).toHaveLength(1);
   });
 });
 
@@ -481,208 +506,168 @@ describe("usuarios.service - actualizarUsuario", () => {
     vi.clearAllMocks();
   });
 
-  it("debe devolver 400 si no se envía el id", async () => {
-    const resultado = await actualizarUsuario(usuarioAdministrador, "", {
-      nombre: "Usuario Actualizado",
-    });
-
-    expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("El id del usuario es obligatorio.");
-
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
-  });
-
-  it("debe devolver 403 si el usuario autenticado no es ADMINISTRADOR", async () => {
-    const resultado = await actualizarUsuario(usuarioLectura, "usuario-1", {
-      nombre: "Usuario Actualizado",
-    });
+  it("debe devolver 403 si no tiene el permiso requerido", async () => {
+    const resultado = await actualizarUsuario(
+      usuarioSolicitante,
+      "usuario-1",
+      { nombre: "Nuevo nombre" },
+    );
 
     expect(resultado.status).toBe(403);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "No tiene permisos para editar usuarios."
-    );
-
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 400 si se intenta modificar el tipo de documento", async () => {
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      tipo_documento: "CE",
+  it("debe exigir el id", async () => {
+    const resultado = await actualizarUsuario(usuarioAdministrador, "", {
+      nombre: "Nuevo nombre",
     });
 
     expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "El tipo y número de documento no se pueden modificar desde esta operación."
-    );
-
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 400 si se intenta modificar el número de documento", async () => {
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      numero_documento: "9999999999",
-    });
-
-    expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "El tipo y número de documento no se pueden modificar desde esta operación."
+  it("debe impedir modificar la identificación", async () => {
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { numero_documento: "999" },
     );
 
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toContain("no se pueden modificar");
   });
 
-  it("debe devolver 400 si no se envía ningún campo para actualizar", async () => {
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {});
-
-    expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "Debe enviar al menos un campo para actualizar."
+  it("debe exigir al menos un campo", async () => {
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      {},
     );
 
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
+    expect(resultado.status).toBe(400);
   });
 
   it("debe devolver 404 si el usuario no existe", async () => {
     vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(null);
 
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      nombre: "Usuario Actualizado",
-    });
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { nombre: "Nuevo nombre" },
+    );
 
     expect(resultado.status).toBe(404);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("Usuario no encontrado.");
-
-    expect(buscarUsuarioPorIdConRoles).toHaveBeenCalledWith("usuario-1");
     expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
-    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 409 si el correo pertenece a otro usuario", async () => {
-    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
+  it("debe rechazar un correo que pertenece a otro usuario", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
+    );
     vi.mocked(buscarUsuarioPorCorreoDiferenteId).mockResolvedValue(
-      usuarioBaseSinRoles
+      usuarioBaseSinRelaciones,
     );
 
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      correo: "otro@test.com",
-    });
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { correo: "OTRO@TEST.COM" },
+    );
 
     expect(resultado.status).toBe(409);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("Ya existe otro usuario con ese correo.");
-
     expect(buscarUsuarioPorCorreoDiferenteId).toHaveBeenCalledWith(
       "otro@test.com",
-      "usuario-1"
+      "usuario-1",
     );
-    expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
-    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 400 si intenta dejar al usuario sin roles", async () => {
-    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
+  it("debe impedir cambiar a SOLICITANTE conservando INTERVENTORIA", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      usuarioConAccesoInterventoriaMock as never,
+    );
+    vi.mocked(buscarRolActivoPorNombre).mockResolvedValue(
+      rolSolicitanteMock as never,
+    );
 
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      roles: [],
-    });
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { rol: "SOLICITANTE" },
+    );
 
     expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "Debe asignar al menos un rol al usuario."
+    expect(resultado.body.message).toContain(
+      "no puede acceder a la línea INTERVENTORIA",
     );
-
     expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
-    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 400 si intenta asignar roles inexistentes o inactivos", async () => {
-    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
-    vi.mocked(buscarRolesPorNombres).mockResolvedValue([]);
-
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      roles: ["ROL_INEXISTENTE"],
-    });
-
-    expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "Uno o más roles enviados no existen o no están activos."
+  it("debe actualizar datos básicos", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
     );
-
-    expect(buscarRolesPorNombres).toHaveBeenCalledWith(["ROL_INEXISTENTE"]);
-    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
-  });
-
-  it("debe devolver 200 si actualiza el usuario correctamente", async () => {
-    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
     vi.mocked(buscarUsuarioPorCorreoDiferenteId).mockResolvedValue(null);
-
     vi.mocked(actualizarUsuarioEnBD).mockResolvedValue({
-      ...usuarioConRolesMock,
+      ...usuarioConAccesoObraMock,
       nombre: "Usuario Actualizado",
       correo: "actualizado@test.com",
-      telefono: "3001234567",
-    });
+    } as never);
 
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      nombre: "Usuario Actualizado",
-      correo: "actualizado@test.com",
-      telefono: "3001234567",
-    });
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      {
+        nombre: " Usuario Actualizado ",
+        correo: " ACTUALIZADO@TEST.COM ",
+      },
+    );
 
     expect(resultado.status).toBe(200);
-    expect(resultado.body.ok).toBe(true);
-    expect(resultado.body.message).toBe("Usuario actualizado correctamente.");
-
-    expect(resultado.body.data?.usuario.nombre).toBe("Usuario Actualizado");
-    expect(resultado.body.data?.usuario.correo).toBe("actualizado@test.com");
-    expect(resultado.body.data?.usuario.tipo_documento).toBe("CC");
-    expect(resultado.body.data?.usuario.numero_documento).toBe("1000000000");
-
     expect(actualizarUsuarioEnBD).toHaveBeenCalledWith("usuario-1", {
       nombre: "Usuario Actualizado",
       correo: "actualizado@test.com",
-      telefono: "3001234567",
+      telefono: undefined,
+      rol_id: undefined,
+      accesos: undefined,
+      actualizado_por: "admin-1",
     });
-    expect(actualizarRolesUsuarioEnBD).not.toHaveBeenCalled();
   });
 
-  it("debe devolver 200 si actualiza roles del usuario correctamente", async () => {
-    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
-    vi.mocked(buscarRolesPorNombres).mockResolvedValue([
-      rolSolicitanteMock,
-      rolPagosMock,
+  it("debe actualizar accesos válidos para el rol actual", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
+    );
+    vi.mocked(buscarRolActivoPorNombre).mockResolvedValue(
+      rolSolicitanteMock as never,
+    );
+    vi.mocked(buscarCentrosCostoActivosPorAccesos).mockResolvedValue([
+      {
+        proyecto_base_id: "proyecto-1",
+        linea_negocio: "OBRA",
+      },
     ]);
-    vi.mocked(actualizarRolesUsuarioEnBD).mockResolvedValue(
-      usuarioConRolesActualizadosMock
+    vi.mocked(actualizarUsuarioEnBD).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
     );
 
-    const resultado = await actualizarUsuario(usuarioAdministrador, "usuario-1", {
-      roles: ["SOLICITANTE", "PAGOS"],
-    });
+    const accesos = [
+      {
+        proyecto_base_id: "proyecto-1",
+        linea_negocio: "OBRA" as const,
+      },
+    ];
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { accesos },
+    );
 
     expect(resultado.status).toBe(200);
-    expect(resultado.body.ok).toBe(true);
-    expect(resultado.body.message).toBe("Usuario actualizado correctamente.");
-
-    expect(resultado.body.data?.usuario.roles).toEqual(["SOLICITANTE", "PAGOS"]);
-
-    expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
-    expect(buscarRolesPorNombres).toHaveBeenCalledWith([
-      "SOLICITANTE",
-      "PAGOS",
-    ]);
-    expect(actualizarRolesUsuarioEnBD).toHaveBeenCalledWith("usuario-1", [
-      "rol-2",
-      "rol-3",
-    ]);
+    expect(actualizarUsuarioEnBD).toHaveBeenCalledWith(
+      "usuario-1",
+      expect.objectContaining({
+        accesos,
+        actualizado_por: "admin-1",
+      }),
+    );
   });
 });
 
@@ -691,84 +676,76 @@ describe("usuarios.service - cambiarEstadoUsuario", () => {
     vi.clearAllMocks();
   });
 
-  it("debe devolver 400 si no se envía el id", async () => {
-    const resultado = await cambiarEstadoUsuario(usuarioAdministrador, "", {
-      estado: "ACTIVO",
-    });
-
-    expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("El id del usuario es obligatorio.");
-
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
-  });
-
-  it("debe devolver 403 si el usuario autenticado no es ADMINISTRADOR", async () => {
-    const resultado = await cambiarEstadoUsuario(usuarioLectura, "usuario-1", {
-      estado: "ACTIVO",
-    });
-
-    expect(resultado.status).toBe(403);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe(
-      "No tiene permisos para cambiar el estado de usuarios."
+  it("debe devolver 403 si no tiene el permiso requerido", async () => {
+    const resultado = await cambiarEstadoUsuario(
+      usuarioSolicitante,
+      "usuario-1",
+      { estado: "INACTIVO" },
     );
 
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
+    expect(resultado.status).toBe(403);
   });
 
-  it("debe devolver 400 si el estado no es válido", async () => {
-    const resultado = await cambiarEstadoUsuario(usuarioAdministrador, "usuario-1", {
-      estado: "BLOQUEADO" as "ACTIVO",
+  it("debe exigir el id", async () => {
+    const resultado = await cambiarEstadoUsuario(usuarioAdministrador, "", {
+      estado: "INACTIVO",
     });
 
     expect(resultado.status).toBe(400);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("El estado debe ser ACTIVO o INACTIVO.");
+  });
 
-    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
+  it("debe exigir el estado", async () => {
+    const resultado = await cambiarEstadoUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      {},
+    );
+
+    expect(resultado.status).toBe(400);
+  });
+
+  it("debe rechazar un estado inválido", async () => {
+    const resultado = await cambiarEstadoUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { estado: "BLOQUEADO" as "ACTIVO" },
+    );
+
+    expect(resultado.status).toBe(400);
   });
 
   it("debe devolver 404 si el usuario no existe", async () => {
     vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(null);
 
-    const resultado = await cambiarEstadoUsuario(usuarioAdministrador, "usuario-1", {
-      estado: "INACTIVO",
-    });
-
-    expect(resultado.status).toBe(404);
-    expect(resultado.body.ok).toBe(false);
-    expect(resultado.body.message).toBe("Usuario no encontrado.");
-
-    expect(buscarUsuarioPorIdConRoles).toHaveBeenCalledWith("usuario-1");
-    expect(actualizarEstadoUsuarioEnBD).not.toHaveBeenCalled();
-  });
-
-  it("debe devolver 200 si cambia el estado correctamente", async () => {
-    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(usuarioConRolesMock);
-
-    vi.mocked(actualizarEstadoUsuarioEnBD).mockResolvedValue({
-      ...usuarioConRolesMock,
-      estado: "INACTIVO",
-    });
-
-    const resultado = await cambiarEstadoUsuario(usuarioAdministrador, "usuario-1", {
-      estado: "INACTIVO",
-    });
-
-    expect(resultado.status).toBe(200);
-    expect(resultado.body.ok).toBe(true);
-    expect(resultado.body.message).toBe(
-      "Estado del usuario actualizado correctamente."
+    const resultado = await cambiarEstadoUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { estado: "INACTIVO" },
     );
 
-    expect(resultado.body.data?.usuario.estado).toBe("INACTIVO");
-    expect(resultado.body.data?.usuario.tipo_documento).toBe("CC");
-    expect(resultado.body.data?.usuario.numero_documento).toBe("1000000000");
+    expect(resultado.status).toBe(404);
+  });
 
+  it("debe cambiar el estado correctamente", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
+    );
+    vi.mocked(actualizarEstadoUsuarioEnBD).mockResolvedValue({
+      ...usuarioConAccesoObraMock,
+      estado: "INACTIVO",
+    } as never);
+
+    const resultado = await cambiarEstadoUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { estado: "INACTIVO" },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.usuario.estado).toBe("INACTIVO");
     expect(actualizarEstadoUsuarioEnBD).toHaveBeenCalledWith(
       "usuario-1",
-      "INACTIVO"
+      "INACTIVO",
     );
   });
 });

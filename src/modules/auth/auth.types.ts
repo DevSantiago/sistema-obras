@@ -10,6 +10,7 @@ export type UsuarioSesion = {
   telefono: string | null;
   estado: string;
   roles: string[];
+  permisos: string[];
 };
 
 export type ServiceResponse<T> = {

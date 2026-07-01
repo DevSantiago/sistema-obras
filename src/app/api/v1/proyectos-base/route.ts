@@ -15,8 +15,8 @@ async function obtenerUsuarioSesionDesdeCookie() {
   return obtenerUsuarioAutenticado(sessionToken);
 }
 
-function tieneRolAdministrador(roles: string[]) {
-  return roles.includes("ADMINISTRADOR");
+function usuarioTienePermiso(permisos: string[] | undefined, permiso: string) {
+  return permisos?.includes(permiso) ?? false;
 }
 
 export async function GET(request: NextRequest) {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   try {
     const usuarioAutenticado = await obtenerUsuarioSesionDesdeCookie();
 
-    if (!usuarioAutenticado.body.ok) {
+    if (!usuarioAutenticado.body.ok || !usuarioAutenticado.body.data) {
       return NextResponse.json(usuarioAutenticado.body, {
         status: usuarioAutenticado.status,
       });
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     const usuario = usuarioAutenticado.body.data.usuario;
 
-    if (!tieneRolAdministrador(usuario.roles)) {
+    if (!usuarioTienePermiso(usuario.permisos, "CREAR_PROYECTOS")) {
       return NextResponse.json(
         {
           ok: false,

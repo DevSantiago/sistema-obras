@@ -1,22 +1,22 @@
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import { 
-    obtenerUsuarioPorId,
-    actualizarUsuario 
+import {
+  actualizarUsuario,
+  obtenerUsuarioPorId,
 } from "@/modules/usuarios/usuarios.service";
+import type { ActualizarUsuarioInput } from "@/modules/usuarios/usuarios.types";
 import { cookies } from "next/headers";
 
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get("session_token")?.value;
-
-    const resultadoAutenticacion = await obtenerUsuarioAutenticado(sessionToken);
+    const resultadoAutenticacion =
+      await obtenerUsuarioAutenticado(sessionToken);
 
     if (!resultadoAutenticacion.body.ok || !resultadoAutenticacion.body.data) {
       return Response.json(resultadoAutenticacion.body, {
@@ -24,11 +24,7 @@ export async function PATCH(
       });
     }
 
-    let body: {
-      nombre?: string;
-      correo?: string;
-      telefono?: string | null;
-    };
+    let body: ActualizarUsuarioInput;
 
     try {
       body = await request.json();
@@ -38,14 +34,14 @@ export async function PATCH(
           ok: false,
           message: "El cuerpo de la solicitud debe ser JSON válido.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const resultado = await actualizarUsuario(
       resultadoAutenticacion.body.data.usuario,
       id,
-      body
+      body,
     );
 
     return Response.json(resultado.body, {
@@ -59,44 +55,42 @@ export async function PATCH(
         ok: false,
         message: "No fue posible actualizar el usuario.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function GET(
-    request: Request,
-    context: { params: Promise <{ id: string }> }
-) {
-    try {
-        const { id } = await context.params;
-        const cookieStore = await cookies();
-        const sessionToken = cookieStore.get("session_token")?.value;
+export async function GET(_request: Request, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get("session_token")?.value;
+    const resultadoAutenticacion =
+      await obtenerUsuarioAutenticado(sessionToken);
 
-        const resultadoAutenticacion = await obtenerUsuarioAutenticado(sessionToken);
-
-        if (!resultadoAutenticacion.body.ok || !resultadoAutenticacion.body.data) {
-            return Response.json(resultadoAutenticacion.body, {
-                status: resultadoAutenticacion.status,
-            });
-        }
-
-        const resultado = await obtenerUsuarioPorId(
-            resultadoAutenticacion.body.data.usuario,
-            id
-        );
-
-        return Response.json(resultado.body, {
-            status: resultado.status,
-        });
-    } catch (error) {
-        console.error("Error consultando usuario por id: ", error);
-        return Response.json(
-            {
-                ok: false,
-                message: "No fue posible consultar el usuario.",
-            },
-            { status: 500 }
-        ); 
+    if (!resultadoAutenticacion.body.ok || !resultadoAutenticacion.body.data) {
+      return Response.json(resultadoAutenticacion.body, {
+        status: resultadoAutenticacion.status,
+      });
     }
+
+    const resultado = await obtenerUsuarioPorId(
+      resultadoAutenticacion.body.data.usuario,
+      id,
+    );
+
+    return Response.json(resultado.body, {
+      status: resultado.status,
+    });
+  } catch (error) {
+    console.error("Error consultando usuario por id:", error);
+
+    return Response.json(
+      {
+        ok: false,
+        message: "No fue posible consultar el usuario.",
+      },
+      { status: 500 },
+    );
+  }
 }

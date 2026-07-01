@@ -4,19 +4,37 @@ import {
   buscarUsuarioPorCorreoConRoles,
   buscarUsuarioPorIdConRoles,
 } from "@/modules/usuarios/usuarios.repository";
-import type { 
-  LoginInput, 
-  ServiceResponse, 
-  UsuarioSesion 
+import type {
+  LoginInput,
+  ServiceResponse,
+  UsuarioSesion,
 } from "./auth.types";
 
-function obtenerRoles(usuario: Awaited<ReturnType<typeof buscarUsuarioPorCorreoConRoles>>) {
-  return usuario?.roles.map((usuarioRol) => usuarioRol.rol.nombre) ?? [];
+type UsuarioAutenticacion =
+  | NonNullable<Awaited<ReturnType<typeof buscarUsuarioPorCorreoConRoles>>>
+  | NonNullable<Awaited<ReturnType<typeof buscarUsuarioPorIdConRoles>>>;
+
+function obtenerRoles(usuario: UsuarioAutenticacion) {
+  return usuario.roles
+    .filter((usuarioRol) => usuarioRol.rol.activo)
+    .map((usuarioRol) => usuarioRol.rol.nombre);
 }
 
-function construirUsuarioSesion(
-  usuario: NonNullable<Awaited<ReturnType<typeof buscarUsuarioPorCorreoConRoles>>>
-): UsuarioSesion {
+function obtenerPermisos(usuario: UsuarioAutenticacion) {
+  const permisos = usuario.roles.flatMap((usuarioRol) => {
+    if (!usuarioRol.rol.activo) {
+      return [];
+    }
+
+    return (usuarioRol.rol.permisos ?? [])
+      .filter((rolPermiso) => rolPermiso.permiso.activo)
+      .map((rolPermiso) => rolPermiso.permiso.codigo);
+  });
+
+  return Array.from(new Set(permisos));
+}
+
+function construirUsuarioSesion(usuario: UsuarioAutenticacion): UsuarioSesion {
   return {
     id: usuario.id,
     nombre: usuario.nombre,
@@ -24,6 +42,7 @@ function construirUsuarioSesion(
     telefono: usuario.telefono,
     estado: usuario.estado,
     roles: obtenerRoles(usuario),
+    permisos: obtenerPermisos(usuario),
   };
 }
 
@@ -38,7 +57,7 @@ function obtenerJwtSecret() {
 }
 
 export async function iniciarSesion(
-  input: LoginInput
+  input: LoginInput,
 ): Promise<ServiceResponse<{ usuario: UsuarioSesion; sessionToken: string }>> {
   const { correo, password } = input;
 
@@ -52,7 +71,9 @@ export async function iniciarSesion(
     };
   }
 
-  const usuario = await buscarUsuarioPorCorreoConRoles(correo);
+  const usuario = await buscarUsuarioPorCorreoConRoles(
+    correo.trim().toLowerCase(),
+  );
 
   if (!usuario) {
     return {
@@ -76,7 +97,7 @@ export async function iniciarSesion(
 
   const passwordValida = await bcrypt.compare(
     password,
-    usuario.password_hash ?? ""
+    usuario.password_hash ?? "",
   );
 
   if (!passwordValida) {
@@ -96,6 +117,7 @@ export async function iniciarSesion(
     usuarioId: usuarioSesion.id,
     correo: usuarioSesion.correo,
     roles: usuarioSesion.roles,
+    permisos: usuarioSesion.permisos,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -116,7 +138,7 @@ export async function iniciarSesion(
 }
 
 export async function obtenerUsuarioAutenticado(
-  sessionToken?: string
+  sessionToken?: string,
 ): Promise<ServiceResponse<{ usuario: UsuarioSesion }>> {
   if (!sessionToken) {
     return {
@@ -128,24 +150,24 @@ export async function obtenerUsuarioAutenticado(
     };
   }
 
-const secret = obtenerJwtSecret();
+  const secret = obtenerJwtSecret();
 
-let payload: Awaited<ReturnType<typeof jwtVerify>>["payload"];
+  let payload: Awaited<ReturnType<typeof jwtVerify>>["payload"];
 
-try {
-  const resultadoVerificacion = await jwtVerify(sessionToken, secret);
-  payload = resultadoVerificacion.payload;
-} catch {
-  return {
-    status: 401,
-    body: {
-      ok: false,
-      message: "Sesión inválida.",
-    },
-  };
-}
+  try {
+    const resultadoVerificacion = await jwtVerify(sessionToken, secret);
+    payload = resultadoVerificacion.payload;
+  } catch {
+    return {
+      status: 401,
+      body: {
+        ok: false,
+        message: "Sesión inválida.",
+      },
+    };
+  }
 
-const usuarioId = payload.usuarioId;
+  const usuarioId = payload.usuarioId;
 
   if (!usuarioId || typeof usuarioId !== "string") {
     return {

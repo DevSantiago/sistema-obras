@@ -1,41 +1,168 @@
-import {
-  listarUsuariosConRoles,
-  buscarUsuarioPorCorreo,
-  buscarUsuarioPorNumeroDocumento,
-  buscarRolesPorNombres,
-  crearUsuarioEnBD,
-  buscarUsuarioPorIdConRoles,
-  buscarUsuarioPorCorreoDiferenteId,
-  actualizarUsuarioEnBD,
-  actualizarRolesUsuarioEnBD,
-  actualizarEstadoUsuarioEnBD,
-} from "@/modules/usuarios/usuarios.repository";
+import bcrypt from "bcryptjs";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
+import {
+  actualizarEstadoUsuarioEnBD,
+  actualizarUsuarioEnBD,
+  buscarCentrosCostoActivosPorAccesos,
+  buscarRolActivoPorNombre,
+  buscarUsuarioPorCorreo,
+  buscarUsuarioPorCorreoDiferenteId,
+  buscarUsuarioPorIdConRoles,
+  buscarUsuarioPorNumeroDocumento,
+  crearUsuarioEnBD,
+  listarUsuariosConRoles,
+} from "@/modules/usuarios/usuarios.repository";
 import type {
-  ServiceResponse,
-  UsuarioListado,
-  CrearUsuarioInput,
+  AccesoUsuarioInput,
   ActualizarUsuarioInput,
   CambiarEstadoUsuarioInput,
+  CrearUsuarioInput,
+  LineaNegocioAcceso,
+  ServiceResponse,
+  UsuarioListado,
 } from "./usuarios.types";
-import bcrypt from "bcryptjs";
 
-function usuarioTieneRol(usuario: UsuarioSesion, rol: string) {
-  return usuario.roles.includes(rol);
+const LINEAS_NEGOCIO_VALIDAS: LineaNegocioAcceso[] = [
+  "OBRA",
+  "INTERVENTORIA",
+];
+
+type RolActivo = NonNullable<
+  Awaited<ReturnType<typeof buscarRolActivoPorNombre>>
+>;
+
+type ResultadoNormalizarAccesos =
+  | { ok: true; accesos: AccesoUsuarioInput[] }
+  | { ok: false; message: string };
+
+function usuarioTienePermiso(usuario: UsuarioSesion, permiso: string) {
+  return usuario.permisos?.includes(permiso) ?? false;
 }
 
-function normalizarRoles(roles: string[]) {
-  return Array.from(
-    new Set(
-      roles
-        .map((rol) => rol.trim())
-        .filter((rol) => rol.length > 0)
-    )
+function usuarioTieneAlgunPermiso(
+  usuario: UsuarioSesion,
+  permisos: string[],
+) {
+  return permisos.some((permiso) => usuarioTienePermiso(usuario, permiso));
+}
+
+function normalizarRol(rol: string) {
+  return rol.trim().toUpperCase();
+}
+
+function crearClaveAcceso(acceso: AccesoUsuarioInput) {
+  return `${acceso.proyecto_base_id}:${acceso.linea_negocio}`;
+}
+
+function normalizarAccesos(accesos: unknown): ResultadoNormalizarAccesos {
+  if (!Array.isArray(accesos)) {
+    return {
+      ok: false,
+      message: "Los accesos deben enviarse como una lista.",
+    };
+  }
+
+  const accesosNormalizados: AccesoUsuarioInput[] = [];
+  const claves = new Set<string>();
+
+  for (const acceso of accesos) {
+    if (
+      !acceso ||
+      typeof acceso !== "object" ||
+      !("proyecto_base_id" in acceso) ||
+      !("linea_negocio" in acceso) ||
+      typeof acceso.proyecto_base_id !== "string" ||
+      typeof acceso.linea_negocio !== "string"
+    ) {
+      return {
+        ok: false,
+        message: "Cada acceso debe indicar proyecto y línea de negocio.",
+      };
+    }
+
+    const proyectoBaseId = acceso.proyecto_base_id.trim();
+    const lineaNegocio = acceso.linea_negocio
+      .trim()
+      .toUpperCase() as LineaNegocioAcceso;
+
+    if (!proyectoBaseId) {
+      return {
+        ok: false,
+        message: "El proyecto base de cada acceso es obligatorio.",
+      };
+    }
+
+    if (!LINEAS_NEGOCIO_VALIDAS.includes(lineaNegocio)) {
+      return {
+        ok: false,
+        message: "La línea de negocio del acceso no es válida.",
+      };
+    }
+
+    const accesoNormalizado = {
+      proyecto_base_id: proyectoBaseId,
+      linea_negocio: lineaNegocio,
+    };
+
+    const clave = crearClaveAcceso(accesoNormalizado);
+
+    if (claves.has(clave)) {
+      return {
+        ok: false,
+        message: "No se pueden repetir accesos al mismo proyecto y línea.",
+      };
+    }
+
+    claves.add(clave);
+    accesosNormalizados.push(accesoNormalizado);
+  }
+
+  return {
+    ok: true,
+    accesos: accesosNormalizados,
+  };
+}
+
+async function validarAccesosParaRol(
+  rol: RolActivo,
+  accesos: AccesoUsuarioInput[],
+) {
+  const lineasPermitidas = new Set(
+    rol.lineas_negocio.map((linea) => linea.linea_negocio),
   );
+
+  const accesoNoPermitido = accesos.find(
+    (acceso) => !lineasPermitidas.has(acceso.linea_negocio),
+  );
+
+  if (accesoNoPermitido) {
+    return `El rol ${rol.nombre} no puede acceder a la línea ${accesoNoPermitido.linea_negocio}.`;
+  }
+
+  const centrosCosto = await buscarCentrosCostoActivosPorAccesos(accesos);
+
+  const accesosExistentes = new Set(
+    centrosCosto.map((centro) =>
+      crearClaveAcceso({
+        proyecto_base_id: centro.proyecto_base_id,
+        linea_negocio: centro.linea_negocio as LineaNegocioAcceso,
+      }),
+    ),
+  );
+
+  const accesoInexistente = accesos.find(
+    (acceso) => !accesosExistentes.has(crearClaveAcceso(acceso)),
+  );
+
+  if (accesoInexistente) {
+    return "Uno o más accesos corresponden a proyectos o líneas inexistentes o inactivos.";
+  }
+
+  return null;
 }
 
 function convertirUsuarioListado(
-  usuario: Awaited<ReturnType<typeof listarUsuariosConRoles>>[number]
+  usuario: Awaited<ReturnType<typeof listarUsuariosConRoles>>[number],
 ): UsuarioListado {
   return {
     id: usuario.id,
@@ -47,14 +174,28 @@ function convertirUsuarioListado(
     estado: usuario.estado,
     creado_en: usuario.creado_en,
     actualizado_en: usuario.actualizado_en,
-    roles: usuario.roles.map((usuarioRol) => usuarioRol.rol.nombre),
+    rol: usuario.roles[0]?.rol.nombre ?? "",
+    accesos: usuario.accesos_recibidos.map((acceso) => ({
+      id: acceso.id,
+      proyecto_base_id: acceso.proyecto_base_id,
+      proyecto_nombre: acceso.proyecto_base.nombre,
+      linea_negocio: acceso.linea_negocio as LineaNegocioAcceso,
+      activo: acceso.activo,
+      asignado_en: acceso.asignado_en,
+    })),
   };
 }
 
 export async function listarUsuarios(
-  usuarioAutenticado: UsuarioSesion
+  usuarioAutenticado: UsuarioSesion,
 ): Promise<ServiceResponse<{ usuarios: UsuarioListado[] }>> {
-  if (!usuarioTieneRol(usuarioAutenticado, "ADMINISTRADOR")) {
+  if (
+    !usuarioTieneAlgunPermiso(usuarioAutenticado, [
+      "CREAR_USUARIOS",
+      "ASIGNAR_ACCESOS",
+      "CONSULTAR_TODO",
+    ])
+  ) {
     return {
       status: 403,
       body: {
@@ -80,9 +221,9 @@ export async function listarUsuarios(
 
 export async function crearUsuario(
   usuarioAutenticado: UsuarioSesion,
-  input: CrearUsuarioInput
+  input: CrearUsuarioInput,
 ): Promise<ServiceResponse<{ usuario: UsuarioListado }>> {
-  if (!usuarioTieneRol(usuarioAutenticado, "ADMINISTRADOR")) {
+  if (!usuarioTienePermiso(usuarioAutenticado, "CREAR_USUARIOS")) {
     return {
       status: 403,
       body: {
@@ -100,7 +241,7 @@ export async function crearUsuario(
     telefono,
     password,
     estado,
-    roles,
+    rol,
   } = input;
 
   if (!tipo_documento || !numero_documento || !nombre || !correo || !password) {
@@ -114,24 +255,25 @@ export async function crearUsuario(
     };
   }
 
-  if (!roles || !Array.isArray(roles) || roles.length === 0) {
+  if (!rol?.trim()) {
     return {
       status: 400,
       body: {
         ok: false,
-        message: "Debe asignar al menos un rol al usuario.",
+        message: "Debe asignar un rol al usuario.",
       },
     };
   }
 
-  const rolesUnicos = normalizarRoles(roles);
-
-  if (rolesUnicos.length === 0) {
+  if (
+    input.accesos !== undefined &&
+    !usuarioTienePermiso(usuarioAutenticado, "ASIGNAR_ACCESOS")
+  ) {
     return {
-      status: 400,
+      status: 403,
       body: {
         ok: false,
-        message: "Debe asignar al menos un rol al usuario.",
+        message: "No tiene permisos para asignar accesos.",
       },
     };
   }
@@ -148,7 +290,24 @@ export async function crearUsuario(
     };
   }
 
-  const usuarioExistentePorCorreo = await buscarUsuarioPorCorreo(correo);
+  const resultadoAccesos = normalizarAccesos(input.accesos ?? []);
+
+  if (!resultadoAccesos.ok) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: resultadoAccesos.message,
+      },
+    };
+  }
+
+  const correoNormalizado = correo.trim().toLowerCase();
+  const documentoNormalizado = numero_documento.trim();
+  const nombreRol = normalizarRol(rol);
+
+  const usuarioExistentePorCorreo =
+    await buscarUsuarioPorCorreo(correoNormalizado);
 
   if (usuarioExistentePorCorreo) {
     return {
@@ -160,9 +319,8 @@ export async function crearUsuario(
     };
   }
 
-  const usuarioExistentePorDocumento = await buscarUsuarioPorNumeroDocumento(
-    numero_documento
-  );
+  const usuarioExistentePorDocumento =
+    await buscarUsuarioPorNumeroDocumento(documentoNormalizado);
 
   if (usuarioExistentePorDocumento) {
     return {
@@ -174,14 +332,29 @@ export async function crearUsuario(
     };
   }
 
-  const rolesEncontrados = await buscarRolesPorNombres(rolesUnicos);
+  const rolEncontrado = await buscarRolActivoPorNombre(nombreRol);
 
-  if (rolesEncontrados.length !== rolesUnicos.length) {
+  if (!rolEncontrado) {
     return {
       status: 400,
       body: {
         ok: false,
-        message: "Uno o más roles enviados no existen o no están activos.",
+        message: "El rol enviado no existe o no está activo.",
+      },
+    };
+  }
+
+  const errorAccesos = await validarAccesosParaRol(
+    rolEncontrado,
+    resultadoAccesos.accesos,
+  );
+
+  if (errorAccesos) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: errorAccesos,
       },
     };
   }
@@ -189,14 +362,16 @@ export async function crearUsuario(
   const passwordHash = await bcrypt.hash(password, 10);
 
   const usuarioCreado = await crearUsuarioEnBD({
-    tipo_documento,
-    numero_documento,
-    nombre,
-    correo,
-    telefono,
+    tipo_documento: tipo_documento.trim().toUpperCase(),
+    numero_documento: documentoNormalizado,
+    nombre: nombre.trim(),
+    correo: correoNormalizado,
+    telefono: telefono?.trim() || null,
     password_hash: passwordHash,
     estado: estadoUsuario,
-    roles_ids: rolesEncontrados.map((rol) => rol.id),
+    rol_id: rolEncontrado.id,
+    accesos: resultadoAccesos.accesos,
+    asignado_por: usuarioAutenticado.id,
   });
 
   return {
@@ -213,9 +388,15 @@ export async function crearUsuario(
 
 export async function obtenerUsuarioPorId(
   usuarioAutenticado: UsuarioSesion,
-  id: string
+  id: string,
 ): Promise<ServiceResponse<{ usuario: UsuarioListado }>> {
-  if (!usuarioTieneRol(usuarioAutenticado, "ADMINISTRADOR")) {
+  if (
+    !usuarioTieneAlgunPermiso(usuarioAutenticado, [
+      "CREAR_USUARIOS",
+      "ASIGNAR_ACCESOS",
+      "CONSULTAR_TODO",
+    ])
+  ) {
     return {
       status: 403,
       body: {
@@ -265,14 +446,27 @@ export async function actualizarUsuario(
   input: ActualizarUsuarioInput & {
     tipo_documento?: string;
     numero_documento?: string;
-  }
+  },
 ): Promise<ServiceResponse<{ usuario: UsuarioListado }>> {
-  if (!usuarioTieneRol(usuarioAutenticado, "ADMINISTRADOR")) {
+  if (!usuarioTienePermiso(usuarioAutenticado, "CREAR_USUARIOS")) {
     return {
       status: 403,
       body: {
         ok: false,
         message: "No tiene permisos para editar usuarios.",
+      },
+    };
+  }
+
+  if (
+    (input.rol !== undefined || input.accesos !== undefined) &&
+    !usuarioTienePermiso(usuarioAutenticado, "ASIGNAR_ACCESOS")
+  ) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para asignar roles o accesos.",
       },
     };
   }
@@ -301,14 +495,50 @@ export async function actualizarUsuario(
     };
   }
 
-  const { nombre, correo, telefono, roles } = input;
+  const { nombre, correo, telefono, rol, accesos } = input;
 
-  if (!nombre && !correo && telefono === undefined && roles === undefined) {
+  if (
+    nombre === undefined &&
+    correo === undefined &&
+    telefono === undefined &&
+    rol === undefined &&
+    accesos === undefined
+  ) {
     return {
       status: 400,
       body: {
         ok: false,
         message: "Debe enviar al menos un campo para actualizar.",
+      },
+    };
+  }
+
+  if (nombre !== undefined && !nombre.trim()) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El nombre no puede estar vacío.",
+      },
+    };
+  }
+
+  if (correo !== undefined && !correo.trim()) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El correo no puede estar vacío.",
+      },
+    };
+  }
+
+  if (rol !== undefined && !rol.trim()) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Debe asignar un rol al usuario.",
       },
     };
   }
@@ -325,8 +555,13 @@ export async function actualizarUsuario(
     };
   }
 
-  if (correo) {
-    const usuarioConCorreo = await buscarUsuarioPorCorreoDiferenteId(correo, id);
+  const correoNormalizado = correo?.trim().toLowerCase();
+
+  if (correoNormalizado) {
+    const usuarioConCorreo = await buscarUsuarioPorCorreoDiferenteId(
+      correoNormalizado,
+      id,
+    );
 
     if (usuarioConCorreo) {
       return {
@@ -339,56 +574,84 @@ export async function actualizarUsuario(
     }
   }
 
-  let usuarioActualizado = usuarioExistente;
+  let accesosNormalizados: AccesoUsuarioInput[] | undefined;
 
-  if (nombre || correo || telefono !== undefined) {
-    usuarioActualizado = await actualizarUsuarioEnBD(id, {
-      nombre,
-      correo,
-      telefono,
-    });
+  if (accesos !== undefined) {
+    const resultadoAccesos = normalizarAccesos(accesos);
+
+    if (!resultadoAccesos.ok) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message: resultadoAccesos.message,
+        },
+      };
+    }
+
+    accesosNormalizados = resultadoAccesos.accesos;
   }
 
-  if (roles !== undefined) {
-    if (!Array.isArray(roles) || roles.length === 0) {
+  let rolEncontrado: RolActivo | null = null;
+
+  if (rol !== undefined || accesosNormalizados !== undefined) {
+    const nombreRol = rol
+      ? normalizarRol(rol)
+      : usuarioExistente.roles[0]?.rol.nombre;
+
+    if (!nombreRol) {
       return {
         status: 400,
         body: {
           ok: false,
-          message: "Debe asignar al menos un rol al usuario.",
+          message: "El usuario no tiene un rol válido asignado.",
         },
       };
     }
 
-    const rolesUnicos = normalizarRoles(roles);
+    rolEncontrado = await buscarRolActivoPorNombre(nombreRol);
 
-    if (rolesUnicos.length === 0) {
+    if (!rolEncontrado) {
       return {
         status: 400,
         body: {
           ok: false,
-          message: "Debe asignar al menos un rol al usuario.",
+          message: "El rol enviado no existe o no está activo.",
         },
       };
     }
 
-    const rolesEncontrados = await buscarRolesPorNombres(rolesUnicos);
+    const accesosParaValidar =
+      accesosNormalizados ??
+      usuarioExistente.accesos_recibidos.map((acceso) => ({
+        proyecto_base_id: acceso.proyecto_base_id,
+        linea_negocio: acceso.linea_negocio as LineaNegocioAcceso,
+      }));
 
-    if (rolesEncontrados.length !== rolesUnicos.length) {
-      return {
-        status: 400,
-        body: {
-          ok: false,
-          message: "Uno o más roles enviados no existen o no están activos.",
-        },
-      };
-    }
-
-    usuarioActualizado = await actualizarRolesUsuarioEnBD(
-      id,
-      rolesEncontrados.map((rol) => rol.id)
+    const errorAccesos = await validarAccesosParaRol(
+      rolEncontrado,
+      accesosParaValidar,
     );
+
+    if (errorAccesos) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message: errorAccesos,
+        },
+      };
+    }
   }
+
+  const usuarioActualizado = await actualizarUsuarioEnBD(id, {
+    nombre: nombre?.trim(),
+    correo: correoNormalizado,
+    telefono: telefono === undefined ? undefined : telefono?.trim() || null,
+    rol_id: rol === undefined ? undefined : rolEncontrado?.id,
+    accesos: accesosNormalizados,
+    actualizado_por: usuarioAutenticado.id,
+  });
 
   return {
     status: 200,
@@ -405,9 +668,9 @@ export async function actualizarUsuario(
 export async function cambiarEstadoUsuario(
   usuarioAutenticado: UsuarioSesion,
   id: string,
-  input: CambiarEstadoUsuarioInput
+  input: CambiarEstadoUsuarioInput,
 ): Promise<ServiceResponse<{ usuario: UsuarioListado }>> {
-  if (!usuarioTieneRol(usuarioAutenticado, "ADMINISTRADOR")) {
+  if (!usuarioTienePermiso(usuarioAutenticado, "CREAR_USUARIOS")) {
     return {
       status: 403,
       body: {
