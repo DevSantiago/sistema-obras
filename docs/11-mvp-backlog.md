@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Definir el backlog del MVP para el sistema de gestión de solicitudes de pago, fondos por centro de costo, aprobaciones, pagos, beneficiarios, nómina, reembolsos, préstamos, anticipos, cargos financieros, operaciones de efectivo, impuestos, retenciones, auditoría, exportaciones y OCR futuro.
+Definir el backlog del MVP para el sistema de gestión de solicitudes de pago, fondo general por proyecto base, centros de costo operativos, aprobaciones, pagos, beneficiarios, nómina, reembolsos, préstamos, anticipos, cargos financieros, operaciones de efectivo, impuestos, retenciones, auditoría, exportaciones y OCR futuro.
 
 Este backlog debe servir como base para planear desarrollo, estimar alcance, priorizar entregas y validar que las decisiones funcionales, técnicas y de negocio queden cubiertas. La ejecución del backlog se realizará por módulos funcionales, procurando cerrar primero el backend del módulo, validarlo mediante pruebas técnicas, y posteriormente construir e integrar el frontend correspondiente antes de avanzar al siguiente módulo principal.
 
@@ -84,19 +84,19 @@ Cada historia debe tener criterios de aceptación verificables. Cuando una histo
 |---:|---|---|---|
 | 0 | Diseño UX/UI y prototipado | MUST | Wireframes funcionales validados por módulo antes de construir frontend |
 | 1 | Configuración base del proyecto | MUST | Proyecto técnico inicial listo para backend y frontend |
-| 2 | Autenticación, usuarios y roles | MUST | Acceso seguro, gestión de usuarios y pantallas iniciales integradas |
-| 3 | Centros de costo y variantes | MUST | Administración de centros, proyecto, obra e interventoría con API y frontend operativo |
+| 2 | Autenticación, usuarios, roles, permisos y accesos | MUST | Acceso seguro, gestión de usuarios, rol único, permisos por rol y accesos por proyecto/línea integrados |
+| 3 | Proyectos base, centros de costo y fondo general | MUST | Administración de proyectos base, líneas OBRA/INTERVENTORIA, fases PRO/ejecución, fondo general y cambios de estado con API y frontend operativo |
 | 4 | Beneficiarios | MUST | Registro de personas o entidades que reciben pagos con backend y pantallas de gestión |
-| 5 | Secuencias y referencias internas | MUST | Consecutivos y trazabilidad documental integrados a los módulos que los consumen |
-| 6 | Fondos y movimientos financieros | MUST | Saldo único por centro de costo y movimientos trazables con vista financiera |
-| 7 | Préstamos, anticipos y devoluciones | MUST | Manejo financiero de entradas y salidas con formularios y consultas integradas |
-| 8 | Solicitudes de pago | MUST | Creación y gestión de solicitudes con backend y flujo frontend funcional |
-| 9 | Adjuntos y soportes | MUST | Carga y consulta de documentos soporte integrada a las pantallas operativas |
-| 10 | Aprobaciones | MUST | Flujo de doble aprobación con bandejas y acciones frontend integradas |
-| 11 | Pagos | MUST | Marcación de solicitudes pagadas con bandeja operativa y backend transaccional |
-| 12 | Operaciones de efectivo | MUST | Control de retiros, pagos en efectivo y sobrantes con pantallas de seguimiento |
+| 5 | Secuencias y referencias internas | MUST | Consecutivos y trazabilidad documental integrados a solicitudes, pagos y movimientos |
+| 6 | Solicitudes de pago | MUST | Creación y gestión de solicitudes con backend y flujo frontend funcional |
+| 7 | Adjuntos y soportes | MUST | Carga y consulta de documentos soporte integrada a solicitudes, pagos y operaciones |
+| 8 | Aprobaciones | MUST | Flujo de doble aprobación con bandejas y acciones frontend integradas |
+| 9 | Pagos | MUST | Marcación de solicitudes pagadas con bandeja operativa y backend transaccional |
+| 10 | Fondos y movimientos financieros | MUST | Fondo general por proyecto base y movimientos trazables imputados a centros de costo/líneas/fases |
+| 11 | Operaciones de efectivo | MUST | Control de retiros, pagos en efectivo y sobrantes con pantallas de seguimiento |
+| 12 | Impuestos y retenciones | MUST | Desglose tributario de solicitudes y registros asociados visibles en frontend |
 | 13 | Cargos financieros | MUST | Registro de costos bancarios y financieros con formulario y consulta integrada |
-| 14 | Impuestos y retenciones | MUST | Desglose tributario de solicitudes y registros asociados visibles en frontend |
+| 14 | Préstamos, anticipos y devoluciones | MUST | Manejo financiero de entradas, salidas y saldos pendientes con trazabilidad |
 | 15 | Auditoría | MUST | Trazabilidad de acciones sensibles con consulta básica por filtros |
 | 16 | Exportación | SHOULD | Exportación de información operativa y financiera desde vistas integradas |
 | 17 | Seguridad y hardening | MUST | Validaciones, permisos y protección básica aplicadas en backend y frontend |
@@ -105,6 +105,25 @@ Cada historia debe tener criterios de aceptación verificables. Cuando una histo
 ## Criterio transversal de entrega incremental
 
 Para las épicas funcionales del MVP, el avance se planeará como entregables verticales. Cada módulo deberá tener backend probado y frontend integrado en una versión mínima antes de pasar al siguiente módulo funcional principal. Esta regla aplica especialmente a autenticación, usuarios, centros de costo, beneficiarios, solicitudes, aprobaciones, pagos y financiero.
+
+## Estado de avance actualizado
+
+Este backlog conserva la planificación inicial, pero incorpora los cambios definidos durante el desarrollo de las primeras historias.
+
+Estado a la fecha de actualización:
+
+| Bloque | Estado | Nota |
+|---|---|---|
+| Configuración base | APROBADA | Proyecto Next.js, Prisma y PostgreSQL operativo |
+| Autenticación | APROBADA | Login, logout, sesión `httpOnly` y `/auth/me` implementados |
+| Usuarios | APROBADA | Creación, edición, activación/inactivación y frontend funcional |
+| Roles y permisos | APROBADA | Rol único por usuario, permisos por rol y seed actualizado |
+| Accesos | APROBADA | Accesos por proyecto base y línea de negocio |
+| Proyectos base | APROBADA | Creación de proyecto, fondo general y centros iniciales |
+| Centros de costo | APROBADA | `PRO-OBRA`, `OBRA`, `PRO-INT`, `INT` y cambios de estado implementados |
+| Autorización por permisos | APROBADA | Crear usuarios/proyectos y asignar accesos valida permisos, no solo rol |
+| Beneficiarios | PENDIENTE | Siguiente módulo funcional sugerido antes de solicitudes |
+| Solicitudes de pago | PENDIENTE | Siguiente bloque principal después de beneficiarios y secuencias |
 
 ---
 
@@ -135,7 +154,7 @@ Criterios:
 
 - Permite crear solicitud.
 - Permite seleccionar centro de costo.
-- Permite seleccionar variante.
+- Permite seleccionar centro operativo, línea y fase.
 - Permite seleccionar beneficiario.
 - Permite seleccionar tipo de solicitud.
 - Muestra campos tributarios cuando aplique.
@@ -160,30 +179,30 @@ Criterios:
 
 ### HU-0003. Diseñar wireframes del módulo Financiero
 
-Como usuario financiero, quiero consultar el saldo y los movimientos de un centro de costo, para controlar la ejecución financiera.
+Como usuario financiero, quiero consultar el saldo del fondo general y los movimientos por centro operativo, para controlar la ejecución financiera.
 
 Criterios:
 
-- Muestra saldo consolidado del centro de costo.
-- Muestra movimientos por variante.
+- Muestra saldo del fondo general.
+- Muestra movimientos por centro operativo, línea y fase.
 - Muestra cargos financieros.
 - Muestra operaciones de efectivo.
 - Muestra pendientes de reingreso.
 - Muestra impuestos y retenciones.
-- Permite filtrar por fecha, tipo, dirección y variante.
+- Permite filtrar por fecha, tipo, dirección, línea y fase.
 
 ### HU-0004. Diseñar wireframes del módulo Administrativo
 
-Como Administrador, quiero gestionar usuarios, roles, beneficiarios y centros de costo, para parametrizar el sistema.
+Como usuario autorizado, quiero gestionar usuarios, roles, beneficiarios, proyectos base y centros de costo, para parametrizar el sistema.
 
 Criterios:
 
 - Permite gestionar usuarios.
 - Permite gestionar roles.
 - Permite gestionar beneficiarios.
-- Permite crear centro de costo.
+- Permite crear proyecto base y centros de costo iniciales.
 - Permite crear obra ya adjudicada.
-- Permite habilitar variantes.
+- Permite gestionar líneas de negocio y fases operativas.
 
 ---
 
@@ -240,19 +259,35 @@ Criterios:
 
 ---
 
-# Épica 2. Autenticación, usuarios y roles
+# Épica 2. Autenticación, usuarios, roles, permisos y accesos
 
 ## Objetivo
 
-Permitir acceso seguro al sistema y asignar permisos por rol.
+Permitir acceso seguro al sistema, gestionar usuarios con un único rol, asignar permisos por rol y controlar los proyectos y líneas de negocio sobre los cuales cada usuario puede operar.
+
+Actualización de alcance:
+
+- El usuario ya no debe tener varios roles activos simultáneamente.
+- Cada usuario tiene un único rol funcional.
+- El rol define las acciones permitidas mediante permisos.
+- El acceso define dónde puede operar el usuario.
+- Los accesos se asignan por `proyecto_base + linea_negocio`.
+- La línea `OBRA` cubre `PRO-OBRA` y `OBRA`.
+- La línea `INTERVENTORIA` cubre `PRO-INT` e `INT`.
+- El rol `SOLICITANTE` solo puede acceder a la línea `OBRA`.
+- Los roles `ADMINISTRADOR`, `DIRECTOR`, `APROBADOR_1`, `APROBADOR_2`, `AUXILIAR_CONTABLE` y `PAGOS` pueden tener acceso a `OBRA` e `INTERVENTORIA`.
 
 ## Criterios de aceptación de la épica
 
 - El usuario puede iniciar sesión.
 - El sistema identifica roles.
-- El sistema restringe acciones por rol.
+- El sistema identifica permisos derivados del rol.
+- El sistema restringe acciones por permiso.
+- El sistema restringe operación por acceso a proyecto y línea de negocio.
 - El sistema permite asociar beneficiarios a usuarios cuando aplique.
 - Los roles base existen.
+- Los permisos base existen.
+- Cada usuario activo tiene un único rol.
 - Toda acción sensible valida permisos en backend.
 - Existe frontend funcional para iniciar sesión.
 - Existe frontend funcional mínimo para consultar y gestionar usuarios.
@@ -269,40 +304,50 @@ Criterios:
 - El sistema valida identidad.
 - El sistema carga datos del usuario.
 - El sistema carga roles.
+- El sistema carga permisos asociados al rol.
 - El sistema bloquea usuarios inactivos.
 
-### HU-0202. Gestionar usuarios
+### HU-0202. Gestionar usuarios con rol único
 
-Como Administrador, quiero crear y editar usuarios, para controlar quién accede al sistema.
+Como usuario autorizado, quiero crear y editar usuarios, para controlar quién accede al sistema.
 
 Criterios:
 
 - Permite crear usuario.
 - Permite editar nombre, correo, teléfono y estado.
 - Permite activar o desactivar usuario.
+- Permite asignar un único rol activo al usuario.
+- Impide crear usuarios sin rol.
+- Permite asignar accesos por proyecto y línea de negocio.
+- Valida que el rol seleccionado exista y esté activo.
+- Valida que el usuario autenticado tenga permiso `CREAR_USUARIOS`.
 - Registra auditoría.
 
-### HU-0203. Asignar roles
+### HU-0203. Asignar rol único
 
-Como Administrador, quiero asignar roles a usuarios, para controlar permisos.
+Como usuario autorizado, quiero asignar un rol único a cada usuario, para controlar sus permisos funcionales.
 
 Criterios:
 
-- Permite asignar uno o varios roles.
-- Permite retirar roles.
-- Impide dejar sin rol a usuarios activos si la política lo exige.
+- Permite asignar un solo rol.
+- Permite cambiar el rol de un usuario.
+- Impide dejar sin rol a usuarios activos.
+- Reemplaza la regla previa de múltiples roles.
+- Registra el cambio de rol en `usuarios_roles`.
 - Registra auditoría.
 
-### HU-0204. Crear rol Lectura
+### HU-0204. Parametrizar roles, permisos y líneas de negocio
 
-Como Administrador, quiero contar con rol `LECTURA`, para permitir consulta sin modificación.
+Como sistema, quiero contar con roles, permisos y líneas de negocio parametrizados, para autorizar acciones y accesos de forma consistente.
 
 Criterios:
 
-- El rol existe en base de datos.
-- Puede consultar módulos autorizados.
-- No puede crear, editar, aprobar, pagar ni eliminar.
-- Respeta accesos por centro de costo.
+- Existen roles base: `ADMINISTRADOR`, `DIRECTOR`, `APROBADOR_1`, `APROBADOR_2`, `AUXILIAR_CONTABLE`, `PAGOS` y `SOLICITANTE`.
+- El rol `LECTURA` se conserva como referencia histórica, pero queda fuera del flujo activo del MVP salvo decisión posterior.
+- Existen permisos base como `CREAR_SOLICITUDES`, `CREAR_PROYECTOS`, `CREAR_USUARIOS`, `ASIGNAR_ACCESOS`, `APROBAR_NIVEL_1`, `APROBAR_NIVEL_2`, `MARCAR_COMO_PAGADO` y `CONSULTAR_TODO`.
+- Los permisos se asignan mediante `roles_permisos`.
+- Las líneas permitidas por rol se asignan mediante `roles_lineas_negocio`.
+- El seed crea o actualiza roles, permisos, líneas por rol y usuario administrador.
 
 
 ### HU-0205. Construir frontend de inicio de sesión
@@ -328,11 +373,12 @@ Criterios:
 - Redirige a login si no existe sesión activa.
 - Muestra datos básicos del usuario autenticado.
 - Permite identificar roles cargados.
+- Permite identificar permisos cargados.
 - Define estructura inicial de navegación privada.
 
 ### HU-0207. Construir frontend de gestión de usuarios
 
-Como Administrador, quiero gestionar usuarios desde una interfaz, para controlar el acceso al sistema sin usar herramientas técnicas.
+Como usuario autorizado, quiero gestionar usuarios desde una interfaz, para controlar el acceso al sistema sin usar herramientas técnicas.
 
 Criterios:
 
@@ -341,11 +387,44 @@ Criterios:
 - Permite consultar usuario por ID consumiendo `GET /api/v1/usuarios/[id]`.
 - Permite editar nombre, correo y teléfono consumiendo `PATCH /api/v1/usuarios/[id]`.
 - Permite activar o desactivar usuario consumiendo `PATCH /api/v1/usuarios/[id]/estado`.
+- Muestra rol único.
+- Muestra accesos por proyecto y línea.
+- Permite seleccionar proyectos y líneas de negocio al crear o editar usuario.
+- Bloquea selección de `INTERVENTORIA` cuando el rol es `SOLICITANTE`.
 - Muestra mensajes de éxito y error.
 - Maneja estados de carga.
 - No muestra `password_hash`.
 
-### HU-0208. Validar entrega integrada del módulo Autenticación y Usuarios
+### HU-0208. Asignar accesos por proyecto y línea de negocio
+
+Como usuario autorizado, quiero asignar accesos por proyecto y línea de negocio, para controlar dónde puede operar cada usuario.
+
+Criterios:
+
+- Permite asignar acceso a `OBRA`.
+- Permite asignar acceso a `INTERVENTORIA` cuando el rol lo permite.
+- Un acceso `OBRA` cubre centros `PRO-OBRA` y `OBRA`.
+- Un acceso `INTERVENTORIA` cubre centros `PRO-INT` e `INT`.
+- Valida que el proyecto exista y esté activo.
+- Valida que exista al menos un centro de costo activo para la línea seleccionada.
+- Impide que `SOLICITANTE` tenga acceso a `INTERVENTORIA`.
+- Permite activar, inactivar o reactivar accesos sin duplicarlos.
+
+### HU-0209. Validar autorización por permisos
+
+Como sistema, quiero autorizar acciones por permisos y no solo por nombre de rol, para que distintos roles puedan ejecutar acciones compartidas.
+
+Criterios:
+
+- Crear usuarios valida `CREAR_USUARIOS`.
+- Asignar accesos valida `ASIGNAR_ACCESOS`.
+- Crear proyectos valida `CREAR_PROYECTOS`.
+- Marcar como pagado valida `MARCAR_COMO_PAGADO`.
+- Aprobar nivel 1 valida `APROBAR_NIVEL_1`.
+- Aprobar nivel 2 valida `APROBAR_NIVEL_2`.
+- Las rutas API delegan la autorización fina al service correspondiente.
+
+### HU-0210. Validar entrega integrada del módulo Autenticación y Usuarios
 
 Como equipo de desarrollo, quiero validar el módulo completo desde backend y frontend, para cerrar un entregable funcional antes de avanzar al siguiente módulo principal.
 
@@ -361,94 +440,138 @@ Criterios:
 
 ---
 
-# Épica 3. Centros de costo y variantes
+# Épica 3. Proyectos base, centros de costo y fondo general
 
 ## Objetivo
 
-Gestionar centros de costo con saldo único y variantes de imputación.
+Gestionar proyectos base con fondo general y centros de costo operativos por línea de negocio y fase.
+
+Actualización de alcance:
+
+- El sistema maneja `proyectos_base` como agrupador funcional.
+- El sistema maneja `centros_costo` como unidades operativas de imputación.
+- Cada proyecto base puede tener líneas de negocio `OBRA` e `INTERVENTORIA`.
+- Cada línea puede tener fase de licitación y fase de ejecución.
+- Para obra, la fase de licitación se representa como `PRO-OBRA` y la fase de ejecución como `OBRA`.
+- Para interventoría, la fase de licitación se representa como `PRO-INT` y la fase de ejecución como `INT`.
+- Un proyecto puede tener solo obra, obra e interventoría, o solo interventoría.
+- El fondo es general del proyecto base y los centros de costo imputan gastos contra ese fondo.
+- La tabla `variantes_centro_costo`, si se conserva en documentación histórica, no debe usarse como eje principal del MVP.
 
 ## Criterios de aceptación de la épica
 
-- Se puede crear centro de costo en `EN_PROPUESTA`.
-- Se puede crear centro de costo directamente en `ADJUDICADO` para obras ya adjudicadas.
-- Se crean variantes según el caso.
-- Las variantes no tienen saldo independiente.
-- El centro de costo tiene fondo único.
+- Se puede crear proyecto base.
+- Se puede seleccionar si el proyecto tendrá línea `OBRA`, `INTERVENTORIA` o ambas.
+- Al crear proyecto, las líneas iniciales se crean en fase `LICITACION`.
+- Para línea `OBRA`, se crea centro `PRO-OBRA` en `EN_LICITACION`.
+- Para línea `INTERVENTORIA`, se crea centro `PRO-INT` en `EN_LICITACION`.
+- Se crea un fondo general asociado al proyecto base.
+- Se puede pasar `PRO-OBRA` a ejecución creando `OBRA` en `EN_EJECUCION` y cerrando `PRO-OBRA`.
+- Se puede pasar `PRO-INT` a ejecución creando `INT` en `EN_EJECUCION` y cerrando `PRO-INT`.
+- Se puede finalizar `OBRA` e `INT`.
+- El proyecto base queda `FINALIZADO` cuando todos sus centros activos están finalizados.
 - Existe trazabilidad de cambios de estado.
-- Solo Administrador puede cambiar estados.
+- La creación de proyectos valida permiso `CREAR_PROYECTOS`.
+- El cambio de estados valida permisos definidos para administración de proyectos.
 
 ## Historias
 
-### HU-0301. Crear centro de costo en propuesta
+### HU-0301. Crear backend de proyectos base, centros de costo iniciales y fondo general
 
-Como Administrador, quiero crear un centro de costo en `EN_PROPUESTA`, para registrar gastos previos a adjudicación.
-
-Criterios:
-
-- Crea registro en `centros_costo`.
-- Estado inicial `EN_PROPUESTA`.
-- Crea variante `PROYECTO`.
-- Crea registro en `fondos_centro_costo`.
-- Registra auditoría.
-
-### HU-0302. Marcar centro de costo como adjudicado
-
-Como Administrador, quiero marcar un centro de costo como `ADJUDICADO`, para habilitar operación de obra.
+Como usuario autorizado, quiero crear un proyecto base con sus centros de costo iniciales y fondo general, para registrar gastos desde fase de licitación.
 
 Criterios:
 
-- Solo aplica desde `EN_PROPUESTA`.
-- Registra fecha de adjudicación.
-- Permite adjuntar soporte.
-- Habilita variante `OBRA`.
-- Permite habilitar `INTERVENTORIA`.
-- No modifica movimientos anteriores.
+- Crea registro en `proyectos_base`.
+- Crea registro en `fondos` como fondo general del proyecto.
+- Permite seleccionar línea `OBRA`, `INTERVENTORIA` o ambas.
+- Crea `PRO-OBRA` cuando se selecciona `OBRA`.
+- Crea `PRO-INT` cuando se selecciona `INTERVENTORIA`.
+- Los centros iniciales quedan en `EN_LICITACION`.
+- El proyecto base queda en `EN_LICITACION`.
+- La creación es transaccional.
+- Valida duplicados por nombre de proyecto activo.
+- Valida que el usuario tenga permiso `CREAR_PROYECTOS`.
+- Incluye pruebas unitarias y validación por `curl`.
 
-### HU-0303. Marcar centro de costo como no adjudicado
+### HU-0302. Construir frontend de proyectos base
 
-Como Administrador, quiero marcar un centro de costo como `NO_ADJUDICADO`, para cerrar proyectos no ganados.
-
-Criterios:
-
-- Solo aplica desde `EN_PROPUESTA`.
-- No habilita `OBRA`.
-- No habilita `INTERVENTORIA`.
-- Conserva movimientos históricos.
-- Registra auditoría.
-
-### HU-0304. Crear obra ya adjudicada
-
-Como Administrador, quiero crear un centro de costo directamente en `ADJUDICADO`, para registrar obras ya ganadas antes de iniciar el sistema.
+Como usuario autorizado, quiero gestionar proyectos base desde una interfaz, para crear proyectos y consultar sus centros de costo sin usar herramientas técnicas.
 
 Criterios:
 
-- El estado inicial es `ADJUDICADO`.
-- `creado_como_adjudicado = TRUE`.
-- Exige motivo de creación adjudicada.
-- Crea variante `OBRA`.
-- Permite crear variante `INTERVENTORIA`.
-- No marca automáticamente `EN_EJECUCION`.
+- Permite crear proyecto base.
+- Permite seleccionar centros iniciales `PRO-OBRA` y/o `PRO-INT`.
+- Lista proyectos creados.
+- Muestra estado del proyecto.
+- Muestra fondo general.
+- Muestra centros de costo asociados.
+- Muestra estado de cada centro.
+- Consume endpoints reales del módulo.
+- Maneja mensajes de éxito y error.
+- Tiene diseño responsivo validado en escritorio y móvil.
 
-### HU-0305. Iniciar ejecución
+### HU-0303. Cambiar estado de centro de costo de licitación a ejecución
 
-Como Administrador, quiero cambiar un centro de costo de `ADJUDICADO` a `EN_EJECUCION`, para indicar inicio operativo.
-
-Criterios:
-
-- Solo aplica desde `ADJUDICADO`.
-- Registra usuario y fecha.
-- Conserva variantes.
-- Registra historial.
-
-### HU-0306. Habilitar interventoría
-
-Como Administrador, quiero habilitar la variante `INTERVENTORIA`, para imputar gastos de interventoría.
+Como usuario autorizado, quiero pasar un centro de costo de licitación a ejecución, para separar gastos de fase comercial y fase ejecutada.
 
 Criterios:
 
-- Solo se habilita en centros adjudicados o en ejecución.
-- No crea saldo independiente.
-- Registra auditoría.
+- Permite pasar `PRO-OBRA` de `EN_LICITACION` a ejecución.
+- Al pasar `PRO-OBRA`, el sistema finaliza `PRO-OBRA` y crea `OBRA` en `EN_EJECUCION`.
+- Permite pasar `PRO-INT` de `EN_LICITACION` a ejecución.
+- Al pasar `PRO-INT`, el sistema finaliza `PRO-INT` y crea `INT` en `EN_EJECUCION`.
+- Conserva trazabilidad de usuario, fecha y observación.
+- No modifica movimientos históricos de la fase de licitación.
+- Actualiza estado del proyecto base a `EN_EJECUCION` cuando aplique.
+- La operación es transaccional.
+- Incluye pruebas unitarias y validación por `curl`.
+
+### HU-0304. Finalizar centros de costo en ejecución
+
+Como usuario autorizado, quiero finalizar centros `OBRA` o `INT`, para cerrar operación de una línea ejecutada.
+
+Criterios:
+
+- Solo permite finalizar centros en `EN_EJECUCION`.
+- Permite finalizar `OBRA`.
+- Permite finalizar `INT`.
+- Impide devolver un centro finalizado a ejecución.
+- Actualiza estado del proyecto base.
+- El proyecto base queda `FINALIZADO` cuando todos sus centros activos están finalizados.
+- Conserva trazabilidad de usuario, fecha y observación.
+
+### HU-0305. Asignar accesos de usuarios a proyectos y líneas
+
+Como usuario autorizado, quiero asignar accesos de usuarios a proyectos y líneas, para controlar dónde puede operar cada usuario.
+
+Criterios:
+
+- Permite asignar acceso por `proyecto_base + linea_negocio`.
+- `OBRA` habilita operación sobre `PRO-OBRA` y `OBRA`.
+- `INTERVENTORIA` habilita operación sobre `PRO-INT` e `INT`.
+- Valida líneas permitidas por rol.
+- Impide `INTERVENTORIA` para `SOLICITANTE`.
+- Permite a `ADMINISTRADOR`, `DIRECTOR`, `APROBADOR_1`, `APROBADOR_2`, `AUXILIAR_CONTABLE` y `PAGOS` acceder a ambas líneas según asignación.
+- Se integra al frontend de creación y edición de usuarios.
+
+### HU-0306. Validar entrega integrada de proyectos, centros y accesos
+
+Como equipo de desarrollo, quiero validar proyectos, centros de costo, estados y accesos desde backend y frontend, para cerrar el entregable funcional.
+
+Criterios:
+
+- Se puede crear proyecto solo obra.
+- Se puede crear proyecto obra e interventoría.
+- Se puede crear proyecto solo interventoría.
+- Se puede cambiar `PRO-OBRA` a `OBRA`.
+- Se puede cambiar `PRO-INT` a `INT`.
+- Se puede finalizar `OBRA` e `INT`.
+- Se pueden crear usuarios con rol único y accesos por proyecto/línea.
+- `SOLICITANTE` queda limitado a `OBRA`.
+- `DIRECTOR` y `APROBADOR_1` pueden crear proyectos, usuarios y asignar accesos si tienen permisos.
+- Las rutas API no autorizan por nombre de rol, sino por permisos.
+- `npm run lint` y `npm run test:run` pasan correctamente.
 
 ---
 
@@ -557,128 +680,7 @@ Criterios:
 
 ---
 
-# Épica 6. Fondos y movimientos financieros
-
-## Objetivo
-
-Controlar el saldo único por centro de costo y registrar todos los ingresos y egresos.
-
-## Criterios de aceptación de la épica
-
-- Cada centro de costo tiene un fondo único.
-- Las variantes no tienen saldo independiente.
-- Todo impacto financiero se registra en `movimientos_fondo_centro_costo`.
-- Cada movimiento tiene saldo anterior y saldo nuevo.
-- Cada movimiento tiene dirección `INGRESO` o `EGRESO`.
-- El sistema impide saldo negativo.
-- La actualización de saldo es transaccional.
-
-## Historias
-
-### HU-0601. Consultar saldo de centro de costo
-
-Como usuario autorizado, quiero consultar el saldo consolidado, para conocer disponibilidad.
-
-Criterios:
-
-- Muestra saldo actual.
-- Muestra centro de costo.
-- Muestra estado del centro de costo.
-- Respeta permisos.
-
-### HU-0602. Registrar movimiento financiero
-
-Como sistema, quiero registrar movimientos financieros, para actualizar saldos.
-
-Criterios:
-
-- Registra tipo de movimiento.
-- Registra dirección.
-- Registra valor.
-- Registra saldo anterior.
-- Registra saldo nuevo.
-- Relaciona entidad origen si aplica.
-- Actualiza `fondos_centro_costo.saldo_actual`.
-
-### HU-0603. Consultar movimientos por variante
-
-Como usuario financiero, quiero ver movimientos por variante, para analizar gasto por proyecto, obra o interventoría.
-
-Criterios:
-
-- Filtra por centro de costo.
-- Filtra por variante.
-- Filtra por dirección.
-- Filtra por tipo de movimiento.
-- Muestra saldo anterior y saldo nuevo.
-
----
-
-# Épica 7. Préstamos, anticipos y devoluciones
-
-## Objetivo
-
-Registrar entradas y salidas financieras asociadas a préstamos, anticipos y devoluciones.
-
-## Criterios de aceptación de la épica
-
-- Permite préstamos de persona a obra.
-- Permite préstamos entre obras o centros de costo.
-- Permite anticipos.
-- Permite devoluciones.
-- Cada operación que afecte saldo genera movimiento financiero.
-- Se conserva saldo pendiente de préstamos.
-
-## Historias
-
-### HU-0701. Registrar anticipo
-
-Como usuario autorizado, quiero registrar un anticipo, para aumentar el saldo de un centro de costo.
-
-Criterios:
-
-- Crea registro en `anticipos_centro_costo`.
-- Crea movimiento `INGRESO_ANTICIPO`.
-- Actualiza saldo.
-- Registra auditoría.
-
-### HU-0702. Registrar préstamo de persona a obra
-
-Como usuario autorizado, quiero registrar préstamo de una persona a una obra, para controlar financiación externa.
-
-Criterios:
-
-- Crea `prestamos_obra`.
-- Tipo `PERSONA_A_OBRA`.
-- Crea movimiento de ingreso.
-- Actualiza saldo pendiente.
-
-### HU-0703. Registrar préstamo entre obras
-
-Como usuario autorizado, quiero registrar préstamo entre centros de costo, para controlar traslado temporal de recursos.
-
-Criterios:
-
-- Tipo `OBRA_A_OBRA`.
-- Crea egreso en centro origen.
-- Crea ingreso en centro destino.
-- Actualiza saldos de ambos centros.
-- Registra auditoría.
-
-### HU-0704. Registrar devolución de préstamo
-
-Como usuario autorizado, quiero registrar devolución, para disminuir saldo pendiente.
-
-Criterios:
-
-- Crea `devoluciones_prestamo`.
-- Crea movimiento financiero.
-- Actualiza saldo pendiente.
-- Cambia estado del préstamo si queda pagado.
-
----
-
-# Épica 8. Solicitudes de pago
+# Épica 6. Solicitudes de pago
 
 ## Objetivo
 
@@ -686,7 +688,8 @@ Crear, editar, enviar y consultar solicitudes de pago.
 
 ## Criterios de aceptación de la épica
 
-- Permite solicitudes por centro de costo y variante.
+- Permite solicitudes por proyecto base y centro de costo operativo.
+- Permite imputar gasto a `PRO-OBRA`, `OBRA`, `PRO-INT` o `INT`.
 - Permite pago a proveedor.
 - Permite nómina.
 - Permite reembolso.
@@ -699,14 +702,14 @@ Crear, editar, enviar y consultar solicitudes de pago.
 
 ## Historias
 
-### HU-0801. Crear solicitud de pago a proveedor
+### HU-0601. Crear solicitud de pago a proveedor
 
 Como Solicitante, quiero crear una solicitud de pago a proveedor, para tramitar una obligación.
 
 Criterios:
 
 - Selecciona centro de costo.
-- Selecciona variante.
+- Selecciona centro operativo según línea y fase.
 - Selecciona beneficiario.
 - Selecciona categoría de gasto.
 - Registra valor bruto y valor neto.
@@ -714,7 +717,7 @@ Criterios:
 - Permite adjuntos.
 - Estado inicial `BORRADOR`.
 
-### HU-0802. Crear solicitud de reembolso
+### HU-0602. Crear solicitud de reembolso
 
 Como Solicitante, quiero crear una solicitud de reembolso, para recuperar gastos realizados.
 
@@ -725,7 +728,7 @@ Criterios:
 - Registra soportes.
 - Valida descripción cuando categoría es `OTRO`.
 
-### HU-0803. Crear solicitud de nómina individual
+### HU-0603. Crear solicitud de nómina individual
 
 Como usuario autorizado, quiero crear una solicitud de nómina individual, para pagar a un trabajador.
 
@@ -736,7 +739,7 @@ Criterios:
 - Selecciona beneficiario tipo `TRABAJADOR`.
 - Selecciona concepto de nómina.
 
-### HU-0804. Crear solicitud de nómina agrupada por Excel
+### HU-0604. Crear solicitud de nómina agrupada por Excel
 
 Como usuario autorizado, quiero cargar nómina agrupada, para pagar varios trabajadores.
 
@@ -750,7 +753,7 @@ Criterios:
 - Permite confirmar carga.
 - Crea ítems de solicitud.
 
-### HU-0805. Enviar solicitud
+### HU-0605. Enviar solicitud
 
 Como Solicitante, quiero enviar una solicitud, para iniciar aprobación.
 
@@ -763,7 +766,7 @@ Criterios:
 
 ---
 
-# Épica 9. Adjuntos y soportes
+# Épica 7. Adjuntos y soportes
 
 ## Objetivo
 
@@ -780,7 +783,7 @@ Permitir carga, consulta y trazabilidad de archivos soporte.
 
 ## Historias
 
-### HU-0901. Cargar adjunto en solicitud
+### HU-0701. Cargar adjunto en solicitud
 
 Como usuario autorizado, quiero adjuntar soportes, para respaldar la solicitud.
 
@@ -792,7 +795,7 @@ Criterios:
 - Guarda usuario que subió.
 - Relaciona con solicitud.
 
-### HU-0902. Cargar soporte de operación de efectivo
+### HU-0702. Cargar soporte de operación de efectivo
 
 Como usuario de Pagos, quiero cargar soporte de retiro, pago y reingreso, para trazabilidad.
 
@@ -805,7 +808,7 @@ Criterios:
 
 ---
 
-# Épica 10. Aprobaciones
+# Épica 8. Aprobaciones
 
 ## Objetivo
 
@@ -823,7 +826,7 @@ Implementar el flujo de doble aprobación.
 
 ## Historias
 
-### HU-1001. Aprobar nivel 1
+### HU-0801. Aprobar nivel 1
 
 Como Aprobador 1, quiero aprobar solicitudes, para enviarlas a segundo nivel.
 
@@ -833,7 +836,7 @@ Criterios:
 - Cambia a `PENDIENTE_APROBADOR_2`.
 - Registra usuario y fecha.
 
-### HU-1002. Devolver al Solicitante
+### HU-0802. Devolver al Solicitante
 
 Como Aprobador 1, quiero devolver solicitudes, para que sean corregidas.
 
@@ -843,7 +846,7 @@ Criterios:
 - Exige comentario.
 - Registra historial.
 
-### HU-1003. Aprobar nivel 2
+### HU-0803. Aprobar nivel 2
 
 Como Aprobador 2, quiero aprobar solicitudes, para dejarlas listas para pago.
 
@@ -854,7 +857,7 @@ Criterios:
 - No usa estado operativo `APROBADA`.
 - Registra `aprobado_2_en`.
 
-### HU-1004. Devolver a Aprobador 1
+### HU-0804. Devolver a Aprobador 1
 
 Como Aprobador 2, quiero devolver solicitudes a Aprobador 1, para revisión previa.
 
@@ -866,7 +869,7 @@ Criterios:
 
 ---
 
-# Épica 11. Pagos
+# Épica 9. Pagos
 
 ## Objetivo
 
@@ -883,20 +886,20 @@ Permitir que el rol Pagos marque solicitudes como pagadas.
 
 ## Historias
 
-### HU-1101. Ver bandeja de pagos
+### HU-0901. Ver bandeja de pagos
 
 Como usuario de Pagos, quiero ver solicitudes en `PROGRAMADA_PAGO`, para gestionar pagos.
 
 Criterios:
 
 - Muestra beneficiario.
-- Muestra centro de costo.
-- Muestra variante.
+- Muestra proyecto base.
+- Muestra centro de costo operativo.
 - Muestra valor neto.
 - Muestra medio de pago.
 - Permite filtrar.
 
-### HU-1102. Marcar transferencia como pagada
+### HU-0902. Marcar transferencia como pagada
 
 Como usuario de Pagos, quiero marcar una transferencia como pagada, para cerrar la solicitud.
 
@@ -907,7 +910,7 @@ Criterios:
 - Cambia solicitud a `PAGADA`.
 - Registra `pagado_en`.
 
-### HU-1103. Marcar pago en efectivo
+### HU-0903. Marcar pago en efectivo
 
 Como usuario de Pagos, quiero registrar pago en efectivo, para controlar retiro y pago.
 
@@ -922,7 +925,80 @@ Criterios:
 
 ---
 
-# Épica 12. Operaciones de efectivo
+# Épica 10. Fondos y movimientos financieros
+
+## Objetivo
+
+Controlar el fondo general del proyecto base y registrar todos los ingresos y egresos con imputación a centros de costo, líneas de negocio y fases.
+
+Actualización de alcance:
+
+- El fondo principal del MVP es general por proyecto base.
+- Los centros de costo no tienen fondo independiente.
+- Los centros de costo permiten imputar gasto a `PRO-OBRA`, `OBRA`, `PRO-INT` o `INT`.
+- Los préstamos generales, anticipos, pagos, cargos financieros, impuestos, retiros de efectivo y reingresos afectan el fondo general.
+- El seguimiento del gasto se hace mediante movimientos relacionados con el centro de costo operativo que originó la operación.
+
+## Criterios de aceptación de la épica
+
+- Cada proyecto base tiene un fondo general.
+- Los centros de costo imputan movimientos contra el fondo general.
+- Todo impacto financiero se registra en movimientos financieros.
+- Cada movimiento tiene saldo anterior y saldo nuevo.
+- Cada movimiento tiene dirección `INGRESO` o `EGRESO`.
+- Cada movimiento puede relacionarse con proyecto base, centro de costo, solicitud, préstamo, devolución, anticipo, cargo financiero, impuesto, retención u operación de efectivo.
+- El sistema impide saldo negativo.
+- La actualización de saldo es transaccional.
+
+## Historias
+
+### HU-1001. Consultar saldo del fondo general
+
+Como usuario autorizado, quiero consultar el saldo del fondo general del proyecto base, para conocer disponibilidad real.
+
+Criterios:
+
+- Muestra saldo actual.
+- Muestra proyecto base.
+- Muestra fondo general.
+- Muestra centros de costo relacionados.
+- Permite analizar gasto acumulado por línea y fase.
+- Respeta permisos.
+
+### HU-1002. Registrar movimiento financiero
+
+Como sistema, quiero registrar movimientos financieros, para actualizar el fondo general y conservar trazabilidad de imputación.
+
+Criterios:
+
+- Registra tipo de movimiento.
+- Registra dirección.
+- Registra valor.
+- Registra saldo anterior.
+- Registra saldo nuevo.
+- Relaciona entidad origen si aplica.
+- Relaciona proyecto base.
+- Relaciona centro de costo cuando aplique.
+- Actualiza saldo del fondo general.
+- Ejecuta actualización en transacción.
+
+### HU-1003. Consultar movimientos por centro de costo, línea y fase
+
+Como usuario financiero, quiero ver movimientos por centro de costo, línea y fase, para analizar gasto en licitación, obra e interventoría.
+
+Criterios:
+
+- Filtra por proyecto base.
+- Filtra por centro de costo.
+- Filtra por línea de negocio.
+- Filtra por fase de centro de costo.
+- Filtra por dirección.
+- Filtra por tipo de movimiento.
+- Muestra saldo anterior y saldo nuevo.
+
+---
+
+# Épica 11. Operaciones de efectivo
 
 ## Objetivo
 
@@ -939,7 +1015,7 @@ Controlar retiros, pagos en efectivo y reingresos de sobrantes.
 
 ## Historias
 
-### HU-1201. Registrar operación de efectivo
+### HU-1101. Registrar operación de efectivo
 
 Como usuario de Pagos, quiero registrar operación de efectivo, para dejar trazabilidad del retiro y pago.
 
@@ -950,7 +1026,7 @@ Criterios:
 - Estado `SIN_SOBRANTE` si no sobra.
 - Estado `SOBRANTE_PENDIENTE_REINGRESO` si sobra.
 
-### HU-1202. Registrar reingreso de sobrante
+### HU-1102. Registrar reingreso de sobrante
 
 Como usuario autorizado, quiero registrar reingreso de sobrante, para devolver dinero al fondo.
 
@@ -962,7 +1038,7 @@ Criterios:
 - Actualiza saldo.
 - Cambia estado a `SOBRANTE_REINGRESADO`.
 
-### HU-1203. Consultar pendientes de reingreso
+### HU-1103. Consultar pendientes de reingreso
 
 Como usuario financiero, quiero consultar sobrantes pendientes, para hacer seguimiento.
 
@@ -973,6 +1049,60 @@ Criterios:
 - Muestra solicitud.
 - Muestra valor sobrante.
 - Permite exportar.
+
+---
+
+# Épica 12. Impuestos y retenciones
+
+## Objetivo
+
+Registrar impuestos, retenciones y descuentos tributarios asociados a solicitudes.
+
+## Criterios de aceptación de la épica
+
+- Registra impuestos por solicitud.
+- Registra retenciones por solicitud.
+- Calcula valores de desglose.
+- No los registra como cargos financieros.
+- No crea aprobación independiente.
+- Permite ajuste con auditoría.
+- Si generan egreso independiente, se registra en `movimientos_fondo_centro_costo`.
+
+## Historias
+
+### HU-1201. Registrar impuesto o retención en solicitud
+
+Como usuario autorizado, quiero registrar impuestos y retenciones, para calcular correctamente el valor neto.
+
+Criterios:
+
+- Crea `impuestos_retenciones_solicitud`.
+- Valida tipo.
+- Valida naturaleza.
+- Valida valor no negativo.
+- Actualiza totales de la solicitud.
+
+### HU-1202. Ajustar impuesto o retención
+
+Como usuario autorizado, quiero ajustar un registro tributario, para corregir errores.
+
+Criterios:
+
+- Cambia estado a `AJUSTADO`.
+- Exige motivo.
+- Registra usuario y fecha.
+- Registra auditoría.
+
+### HU-1203. Registrar egreso por pago tributario independiente
+
+Como usuario financiero autorizado, quiero registrar pago de impuesto o retención como egreso, cuando aplique.
+
+Criterios:
+
+- Crea movimiento `EGRESO_IMPUESTO_RETENCION`.
+- Relaciona `impuesto_retencion_id`.
+- Actualiza saldo.
+- No crea solicitud de pago aprobable.
 
 ---
 
@@ -995,12 +1125,12 @@ Registrar costos bancarios y financieros asociados a operaciones o centros de co
 
 ### HU-1301. Registrar cargo financiero
 
-Como usuario autorizado, quiero registrar un cargo financiero, para afectar el saldo del centro de costo.
+Como usuario autorizado, quiero registrar un cargo financiero, para afectar el fondo general e imputarlo al centro operativo correspondiente.
 
 Criterios:
 
 - Selecciona centro de costo.
-- Selecciona variante.
+- Selecciona línea y fase cuando aplique.
 - Selecciona tipo de cargo.
 - Registra valor.
 - Crea `cargos_financieros`.
@@ -1018,57 +1148,70 @@ Criterios:
 
 ---
 
-# Épica 14. Impuestos y retenciones
+# Épica 14. Préstamos, anticipos y devoluciones
 
 ## Objetivo
 
-Registrar impuestos, retenciones y descuentos tributarios asociados a solicitudes.
+Registrar entradas y salidas financieras asociadas a préstamos, anticipos y devoluciones.
 
 ## Criterios de aceptación de la épica
 
-- Registra impuestos por solicitud.
-- Registra retenciones por solicitud.
-- Calcula valores de desglose.
-- No los registra como cargos financieros.
-- No crea aprobación independiente.
-- Permite ajuste con auditoría.
-- Si generan egreso independiente, se registra en `movimientos_fondo_centro_costo`.
+- Permite préstamos generales a un proyecto base.
+- Permite asociar el uso del préstamo a solicitudes de distintas líneas y fases.
+- Permite préstamos entre proyectos base cuando aplique.
+- Permite anticipos.
+- Permite devoluciones.
+- Cada operación que afecte saldo genera movimiento financiero.
+- Se conserva saldo pendiente de préstamos.
 
 ## Historias
 
-### HU-1401. Registrar impuesto o retención en solicitud
+### HU-1401. Registrar anticipo
 
-Como usuario autorizado, quiero registrar impuestos y retenciones, para calcular correctamente el valor neto.
-
-Criterios:
-
-- Crea `impuestos_retenciones_solicitud`.
-- Valida tipo.
-- Valida naturaleza.
-- Valida valor no negativo.
-- Actualiza totales de la solicitud.
-
-### HU-1402. Ajustar impuesto o retención
-
-Como usuario autorizado, quiero ajustar un registro tributario, para corregir errores.
+Como usuario autorizado, quiero registrar un anticipo, para aumentar el saldo del fondo general del proyecto base.
 
 Criterios:
 
-- Cambia estado a `AJUSTADO`.
-- Exige motivo.
-- Registra usuario y fecha.
+- Crea registro en `anticipos_centro_costo`.
+- Crea movimiento `INGRESO_ANTICIPO`.
+- Actualiza saldo.
 - Registra auditoría.
 
-### HU-1403. Registrar egreso por pago tributario independiente
+### HU-1402. Registrar préstamo general de persona a proyecto
 
-Como usuario financiero autorizado, quiero registrar pago de impuesto o retención como egreso, cuando aplique.
+Como usuario autorizado, quiero registrar préstamo de una persona a un proyecto base, para controlar financiación externa general.
 
 Criterios:
 
-- Crea movimiento `EGRESO_IMPUESTO_RETENCION`.
-- Relaciona `impuesto_retencion_id`.
-- Actualiza saldo.
-- No crea solicitud de pago aprobable.
+- Crea `prestamos_obra`.
+- Tipo `PERSONA_A_OBRA` o equivalente vigente en el modelo.
+- Asocia el préstamo al proyecto base y fondo general.
+- Crea movimiento de ingreso.
+- Actualiza saldo pendiente.
+- Permite que las solicitudes posteriores descuenten del mismo fondo general sin dividir el préstamo por línea.
+
+### HU-1403. Registrar préstamo entre proyectos
+
+Como usuario autorizado, quiero registrar préstamo entre proyectos base, para controlar traslado temporal de recursos.
+
+Criterios:
+
+- Tipo `OBRA_A_OBRA`.
+- Crea egreso en proyecto/fondo origen.
+- Crea ingreso en proyecto/fondo destino.
+- Actualiza saldos de ambos fondos.
+- Registra auditoría.
+
+### HU-1404. Registrar devolución de préstamo
+
+Como usuario autorizado, quiero registrar devolución, para disminuir saldo pendiente.
+
+Criterios:
+
+- Crea `devoluciones_prestamo`.
+- Crea movimiento financiero.
+- Actualiza saldo pendiente.
+- Cambia estado del préstamo si queda pagado.
 
 ---
 
@@ -1151,7 +1294,7 @@ Como usuario financiero, quiero exportar movimientos, para control de saldos.
 Criterios:
 
 - Incluye centro de costo.
-- Incluye variante.
+- Incluye línea de negocio y fase.
 - Incluye tipo de movimiento.
 - Incluye dirección.
 - Incluye saldo anterior y saldo nuevo.
@@ -1183,8 +1326,9 @@ Como sistema, quiero validar permisos por rol, para evitar acciones no autorizad
 Criterios:
 
 - Valida rol.
-- Valida centro de costo.
-- Valida variante.
+- Valida permisos.
+- Valida acceso por proyecto y línea de negocio.
+- Valida centro operativo cuando aplique.
 - Bloquea acciones no autorizadas.
 
 ### HU-1702. Evitar doble movimiento financiero

@@ -39,9 +39,12 @@ Ejemplos:
 - `usuarios`
 - `roles`
 - `usuarios_roles`
+- `permisos`
+- `roles_permisos`
+- `roles_lineas_negocio`
 - `proyectos_base`
 - `centros_costo`
-- `accesos_usuario_centro_costo`
+- `accesos_usuario_proyecto`
 - `proveedores`
 - `beneficiarios_pago`
 - `prestamistas`
@@ -64,6 +67,15 @@ Ejemplos:
 - `resultados_ocr`
 
 La entidad `obras` queda absorbida funcionalmente por el modelo de `proyectos_base` y `centros_costo`. Si existiera por migración o compatibilidad histórica, no debe ser la entidad financiera principal.
+
+Actualización implementada:
+
+- `usuarios_roles` representa un único rol activo por usuario mediante restricción única sobre `usuario_id`.
+- `permisos`, `roles_permisos` y `roles_lineas_negocio` parametrizan acciones y líneas permitidas por rol.
+- `accesos_usuario_proyecto` reemplaza el acceso directo por centro de costo para el MVP. El acceso se asigna por `proyecto_base + linea_negocio`.
+- La línea `OBRA` cubre `PRO-OBRA` y `OBRA`.
+- La línea `INTERVENTORIA` cubre `PRO-INT` e `INT`.
+- `proveedores` y `beneficiarios_pago` se mantienen como entidades de la Épica 4. `beneficiarios_pago` puede representar proveedores, trabajadores u otros beneficiarios.
 
 ## Regla de proyecto base, centros de costo y fases
 
@@ -125,28 +137,67 @@ Los cargos financieros corresponden a costos bancarios o financieros generados a
 | Préstamo recibido | `prestamos_proyecto` | `INGRESO_PRESTAMO` |
 | Devolución a prestamista | `devoluciones_prestamo` | `EGRESO_DEVOLUCION_PRESTAMO` |
 
-## Reglas de acceso a centros de costo
+## Reglas de acceso a proyectos, líneas y centros de costo
 
-Los roles definen qué tipo de usuario es una persona dentro del sistema. Los accesos definen sobre qué centro de costo puede operar.
+Los roles definen qué acciones puede realizar un usuario. Los permisos asociados al rol autorizan operaciones como crear usuarios, crear proyectos, aprobar solicitudes o marcar pagos.
 
-Al crear o editar usuarios, el sistema debe permitir asignar centros de costo mediante `accesos_usuario_centro_costo`.
+Los accesos definen dónde puede operar el usuario. Para el MVP, el acceso se asigna mediante:
+
+```text
+accesos_usuario_proyecto
+```
+
+La granularidad del acceso es:
+
+```text
+usuario + proyecto_base + linea_negocio
+```
 
 Reglas principales:
 
-- Un usuario puede tener uno o varios roles.
-- Un usuario puede tener acceso a uno o varios centros de costo.
-- La creación de solicitudes debe validar rol y acceso activo al centro de costo seleccionado.
-- El permiso `puede_ver_saldo` permite consultar el saldo del fondo general del proyecto base asociado, no un saldo independiente del centro de costo.
-- El permiso `puede_gestionar_fondos` debe reservarse para usuarios autorizados a registrar ingresos, anticipos, préstamos, devoluciones, ajustes o movimientos financieros.
+- Cada usuario tiene un único rol funcional activo.
+- Un rol puede tener varios permisos mediante `roles_permisos`.
+- Un rol puede tener líneas de negocio permitidas mediante `roles_lineas_negocio`.
+- Un usuario puede tener acceso a uno o varios proyectos base.
+- Un usuario puede tener acceso a una o varias líneas dentro de un proyecto.
+- La línea `OBRA` autoriza operación sobre centros `PRO-OBRA` y `OBRA` del proyecto.
+- La línea `INTERVENTORIA` autoriza operación sobre centros `PRO-INT` e `INT` del proyecto.
+- El rol `SOLICITANTE` solo puede tener acceso a `OBRA`.
+- Los roles `ADMINISTRADOR`, `DIRECTOR`, `APROBADOR_1`, `APROBADOR_2`, `AUXILIAR_CONTABLE` y `PAGOS` pueden tener acceso a `OBRA` e `INTERVENTORIA`, según asignación.
+- La creación de solicitudes debe validar permiso funcional y acceso activo al proyecto/línea seleccionada.
+- La consulta de saldo se hace sobre el fondo general del proyecto base, no sobre un saldo independiente del centro de costo.
+- La gestión de fondos debe reservarse para usuarios con permisos financieros específicos.
+
+La tabla histórica `accesos_usuario_centro_costo` no debe usarse como eje principal del MVP mientras se mantenga el modelo de acceso por proyecto y línea.
 
 ## Reglas de beneficiarios y nómina en el modelo
 
 La tabla `beneficiarios_pago` representa personas o entidades que reciben pagos. No todos los beneficiarios son usuarios del sistema.
 
+Tipos de beneficiario permitidos:
+
+| Tipo | Uso |
+|---|---|
+| `PROVEEDOR` | Persona o entidad externa que presta bienes o servicios. |
+| `TRABAJADOR` | Persona natural incluida en pagos de nómina individual o agrupada. |
+| `OTRO` | Beneficiario que no encaja en proveedor o trabajador. |
+
+La tabla `proveedores` conserva información base de proveedores cuando se requiera un catálogo independiente. Un beneficiario de tipo `PROVEEDOR` puede apuntar opcionalmente a `proveedores.id` mediante `beneficiarios_pago.proveedor_id`.
+
 El campo `beneficiarios_pago.usuario_id` es opcional:
 
 - Si `usuario_id` es `NULL`, el beneficiario no tiene acceso al sistema.
 - Si `usuario_id` tiene valor, el beneficiario está asociado a un usuario interno.
+
+Reglas principales:
+
+- `tipo_beneficiario` debe ser `PROVEEDOR`, `TRABAJADOR` u `OTRO`.
+- `medio_pago_preferido` puede ser `TRANSFERENCIA`, `EFECTIVO` o `NULL`.
+- `tipo_cuenta_bancaria` puede ser `AHORROS`, `CORRIENTE`, `OTRO` o `NULL`.
+- El documento del beneficiario debe usarse para deduplicación funcional, pero la política de unicidad estricta debe definirse en backend para evitar bloquear casos operativos especiales.
+- El proveedor puede existir sin usuario del sistema.
+- El trabajador puede existir sin usuario del sistema.
+- Crear un beneficiario no debe crear automáticamente un usuario.
 
 Para nómina agrupada, `items_solicitud_pago` conserva datos originales del Excel:
 
@@ -182,11 +233,39 @@ erDiagram
         uuid id PK
         string nombre
         text descripcion
+        boolean activo
+        timestamp creado_en
+        timestamp actualizado_en
     }
 
     USUARIOS_ROLES {
+        uuid id PK
         uuid usuario_id FK
         uuid rol_id FK
+        timestamp creado_en
+    }
+
+    PERMISOS {
+        uuid id PK
+        string codigo
+        string nombre
+        text descripcion
+        boolean activo
+        timestamp creado_en
+        timestamp actualizado_en
+    }
+
+    ROLES_PERMISOS {
+        uuid id PK
+        uuid rol_id FK
+        uuid permiso_id FK
+        timestamp creado_en
+    }
+
+    ROLES_LINEAS_NEGOCIO {
+        uuid id PK
+        uuid rol_id FK
+        string linea_negocio
         timestamp creado_en
     }
 
@@ -210,24 +289,26 @@ erDiagram
         string nombre
         text descripcion
         string estado_centro_costo
-        boolean creado_como_adjudicado
-        text motivo_creacion_adjudicada
-        timestamp fecha_adjudicacion
+        boolean creado_directamente_en_ejecucion
+        text motivo_creacion_ejecucion
+        timestamp fecha_inicio_ejecucion
+        uuid inicio_ejecucion_por FK
+        timestamp inicio_ejecucion_en
         boolean activo
         timestamp creado_en
         timestamp actualizado_en
     }
 
-    ACCESOS_USUARIO_CENTRO_COSTO {
+    ACCESOS_USUARIO_PROYECTO {
         uuid id PK
         uuid usuario_id FK
-        uuid centro_costo_id FK
-        boolean puede_crear_solicitudes
-        boolean puede_ver_solicitudes
-        boolean puede_gestionar_fondos
-        boolean puede_ver_saldo
-        boolean puede_exportar
+        uuid proyecto_base_id FK
+        string linea_negocio
         boolean activo
+        uuid asignado_por FK
+        timestamp asignado_en
+        uuid revocado_por FK
+        timestamp revocado_en
     }
 
     PROVEEDORES {
@@ -468,11 +549,15 @@ erDiagram
 
     USUARIOS ||--o{ USUARIOS_ROLES : tiene
     ROLES ||--o{ USUARIOS_ROLES : asigna
-    USUARIOS ||--o{ ACCESOS_USUARIO_CENTRO_COSTO : recibe
+    ROLES ||--o{ ROLES_PERMISOS : tiene
+    PERMISOS ||--o{ ROLES_PERMISOS : autoriza
+    ROLES ||--o{ ROLES_LINEAS_NEGOCIO : habilita
+    USUARIOS ||--o{ ACCESOS_USUARIO_PROYECTO : recibe
+    USUARIOS ||--o{ ACCESOS_USUARIO_PROYECTO : asigna
+    PROYECTOS_BASE ||--o{ ACCESOS_USUARIO_PROYECTO : controla
     PROYECTOS_BASE ||--o{ CENTROS_COSTO : agrupa
     PROYECTOS_BASE ||--|| FONDOS : tiene
     PROYECTOS_BASE ||--o{ SECUENCIAS_DOCUMENTALES : maneja
-    CENTROS_COSTO ||--o{ ACCESOS_USUARIO_CENTRO_COSTO : controla
     CENTROS_COSTO ||--o{ SECUENCIAS_DOCUMENTALES : puede_manejar
     PROVEEDORES ||--o{ BENEFICIARIOS_PAGO : origina
     USUARIOS ||--o{ BENEFICIARIOS_PAGO : puede_asociarse
@@ -527,6 +612,45 @@ classDiagram
         +timestamp actualizado_en
     }
 
+    class roles {
+        +uuid id
+        +string nombre
+        +boolean activo
+    }
+
+    class permisos {
+        +uuid id
+        +string codigo
+        +string nombre
+        +boolean activo
+    }
+
+    class accesos_usuario_proyecto {
+        +uuid id
+        +uuid usuario_id
+        +uuid proyecto_base_id
+        +string linea_negocio
+        +boolean activo
+    }
+
+    class proveedores {
+        +uuid id
+        +string nombre
+        +string numero_documento
+        +boolean activo
+    }
+
+    class beneficiarios_pago {
+        +uuid id
+        +string tipo_beneficiario
+        +uuid proveedor_id
+        +uuid usuario_id
+        +string nombre
+        +string tipo_documento
+        +string numero_documento
+        +boolean activo
+    }
+
     class proyectos_base {
         +uuid id
         +string nombre
@@ -543,8 +667,8 @@ classDiagram
         +string codigo
         +string nombre
         +string estado_centro_costo
-        +boolean creado_como_adjudicado
-        +timestamp fecha_adjudicacion
+        +boolean creado_directamente_en_ejecucion
+        +timestamp fecha_inicio_ejecucion
         +boolean activo
     }
 
@@ -649,6 +773,13 @@ classDiagram
         +decimal saldo_nuevo
     }
 
+    usuarios "1" --> "0..1" roles : tiene_rol
+    roles "1" --> "0..*" permisos : tiene_permisos
+    usuarios "1" --> "0..*" accesos_usuario_proyecto : recibe
+    proyectos_base "1" --> "0..*" accesos_usuario_proyecto : controla
+    usuarios "1" --> "0..*" beneficiarios_pago : puede_asociarse
+    proveedores "1" --> "0..*" beneficiarios_pago : origina
+    beneficiarios_pago "1" --> "0..*" solicitudes_pago : recibe
     proyectos_base "1" --> "1" fondos : tiene
     proyectos_base "1" --> "0..*" centros_costo : agrupa
     centros_costo "1" --> "0..*" solicitudes_pago : agrupa
@@ -692,14 +823,47 @@ CREATE TABLE usuarios (
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(50) UNIQUE NOT NULL,
-    descripcion TEXT
+    descripcion TEXT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE usuarios_roles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    rol_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    rol_id UUID NOT NULL REFERENCES roles(id),
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (usuario_id, rol_id)
+    CONSTRAINT unico_rol_por_usuario UNIQUE (usuario_id)
+);
+
+CREATE TABLE permisos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo VARCHAR(80) UNIQUE NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE roles_permisos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    rol_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    permiso_id UUID NOT NULL REFERENCES permisos(id) ON DELETE CASCADE,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT unico_permiso_por_rol UNIQUE (rol_id, permiso_id)
+);
+
+CREATE TABLE roles_lineas_negocio (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    rol_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    linea_negocio VARCHAR(30) NOT NULL,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_linea_negocio_rol CHECK (
+        linea_negocio IN ('OBRA', 'INTERVENTORIA')
+    ),
+    CONSTRAINT unica_linea_por_rol UNIQUE (rol_id, linea_negocio)
 );
 
 CREATE TABLE proyectos_base (
@@ -714,11 +878,8 @@ CREATE TABLE proyectos_base (
     CONSTRAINT restriccion_estado_proyecto_base CHECK (
         estado_proyecto IN (
             'EN_LICITACION',
-            'ADJUDICADO',
-            'NO_ADJUDICADO',
             'EN_EJECUCION',
-            'FINALIZADO',
-            'CANCELADO'
+            'FINALIZADO'
         )
     )
 );
@@ -729,17 +890,17 @@ CREATE TABLE centros_costo (
     linea_negocio VARCHAR(30) NOT NULL,
     fase_centro_costo VARCHAR(30) NOT NULL,
     prefijo VARCHAR(20) NOT NULL,
-    codigo VARCHAR(80) UNIQUE NOT NULL,
-    nombre VARCHAR(150) NOT NULL,
+    codigo VARCHAR(120) UNIQUE NOT NULL,
+    nombre VARCHAR(180) NOT NULL,
     descripcion TEXT,
     estado_centro_costo VARCHAR(40) NOT NULL DEFAULT 'EN_LICITACION',
-    creado_como_adjudicado BOOLEAN NOT NULL DEFAULT FALSE,
-    motivo_creacion_adjudicada TEXT,
-    fecha_adjudicacion TIMESTAMP,
-    soporte_adjudicacion_adjunto_id UUID,
-    observacion_adjudicacion TEXT,
-    adjudicado_por UUID REFERENCES usuarios(id),
-    adjudicado_en TIMESTAMP,
+    creado_directamente_en_ejecucion BOOLEAN NOT NULL DEFAULT FALSE,
+    motivo_creacion_ejecucion TEXT,
+    fecha_inicio_ejecucion TIMESTAMP,
+    soporte_inicio_ejecucion_adjunto_id UUID,
+    observacion_inicio_ejecucion TEXT,
+    inicio_ejecucion_por UUID REFERENCES usuarios(id),
+    inicio_ejecucion_en TIMESTAMP,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -752,11 +913,8 @@ CREATE TABLE centros_costo (
     CONSTRAINT restriccion_estado_centro_costo CHECK (
         estado_centro_costo IN (
             'EN_LICITACION',
-            'NO_ADJUDICADO',
-            'ADJUDICADO',
             'EN_EJECUCION',
-            'FINALIZADO',
-            'CERRADO'
+            'FINALIZADO'
         )
     ),
     CONSTRAINT unico_centro_por_proyecto_linea_fase UNIQUE (
@@ -766,22 +924,26 @@ CREATE TABLE centros_costo (
     )
 );
 
-CREATE TABLE accesos_usuario_centro_costo (
+CREATE TABLE accesos_usuario_proyecto (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id) ON DELETE CASCADE,
-    puede_crear_solicitudes BOOLEAN NOT NULL DEFAULT TRUE,
-    puede_ver_solicitudes BOOLEAN NOT NULL DEFAULT TRUE,
-    puede_gestionar_fondos BOOLEAN NOT NULL DEFAULT FALSE,
-    puede_ver_saldo BOOLEAN NOT NULL DEFAULT FALSE,
-    puede_exportar BOOLEAN NOT NULL DEFAULT FALSE,
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id) ON DELETE CASCADE,
+    linea_negocio VARCHAR(30) NOT NULL,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     asignado_por UUID REFERENCES usuarios(id),
     asignado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     revocado_por UUID REFERENCES usuarios(id),
     revocado_en TIMESTAMP,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_linea_negocio_acceso CHECK (
+        linea_negocio IN ('OBRA', 'INTERVENTORIA')
+    ),
+    CONSTRAINT unico_acceso_usuario_proyecto_linea UNIQUE (
+        usuario_id,
+        proyecto_base_id,
+        linea_negocio
+    )
 );
 
 CREATE TABLE proveedores (
@@ -796,7 +958,10 @@ CREATE TABLE proveedores (
     numero_cuenta_bancaria VARCHAR(100),
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT restriccion_tipo_cuenta_proveedor CHECK (
+        tipo_cuenta_bancaria IS NULL OR tipo_cuenta_bancaria IN ('AHORROS', 'CORRIENTE', 'OTRO')
+    )
 );
 
 CREATE TABLE beneficiarios_pago (
@@ -1301,6 +1466,17 @@ CREATE INDEX indice_usuarios_estado ON usuarios(estado);
 CREATE INDEX indice_usuarios_roles_usuario ON usuarios_roles(usuario_id);
 CREATE INDEX indice_usuarios_roles_rol ON usuarios_roles(rol_id);
 
+CREATE INDEX indice_roles_activo ON roles(activo);
+
+CREATE INDEX indice_permisos_codigo ON permisos(codigo);
+CREATE INDEX indice_permisos_activo ON permisos(activo);
+
+CREATE INDEX indice_roles_permisos_rol ON roles_permisos(rol_id);
+CREATE INDEX indice_roles_permisos_permiso ON roles_permisos(permiso_id);
+
+CREATE INDEX indice_roles_lineas_negocio_rol ON roles_lineas_negocio(rol_id);
+CREATE INDEX indice_roles_lineas_negocio_linea ON roles_lineas_negocio(linea_negocio);
+
 CREATE INDEX indice_proyectos_base_nombre ON proyectos_base(nombre);
 CREATE INDEX indice_proyectos_base_estado ON proyectos_base(estado_proyecto);
 CREATE INDEX indice_proyectos_base_activo ON proyectos_base(activo);
@@ -1312,12 +1488,10 @@ CREATE INDEX indice_centros_costo_fase ON centros_costo(fase_centro_costo);
 CREATE INDEX indice_centros_costo_estado ON centros_costo(estado_centro_costo);
 CREATE INDEX indice_centros_costo_activo ON centros_costo(activo);
 
-CREATE INDEX indice_accesos_usuario_centro_costo_usuario ON accesos_usuario_centro_costo(usuario_id);
-CREATE INDEX indice_accesos_usuario_centro_costo_centro ON accesos_usuario_centro_costo(centro_costo_id);
-CREATE INDEX indice_accesos_usuario_centro_costo_activo ON accesos_usuario_centro_costo(activo);
-CREATE UNIQUE INDEX indice_accesos_usuario_centro_activo_unico
-ON accesos_usuario_centro_costo(usuario_id, centro_costo_id)
-WHERE activo = TRUE;
+CREATE INDEX indice_accesos_usuario_proyecto_usuario ON accesos_usuario_proyecto(usuario_id);
+CREATE INDEX indice_accesos_usuario_proyecto_proyecto ON accesos_usuario_proyecto(proyecto_base_id);
+CREATE INDEX indice_accesos_usuario_proyecto_linea ON accesos_usuario_proyecto(linea_negocio);
+CREATE INDEX indice_accesos_usuario_proyecto_activo ON accesos_usuario_proyecto(activo);
 
 CREATE INDEX indice_proveedores_documento ON proveedores(numero_documento);
 CREATE INDEX indice_proveedores_nombre ON proveedores(nombre);
