@@ -34,6 +34,8 @@ model usuarios {
   accesos_recibidos accesos_usuario_proyecto[] @relation("AccesosUsuario")
   accesos_asignados accesos_usuario_proyecto[] @relation("AccesosAsignadoPor")
   accesos_revocados accesos_usuario_proyecto[] @relation("AccesosRevocadoPor")
+
+  beneficiarios_asociados beneficiarios_pago[] @relation("BeneficiarioUsuarioAsociado")
 }
 
 model roles {
@@ -193,5 +195,58 @@ model accesos_usuario_proyecto {
   @@index([usuario_id])
   @@index([proyecto_base_id])
   @@index([linea_negocio])
+  @@index([activo])
+}
+
+model proveedores {
+  id                     String   @id @default(uuid())
+  nombre                 String
+  tipo_documento         String
+  numero_documento       String
+  correo                 String?
+  telefono               String?
+  direccion              String?
+  banco                  String
+  tipo_cuenta_bancaria   String
+  numero_cuenta_bancaria String
+  activo                 Boolean  @default(true)
+  creado_en              DateTime @default(now())
+  actualizado_en         DateTime @updatedAt
+
+  beneficiarios beneficiarios_pago[]
+
+  @@index([tipo_documento, numero_documento])
+  @@index([numero_documento])
+  @@index([nombre])
+  @@index([activo])
+}
+
+model beneficiarios_pago {
+  id                     String   @id @default(uuid())
+  tipo_beneficiario      String
+  proveedor_id           String?
+  usuario_id             String?
+  nombre                 String
+  tipo_documento         String?
+  numero_documento       String?
+  medio_pago_preferido   String?
+  banco                  String?
+  tipo_cuenta_bancaria   String?
+  numero_cuenta_bancaria String?
+  telefono               String?
+  correo                 String?
+  notas                  String?
+  activo                 Boolean  @default(true)
+  creado_en              DateTime @default(now())
+  actualizado_en         DateTime @updatedAt
+
+  proveedor        proveedores? @relation(fields: [proveedor_id], references: [id])
+  usuario_asociado usuarios?    @relation("BeneficiarioUsuarioAsociado", fields: [usuario_id], references: [id])
+
+  @@index([tipo_beneficiario])
+  @@index([usuario_id])
+  @@index([proveedor_id])
+  @@index([tipo_documento, numero_documento])
+  @@index([medio_pago_preferido])
   @@index([activo])
 }
