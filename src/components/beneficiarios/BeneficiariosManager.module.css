@@ -115,24 +115,47 @@
 .actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.button,
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .button {
-  padding: 10px 14px;
   border: 1px solid #1d4ed8;
-  border-radius: 6px;
   background: #2563eb;
   color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+}
+
+.secondaryButton {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
 }
 
 .button:hover:not(:disabled) {
   background: #1d4ed8;
 }
 
-.button:disabled {
+.secondaryButton:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.button:disabled,
+.secondaryButton:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -150,7 +173,7 @@
 
 .table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 1120px;
   border-collapse: collapse;
 }
 
@@ -240,6 +263,30 @@
   gap: 5px;
 }
 
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 9px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.editButton:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.editButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .empty {
   padding: 28px;
 }
@@ -253,6 +300,12 @@
 .empty p {
   margin: 7px 0 0;
   color: #6b7280;
+}
+
+.mobileActions {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .mobileList {
@@ -328,6 +381,11 @@
     color: #374151;
     font-size: 13px;
   }
+
+  .mobileActions .editButton {
+    width: 100%;
+    min-height: 38px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -345,10 +403,12 @@
   }
 
   .actions {
-    display: block;
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
 
-  .button {
+  .button,
+  .secondaryButton {
     width: 100%;
   }
 

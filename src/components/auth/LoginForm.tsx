@@ -62,7 +62,7 @@ export function LoginForm() {
   }
 
   return (
-    <form className={styles.form} onSubmit={manejarSubmit}>
+    <form className={styles.form} method="post" onSubmit={manejarSubmit}>
       <div className={styles.field}>
         <label className={styles.label} htmlFor="correo">
           Correo
