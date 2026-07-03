@@ -8,6 +8,7 @@ import { BANCOS_COLOMBIA } from "@/modules/beneficiarios/bancos.constants";
 import type {
   BeneficiarioListado,
   MedioPagoPreferido,
+  TipoBeneficiario,
   TipoBeneficiarioFormulario,
   TipoCuentaBancaria,
 } from "@/modules/beneficiarios/beneficiarios.types";
@@ -53,8 +54,10 @@ export function BeneficiariosManager({
 }) {
   const router = useRouter();
 
+  const [beneficiarioEditando, setBeneficiarioEditando] =
+    useState<BeneficiarioListado | null>(null);
   const [tipoBeneficiario, setTipoBeneficiario] =
-    useState<TipoBeneficiarioFormulario | "">("");
+    useState<TipoBeneficiario | "">("");
   const [tipoDocumento, setTipoDocumento] = useState("");
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [nombre, setNombre] = useState("");
@@ -67,11 +70,15 @@ export function BeneficiariosManager({
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
   const [notas, setNotas] = useState("");
+  const [activo, setActivo] = useState(true);
   const [mensajeError, setMensajeError] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
+  const esEdicion = Boolean(beneficiarioEditando);
+
   function limpiarFormulario() {
+    setBeneficiarioEditando(null);
     setTipoBeneficiario("");
     setTipoDocumento("");
     setNumeroDocumento("");
@@ -83,6 +90,25 @@ export function BeneficiariosManager({
     setTelefono("");
     setCorreo("");
     setNotas("");
+    setActivo(true);
+  }
+
+  function cargarBeneficiarioParaEditar(beneficiario: BeneficiarioListado) {
+    setBeneficiarioEditando(beneficiario);
+    setTipoBeneficiario(beneficiario.tipo_beneficiario);
+    setTipoDocumento(beneficiario.tipo_documento);
+    setNumeroDocumento(beneficiario.numero_documento);
+    setNombre(beneficiario.nombre);
+    setMedioPagoPreferido(beneficiario.medio_pago_preferido);
+    setBanco(beneficiario.banco ?? "");
+    setTipoCuentaBancaria(beneficiario.tipo_cuenta_bancaria ?? "");
+    setNumeroCuentaBancaria(beneficiario.numero_cuenta_bancaria ?? "");
+    setTelefono(beneficiario.telefono ?? "");
+    setCorreo(beneficiario.correo ?? "");
+    setNotas(beneficiario.notas ?? "");
+    setActivo(beneficiario.activo);
+    setMensajeError(null);
+    setMensajeExito(null);
   }
 
   function manejarCambioMedioPago(valor: MedioPagoPreferido | "") {
@@ -143,55 +169,84 @@ export function BeneficiariosManager({
           numero_cuenta_bancaria: null,
         };
 
-    const body = {
-      tipo_beneficiario: tipoBeneficiario,
-      nombre,
-      tipo_documento: tipoDocumento,
-      numero_documento: numeroDocumento,
-      medio_pago_preferido: medioPagoPreferido,
-      ...datosBancarios,
-      telefono: telefonoNormalizado,
-      correo: correoNormalizado,
-      notas: notasNormalizadas,
-      proveedor:
-        tipoBeneficiario === "PROVEEDOR"
-          ? {
-              nombre,
-              tipo_documento: tipoDocumento,
-              numero_documento: numeroDocumento,
-              correo: correoNormalizado,
-              telefono: telefonoNormalizado,
-              banco: datosBancarios.banco,
-              tipo_cuenta_bancaria: datosBancarios.tipo_cuenta_bancaria,
-              numero_cuenta_bancaria: datosBancarios.numero_cuenta_bancaria,
-            }
-          : undefined,
-    };
+    const body = esEdicion
+      ? {
+          nombre,
+          medio_pago_preferido: medioPagoPreferido,
+          ...datosBancarios,
+          telefono: telefonoNormalizado,
+          correo: correoNormalizado,
+          notas: notasNormalizadas,
+          activo,
+        }
+      : {
+          tipo_beneficiario: tipoBeneficiario as TipoBeneficiarioFormulario,
+          nombre,
+          tipo_documento: tipoDocumento,
+          numero_documento: numeroDocumento,
+          medio_pago_preferido: medioPagoPreferido,
+          ...datosBancarios,
+          telefono: telefonoNormalizado,
+          correo: correoNormalizado,
+          notas: notasNormalizadas,
+          proveedor:
+            tipoBeneficiario === "PROVEEDOR"
+              ? {
+                  nombre,
+                  tipo_documento: tipoDocumento,
+                  numero_documento: numeroDocumento,
+                  correo: correoNormalizado,
+                  telefono: telefonoNormalizado,
+                  banco: datosBancarios.banco,
+                  tipo_cuenta_bancaria: datosBancarios.tipo_cuenta_bancaria,
+                  numero_cuenta_bancaria: datosBancarios.numero_cuenta_bancaria,
+                }
+              : undefined,
+        };
 
     setGuardando(true);
 
     try {
-      const respuesta = await fetch("/api/v1/beneficiarios", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
+      const respuesta = await fetch(
+        esEdicion
+          ? `/api/v1/beneficiarios/${beneficiarioEditando?.id}`
+          : "/api/v1/beneficiarios",
+        {
+          method: esEdicion ? "PATCH" : "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      });
+      );
 
       const data = await respuesta.json();
 
       if (!respuesta.ok || !data.ok) {
-        setMensajeError(data.message || "No fue posible crear el beneficiario.");
+        setMensajeError(
+          data.message ||
+            (esEdicion
+              ? "No fue posible actualizar el beneficiario."
+              : "No fue posible crear el beneficiario."),
+        );
         return;
       }
 
       limpiarFormulario();
-      setMensajeExito(data.message || "Beneficiario creado correctamente.");
+      setMensajeExito(
+        data.message ||
+          (esEdicion
+            ? "Beneficiario actualizado correctamente."
+            : "Beneficiario creado correctamente."),
+      );
       router.refresh();
     } catch {
-      setMensajeError("Ocurrió un error inesperado al crear el beneficiario.");
+      setMensajeError(
+        esEdicion
+          ? "Ocurrió un error inesperado al actualizar el beneficiario."
+          : "Ocurrió un error inesperado al crear el beneficiario.",
+      );
     } finally {
       setGuardando(false);
     }
@@ -214,10 +269,13 @@ export function BeneficiariosManager({
       <section className={styles.card}>
         <form className={styles.form} onSubmit={manejarSubmit}>
           <header className={styles.formHeader}>
-            <h2 className={styles.formTitle}>Crear beneficiario</h2>
+            <h2 className={styles.formTitle}>
+              {esEdicion ? "Editar beneficiario" : "Crear beneficiario"}
+            </h2>
             <p className={styles.formDescription}>
-              Registre la persona o proveedor que podrá ser usado como
-              beneficiario en solicitudes de pago.
+              {esEdicion
+                ? "Actualice los datos operativos del beneficiario. La identificación y el tipo de beneficiario no se pueden modificar."
+                : "Registre la persona o proveedor que podrá ser usado como beneficiario en solicitudes de pago."}
             </p>
           </header>
 
@@ -228,10 +286,9 @@ export function BeneficiariosManager({
                 className={styles.input}
                 value={tipoBeneficiario}
                 onChange={(event) =>
-                  setTipoBeneficiario(
-                    event.target.value as TipoBeneficiarioFormulario | "",
-                  )
+                  setTipoBeneficiario(event.target.value as TipoBeneficiario)
                 }
+                disabled={esEdicion}
                 required
               >
                 <option value="" disabled>
@@ -239,6 +296,9 @@ export function BeneficiariosManager({
                 </option>
                 <option value="TRABAJADOR">Trabajador</option>
                 <option value="PROVEEDOR">Proveedor</option>
+                {tipoBeneficiario === "OTRO" && (
+                  <option value="OTRO">Otro</option>
+                )}
               </select>
             </label>
 
@@ -248,6 +308,7 @@ export function BeneficiariosManager({
                 className={styles.input}
                 value={tipoDocumento}
                 onChange={(event) => setTipoDocumento(event.target.value)}
+                disabled={esEdicion}
                 required
               >
                 <option value="" disabled>
@@ -258,6 +319,9 @@ export function BeneficiariosManager({
                     {tipo}
                   </option>
                 ))}
+                {esEdicion && tipoDocumento && !TIPOS_DOCUMENTO.includes(tipoDocumento) && (
+                  <option value={tipoDocumento}>{tipoDocumento}</option>
+                )}
               </select>
             </label>
 
@@ -273,6 +337,7 @@ export function BeneficiariosManager({
                   setNumeroDocumento(soloNumeros(event.target.value))
                 }
                 placeholder="Número de documento"
+                disabled={esEdicion}
                 required
               />
             </label>
@@ -348,6 +413,9 @@ export function BeneficiariosManager({
                 </option>
                 <option value="AHORROS">Ahorros</option>
                 <option value="CORRIENTE">Corriente</option>
+                {tipoCuentaBancaria === "OTRO" && (
+                  <option value="OTRO">Otro</option>
+                )}
               </select>
             </label>
 
@@ -389,6 +457,20 @@ export function BeneficiariosManager({
                 placeholder="correo@empresa.com"
               />
             </label>
+
+            {esEdicion && (
+              <label className={styles.field}>
+                <span className={styles.label}>Estado</span>
+                <select
+                  className={styles.input}
+                  value={activo ? "ACTIVO" : "INACTIVO"}
+                  onChange={(event) => setActivo(event.target.value === "ACTIVO")}
+                >
+                  <option value="ACTIVO">Activo</option>
+                  <option value="INACTIVO">Inactivo</option>
+                </select>
+              </label>
+            )}
           </div>
 
           <label className={styles.field}>
@@ -406,8 +488,23 @@ export function BeneficiariosManager({
           {mensajeExito && <p className={styles.success}>{mensajeExito}</p>}
 
           <div className={styles.actions}>
+            {esEdicion && (
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onClick={limpiarFormulario}
+                disabled={guardando}
+              >
+                Cancelar
+              </button>
+            )}
+
             <button className={styles.button} type="submit" disabled={guardando}>
-              {guardando ? "Creando..." : "Crear beneficiario"}
+              {guardando
+                ? "Guardando..."
+                : esEdicion
+                  ? "Guardar cambios"
+                  : "Crear beneficiario"}
             </button>
           </div>
         </form>
@@ -433,6 +530,7 @@ export function BeneficiariosManager({
                     <th>Pago sugerido</th>
                     <th>Estado</th>
                     <th>Creado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
 
@@ -476,6 +574,16 @@ export function BeneficiariosManager({
                       <td>{renderEstado(beneficiario)}</td>
 
                       <td>{beneficiario.creado_en_formateado}</td>
+
+                      <td>
+                        <button
+                          className={styles.editButton}
+                          type="button"
+                          onClick={() => cargarBeneficiarioParaEditar(beneficiario)}
+                        >
+                          Editar
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -528,6 +636,16 @@ export function BeneficiariosManager({
                       <dd>{beneficiario.creado_en_formateado}</dd>
                     </div>
                   </dl>
+
+                  <div className={styles.mobileActions}>
+                    <button
+                      className={styles.editButton}
+                      type="button"
+                      onClick={() => cargarBeneficiarioParaEditar(beneficiario)}
+                    >
+                      Editar
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>

@@ -588,7 +588,7 @@ Gestionar personas o entidades que reciben pagos.
 - Permite definir medio de pago preferido.
 - Permite datos bancarios cuando aplique.
 - Permite deduplicación por documento.
-- Permite creación desde carga de nómina si el usuario confirma.
+
 
 ## Historias
 
@@ -616,18 +616,6 @@ Criterios:
 - Permite editar datos bancarios.
 - Permite activar o inactivar.
 - Registra auditoría.
-
-### HU-0403. Crear beneficiario desde Excel de nómina
-
-Como usuario autorizado, quiero crear trabajadores desde el Excel de nómina, para no duplicar captura.
-
-Criterios:
-
-- Identifica beneficiarios nuevos.
-- Muestra advertencia `NUEVO_BENEFICIARIO`.
-- Requiere confirmación.
-- Crea beneficiario tipo `TRABAJADOR`.
-- No crea usuario del sistema automáticamente.
 
 ---
 
