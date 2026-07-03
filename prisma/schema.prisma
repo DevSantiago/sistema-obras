@@ -206,9 +206,9 @@ model proveedores {
   correo                 String?
   telefono               String?
   direccion              String?
-  banco                  String
-  tipo_cuenta_bancaria   String
-  numero_cuenta_bancaria String
+  banco                  String?
+  tipo_cuenta_bancaria   String?
+  numero_cuenta_bancaria String?
   activo                 Boolean  @default(true)
   creado_en              DateTime @default(now())
   actualizado_en         DateTime @updatedAt
