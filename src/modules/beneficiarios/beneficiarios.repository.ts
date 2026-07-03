@@ -1,8 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import type {
+  BeneficiarioActualizadoRepositoryInput,
   BeneficiarioListFilters,
   CrearBeneficiarioRepositoryInput,
 } from "./beneficiarios.types";
+
+const beneficiarioInclude = {
+  proveedor: true,
+  usuario_asociado: {
+    select: {
+      id: true,
+      nombre: true,
+      correo: true,
+      estado: true,
+    },
+  },
+};
 
 export async function listarBeneficiariosRepository(
   filters: BeneficiarioListFilters = {},
@@ -38,17 +51,7 @@ export async function listarBeneficiariosRepository(
           }
         : {}),
     },
-    include: {
-      proveedor: true,
-      usuario_asociado: {
-        select: {
-          id: true,
-          nombre: true,
-          correo: true,
-          estado: true,
-        },
-      },
-    },
+    include: beneficiarioInclude,
     orderBy: {
       creado_en: "desc",
     },
@@ -58,17 +61,7 @@ export async function listarBeneficiariosRepository(
 export async function obtenerBeneficiarioPorIdRepository(id: string) {
   return prisma.beneficiarios_pago.findUnique({
     where: { id },
-    include: {
-      proveedor: true,
-      usuario_asociado: {
-        select: {
-          id: true,
-          nombre: true,
-          correo: true,
-          estado: true,
-        },
-      },
-    },
+    include: beneficiarioInclude,
   });
 }
 
@@ -158,17 +151,34 @@ export async function crearBeneficiarioRepository(
         correo: input.beneficiario.correo,
         notas: input.beneficiario.notas,
       },
-      include: {
-        proveedor: true,
-        usuario_asociado: {
-          select: {
-            id: true,
-            nombre: true,
-            correo: true,
-            estado: true,
-          },
-        },
-      },
+      include: beneficiarioInclude,
     });
+  });
+}
+
+export async function actualizarBeneficiarioRepository(
+  id: string,
+  input: BeneficiarioActualizadoRepositoryInput,
+) {
+  return prisma.beneficiarios_pago.update({
+    where: { id },
+    data: {
+      ...(input.nombre !== undefined ? { nombre: input.nombre } : {}),
+      ...(input.medio_pago_preferido !== undefined
+        ? { medio_pago_preferido: input.medio_pago_preferido }
+        : {}),
+      ...(input.banco !== undefined ? { banco: input.banco } : {}),
+      ...(input.tipo_cuenta_bancaria !== undefined
+        ? { tipo_cuenta_bancaria: input.tipo_cuenta_bancaria }
+        : {}),
+      ...(input.numero_cuenta_bancaria !== undefined
+        ? { numero_cuenta_bancaria: input.numero_cuenta_bancaria }
+        : {}),
+      ...(input.telefono !== undefined ? { telefono: input.telefono } : {}),
+      ...(input.correo !== undefined ? { correo: input.correo } : {}),
+      ...(input.notas !== undefined ? { notas: input.notas } : {}),
+      ...(input.activo !== undefined ? { activo: input.activo } : {}),
+    },
+    include: beneficiarioInclude,
   });
 }

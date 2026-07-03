@@ -105,3 +105,45 @@ curl -X PATCH "http://localhost:3000/api/v1/proyectos-base/1662a485-54df-4264-bf
     "estado_centro_costo": "FINALIZADO",
     "observacion": "Centro de costo finalizado."
   }'
+
+
+  ## Actualizar datos de contacto beneficiario
+
+  curl -X PATCH "$BASE_URL/api/v1/beneficiarios/ab8584de-c13d-4bef-a888-d24c4846fba5" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session_token=$SESSION_TOKEN" \
+  -d '{
+    "telefono": "3101234567",
+    "correo": "beneficiario@correo.com",
+    "notas": "Actualizado desde HU0402."
+  }'
+
+  ## Actualizar datos bancarios
+
+  curl -X PATCH "$BASE_URL/api/v1/beneficiarios/ab8584de-c13d-4bef-a888-d24c4846fba5" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session_token=$SESSION_TOKEN" \
+  -d '{
+    "medio_pago_preferido": "TRANSFERENCIA",
+    "banco": "Bancolombia",
+    "tipo_cuenta_bancaria": "AHORROS",
+    "numero_cuenta_bancaria": "123456789"
+  }'
+
+  ## Inactivar beneficiario
+
+  curl -X PATCH "$BASE_URL/api/v1/beneficiarios/ab8584de-c13d-4bef-a888-d24c4846fba5" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session_token=$SESSION_TOKEN" \
+  -d '{
+    "activo": false
+  }'
+
+  ## Activar beneficiario
+
+  curl -X PATCH "$BASE_URL/api/v1/beneficiarios/ab8584de-c13d-4bef-a888-d24c4846fba5" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session_token=$SESSION_TOKEN" \
+  -d '{
+    "activo": true
+  }'

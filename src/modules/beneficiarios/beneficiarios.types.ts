@@ -93,3 +93,27 @@ export type BeneficiarioResponse = {
   creado_en: Date;
   actualizado_en: Date;
 };
+
+export type ActualizarBeneficiarioInput = {
+  nombre?: string;
+  medio_pago_preferido?: MedioPagoPreferido;
+  banco?: string;
+  tipo_cuenta_bancaria?: TipoCuentaBancaria;
+  numero_cuenta_bancaria?: string;
+  telefono?: string | null;
+  correo?: string | null;
+  notas?: string | null;
+  activo?: boolean;
+};
+
+export type BeneficiarioActualizadoRepositoryInput = {
+  nombre?: string;
+  medio_pago_preferido?: MedioPagoPreferido;
+  banco?: string;
+  tipo_cuenta_bancaria?: TipoCuentaBancaria;
+  numero_cuenta_bancaria?: string;
+  telefono?: string | null;
+  correo?: string | null;
+  notas?: string | null;
+  activo?: boolean;
+};
