@@ -2,54 +2,88 @@
 
 ## Administrador
 
-### Crear proyecto nuevo
+Rol técnico de superusuario.
+
+### Crear proyecto base
 
 ```text
-Crear centro de costo
+Ingresar al sistema
 ↓
-Estado EN_PROPUESTA
+Ir a Proyectos base
 ↓
-Sistema habilita PROYECTO
+Crear proyecto base
 ↓
-Sistema crea fondo
+Seleccionar líneas iniciales: OBRA, INTERVENTORIA o ambas
+↓
+Sistema crea fondo general
+↓
+Sistema crea centros iniciales PRO-OBRA y/o PRO-INT
 ```
 
-### Marcar como adjudicado
+### Gestionar usuarios y accesos
 
 ```text
-Centro de costo EN_PROPUESTA
+Ingresar a Usuarios
 ↓
-Administrador marca ADJUDICADO
+Crear o editar usuario
 ↓
-Sistema habilita OBRA
+Asignar rol único
 ↓
-Administrador habilita INTERVENTORIA si aplica
+Asignar accesos por proyecto base y línea de negocio
+↓
+Sistema valida líneas permitidas por rol
+↓
+Sistema guarda accesos activos
 ```
 
-### Crear obra ya adjudicada
+### Gestionar beneficiarios
 
 ```text
-Crear centro de costo
+Ingresar a Beneficiarios
 ↓
-Tipo OBRA_YA_ADJUDICADA
+Crear beneficiario
 ↓
-Estado ADJUDICADO
+Registrar tipo, documento y datos bancarios
 ↓
-Sistema habilita OBRA
+Si es proveedor, registrar proveedor asociado
 ↓
-INTERVENTORIA opcional
+Sistema valida duplicados
 ```
+
+## Director
+
+Responsable de proyectos asignados.
+
+```text
+Ingresar al sistema
+↓
+Consultar proyectos asignados
+↓
+Crear solicitudes
+↓
+Crear proyectos si el negocio lo requiere
+↓
+Crear usuarios y asignar accesos si tiene permisos
+```
+
+No aprueba nivel 1, no aprueba nivel 2 y no marca pagos.
 
 ## Solicitante
 
 ```text
+Ingresar al sistema
+↓
+Ver proyectos con acceso OBRA
+↓
 Crear solicitud
 ↓
-Seleccionar centro de costo y variante
+Seleccionar proyecto base
+↓
+Seleccionar centro de costo operativo permitido
 ↓
 Seleccionar tipo de solicitud
 ↓
-Registrar categoría o concepto
+Seleccionar beneficiario
 ↓
 Registrar valores
 ↓
@@ -58,34 +92,68 @@ Adjuntar soportes
 Enviar
 ```
 
+El solicitante no opera sobre `INTERVENTORIA`.
+
 ## Aprobador 1
+
+Socio operativo.
 
 ```text
 Ver solicitudes PENDIENTE_APROBADOR_1
 ↓
-Revisar soporte, valores, impuestos y categoría
+Revisar soporte, valores, impuestos, beneficiario y categoría
 ↓
-Aprobar o devolver
+Aprobar nivel 1 o devolver al solicitante
 ```
 
+También puede crear proyectos, usuarios y accesos si conserva los permisos definidos.
+
+No marca pagos.
+
 ## Aprobador 2
+
+Socio financiero.
 
 ```text
 Ver resumen agrupado
 ↓
 Entrar al detalle
 ↓
-Aprobar o devolver
+Revisar solicitud aprobada por Aprobador 1
+↓
+Aprobar nivel 2 o devolver a Aprobador 1
 ↓
 Si aprueba, solicitud queda PROGRAMADA_PAGO
 ```
+
+No marca pagos.
+
+## Auxiliar contable
+
+```text
+Ingresar al sistema
+↓
+Crear solicitudes si corresponde
+↓
+Gestionar beneficiarios
+↓
+Cargar o preparar información financiera cuando el módulo esté disponible
+↓
+Registrar cargos financieros, saldos o reingresos según permisos futuros
+```
+
+Debe ser el rol principal para:
+
+- Cargar saldos.
+- Cargar costos operativos de cuentas bancarias.
+- Registrar reingresos de dinero en efectivo sobrante de un retiro.
 
 ## Pagos
 
 ```text
 Ver solicitudes PROGRAMADA_PAGO
 ↓
-Revisar medio de pago
+Revisar medio de pago y datos del beneficiario
 ↓
 Registrar pago
 ↓
@@ -93,6 +161,8 @@ Marcar como PAGADA
 ↓
 Sistema genera movimiento financiero
 ```
+
+Pagos no programa, no aprueba y no crea usuarios ni proyectos.
 
 ## Pago en efectivo con sobrante
 
@@ -121,7 +191,9 @@ Sistema crea ingreso
 ```text
 Usuario autorizado entra a Financiero
 ↓
-Selecciona centro de costo
+Selecciona proyecto base
+↓
+Selecciona centro de costo operativo
 ↓
 Registra cargo financiero
 ↓
@@ -142,28 +214,42 @@ Sistema audita
 
 No crea aprobación independiente.
 
-## Lectura
-
-```text
-Ingresar
-↓
-Consultar módulos autorizados
-↓
-Exportar si tiene permiso
-```
-
 ## Flujo de consulta financiera
 
 ```text
 Usuario autorizado ingresa al módulo Financiero
 ↓
-Selecciona centro de costo
+Selecciona proyecto base
 ↓
-Consulta saldo consolidado
+Consulta saldo del fondo general
 ↓
-Consulta movimientos_fondo_centro_costo
+Consulta movimientos_fondo
 ↓
-Filtra por variante, tipo de movimiento, fecha o entidad origen
+Filtra por centro de costo, línea, fase, tipo de movimiento, fecha o entidad origen
 ↓
 Exporta si tiene permiso
+```
+
+## Flujo de beneficiarios
+
+```text
+Usuario autorizado ingresa al módulo Beneficiarios
+↓
+Registra beneficiario PROVEEDOR, TRABAJADOR u OTRO
+↓
+Registra documento y datos bancarios obligatorios
+↓
+Sistema valida duplicado activo
+↓
+Sistema guarda beneficiario
+```
+
+Para proveedor:
+
+```text
+Crear beneficiario tipo PROVEEDOR
+↓
+Enviar datos de proveedor asociado
+↓
+Sistema crea proveedor y beneficiario en transacción
 ```

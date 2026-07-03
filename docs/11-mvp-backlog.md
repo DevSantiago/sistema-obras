@@ -646,6 +646,11 @@ Criterios:
 - No se repite.
 - Se guarda en `solicitudes_pago.numero_solicitud`.
 
+Estado:
+
+- Implementada infraestructura base de secuencias documentales mediante `secuencias_documentales`.
+- La integración con `solicitudes_pago.numero_solicitud` se realiza al implementar Épica 6, cuando exista el módulo de solicitudes de pago.
+
 ### HU-0502. Generar referencia de movimiento financiero
 
 Como sistema, quiero generar referencia de movimiento, para auditar ingresos y egresos.
@@ -656,6 +661,12 @@ Criterios:
 - Se guarda en `movimientos_fondo_centro_costo.referencia_sistema`.
 - Permite filtrar por centro de costo.
 
+Estado:
+
+- Diferida a la épica/módulo donde se implemente `movimientos_fondo`.
+- La infraestructura de secuencias queda lista en Épica 5, pero la asignación efectiva de `referencia_sistema` debe integrarse cuando exista el flujo transaccional de movimientos financieros.
+- Nota de alineación técnica: el modelo vigente usa `movimientos_fondo.referencia_sistema`; la referencia a `movimientos_fondo_centro_costo` queda como nombre histórico del backlog.
+
 ### HU-0503. Generar referencias de cargos y efectivo
 
 Como sistema, quiero generar referencias para cargos financieros y operaciones de efectivo, para trazabilidad.
@@ -665,6 +676,11 @@ Criterios:
 - Cargos financieros tienen referencia.
 - Operaciones de efectivo tienen referencia.
 - Reingresos pueden tener referencia documental externa.
+
+Estado:
+
+- Diferida a las épicas/módulos donde se implementen `cargos_financieros` y `operaciones_efectivo`.
+- La infraestructura de secuencias queda lista en Épica 5, pero la asignación efectiva de referencias debe integrarse con los flujos propios de cargos financieros y operaciones de efectivo.
 
 ---
 

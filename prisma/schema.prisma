@@ -117,6 +117,7 @@ model proyectos_base {
   centros_costo centros_costo[]
   fondo         fondos?
   accesos       accesos_usuario_proyecto[]
+  secuencias_documentales secuencias_documentales[]
 
   @@index([nombre])
   @@index([estado_proyecto])
@@ -146,6 +147,7 @@ model centros_costo {
 
   proyecto_base            proyectos_base @relation(fields: [proyecto_base_id], references: [id])
   usuario_inicio_ejecucion usuarios?      @relation("CentrosCostoInicioEjecucionPor", fields: [inicio_ejecucion_por], references: [id])
+  secuencias_documentales secuencias_documentales[]
 
   @@unique([proyecto_base_id, linea_negocio, fase_centro_costo])
   @@index([proyecto_base_id])
@@ -249,4 +251,26 @@ model beneficiarios_pago {
   @@index([tipo_documento, numero_documento])
   @@index([medio_pago_preferido])
   @@index([activo])
+}
+
+model secuencias_documentales {
+  id               String   @id @default(uuid())
+  tipo_secuencia   String
+  proyecto_base_id String?
+  centro_costo_id  String?
+  clave_contexto   String
+  prefijo          String
+  anio             Int
+  valor_actual     Int      @default(0)
+  creado_en        DateTime @default(now())
+  actualizado_en   DateTime @updatedAt
+
+  proyecto_base proyectos_base? @relation(fields: [proyecto_base_id], references: [id])
+  centro_costo  centros_costo?  @relation(fields: [centro_costo_id], references: [id])
+
+  @@unique([tipo_secuencia, clave_contexto, anio])
+  @@index([proyecto_base_id])
+  @@index([centro_costo_id])
+  @@index([tipo_secuencia])
+  @@index([clave_contexto])
 }

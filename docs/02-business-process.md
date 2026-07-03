@@ -44,48 +44,103 @@ REEMBOLSO
 OTRO_PAGO
 ```
 
-## Centro de costo y variantes
+## Proyecto base, centros de costo y fondo general
 
-El centro de costo tiene saldo único. Las variantes clasifican el gasto:
+El flujo vigente usa `proyectos_base` como agrupador del negocio y `centros_costo` como clasificación operativa del gasto.
 
 ```text
-Centro de costo
-├── PROYECTO
+Proyecto base
+├── Fondo general
+├── PRO-OBRA
 ├── OBRA
-└── INTERVENTORIA
+├── PRO-INT
+└── INT
 ```
 
-### Fase de proyecto
+El fondo general pertenece al proyecto base. Los centros de costo no tienen saldo independiente.
 
-El Administrador crea el centro de costo en `EN_PROPUESTA`. El sistema habilita la variante `PROYECTO`.
+### Creación de proyecto base
 
-En esta fase pueden existir gastos de:
+Al crear un proyecto base, el usuario autorizado selecciona las líneas iniciales:
 
-- Papelería.
-- Transporte.
-- Cenas o reuniones comerciales.
-- Estudios.
-- Diseños preliminares.
-- Asesorías.
-- Trámites.
+```text
+OBRA
+INTERVENTORIA
+OBRA + INTERVENTORIA
+```
 
-### Adjudicación
+Reglas:
 
-Si el proyecto se gana, el Administrador marca el centro de costo como `ADJUDICADO`.
+- Si selecciona `OBRA`, el sistema crea `PRO-OBRA`.
+- Si selecciona `INTERVENTORIA`, el sistema crea `PRO-INT`.
+- Los centros iniciales quedan en `EN_LICITACION`.
+- El proyecto base queda en `EN_LICITACION`.
+- Se crea un fondo general del proyecto base.
+- La creación es transaccional.
 
-Al marcar como adjudicado:
+### Paso de licitación a ejecución
 
-- Se registra fecha de adjudicación.
-- Se registra soporte si aplica.
-- Se registra observación.
-- Se habilita `OBRA`.
-- Se puede habilitar `INTERVENTORIA`.
+Cuando se gana o inicia la fase operativa de una línea:
 
-Los movimientos anteriores no se reclasifican. Permanecen como `PROYECTO`.
+```text
+PRO-OBRA EN_LICITACION
+↓
+PRO-OBRA FINALIZADO
+↓
+OBRA EN_EJECUCION
+```
 
-### Obra ya adjudicada
+```text
+PRO-INT EN_LICITACION
+↓
+PRO-INT FINALIZADO
+↓
+INT EN_EJECUCION
+```
 
-Para carga inicial, el Administrador puede crear un centro de costo directamente en `ADJUDICADO` con variante `OBRA`, sin marcarlo todavía como `EN_EJECUCION`.
+Los movimientos históricos de la fase de licitación no se reclasifican.
+
+### Finalización
+
+```text
+OBRA EN_EJECUCION → OBRA FINALIZADO
+INT EN_EJECUCION → INT FINALIZADO
+```
+
+Cuando todos los centros activos de un proyecto base quedan `FINALIZADO`, el proyecto base queda `FINALIZADO`.
+
+## Accesos operativos
+
+Los accesos se asignan por:
+
+```text
+proyecto_base + linea_negocio
+```
+
+La línea `OBRA` permite operar en centros `PRO-OBRA` y `OBRA` del proyecto asignado.
+
+La línea `INTERVENTORIA` permite operar en centros `PRO-INT` e `INT` del proyecto asignado.
+
+## Beneficiarios
+
+Antes de crear solicitudes de pago, el sistema debe contar con beneficiarios registrados.
+
+Tipos:
+
+```text
+PROVEEDOR
+TRABAJADOR
+OTRO
+```
+
+Reglas:
+
+- El beneficiario es quien recibe el pago.
+- El usuario es quien opera el sistema.
+- Un beneficiario puede o no estar asociado a un usuario.
+- Un beneficiario tipo `PROVEEDOR` puede estar asociado a un registro en `proveedores`.
+- Los datos bancarios son obligatorios para que el módulo Pagos tenga la información necesaria.
+- La deduplicación se realiza por tipo y número de documento.
 
 ## Pagos
 
@@ -112,8 +167,7 @@ TRANSFERENCIA
 EFECTIVO
 ```
 
-- Si es `TRANSFERENCIA`, los datos bancarios son obligatorios.
-- Si es `EFECTIVO`, los datos bancarios pueden no existir.
+Para el registro de beneficiarios del MVP, los datos bancarios son obligatorios, porque el módulo Pagos debe tener la información necesaria para ejecutar o validar pagos. En flujos posteriores se podrá definir una regla excepcional para efectivo, si el negocio lo requiere.
 
 ## Operaciones de efectivo
 
@@ -197,7 +251,7 @@ EGRESO_CARGO_FINANCIERO
 La tabla funcional de referencia es:
 
 ```text
-movimientos_fondo_centro_costo
+movimientos_fondo
 ```
 
 Todo ingreso o egreso que afecte saldo debe registrarse allí.
@@ -223,6 +277,8 @@ La carga de Excel debe validar:
 - Valor bruto.
 - Valor neto.
 - Medio de pago.
-- Datos bancarios si aplica.
+- Banco.
+- Tipo de cuenta bancaria.
+- Número de cuenta bancaria.
 
-Un mismo documento puede repetirse si corresponde a conceptos distintos.
+Si el trabajador no existe como beneficiario, el sistema debe permitir crearlo como beneficiario tipo `TRABAJADOR` previa confirmación.

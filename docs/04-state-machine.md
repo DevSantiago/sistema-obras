@@ -41,39 +41,80 @@ stateDiagram-v2
     PENDIENTE_APROBADOR_2 --> ANULADA: Anular
 ```
 
-## Centro de costo
+## Proyecto base
 
 ### Estados
 
 ```text
-EN_PROPUESTA
-NO_ADJUDICADO
-ADJUDICADO
+EN_LICITACION
 EN_EJECUCION
 FINALIZADO
-CERRADO
 ```
 
 ### Flujo estándar
 
 ```mermaid
 stateDiagram-v2
-    [*] --> EN_PROPUESTA
-    EN_PROPUESTA --> ADJUDICADO: Marcar como adjudicado
-    EN_PROPUESTA --> NO_ADJUDICADO: Marcar como no adjudicado
-    ADJUDICADO --> EN_EJECUCION: Iniciar ejecución
-    EN_EJECUCION --> FINALIZADO: Finalizar
-    FINALIZADO --> CERRADO: Cerrar
-    NO_ADJUDICADO --> CERRADO: Cerrar
+    [*] --> EN_LICITACION
+    EN_LICITACION --> EN_EJECUCION: Algún centro pasa a ejecución
+    EN_EJECUCION --> FINALIZADO: Todos los centros activos finalizados
 ```
 
-### Flujo de carga inicial
+Reglas:
+
+- El proyecto base inicia en `EN_LICITACION`.
+- Si cualquier centro activo está en `EN_EJECUCION`, el proyecto queda en `EN_EJECUCION`.
+- Si todos los centros activos están en `FINALIZADO`, el proyecto queda en `FINALIZADO`.
+
+## Centros de costo
+
+### Estados
+
+```text
+EN_LICITACION
+EN_EJECUCION
+FINALIZADO
+```
+
+### Flujo de licitación a ejecución
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ADJUDICADO: Obra ya adjudicada
-    ADJUDICADO --> EN_EJECUCION: Iniciar ejecución
+    [*] --> EN_LICITACION
+    EN_LICITACION --> FINALIZADO: Cerrar fase de licitación
+    EN_EJECUCION --> FINALIZADO: Finalizar ejecución
 ```
+
+El paso de licitación a ejecución no convierte el mismo registro a `EN_EJECUCION`. El sistema finaliza el centro de licitación y crea un nuevo centro de ejecución.
+
+```text
+PRO-OBRA EN_LICITACION → PRO-OBRA FINALIZADO + OBRA EN_EJECUCION
+PRO-INT  EN_LICITACION → PRO-INT  FINALIZADO + INT  EN_EJECUCION
+```
+
+### Flujo de ejecución
+
+```mermaid
+stateDiagram-v2
+    [*] --> EN_EJECUCION
+    EN_EJECUCION --> FINALIZADO: Finalizar
+    FINALIZADO --> [*]
+```
+
+## Beneficiarios
+
+Los beneficiarios no tienen una máquina de estados compleja en el MVP. Usan estado lógico mediante campo `activo`.
+
+```text
+ACTIVO
+INACTIVO
+```
+
+Reglas:
+
+- Solo beneficiarios activos se usan para nuevas solicitudes.
+- La inactivación no elimina historial de solicitudes ni movimientos.
+- La deduplicación de creación se valida sobre beneficiarios activos por tipo y número de documento.
 
 ## Operaciones de efectivo
 
@@ -117,6 +158,8 @@ No usan doble aprobación independiente.
 - Reingresos de sobrantes no pasan por aprobación.
 - Impuestos y retenciones no crean workflow independiente.
 - Cambios posteriores a aprobación requieren auditoría.
+- Cambios de proyecto, centro, solicitud o pago deben validar permisos en backend.
+- La base de datos debe reforzar estados críticos mediante restricciones `CHECK`.
 
 ## Movimientos financieros
 
