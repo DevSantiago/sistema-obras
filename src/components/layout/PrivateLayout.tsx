@@ -65,6 +65,14 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
 
           <Link
             className={styles.navLink}
+            href="/beneficiarios"
+            onClick={cerrarMenu}
+          >
+            Beneficiarios
+          </Link>
+
+          <Link
+            className={styles.navLink}
             href="/solicitudes"
             onClick={cerrarMenu}
           >
