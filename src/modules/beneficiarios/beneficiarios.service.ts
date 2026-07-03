@@ -1,5 +1,6 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import {
+  actualizarBeneficiarioRepository,
   crearBeneficiarioRepository,
   existeBeneficiarioPorDocumentoRepository,
   listarBeneficiariosRepository,
@@ -8,6 +9,8 @@ import {
   obtenerUsuarioActivoPorIdRepository,
 } from "./beneficiarios.repository";
 import type {
+  ActualizarBeneficiarioInput,
+  BeneficiarioActualizadoRepositoryInput,
   BeneficiarioListFilters,
   CrearBeneficiarioInput,
   MedioPagoPreferido,
@@ -100,6 +103,168 @@ function validarPermisoGestionBeneficiarios(usuario: UsuarioSesion) {
 
 function normalizarBusqueda(busqueda?: string) {
   return busqueda?.trim() || undefined;
+}
+
+function validarCorreoBeneficiario(correo: string | null | undefined) {
+  if (!correo) {
+    return;
+  }
+
+  const correoRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!correoRegex.test(correo)) {
+    throw new Error("El correo del beneficiario no tiene un formato válido.");
+  }
+}
+
+function validarObjetoActualizacion(input: unknown) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("Debe enviar un cuerpo válido para actualizar el beneficiario.");
+  }
+}
+
+function normalizarTextoObligatorioActualizacion(
+  value: unknown,
+  fieldName: string,
+) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`El campo ${fieldName} es obligatorio.`);
+  }
+
+  return normalizarTextoMayuscula(value);
+}
+
+function normalizarTextoOpcionalActualizacion(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error("Los campos de texto deben ser cadenas válidas.");
+  }
+
+  const valor = value.trim().replace(/\s+/g, " ");
+
+  return valor || null;
+}
+
+function normalizarCorreoActualizacion(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error("El correo del beneficiario debe ser una cadena válida.");
+  }
+
+  const correo = value.trim().toLowerCase() || null;
+
+  validarCorreoBeneficiario(correo);
+
+  return correo;
+}
+
+function normalizarBooleanOpcional(value: unknown, fieldName: string) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "boolean") {
+    throw new Error(`El campo ${fieldName} debe ser verdadero o falso.`);
+  }
+
+  return value;
+}
+
+function normalizarMedioPagoActualizacion(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string" || !validarMedioPago(value)) {
+    throw new Error("El medio de pago preferido no es válido.");
+  }
+
+  return value;
+}
+
+function normalizarTipoCuentaActualizacion(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string" || !validarTipoCuenta(value)) {
+    throw new Error("El tipo de cuenta bancaria no es válido.");
+  }
+
+  return value;
+}
+
+function normalizarActualizarBeneficiarioInput(
+  input: ActualizarBeneficiarioInput,
+): BeneficiarioActualizadoRepositoryInput {
+  validarObjetoActualizacion(input);
+
+  const nombre = normalizarTextoObligatorioActualizacion(
+    input.nombre,
+    "nombre",
+  );
+
+  const medioPagoPreferido = normalizarMedioPagoActualizacion(
+    input.medio_pago_preferido,
+  );
+
+  const banco = normalizarTextoObligatorioActualizacion(input.banco, "banco");
+
+  const tipoCuentaBancaria = normalizarTipoCuentaActualizacion(
+    input.tipo_cuenta_bancaria,
+  );
+
+  const numeroCuentaBancaria = normalizarTextoObligatorioActualizacion(
+    input.numero_cuenta_bancaria,
+    "numero_cuenta_bancaria",
+  );
+
+  const telefono = normalizarTextoOpcionalActualizacion(input.telefono);
+  const correo = normalizarCorreoActualizacion(input.correo);
+  const notas = normalizarTextoOpcionalActualizacion(input.notas);
+  const activo = normalizarBooleanOpcional(input.activo, "activo");
+
+  const inputNormalizado: BeneficiarioActualizadoRepositoryInput = {
+    ...(nombre !== undefined ? { nombre } : {}),
+    ...(medioPagoPreferido !== undefined
+      ? { medio_pago_preferido: medioPagoPreferido }
+      : {}),
+    ...(banco !== undefined ? { banco } : {}),
+    ...(tipoCuentaBancaria !== undefined
+      ? { tipo_cuenta_bancaria: tipoCuentaBancaria }
+      : {}),
+    ...(numeroCuentaBancaria !== undefined
+      ? { numero_cuenta_bancaria: numeroCuentaBancaria }
+      : {}),
+    ...(telefono !== undefined ? { telefono } : {}),
+    ...(correo !== undefined ? { correo } : {}),
+    ...(notas !== undefined ? { notas } : {}),
+    ...(activo !== undefined ? { activo } : {}),
+  };
+
+  if (Object.keys(inputNormalizado).length === 0) {
+    throw new Error("Debe enviar al menos un campo para actualizar.");
+  }
+
+  return inputNormalizado;
 }
 
 export async function listarBeneficiariosService(
@@ -297,4 +462,26 @@ export async function crearBeneficiarioService(
     },
     proveedor: proveedorNormalizado,
   });
+}
+
+export async function actualizarBeneficiarioService(
+  usuario: UsuarioSesion,
+  id: string,
+  input: ActualizarBeneficiarioInput,
+) {
+  validarPermisoGestionBeneficiarios(usuario);
+
+  if (!id) {
+    throw new Error("El ID del beneficiario es obligatorio.");
+  }
+
+  const beneficiarioExistente = await obtenerBeneficiarioPorIdRepository(id);
+
+  if (!beneficiarioExistente) {
+    throw new Error("El beneficiario no existe.");
+  }
+
+  const inputNormalizado = normalizarActualizarBeneficiarioInput(input);
+
+  return actualizarBeneficiarioRepository(id, inputNormalizado);
 }

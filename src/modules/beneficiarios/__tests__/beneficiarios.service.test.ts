@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  actualizarBeneficiarioService,
   crearBeneficiarioService,
   listarBeneficiariosService,
   obtenerBeneficiarioPorIdService,
 } from "../beneficiarios.service";
 import {
+  actualizarBeneficiarioRepository,
   crearBeneficiarioRepository,
   existeBeneficiarioPorDocumentoRepository,
   listarBeneficiariosRepository,
@@ -15,6 +17,7 @@ import {
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 
 vi.mock("../beneficiarios.repository", () => ({
+  actualizarBeneficiarioRepository: vi.fn(),
   crearBeneficiarioRepository: vi.fn(),
   existeBeneficiarioPorDocumentoRepository: vi.fn(),
   listarBeneficiariosRepository: vi.fn(),
@@ -422,5 +425,265 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
         numero_cuenta_bancaria: "111222333",
       },
     });
+  });
+});
+
+describe("beneficiarios.service - actualizarBeneficiarioService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe lanzar error si el usuario no tiene permisos", async () => {
+    await expect(
+      actualizarBeneficiarioService(usuarioSinPermisos, "beneficiario-1", {
+        telefono: "3101234567",
+      }),
+    ).rejects.toThrow("No autorizado.");
+
+    expect(obtenerBeneficiarioPorIdRepository).not.toHaveBeenCalled();
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si falta el ID", async () => {
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "", {
+        telefono: "3101234567",
+      }),
+    ).rejects.toThrow("El ID del beneficiario es obligatorio.");
+
+    expect(obtenerBeneficiarioPorIdRepository).not.toHaveBeenCalled();
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si el beneficiario no existe", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(null);
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-x", {
+        telefono: "3101234567",
+      }),
+    ).rejects.toThrow("El beneficiario no existe.");
+
+    expect(obtenerBeneficiarioPorIdRepository).toHaveBeenCalledWith(
+      "beneficiario-x",
+    );
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si el cuerpo está vacío", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {}),
+    ).rejects.toThrow("Debe enviar al menos un campo para actualizar.");
+
+    expect(obtenerBeneficiarioPorIdRepository).toHaveBeenCalledWith(
+      "beneficiario-1",
+    );
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si el nombre viene vacío", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
+        nombre: "   ",
+      }),
+    ).rejects.toThrow("El campo nombre es obligatorio.");
+
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si el medio de pago no es válido", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
+        medio_pago_preferido: "CHEQUE" as never,
+      }),
+    ).rejects.toThrow("El medio de pago preferido no es válido.");
+
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si el tipo de cuenta bancaria no es válido", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
+        tipo_cuenta_bancaria: "DAVIPLATA" as never,
+      }),
+    ).rejects.toThrow("El tipo de cuenta bancaria no es válido.");
+
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si el correo no tiene formato válido", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
+        correo: "correo-malo",
+      }),
+    ).rejects.toThrow("El correo del beneficiario no tiene un formato válido.");
+
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe lanzar error si activo no es booleano", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
+        activo: "false" as never,
+      }),
+    ).rejects.toThrow("El campo activo debe ser verdadero o falso.");
+
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe actualizar datos de contacto normalizados", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+    vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
+      ...beneficiarioMock,
+      telefono: "3101234567",
+      correo: "proveedor.actualizado@test.com",
+      notas: "Nota actualizada",
+    } as never);
+
+    const resultado = await actualizarBeneficiarioService(
+      usuarioAutorizado,
+      "beneficiario-1",
+      {
+        telefono: " 3101234567 ",
+        correo: " PROVEEDOR.ACTUALIZADO@TEST.COM ",
+        notas: "  Nota   actualizada  ",
+      },
+    );
+
+    expect(resultado.telefono).toBe("3101234567");
+    expect(resultado.correo).toBe("proveedor.actualizado@test.com");
+    expect(resultado.notas).toBe("Nota actualizada");
+
+    expect(actualizarBeneficiarioRepository).toHaveBeenCalledWith(
+      "beneficiario-1",
+      {
+        telefono: "3101234567",
+        correo: "proveedor.actualizado@test.com",
+        notas: "Nota actualizada",
+      },
+    );
+  });
+
+  it("debe actualizar datos bancarios normalizados", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+    vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
+      ...beneficiarioMock,
+      banco: "BBVA",
+      numero_cuenta_bancaria: "12345",
+    } as never);
+
+    const resultado = await actualizarBeneficiarioService(
+      usuarioAutorizado,
+      "beneficiario-1",
+      {
+        medio_pago_preferido: "TRANSFERENCIA",
+        banco: " bbva ",
+        tipo_cuenta_bancaria: "AHORROS",
+        numero_cuenta_bancaria: " 12345 ",
+      },
+    );
+
+    expect(resultado.banco).toBe("BBVA");
+    expect(resultado.numero_cuenta_bancaria).toBe("12345");
+
+    expect(actualizarBeneficiarioRepository).toHaveBeenCalledWith(
+      "beneficiario-1",
+      {
+        medio_pago_preferido: "TRANSFERENCIA",
+        banco: "BBVA",
+        tipo_cuenta_bancaria: "AHORROS",
+        numero_cuenta_bancaria: "12345",
+      },
+    );
+  });
+
+  it("debe activar o inactivar beneficiario", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+    vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
+      ...beneficiarioMock,
+      activo: false,
+    } as never);
+
+    const resultado = await actualizarBeneficiarioService(
+      usuarioAutorizado,
+      "beneficiario-1",
+      {
+        activo: false,
+      },
+    );
+
+    expect(resultado.activo).toBe(false);
+
+    expect(actualizarBeneficiarioRepository).toHaveBeenCalledWith(
+      "beneficiario-1",
+      {
+        activo: false,
+      },
+    );
+  });
+
+  it("debe permitir limpiar campos opcionales enviando null", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+    vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
+      ...beneficiarioMock,
+      telefono: null,
+      correo: null,
+      notas: null,
+    } as never);
+
+    const resultado = await actualizarBeneficiarioService(
+      usuarioAutorizado,
+      "beneficiario-1",
+      {
+        telefono: null,
+        correo: null,
+        notas: null,
+      },
+    );
+
+    expect(resultado.telefono).toBeNull();
+    expect(resultado.correo).toBeNull();
+    expect(resultado.notas).toBeNull();
+
+    expect(actualizarBeneficiarioRepository).toHaveBeenCalledWith(
+      "beneficiario-1",
+      {
+        telefono: null,
+        correo: null,
+        notas: null,
+      },
+    );
   });
 });
