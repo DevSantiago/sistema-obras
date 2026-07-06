@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type {
@@ -17,10 +18,7 @@ type SecuenciaActualizada = {
 
 export async function generarSecuenciaDocumentalRepository(
   input: Required<
-    Pick<
-      GenerarSecuenciaInput,
-      "tipo_secuencia" | "prefijo" | "anio"
-    >
+    Pick<GenerarSecuenciaInput, "tipo_secuencia" | "prefijo" | "anio">
   > &
     Pick<GenerarSecuenciaInput, "proyecto_base_id" | "centro_costo_id"> & {
       clave_contexto: string;
@@ -32,6 +30,7 @@ export async function generarSecuenciaDocumentalRepository(
   const secuencias = await prisma.$queryRaw<SecuenciaActualizada[]>(
     Prisma.sql`
       INSERT INTO secuencias_documentales (
+        id,
         tipo_secuencia,
         proyecto_base_id,
         centro_costo_id,
@@ -43,6 +42,7 @@ export async function generarSecuenciaDocumentalRepository(
         actualizado_en
       )
       VALUES (
+        ${randomUUID()},
         ${input.tipo_secuencia},
         ${proyectoBaseId},
         ${centroCostoId},
@@ -78,7 +78,8 @@ export async function generarSecuenciaDocumentalRepository(
   }
 
   return {
-    tipo_secuencia: secuencia.tipo_secuencia as SecuenciaGenerada["tipo_secuencia"],
+    tipo_secuencia:
+      secuencia.tipo_secuencia as SecuenciaGenerada["tipo_secuencia"],
     proyecto_base_id: secuencia.proyecto_base_id,
     centro_costo_id: secuencia.centro_costo_id,
     clave_contexto: secuencia.clave_contexto,

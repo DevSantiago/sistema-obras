@@ -147,3 +147,21 @@ curl -X PATCH "http://localhost:3000/api/v1/proyectos-base/1662a485-54df-4264-bf
   -d '{
     "activo": true
   }'
+
+  ## Crear solicitud de pago
+
+  curl -X POST "$BASE_URL/api/v1/solicitudes-pago" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session_token=$SESSION_TOKEN" \
+  -d '{
+    "proyecto_base_id": "6e5c471f-5871-40c6-a2a0-2c0bda04485e",
+    "centro_costo_id": "61375bca-80b4-4766-892e-65c3968ed263",
+    "beneficiario_id": "bd2b8c0b-0994-4773-9f12-b38eb4d0819e",
+    "categoria_gasto": "MATERIALES",
+    "medio_pago": "TRANSFERENCIA",
+    "descripcion": "Pago de materiales para obra",
+    "valor_bruto": 100000,
+    "valor_impuestos": 19000,
+    "valor_retenciones": 5000,
+    "valor_descuentos": 0
+  }'

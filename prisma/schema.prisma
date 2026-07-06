@@ -36,6 +36,11 @@ model usuarios {
   accesos_revocados accesos_usuario_proyecto[] @relation("AccesosRevocadoPor")
 
   beneficiarios_asociados beneficiarios_pago[] @relation("BeneficiarioUsuarioAsociado")
+
+  solicitudes_creadas    solicitudes_pago[] @relation("SolicitudesCreadasPor")
+  solicitudes_aprobadas1 solicitudes_pago[] @relation("SolicitudesAprobadas1Por")
+  solicitudes_aprobadas2 solicitudes_pago[] @relation("SolicitudesAprobadas2Por")
+  solicitudes_pagadas    solicitudes_pago[] @relation("SolicitudesPagadasPor")
 }
 
 model roles {
@@ -119,6 +124,8 @@ model proyectos_base {
   accesos       accesos_usuario_proyecto[]
   secuencias_documentales secuencias_documentales[]
 
+  solicitudes_pago solicitudes_pago[]
+
   @@index([nombre])
   @@index([estado_proyecto])
   @@index([activo])
@@ -149,6 +156,8 @@ model centros_costo {
   usuario_inicio_ejecucion usuarios?      @relation("CentrosCostoInicioEjecucionPor", fields: [inicio_ejecucion_por], references: [id])
   secuencias_documentales secuencias_documentales[]
 
+  solicitudes_pago solicitudes_pago[]
+
   @@unique([proyecto_base_id, linea_negocio, fase_centro_costo])
   @@index([proyecto_base_id])
   @@index([codigo])
@@ -171,6 +180,8 @@ model fondos {
 
   proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
   creador       usuarios?      @relation("FondosCreadoPor", fields: [creado_por], references: [id])
+
+  solicitudes_pago solicitudes_pago[]
 
   @@index([activo])
 }
@@ -217,6 +228,8 @@ model proveedores {
 
   beneficiarios beneficiarios_pago[]
 
+  solicitudes_pago solicitudes_pago[]
+
   @@index([tipo_documento, numero_documento])
   @@index([numero_documento])
   @@index([nombre])
@@ -244,6 +257,8 @@ model beneficiarios_pago {
 
   proveedor        proveedores? @relation(fields: [proveedor_id], references: [id])
   usuario_asociado usuarios?    @relation("BeneficiarioUsuarioAsociado", fields: [usuario_id], references: [id])
+
+  solicitudes_pago solicitudes_pago[]
 
   @@index([tipo_beneficiario])
   @@index([usuario_id])
@@ -273,4 +288,70 @@ model secuencias_documentales {
   @@index([centro_costo_id])
   @@index([tipo_secuencia])
   @@index([clave_contexto])
+}
+
+model solicitudes_pago {
+  id                         String    @id @default(uuid())
+  numero_solicitud           String    @unique
+  tipo_solicitud             String    @default("PAGO_PROVEEDOR")
+  modalidad_nomina           String?
+  proyecto_base_id           String
+  fondo_id                   String
+  centro_costo_id            String
+  beneficiario_id            String?
+  proveedor_id               String?
+  categoria_gasto            String?
+  categoria_reembolso        String?
+  concepto_nomina            String?
+  medio_pago                 String?
+  adjunto_archivo_origen_id  String?
+  descripcion                String
+  valor_bruto                Decimal   @db.Decimal(14, 2)
+  valor_impuestos            Decimal   @default(0) @db.Decimal(14, 2)
+  valor_retenciones          Decimal   @default(0) @db.Decimal(14, 2)
+  valor_descuentos           Decimal   @default(0) @db.Decimal(14, 2)
+  valor_neto                 Decimal   @db.Decimal(14, 2)
+  valor_pagado               Decimal?  @db.Decimal(14, 2)
+  valor_reservado            Decimal?  @db.Decimal(14, 2)
+  estado_actual              String    @default("BORRADOR")
+  creado_por                 String?
+  aprobado_1_por             String?
+  aprobado_2_por             String?
+  pagado_por                 String?
+  enviado_en                 DateTime?
+  aprobado_1_en              DateTime?
+  aprobado_2_en              DateTime?
+  devuelto_aprobador_1_en    DateTime?
+  devuelto_solicitante_en    DateTime?
+  pagado_en                  DateTime?
+  creado_en                  DateTime  @default(now())
+  actualizado_en             DateTime  @updatedAt
+
+  proyecto_base proyectos_base      @relation(fields: [proyecto_base_id], references: [id])
+  fondo         fondos              @relation(fields: [fondo_id], references: [id])
+  centro_costo  centros_costo       @relation(fields: [centro_costo_id], references: [id])
+  beneficiario  beneficiarios_pago? @relation(fields: [beneficiario_id], references: [id])
+  proveedor     proveedores?        @relation(fields: [proveedor_id], references: [id])
+
+  creador    usuarios? @relation("SolicitudesCreadasPor", fields: [creado_por], references: [id])
+  aprobador1 usuarios? @relation("SolicitudesAprobadas1Por", fields: [aprobado_1_por], references: [id])
+  aprobador2 usuarios? @relation("SolicitudesAprobadas2Por", fields: [aprobado_2_por], references: [id])
+  pagador    usuarios? @relation("SolicitudesPagadasPor", fields: [pagado_por], references: [id])
+
+  @@index([numero_solicitud])
+  @@index([proyecto_base_id])
+  @@index([fondo_id])
+  @@index([centro_costo_id])
+  @@index([beneficiario_id])
+  @@index([proveedor_id])
+  @@index([tipo_solicitud])
+  @@index([estado_actual])
+  @@index([medio_pago])
+  @@index([categoria_gasto])
+  @@index([categoria_reembolso])
+  @@index([concepto_nomina])
+  @@index([creado_por])
+  @@index([pagado_por])
+  @@index([creado_en])
+  @@index([pagado_en])
 }
