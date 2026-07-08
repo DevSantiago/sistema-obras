@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type {
+  AccesoUsuarioProyectoBase,
   CentroCostoGenerado,
   CrearProyectoBaseInput,
   ProyectoBaseListFilters,
@@ -49,26 +50,117 @@ function obtenerPrefijoEjecucion(lineaNegocio: string) {
   return lineaNegocio === "OBRA" ? "OBRA" : "INT";
 }
 
+function obtenerProyectoBaseWhere(filters: ProyectoBaseListFilters = {}) {
+  return {
+    ...(filters.estado_proyecto
+      ? { estado_proyecto: filters.estado_proyecto }
+      : {}),
+    ...(typeof filters.activo === "boolean" ? { activo: filters.activo } : {}),
+  };
+}
+
+function obtenerOrdenCentrosCosto() {
+  return [
+    {
+      linea_negocio: "asc" as const,
+    },
+    {
+      fase_centro_costo: "asc" as const,
+    },
+  ];
+}
+
+function obtenerAccesosUnicosPorProyectoLinea(
+  accesos: AccesoUsuarioProyectoBase[],
+) {
+  const claves = new Set<string>();
+
+  return accesos.filter((acceso) => {
+    const clave = `${acceso.proyecto_base_id}-${acceso.linea_negocio}`;
+
+    if (claves.has(clave)) {
+      return false;
+    }
+
+    claves.add(clave);
+    return true;
+  });
+}
+
 export async function listarProyectosBaseRepository(
   filters: ProyectoBaseListFilters = {},
 ) {
   return prisma.proyectos_base.findMany({
+    where: obtenerProyectoBaseWhere(filters),
+    include: {
+      centros_costo: {
+        orderBy: obtenerOrdenCentrosCosto(),
+      },
+      fondo: true,
+    },
+    orderBy: {
+      creado_en: "desc",
+    },
+  });
+}
+
+export async function listarAccesosActivosUsuarioProyectoBaseRepository(
+  usuarioId: string,
+): Promise<AccesoUsuarioProyectoBase[]> {
+  const accesos = await prisma.accesos_usuario_proyecto.findMany({
     where: {
-      ...(filters.estado_proyecto
-        ? { estado_proyecto: filters.estado_proyecto }
-        : {}),
-      ...(typeof filters.activo === "boolean" ? { activo: filters.activo } : {}),
+      usuario_id: usuarioId,
+      activo: true,
+    },
+    select: {
+      proyecto_base_id: true,
+      linea_negocio: true,
+    },
+  });
+
+  return accesos.map((acceso) => ({
+    proyecto_base_id: acceso.proyecto_base_id,
+    linea_negocio: acceso.linea_negocio as AccesoUsuarioProyectoBase["linea_negocio"],
+  }));
+}
+
+export async function listarProyectosBasePorAccesosUsuarioRepository(
+  usuarioId: string,
+  filters: ProyectoBaseListFilters = {},
+) {
+  const accesos = await listarAccesosActivosUsuarioProyectoBaseRepository(
+    usuarioId,
+  );
+
+  const accesosUnicos = obtenerAccesosUnicosPorProyectoLinea(accesos);
+
+  if (accesosUnicos.length === 0) {
+    return [];
+  }
+
+  const proyectosBaseIds = Array.from(
+    new Set(accesosUnicos.map((acceso) => acceso.proyecto_base_id)),
+  );
+
+  const accesosCentrosCostoWhere = accesosUnicos.map((acceso) => ({
+    proyecto_base_id: acceso.proyecto_base_id,
+    linea_negocio: acceso.linea_negocio,
+  }));
+
+  return prisma.proyectos_base.findMany({
+    where: {
+      ...obtenerProyectoBaseWhere(filters),
+      id: {
+        in: proyectosBaseIds,
+      },
     },
     include: {
       centros_costo: {
-        orderBy: [
-          {
-            linea_negocio: "asc",
-          },
-          {
-            fase_centro_costo: "asc",
-          },
-        ],
+        where: {
+          activo: true,
+          OR: accesosCentrosCostoWhere,
+        },
+        orderBy: obtenerOrdenCentrosCosto(),
       },
       fondo: true,
     },
@@ -83,14 +175,7 @@ export async function obtenerProyectoBasePorIdRepository(id: string) {
     where: { id },
     include: {
       centros_costo: {
-        orderBy: [
-          {
-            linea_negocio: "asc",
-          },
-          {
-            fase_centro_costo: "asc",
-          },
-        ],
+        orderBy: obtenerOrdenCentrosCosto(),
       },
       fondo: true,
     },
@@ -309,14 +394,7 @@ export async function cambiarEstadoCentroCostoRepository(
       },
       include: {
         centros_costo: {
-          orderBy: [
-            {
-              linea_negocio: "asc",
-            },
-            {
-              fase_centro_costo: "asc",
-            },
-          ],
+          orderBy: obtenerOrdenCentrosCosto(),
         },
         fondo: true,
       },

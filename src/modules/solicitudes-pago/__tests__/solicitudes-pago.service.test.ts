@@ -3,13 +3,17 @@ import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import {
   crearSolicitudPagoRepository,
+  listarSolicitudesPagoRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerBeneficiarioActivoRepository,
   obtenerCentroCostoActivoRepository,
   obtenerFondoActivoPorProyectoRepository,
   obtenerProyectoBaseActivoRepository,
 } from "../solicitudes-pago.repository";
-import { crearSolicitudPagoProveedorService } from "../solicitudes-pago.service";
+import {
+  crearSolicitudPagoProveedorService,
+  listarSolicitudesPagoService,
+} from "../solicitudes-pago.service";
 
 vi.mock("@/modules/secuencias/secuencias.service", () => ({
   generarNumeroSolicitudPagoService: vi.fn(),
@@ -17,6 +21,7 @@ vi.mock("@/modules/secuencias/secuencias.service", () => ({
 
 vi.mock("../solicitudes-pago.repository", () => ({
   crearSolicitudPagoRepository: vi.fn(),
+  listarSolicitudesPagoRepository: vi.fn(),
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
   obtenerBeneficiarioActivoRepository: vi.fn(),
   obtenerCentroCostoActivoRepository: vi.fn(),
@@ -46,9 +51,49 @@ const usuarioSinPermisos: UsuarioSesion = {
   permisos: ["MARCAR_COMO_PAGADO"],
 };
 
+const usuarioAprobador1: UsuarioSesion = {
+  id: "aprobador-1",
+  nombre: "Aprobador 1",
+  correo: "aprobador1@test.com",
+  telefono: null,
+  estado: "ACTIVO",
+  roles: ["APROBADOR_1"],
+  permisos: ["APROBAR_NIVEL_1"],
+};
+
+const usuarioAprobador2: UsuarioSesion = {
+  id: "aprobador-2",
+  nombre: "Aprobador 2",
+  correo: "aprobador2@test.com",
+  telefono: null,
+  estado: "ACTIVO",
+  roles: ["APROBADOR_2"],
+  permisos: ["APROBAR_NIVEL_2"],
+};
+
+const usuarioPagos: UsuarioSesion = {
+  id: "pagos-1",
+  nombre: "Pagos",
+  correo: "pagos@test.com",
+  telefono: null,
+  estado: "ACTIVO",
+  roles: ["PAGOS"],
+  permisos: ["MARCAR_COMO_PAGADO"],
+};
+
+const usuarioAdministrador: UsuarioSesion = {
+  id: "admin-1",
+  nombre: "Administrador",
+  correo: "admin@test.com",
+  telefono: null,
+  estado: "ACTIVO",
+  roles: ["ADMINISTRADOR"],
+  permisos: ["CONSULTAR_TODO"],
+};
+
 const proyectoBaseMock = {
   id: "proyecto-1",
-  nombre: "Proyecto Base",
+  nombre: "HUMAPO",
   descripcion: null,
   estado_proyecto: "EN_EJECUCION",
   activo: true,
@@ -61,12 +106,12 @@ const centroCostoMock = {
   id: "centro-1",
   proyecto_base_id: "proyecto-1",
   linea_negocio: "OBRA",
-  fase_centro_costo: "OBRA",
-  prefijo: "OBRA",
-  codigo: "OBRA-001",
-  nombre: "OBRA - Proyecto Base",
+  fase_centro_costo: "LICITACION",
+  prefijo: "PRO-OBRA",
+  codigo: "PRO-OBRA-001",
+  nombre: "PRO-OBRA - HUMAPO",
   descripcion: null,
-  estado_centro_costo: "EN_EJECUCION",
+  estado_centro_costo: "EN_LICITACION",
   creado_directamente_en_ejecucion: false,
   motivo_creacion_ejecucion: null,
   fecha_inicio_ejecucion: null,
@@ -142,31 +187,39 @@ function prepararMocksBase() {
   vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
     proyectoBaseMock as never,
   );
+
   vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue(
     centroCostoMock as never,
   );
+
   vi.mocked(
     obtenerAccesoActivoUsuarioProyectoLineaRepository,
   ).mockResolvedValue(accesoMock as never);
+
   vi.mocked(obtenerFondoActivoPorProyectoRepository).mockResolvedValue(
     fondoMock as never,
   );
+
   vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(
     beneficiarioProveedorMock as never,
   );
+
   vi.mocked(generarNumeroSolicitudPagoService).mockResolvedValue({
     tipo_secuencia: "SOLICITUD_PAGO",
     proyecto_base_id: "proyecto-1",
     centro_costo_id: "centro-1",
     clave_contexto: "CENTRO:proyecto-1:centro-1",
     prefijo: "SOL",
+    proyecto_referencia: "HUMAPO",
+    centro_costo_referencia: "PRO-OBRA",
     anio: 2026,
     valor: 1,
-    referencia: "SOL-2026-000001",
+    referencia: "SOL-PRO-OBRA-HUMAPO-2026-000001",
   });
+
   vi.mocked(crearSolicitudPagoRepository).mockResolvedValue({
     id: "solicitud-1",
-    numero_solicitud: "SOL-2026-000001",
+    numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000001",
     tipo_solicitud: "PAGO_PROVEEDOR",
     modalidad_nomina: null,
     proyecto_base_id: "proyecto-1",
@@ -203,6 +256,122 @@ function prepararMocksBase() {
   } as never);
 }
 
+describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(listarSolicitudesPagoRepository).mockResolvedValue([]);
+  });
+
+  it("debe mostrar al solicitante únicamente sus propias solicitudes", async () => {
+    const resultado = await listarSolicitudesPagoService(usuarioSolicitante);
+
+    expect(resultado.status).toBe(200);
+
+    expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
+      filters: {},
+      visibilidad: {
+        consultar_todas: false,
+        usuario_id: "usuario-1",
+        incluir_propias: true,
+        estados_flujo: [],
+      },
+    });
+  });
+
+  it("debe mostrar al aprobador 1 sus solicitudes y las pendientes de su nivel", async () => {
+    const resultado = await listarSolicitudesPagoService(usuarioAprobador1);
+
+    expect(resultado.status).toBe(200);
+
+    expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
+      filters: {},
+      visibilidad: {
+        consultar_todas: false,
+        usuario_id: "aprobador-1",
+        incluir_propias: true,
+        estados_flujo: [
+          "PENDIENTE_APROBADOR_1",
+          "DEVUELTA_APROBADOR_1",
+        ],
+      },
+    });
+  });
+
+  it("debe mostrar al aprobador 2 sus solicitudes y las pendientes de su nivel", async () => {
+    const resultado = await listarSolicitudesPagoService(usuarioAprobador2);
+
+    expect(resultado.status).toBe(200);
+
+    expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
+      filters: {},
+      visibilidad: {
+        consultar_todas: false,
+        usuario_id: "aprobador-2",
+        incluir_propias: true,
+        estados_flujo: ["PENDIENTE_APROBADOR_2"],
+      },
+    });
+  });
+
+  it("debe mostrar a pagos sus solicitudes y las programadas para pago", async () => {
+    const resultado = await listarSolicitudesPagoService(usuarioPagos);
+
+    expect(resultado.status).toBe(200);
+
+    expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
+      filters: {},
+      visibilidad: {
+        consultar_todas: false,
+        usuario_id: "pagos-1",
+        incluir_propias: true,
+        estados_flujo: ["PROGRAMADA_PAGO"],
+      },
+    });
+  });
+
+  it("debe permitir al administrador consultar todas las solicitudes", async () => {
+    const resultado = await listarSolicitudesPagoService(
+      usuarioAdministrador,
+    );
+
+    expect(resultado.status).toBe(200);
+
+    expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
+      filters: {},
+      visibilidad: {
+        consultar_todas: true,
+        usuario_id: "admin-1",
+        incluir_propias: false,
+        estados_flujo: [],
+      },
+    });
+  });
+
+  it("debe rechazar la consulta cuando el usuario no tiene permisos", async () => {
+    const usuarioNoAutorizado: UsuarioSesion = {
+      id: "usuario-3",
+      nombre: "No autorizado",
+      correo: "noautorizado@test.com",
+      telefono: null,
+      estado: "ACTIVO",
+      roles: ["USUARIO"],
+      permisos: [],
+    };
+
+    const resultado = await listarSolicitudesPagoService(
+      usuarioNoAutorizado,
+    );
+
+    expect(resultado.status).toBe(403);
+
+    expect(resultado.body.message).toBe(
+      "No tiene permisos para consultar solicitudes.",
+    );
+
+    expect(listarSolicitudesPagoRepository).not.toHaveBeenCalled();
+  });
+});
+
 describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -229,9 +398,11 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(400);
+
     expect(resultado.body.message).toBe(
-      "Proyecto base, centro de costo, beneficiario, categoría, medio de pago y descripción son obligatorios.",
+      "Proyecto base, centro de costo, beneficiario, categoría, medio de pago y concepto de pago son obligatorios.",
     );
+
     expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
   });
 
@@ -249,7 +420,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
   });
 
-  it("debe validar valor bruto mayor a cero", async () => {
+  it("debe validar valor de la factura mayor a cero", async () => {
     const resultado = await crearSolicitudPagoProveedorService(
       usuarioSolicitante,
       {
@@ -259,13 +430,15 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(400);
+
     expect(resultado.body.message).toBe(
-      "Los valores de la solicitud deben ser numéricos y el valor bruto debe ser mayor a cero.",
+      "Los valores deben ser numéricos y el valor de la factura debe ser mayor a cero.",
     );
+
     expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
   });
 
-  it("debe validar que el valor neto no sea negativo", async () => {
+  it("debe validar que el valor a pagar no sea negativo", async () => {
     const resultado = await crearSolicitudPagoProveedorService(
       usuarioSolicitante,
       {
@@ -276,7 +449,11 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(400);
-    expect(resultado.body.message).toBe("El valor neto no puede ser negativo.");
+
+    expect(resultado.body.message).toBe(
+      "El valor a pagar no puede ser negativo.",
+    );
+
     expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
   });
 
@@ -289,6 +466,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(404);
+
     expect(resultado.body.message).toBe(
       "El proyecto base no existe o está inactivo.",
     );
@@ -298,6 +476,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
       proyectoBaseMock as never,
     );
+
     vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue(null);
 
     const resultado = await crearSolicitudPagoProveedorService(
@@ -306,6 +485,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(404);
+
     expect(resultado.body.message).toBe(
       "El centro de costo no existe o está inactivo.",
     );
@@ -315,6 +495,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
       proyectoBaseMock as never,
     );
+
     vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue({
       ...centroCostoMock,
       proyecto_base_id: "otro-proyecto",
@@ -326,6 +507,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(400);
+
     expect(resultado.body.message).toBe(
       "El centro de costo no pertenece al proyecto base seleccionado.",
     );
@@ -335,9 +517,11 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
       proyectoBaseMock as never,
     );
+
     vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue(
       centroCostoMock as never,
     );
+
     vi.mocked(
       obtenerAccesoActivoUsuarioProyectoLineaRepository,
     ).mockResolvedValue(null);
@@ -348,6 +532,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(403);
+
     expect(resultado.body.message).toBe(
       "No tiene acceso activo al proyecto y línea de negocio seleccionados.",
     );
@@ -357,12 +542,15 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
       proyectoBaseMock as never,
     );
+
     vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue(
       centroCostoMock as never,
     );
+
     vi.mocked(
       obtenerAccesoActivoUsuarioProyectoLineaRepository,
     ).mockResolvedValue(accesoMock as never);
+
     vi.mocked(obtenerFondoActivoPorProyectoRepository).mockResolvedValue(null);
 
     const resultado = await crearSolicitudPagoProveedorService(
@@ -371,6 +559,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(404);
+
     expect(resultado.body.message).toBe(
       "El proyecto base no tiene un fondo activo asociado.",
     );
@@ -380,15 +569,19 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
       proyectoBaseMock as never,
     );
+
     vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue(
       centroCostoMock as never,
     );
+
     vi.mocked(
       obtenerAccesoActivoUsuarioProyectoLineaRepository,
     ).mockResolvedValue(accesoMock as never);
+
     vi.mocked(obtenerFondoActivoPorProyectoRepository).mockResolvedValue(
       fondoMock as never,
     );
+
     vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(null);
 
     const resultado = await crearSolicitudPagoProveedorService(
@@ -397,6 +590,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(404);
+
     expect(resultado.body.message).toBe(
       "El beneficiario no existe o está inactivo.",
     );
@@ -406,15 +600,19 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
       proyectoBaseMock as never,
     );
+
     vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue(
       centroCostoMock as never,
     );
+
     vi.mocked(
       obtenerAccesoActivoUsuarioProyectoLineaRepository,
     ).mockResolvedValue(accesoMock as never);
+
     vi.mocked(obtenerFondoActivoPorProyectoRepository).mockResolvedValue(
       fondoMock as never,
     );
+
     vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue({
       ...beneficiarioProveedorMock,
       tipo_beneficiario: "TRABAJADOR",
@@ -426,9 +624,48 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
 
     expect(resultado.status).toBe(400);
+
     expect(resultado.body.message).toBe(
       "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR.",
     );
+  });
+
+  it("debe validar combinación válida de línea y fase del centro de costo", async () => {
+    vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
+      proyectoBaseMock as never,
+    );
+
+    vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue({
+      ...centroCostoMock,
+      linea_negocio: "OBRA",
+      fase_centro_costo: "FASE_INVALIDA",
+    } as never);
+
+    vi.mocked(
+      obtenerAccesoActivoUsuarioProyectoLineaRepository,
+    ).mockResolvedValue(accesoMock as never);
+
+    vi.mocked(obtenerFondoActivoPorProyectoRepository).mockResolvedValue(
+      fondoMock as never,
+    );
+
+    vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(
+      beneficiarioProveedorMock as never,
+    );
+
+    const resultado = await crearSolicitudPagoProveedorService(
+      usuarioSolicitante,
+      inputBase,
+    );
+
+    expect(resultado.status).toBe(400);
+
+    expect(resultado.body.message).toBe(
+      "La línea de negocio y la fase del centro de costo no permiten construir el consecutivo documental.",
+    );
+
+    expect(generarNumeroSolicitudPagoService).not.toHaveBeenCalled();
+    expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
   });
 
   it("debe crear solicitud de pago a proveedor en borrador", async () => {
@@ -441,18 +678,22 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
 
     expect(resultado.status).toBe(201);
     expect(resultado.body.ok).toBe(true);
+
     expect(resultado.body.data?.solicitud.numero_solicitud).toBe(
-      "SOL-2026-000001",
+      "SOL-PRO-OBRA-HUMAPO-2026-000001",
     );
+
     expect(resultado.body.data?.solicitud.valor_neto).toBe(76000);
 
     expect(generarNumeroSolicitudPagoService).toHaveBeenCalledWith({
       proyecto_base_id: "proyecto-1",
       centro_costo_id: "centro-1",
+      proyecto_referencia: "HUMAPO",
+      centro_costo_referencia: "PRO-OBRA",
     });
 
     expect(crearSolicitudPagoRepository).toHaveBeenCalledWith({
-      numero_solicitud: "SOL-2026-000001",
+      numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000001",
       tipo_solicitud: "PAGO_PROVEEDOR",
       proyecto_base_id: "proyecto-1",
       fondo_id: "fondo-1",

@@ -1,7 +1,9 @@
+import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import {
   cambiarEstadoCentroCostoRepository,
   crearProyectoBaseConCentroCostoRepository,
   existeProyectoBasePorNombreRepository,
+  listarProyectosBasePorAccesosUsuarioRepository,
   listarProyectosBaseRepository,
   obtenerCentroCostoPorProyectoRepository,
   obtenerProyectoBasePorIdRepository,
@@ -35,6 +37,10 @@ const ESTADOS_CENTRO_COSTO_VALIDOS: EstadoCentroCosto[] = [
 
 function normalizarTexto(texto: string) {
   return texto.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+function usuarioEsAdministrador(usuario: UsuarioSesion) {
+  return usuario.roles.includes("ADMINISTRADOR");
 }
 
 function validarLineaNegocio(
@@ -171,8 +177,16 @@ function validarTransicionCentroCostoPorFase(
 
 export async function listarProyectosBaseService(
   filters: ProyectoBaseListFilters = {},
+  usuarioAutenticado?: UsuarioSesion,
 ) {
-  return listarProyectosBaseRepository(filters);
+  if (!usuarioAutenticado || usuarioEsAdministrador(usuarioAutenticado)) {
+    return listarProyectosBaseRepository(filters);
+  }
+
+  return listarProyectosBasePorAccesosUsuarioRepository(
+    usuarioAutenticado.id,
+    filters,
+  );
 }
 
 export async function obtenerProyectoBasePorIdService(id: string) {

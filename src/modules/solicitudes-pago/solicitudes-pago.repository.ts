@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   CrearSolicitudPagoRepositoryInput,
   SolicitudPagoListFilters,
+  VisibilidadSolicitudesPago,
 } from "./solicitudes-pago.types";
 
 const solicitudPagoInclude = {
@@ -46,11 +47,6 @@ const solicitudPagoInclude = {
       correo: true,
     },
   },
-};
-
-export type AccesoUsuarioProyectoLinea = {
-  proyecto_base_id: string;
-  linea_negocio: string;
 };
 
 export async function obtenerProyectoBaseActivoRepository(id: string) {
@@ -106,19 +102,6 @@ export async function obtenerAccesoActivoUsuarioProyectoLineaRepository(
   });
 }
 
-export async function listarAccesosActivosUsuarioRepository(usuarioId: string) {
-  return prisma.accesos_usuario_proyecto.findMany({
-    where: {
-      usuario_id: usuarioId,
-      activo: true,
-    },
-    select: {
-      proyecto_base_id: true,
-      linea_negocio: true,
-    },
-  });
-}
-
 export async function crearSolicitudPagoRepository(
   data: CrearSolicitudPagoRepositoryInput,
 ) {
@@ -142,14 +125,13 @@ export async function crearSolicitudPagoRepository(
       estado_actual: data.estado_actual,
       creado_por: data.creado_por,
     },
+    include: solicitudPagoInclude,
   });
 }
 
 export async function listarSolicitudesPagoRepository(input: {
   filters?: SolicitudPagoListFilters;
-  usuarioId: string;
-  consultarTodo: boolean;
-  accesos: AccesoUsuarioProyectoLinea[];
+  visibilidad: VisibilidadSolicitudesPago;
 }) {
   const filtros = input.filters ?? {};
 
@@ -212,30 +194,33 @@ export async function listarSolicitudesPagoRepository(input: {
       : {}),
   };
 
-  const accesosWhere: Prisma.solicitudes_pagoWhereInput[] = input.accesos.map(
-    (acceso) => ({
-      proyecto_base_id: acceso.proyecto_base_id,
-      centro_costo: {
-        linea_negocio: acceso.linea_negocio,
-      },
-    }),
-  );
+  const condicionesVisibilidad: Prisma.solicitudes_pagoWhereInput[] = [];
 
-  const where: Prisma.solicitudes_pagoWhereInput = input.consultarTodo
-    ? whereBase
-    : {
-        AND: [
-          whereBase,
-          {
-            OR: [
-              {
-                creado_por: input.usuarioId,
-              },
-              ...accesosWhere,
-            ],
-          },
-        ],
-      };
+  if (input.visibilidad.incluir_propias) {
+    condicionesVisibilidad.push({
+      creado_por: input.visibilidad.usuario_id,
+    });
+  }
+
+  if (input.visibilidad.estados_flujo.length > 0) {
+    condicionesVisibilidad.push({
+      estado_actual: {
+        in: input.visibilidad.estados_flujo,
+      },
+    });
+  }
+
+  const where: Prisma.solicitudes_pagoWhereInput =
+    input.visibilidad.consultar_todas
+      ? whereBase
+      : {
+          AND: [
+            whereBase,
+            {
+              OR: condicionesVisibilidad,
+            },
+          ],
+        };
 
   return prisma.solicitudes_pago.findMany({
     where,

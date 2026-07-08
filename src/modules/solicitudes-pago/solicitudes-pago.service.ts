@@ -1,8 +1,9 @@
+// src/modules/solicitudes-pago/solicitudes-pago.service.ts
+
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import {
   crearSolicitudPagoRepository,
-  listarAccesosActivosUsuarioRepository,
   listarSolicitudesPagoRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerBeneficiarioActivoRepository,
@@ -18,6 +19,7 @@ import type {
   SolicitudPagoListFilters,
   SolicitudPagoListado,
   TipoSolicitudPago,
+  VisibilidadSolicitudesPago,
 } from "./solicitudes-pago.types";
 
 const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
@@ -71,7 +73,34 @@ function usuarioEsAdministrador(usuario: UsuarioSesion) {
 }
 
 function usuarioPuedeConsultarTodo(usuario: UsuarioSesion) {
-  return usuarioEsAdministrador(usuario) || usuarioTienePermiso(usuario, "CONSULTAR_TODO");
+  return usuarioEsAdministrador(usuario);
+}
+
+function construirVisibilidadSolicitudesPago(
+  usuario: UsuarioSesion,
+): VisibilidadSolicitudesPago {
+  const consultarTodas = usuarioPuedeConsultarTodo(usuario);
+  const estadosFlujo = new Set<EstadoSolicitudPago>();
+
+  if (usuarioTienePermiso(usuario, "APROBAR_NIVEL_1")) {
+    estadosFlujo.add("PENDIENTE_APROBADOR_1");
+    estadosFlujo.add("DEVUELTA_APROBADOR_1");
+  }
+
+  if (usuarioTienePermiso(usuario, "APROBAR_NIVEL_2")) {
+    estadosFlujo.add("PENDIENTE_APROBADOR_2");
+  }
+
+  if (usuarioTienePermiso(usuario, "MARCAR_COMO_PAGADO")) {
+    estadosFlujo.add("PROGRAMADA_PAGO");
+  }
+
+  return {
+    consultar_todas: consultarTodas,
+    usuario_id: usuario.id,
+    incluir_propias: !consultarTodas,
+    estados_flujo: consultarTodas ? [] : Array.from(estadosFlujo),
+  };
 }
 
 function normalizarTexto(valor?: string | null) {
@@ -131,6 +160,40 @@ function convertirDecimalANumero(valor: unknown) {
   }
 
   return Number(valor);
+}
+
+function obtenerReferenciaCentroCosto(input: {
+  linea_negocio: string;
+  fase_centro_costo: string;
+}) {
+  const lineaNegocio = input.linea_negocio.trim().toUpperCase();
+  const faseCentroCosto = input.fase_centro_costo.trim().toUpperCase();
+
+  if (lineaNegocio === "OBRA" && faseCentroCosto === "LICITACION") {
+    return "PRO-OBRA";
+  }
+
+  if (lineaNegocio === "OBRA" && faseCentroCosto === "EJECUCION") {
+    return "OBRA";
+  }
+
+  if (
+    lineaNegocio === "INTERVENTORIA" &&
+    faseCentroCosto === "LICITACION"
+  ) {
+    return "PRO-INT";
+  }
+
+  if (
+    lineaNegocio === "INTERVENTORIA" &&
+    faseCentroCosto === "EJECUCION"
+  ) {
+    return "INT";
+  }
+
+  throw new Error(
+    "La línea de negocio y la fase del centro de costo no permiten construir el consecutivo documental.",
+  );
 }
 
 function convertirSolicitudPago(solicitud: {
@@ -242,9 +305,12 @@ function normalizarFiltrosListado(
   return {
     tipo_solicitud: tipoSolicitud,
     estado_actual: estadoSolicitud,
-    proyecto_base_id: normalizarTextoOpcional(filters.proyecto_base_id) ?? undefined,
-    centro_costo_id: normalizarTextoOpcional(filters.centro_costo_id) ?? undefined,
-    beneficiario_id: normalizarTextoOpcional(filters.beneficiario_id) ?? undefined,
+    proyecto_base_id:
+      normalizarTextoOpcional(filters.proyecto_base_id) ?? undefined,
+    centro_costo_id:
+      normalizarTextoOpcional(filters.centro_costo_id) ?? undefined,
+    beneficiario_id:
+      normalizarTextoOpcional(filters.beneficiario_id) ?? undefined,
     medio_pago: medioPago,
     busqueda: normalizarTextoOpcional(filters.busqueda) ?? undefined,
   };
@@ -286,16 +352,13 @@ export async function listarSolicitudesPagoService(
     };
   }
 
-  const consultarTodo = usuarioPuedeConsultarTodo(usuarioAutenticado);
-  const accesos = consultarTodo
-    ? []
-    : await listarAccesosActivosUsuarioRepository(usuarioAutenticado.id);
+  const visibilidad = construirVisibilidadSolicitudesPago(
+    usuarioAutenticado,
+  );
 
   const solicitudes = await listarSolicitudesPagoRepository({
     filters: filtrosNormalizados,
-    usuarioId: usuarioAutenticado.id,
-    consultarTodo,
-    accesos,
+    visibilidad,
   });
 
   return {
@@ -344,7 +407,7 @@ export async function crearSolicitudPagoProveedorService(
       body: {
         ok: false,
         message:
-          "Proyecto base, centro de costo, beneficiario, categoría, medio de pago y descripción son obligatorios.",
+          "Proyecto base, centro de costo, beneficiario, categoría, medio de pago y concepto de pago son obligatorios.",
       },
     };
   }
@@ -376,7 +439,7 @@ export async function crearSolicitudPagoProveedorService(
       body: {
         ok: false,
         message:
-          "Los valores de la solicitud deben ser numéricos y el valor bruto debe ser mayor a cero.",
+          "Los valores deben ser numéricos y el valor de la factura debe ser mayor a cero.",
       },
     };
   }
@@ -389,12 +452,13 @@ export async function crearSolicitudPagoProveedorService(
       status: 400,
       body: {
         ok: false,
-        message: "El valor neto no puede ser negativo.",
+        message: "El valor a pagar no puede ser negativo.",
       },
     };
   }
 
-  const proyectoBase = await obtenerProyectoBaseActivoRepository(proyectoBaseId);
+  const proyectoBase =
+    await obtenerProyectoBaseActivoRepository(proyectoBaseId);
 
   if (!proyectoBase) {
     return {
@@ -484,9 +548,31 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
+  let centroCostoReferencia: string;
+
+  try {
+    centroCostoReferencia = obtenerReferenciaCentroCosto({
+      linea_negocio: centroCosto.linea_negocio,
+      fase_centro_costo: centroCosto.fase_centro_costo,
+    });
+  } catch (error) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "No fue posible construir la referencia del centro de costo.",
+      },
+    };
+  }
+
   const secuencia = await generarNumeroSolicitudPagoService({
     proyecto_base_id: proyectoBaseId,
     centro_costo_id: centroCostoId,
+    proyecto_referencia: proyectoBase.nombre,
+    centro_costo_referencia: centroCostoReferencia,
   });
 
   const solicitud = await crearSolicitudPagoRepository({

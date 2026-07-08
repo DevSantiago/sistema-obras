@@ -188,6 +188,24 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
     expect(crearBeneficiarioRepository).not.toHaveBeenCalled();
   });
 
+  it("debe lanzar error si un trabajador tiene tipo de documento NIT", async () => {
+    await expect(
+      crearBeneficiarioService(usuarioAutorizado, {
+        ...inputBase,
+        tipo_beneficiario: "TRABAJADOR",
+        tipo_documento: "NIT",
+      }),
+    ).rejects.toThrow(
+      "Un beneficiario tipo TRABAJADOR no puede tener tipo de identificación NIT.",
+    );
+
+    expect(
+      existeBeneficiarioPorDocumentoRepository,
+    ).not.toHaveBeenCalled();
+
+    expect(crearBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
   it("debe lanzar error si falta el nombre", async () => {
     await expect(
       crearBeneficiarioService(usuarioAutorizado, {
@@ -258,6 +276,7 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
       "CC",
       "123456789",
     );
+
     expect(crearBeneficiarioRepository).not.toHaveBeenCalled();
   });
 
@@ -275,11 +294,13 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
     expect(obtenerUsuarioActivoPorIdRepository).toHaveBeenCalledWith(
       "usuario-inactivo",
     );
+
     expect(crearBeneficiarioRepository).not.toHaveBeenCalled();
   });
 
   it("debe crear beneficiario trabajador normalizado", async () => {
     vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
+
     vi.mocked(crearBeneficiarioRepository).mockResolvedValue(
       beneficiarioMock as never,
     );
@@ -337,6 +358,7 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
 
   it("debe lanzar error si ya existe proveedor activo con ese documento", async () => {
     vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
+
     vi.mocked(obtenerProveedorPorDocumentoRepository).mockResolvedValue({
       id: "proveedor-1",
     } as never);
@@ -360,12 +382,14 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
       "NIT",
       "900123456",
     );
+
     expect(crearBeneficiarioRepository).not.toHaveBeenCalled();
   });
 
   it("debe crear beneficiario proveedor con proveedor nuevo", async () => {
     vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
     vi.mocked(obtenerProveedorPorDocumentoRepository).mockResolvedValue(null);
+
     vi.mocked(crearBeneficiarioRepository).mockResolvedValue(
       {
         ...beneficiarioMock,
@@ -467,6 +491,7 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
     expect(obtenerBeneficiarioPorIdRepository).toHaveBeenCalledWith(
       "beneficiario-x",
     );
+
     expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
   });
 
@@ -482,6 +507,7 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
     expect(obtenerBeneficiarioPorIdRepository).toHaveBeenCalledWith(
       "beneficiario-1",
     );
+
     expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
   });
 
@@ -536,7 +562,9 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
       actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
         correo: "correo-malo",
       }),
-    ).rejects.toThrow("El correo del beneficiario no tiene un formato válido.");
+    ).rejects.toThrow(
+      "El correo del beneficiario no tiene un formato válido.",
+    );
 
     expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
   });
@@ -559,6 +587,7 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
     vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
       beneficiarioMock as never,
     );
+
     vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
       ...beneficiarioMock,
       telefono: "3101234567",
@@ -594,6 +623,7 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
     vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
       beneficiarioMock as never,
     );
+
     vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
       ...beneficiarioMock,
       banco: "BBVA",
@@ -629,6 +659,7 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
     vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
       beneficiarioMock as never,
     );
+
     vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
       ...beneficiarioMock,
       activo: false,
@@ -656,6 +687,7 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
     vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
       beneficiarioMock as never,
     );
+
     vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
       ...beneficiarioMock,
       telefono: null,

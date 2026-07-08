@@ -115,6 +115,17 @@ function validarBanco(banco: string, mensaje: string) {
   }
 }
 
+function validarTipoDocumentoPorBeneficiario(
+  tipoBeneficiario: TipoBeneficiario,
+  tipoDocumento: string,
+) {
+  if (tipoBeneficiario === "TRABAJADOR" && tipoDocumento === "NIT") {
+    throw new Error(
+      "Un beneficiario tipo TRABAJADOR no puede tener tipo de identificación NIT.",
+    );
+  }
+}
+
 function validarPermisoGestionBeneficiarios(usuario: UsuarioSesion) {
   if (!usuarioTieneAlgunPermiso(usuario, PERMISOS_GESTION_BENEFICIARIOS)) {
     throw new Error("No autorizado.");
@@ -139,7 +150,9 @@ function validarCorreoBeneficiario(correo: string | null | undefined) {
 
 function validarObjetoActualizacion(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("Debe enviar un cuerpo válido para actualizar el beneficiario.");
+    throw new Error(
+      "Debe enviar un cuerpo válido para actualizar el beneficiario.",
+    );
   }
 }
 
@@ -365,18 +378,22 @@ export async function crearBeneficiarioService(
     input.nombre,
     "El nombre del beneficiario es obligatorio.",
   );
+
   validarCampoObligatorio(
     input.tipo_documento,
     "El tipo de documento del beneficiario es obligatorio.",
   );
+
   validarCampoObligatorio(
     input.numero_documento,
     "El número de documento del beneficiario es obligatorio.",
   );
+
   validarSoloNumeros(
     input.numero_documento,
     "El número de documento debe contener solo números.",
   );
+
   validarCampoObligatorio(
     input.medio_pago_preferido,
     "El medio de pago preferido es obligatorio.",
@@ -385,6 +402,14 @@ export async function crearBeneficiarioService(
   if (!validarMedioPago(input.medio_pago_preferido)) {
     throw new Error("El medio de pago preferido no es válido.");
   }
+
+  const tipoDocumento = normalizarTextoMayuscula(input.tipo_documento);
+  const numeroDocumento = normalizarTextoMayuscula(input.numero_documento);
+
+  validarTipoDocumentoPorBeneficiario(
+    input.tipo_beneficiario,
+    tipoDocumento,
+  );
 
   const requiereBanco = requiereDatosBancarios(input.medio_pago_preferido);
 
@@ -422,9 +447,6 @@ export async function crearBeneficiarioService(
       throw new Error("El tipo de cuenta bancaria no es válido.");
     }
   }
-
-  const tipoDocumento = normalizarTextoMayuscula(input.tipo_documento);
-  const numeroDocumento = normalizarTextoMayuscula(input.numero_documento);
 
   const bancoNormalizado = requiereBanco
     ? normalizarTextoMayuscula(input.banco ?? "")
@@ -472,14 +494,17 @@ export async function crearBeneficiarioService(
         input.proveedor.nombre,
         "El nombre del proveedor es obligatorio.",
       );
+
       validarCampoObligatorio(
         input.proveedor.tipo_documento,
         "El tipo de documento del proveedor es obligatorio.",
       );
+
       validarCampoObligatorio(
         input.proveedor.numero_documento,
         "El número de documento del proveedor es obligatorio.",
       );
+
       validarSoloNumeros(
         input.proveedor.numero_documento,
         "El número de documento del proveedor debe contener solo números.",
@@ -519,13 +544,16 @@ export async function crearBeneficiarioService(
           !input.proveedor.tipo_cuenta_bancaria ||
           !validarTipoCuenta(input.proveedor.tipo_cuenta_bancaria)
         ) {
-          throw new Error("El tipo de cuenta bancaria del proveedor no es válido.");
+          throw new Error(
+            "El tipo de cuenta bancaria del proveedor no es válido.",
+          );
         }
       }
 
       const tipoDocumentoProveedor = normalizarTextoMayuscula(
         input.proveedor.tipo_documento,
       );
+
       const numeroDocumentoProveedor = normalizarTextoMayuscula(
         input.proveedor.numero_documento,
       );

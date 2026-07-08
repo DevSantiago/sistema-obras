@@ -1,8 +1,8 @@
 "use client";
 
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import Link from "next/link";
 import { useState } from "react";
-import { LogoutButton } from "@/components/auth/LogoutButton";
 import styles from "./PrivateLayout.module.css";
 
 type PrivateLayoutProps = {
@@ -14,8 +14,84 @@ type PrivateLayoutProps = {
   };
 };
 
+type MenuItem = {
+  label: string;
+  href: string;
+  visibleParaRoles: string[];
+};
+
+const MENU_ITEMS: MenuItem[] = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    visibleParaRoles: [
+      "ADMINISTRADOR",
+      "DIRECTOR",
+      "APROBADOR_1",
+      "APROBADOR_2",
+      "SOLICITANTE",
+    ],
+  },
+  {
+    label: "Usuarios",
+    href: "/usuarios",
+    visibleParaRoles: ["ADMINISTRADOR", "DIRECTOR", "APROBADOR_1"],
+  },
+  {
+    label: "Proyectos",
+    href: "/proyectos-base",
+    visibleParaRoles: ["ADMINISTRADOR", "DIRECTOR", "APROBADOR_1"],
+  },
+  {
+    label: "Beneficiarios",
+    href: "/beneficiarios",
+    visibleParaRoles: ["ADMINISTRADOR", "DIRECTOR", "APROBADOR_1"],
+  },
+  {
+    label: "Solicitudes",
+    href: "/solicitudes-pago",
+    visibleParaRoles: [
+      "ADMINISTRADOR",
+      "DIRECTOR",
+      "APROBADOR_1",
+      "SOLICITANTE",
+      "AUXILIAR_CONTABLE",
+    ],
+  },
+  {
+    label: "Aprobación",
+    href: "/aprobacion",
+    visibleParaRoles: [
+      "ADMINISTRADOR",
+      "DIRECTOR",
+      "APROBADOR_1",
+      "APROBADOR_2",
+    ],
+  },
+  {
+    label: "Pagos",
+    href: "/pagos",
+    visibleParaRoles: ["ADMINISTRADOR", "TESORERIA", "PAGOS"],
+  },
+];
+
+function usuarioTieneAlgunoDeLosRoles(
+  usuarioRoles: string[],
+  rolesPermitidos: string[],
+) {
+  return rolesPermitidos.some((rol) => usuarioRoles.includes(rol));
+}
+
+function menuItemEsVisible(item: MenuItem, usuarioRoles: string[]) {
+  return usuarioTieneAlgunoDeLosRoles(usuarioRoles, item.visibleParaRoles);
+}
+
 export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
+
+  const menuVisible = MENU_ITEMS.filter((item) =>
+    menuItemEsVisible(item, usuario.roles),
+  );
 
   function cerrarMenu() {
     setMenuAbierto(false);
@@ -23,14 +99,14 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
 
   return (
     <div className={styles.shell}>
-      {menuAbierto && (
+      {menuAbierto ? (
         <button
           className={styles.backdrop}
           type="button"
           aria-label="Cerrar menú"
           onClick={cerrarMenu}
         />
-      )}
+      ) : null}
 
       <aside
         className={`${styles.sidebar} ${
@@ -47,41 +123,16 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
         </div>
 
         <nav className={styles.nav} aria-label="Menú principal">
-          <Link className={styles.navLink} href="/dashboard" onClick={cerrarMenu}>
-            Dashboard
-          </Link>
-
-          <Link className={styles.navLink} href="/usuarios" onClick={cerrarMenu}>
-            Usuarios
-          </Link>
-
-          <Link
-            className={styles.navLink}
-            href="/proyectos-base"
-            onClick={cerrarMenu}
-          >
-            Proyectos
-          </Link>
-
-          <Link
-            className={styles.navLink}
-            href="/beneficiarios"
-            onClick={cerrarMenu}
-          >
-            Beneficiarios
-          </Link>
-
-          <Link
-            className={styles.navLink}
-            href="/solicitudes"
-            onClick={cerrarMenu}
-          >
-            Solicitudes
-          </Link>
-
-          <Link className={styles.navLink} href="/pagos" onClick={cerrarMenu}>
-            Pagos
-          </Link>
+          {menuVisible.map((item) => (
+            <Link
+              key={item.href}
+              className={styles.navLink}
+              href={item.href}
+              onClick={cerrarMenu}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         <div className={styles.sidebarFooter}>
