@@ -23,24 +23,31 @@ export async function GET(request: NextRequest) {
   try {
     const usuarioAutenticado = await obtenerUsuarioSesionDesdeCookie();
 
-    if (!usuarioAutenticado.body.ok) {
+    if (!usuarioAutenticado.body.ok || !usuarioAutenticado.body.data) {
       return NextResponse.json(usuarioAutenticado.body, {
         status: usuarioAutenticado.status,
       });
     }
+
+    const usuario = usuarioAutenticado.body.data.usuario;
 
     const { searchParams } = new URL(request.url);
 
     const estadoProyecto = searchParams.get("estado_proyecto");
     const activoParam = searchParams.get("activo");
 
-    const proyectosBase = await listarProyectosBaseService({
-      estado_proyecto: estadoProyecto
-        ? (estadoProyecto as EstadoProyectoBase)
-        : undefined,
-      activo:
-        activoParam === null ? undefined : activoParam.toLowerCase() === "true",
-    });
+    const proyectosBase = await listarProyectosBaseService(
+      {
+        estado_proyecto: estadoProyecto
+          ? (estadoProyecto as EstadoProyectoBase)
+          : undefined,
+        activo:
+          activoParam === null
+            ? undefined
+            : activoParam.toLowerCase() === "true",
+      },
+      usuario,
+    );
 
     return NextResponse.json({
       ok: true,

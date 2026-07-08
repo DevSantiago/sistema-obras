@@ -63,6 +63,13 @@ export type SolicitudPagoListFilters = {
   busqueda?: string;
 };
 
+export type VisibilidadSolicitudesPago = {
+  consultar_todas: boolean;
+  usuario_id: string;
+  incluir_propias: boolean;
+  estados_flujo: EstadoSolicitudPago[];
+};
+
 export type SolicitudPagoListado = {
   id: string;
   numero_solicitud: string;
@@ -82,8 +89,8 @@ export type SolicitudPagoListado = {
   valor_neto: number;
   estado_actual: EstadoSolicitudPago;
   creado_por: string | null;
-  creado_en: Date;
-  actualizado_en: Date;
+  creado_en: string | Date;
+  actualizado_en: string | Date;
   proyecto_base?: {
     id: string;
     nombre: string;
@@ -114,6 +121,78 @@ export type SolicitudPagoListado = {
     nombre: string;
     correo: string;
   } | null;
+};
+
+export type UsuarioSesionSolicitudesPago = {
+  id: string;
+  nombre: string;
+  correo: string;
+  roles: string[];
+  permisos?: string[];
+};
+
+export type CentroCostoSolicitudCatalogo = {
+  id: string;
+  nombre: string;
+  linea_negocio: string;
+  fase_centro_costo: string;
+  estado_centro_costo: string;
+  activo?: boolean;
+};
+
+export type ProyectoBaseSolicitudCatalogo = {
+  id: string;
+  nombre: string;
+  estado_proyecto: string;
+  activo?: boolean;
+  centros_costo?: CentroCostoSolicitudCatalogo[];
+  centrosCosto?: CentroCostoSolicitudCatalogo[];
+};
+
+export type BeneficiarioSolicitudCatalogo = {
+  id: string;
+  tipo_beneficiario: string;
+  nombre: string;
+  tipo_documento: string;
+  numero_documento: string;
+  medio_pago_preferido?: MedioPagoSolicitud;
+  activo?: boolean;
+};
+
+export type SolicitudPagoFormularioState = {
+  proyecto_base_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string;
+  categoria_gasto: string;
+  medio_pago: MedioPagoSolicitud;
+  descripcion: string;
+  valor_bruto: string;
+  valor_impuestos: string;
+  valor_retenciones: string;
+  valor_descuentos: string;
+};
+
+export type SolicitudesPagoApiResponse<T> = {
+  ok: boolean;
+  message?: string;
+  data?: T;
+};
+
+export type ProyectosBaseSolicitudResponseData =
+  | ProyectoBaseSolicitudCatalogo[]
+  | {
+      proyectos?: ProyectoBaseSolicitudCatalogo[];
+    };
+
+export type BeneficiariosSolicitudResponseData =
+  | BeneficiarioSolicitudCatalogo[]
+  | {
+      beneficiarios?: BeneficiarioSolicitudCatalogo[];
+    };
+
+export type SolicitudesPagoResponseData = {
+  solicitudes?: SolicitudPagoListado[];
+  solicitud?: SolicitudPagoListado;
 };
 
 export type ServiceResponse<T> = {

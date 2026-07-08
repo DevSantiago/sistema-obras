@@ -18,6 +18,7 @@ const TIPOS_DOCUMENTO = ["CC", "CE", "NIT"];
 
 function limpiarOpcional(valor: string) {
   const valorLimpio = valor.trim();
+
   return valorLimpio === "" ? null : valorLimpio;
 }
 
@@ -56,26 +57,38 @@ export function BeneficiariosManager({
 
   const [beneficiarioEditando, setBeneficiarioEditando] =
     useState<BeneficiarioListado | null>(null);
+
   const [tipoBeneficiario, setTipoBeneficiario] =
     useState<TipoBeneficiario | "">("");
+
   const [tipoDocumento, setTipoDocumento] = useState("");
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [nombre, setNombre] = useState("");
+
   const [medioPagoPreferido, setMedioPagoPreferido] =
     useState<MedioPagoPreferido | "">("");
+
   const [banco, setBanco] = useState("");
+
   const [tipoCuentaBancaria, setTipoCuentaBancaria] =
     useState<TipoCuentaBancaria | "">("");
+
   const [numeroCuentaBancaria, setNumeroCuentaBancaria] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
   const [notas, setNotas] = useState("");
   const [activo, setActivo] = useState(true);
+
   const [mensajeError, setMensajeError] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
   const esEdicion = Boolean(beneficiarioEditando);
+
+  const tiposDocumentoDisponibles =
+    tipoBeneficiario === "TRABAJADOR"
+      ? TIPOS_DOCUMENTO.filter((tipo) => tipo !== "NIT")
+      : TIPOS_DOCUMENTO;
 
   function limpiarFormulario() {
     setBeneficiarioEditando(null);
@@ -111,6 +124,14 @@ export function BeneficiariosManager({
     setMensajeExito(null);
   }
 
+  function manejarCambioTipoBeneficiario(valor: TipoBeneficiario | "") {
+    setTipoBeneficiario(valor);
+
+    if (valor === "TRABAJADOR" && tipoDocumento === "NIT") {
+      setTipoDocumento("");
+    }
+  }
+
   function manejarCambioMedioPago(valor: MedioPagoPreferido | "") {
     setMedioPagoPreferido(valor);
 
@@ -123,6 +144,7 @@ export function BeneficiariosManager({
 
   async function manejarSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setMensajeError(null);
     setMensajeExito(null);
 
@@ -133,6 +155,26 @@ export function BeneficiariosManager({
 
     if (!tipoDocumento) {
       setMensajeError("Seleccione el tipo de identificación.");
+      return;
+    }
+
+    if (
+      tipoBeneficiario === "TRABAJADOR" &&
+      tipoDocumento.toUpperCase() === "NIT"
+    ) {
+      setMensajeError(
+        "Un beneficiario tipo trabajador no puede tener identificación NIT.",
+      );
+      return;
+    }
+
+    if (!numeroDocumento.trim()) {
+      setMensajeError("Ingrese el número de identificación.");
+      return;
+    }
+
+    if (!nombre.trim()) {
+      setMensajeError("Ingrese el nombre del beneficiario.");
       return;
     }
 
@@ -148,6 +190,14 @@ export function BeneficiariosManager({
 
     if (requiereDatosBancarios(medioPagoPreferido) && !tipoCuentaBancaria) {
       setMensajeError("Seleccione el tipo de cuenta bancaria.");
+      return;
+    }
+
+    if (
+      requiereDatosBancarios(medioPagoPreferido) &&
+      !numeroCuentaBancaria.trim()
+    ) {
+      setMensajeError("Ingrese el número de cuenta bancaria.");
       return;
     }
 
@@ -199,7 +249,8 @@ export function BeneficiariosManager({
                   telefono: telefonoNormalizado,
                   banco: datosBancarios.banco,
                   tipo_cuenta_bancaria: datosBancarios.tipo_cuenta_bancaria,
-                  numero_cuenta_bancaria: datosBancarios.numero_cuenta_bancaria,
+                  numero_cuenta_bancaria:
+                    datosBancarios.numero_cuenta_bancaria,
                 }
               : undefined,
         };
@@ -234,12 +285,14 @@ export function BeneficiariosManager({
       }
 
       limpiarFormulario();
+
       setMensajeExito(
         data.message ||
           (esEdicion
             ? "Beneficiario actualizado correctamente."
             : "Beneficiario creado correctamente."),
       );
+
       router.refresh();
     } catch {
       setMensajeError(
@@ -272,6 +325,7 @@ export function BeneficiariosManager({
             <h2 className={styles.formTitle}>
               {esEdicion ? "Editar beneficiario" : "Crear beneficiario"}
             </h2>
+
             <p className={styles.formDescription}>
               {esEdicion
                 ? "Actualice los datos operativos del beneficiario. La identificación y el tipo de beneficiario no se pueden modificar."
@@ -281,12 +335,17 @@ export function BeneficiariosManager({
 
           <div className={styles.grid}>
             <label className={styles.field}>
-              <span className={styles.label}>Tipo de beneficiario</span>
+              <span className={styles.label}>
+                Tipo de beneficiario <strong aria-hidden="true">*</strong>
+              </span>
+
               <select
                 className={styles.input}
                 value={tipoBeneficiario}
                 onChange={(event) =>
-                  setTipoBeneficiario(event.target.value as TipoBeneficiario)
+                  manejarCambioTipoBeneficiario(
+                    event.target.value as TipoBeneficiario | "",
+                  )
                 }
                 disabled={esEdicion}
                 required
@@ -294,8 +353,10 @@ export function BeneficiariosManager({
                 <option value="" disabled>
                   Seleccione
                 </option>
+
                 <option value="TRABAJADOR">Trabajador</option>
                 <option value="PROVEEDOR">Proveedor</option>
+
                 {tipoBeneficiario === "OTRO" && (
                   <option value="OTRO">Otro</option>
                 )}
@@ -303,7 +364,10 @@ export function BeneficiariosManager({
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Tipo de identificación</span>
+              <span className={styles.label}>
+                Tipo de identificación <strong aria-hidden="true">*</strong>
+              </span>
+
               <select
                 className={styles.input}
                 value={tipoDocumento}
@@ -314,19 +378,26 @@ export function BeneficiariosManager({
                 <option value="" disabled>
                   Seleccione
                 </option>
-                {TIPOS_DOCUMENTO.map((tipo) => (
+
+                {tiposDocumentoDisponibles.map((tipo) => (
                   <option key={tipo} value={tipo}>
                     {tipo}
                   </option>
                 ))}
-                {esEdicion && tipoDocumento && !TIPOS_DOCUMENTO.includes(tipoDocumento) && (
-                  <option value={tipoDocumento}>{tipoDocumento}</option>
-                )}
+
+                {esEdicion &&
+                  tipoDocumento &&
+                  !tiposDocumentoDisponibles.includes(tipoDocumento) && (
+                    <option value={tipoDocumento}>{tipoDocumento}</option>
+                  )}
               </select>
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Número de identificación</span>
+              <span className={styles.label}>
+                Número de identificación <strong aria-hidden="true">*</strong>
+              </span>
+
               <input
                 className={styles.input}
                 type="text"
@@ -343,7 +414,10 @@ export function BeneficiariosManager({
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Nombre</span>
+              <span className={styles.label}>
+                Nombre <strong aria-hidden="true">*</strong>
+              </span>
+
               <input
                 className={styles.input}
                 type="text"
@@ -355,7 +429,10 @@ export function BeneficiariosManager({
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Medio de pago sugerido</span>
+              <span className={styles.label}>
+                Medio de pago sugerido <strong aria-hidden="true">*</strong>
+              </span>
+
               <select
                 className={styles.input}
                 value={medioPagoPreferido}
@@ -369,6 +446,7 @@ export function BeneficiariosManager({
                 <option value="" disabled>
                   Seleccione
                 </option>
+
                 <option value="TRANSFERENCIA">Transferencia</option>
                 <option value="CONSIGNACION">Consignación</option>
                 <option value="EFECTIVO">Efectivo</option>
@@ -376,7 +454,16 @@ export function BeneficiariosManager({
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Banco</span>
+              <span className={styles.label}>
+                Banco
+                {requiereDatosBancarios(medioPagoPreferido) && (
+                  <>
+                    {" "}
+                    <strong aria-hidden="true">*</strong>
+                  </>
+                )}
+              </span>
+
               <select
                 className={styles.input}
                 value={banco}
@@ -387,6 +474,7 @@ export function BeneficiariosManager({
                 <option value="" disabled>
                   Seleccione
                 </option>
+
                 {BANCOS_COLOMBIA.map((bancoDisponible) => (
                   <option key={bancoDisponible} value={bancoDisponible}>
                     {bancoDisponible}
@@ -396,7 +484,16 @@ export function BeneficiariosManager({
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Tipo de cuenta</span>
+              <span className={styles.label}>
+                Tipo de cuenta
+                {requiereDatosBancarios(medioPagoPreferido) && (
+                  <>
+                    {" "}
+                    <strong aria-hidden="true">*</strong>
+                  </>
+                )}
+              </span>
+
               <select
                 className={styles.input}
                 value={tipoCuentaBancaria}
@@ -411,8 +508,10 @@ export function BeneficiariosManager({
                 <option value="" disabled>
                   Seleccione
                 </option>
+
                 <option value="AHORROS">Ahorros</option>
                 <option value="CORRIENTE">Corriente</option>
+
                 {tipoCuentaBancaria === "OTRO" && (
                   <option value="OTRO">Otro</option>
                 )}
@@ -420,7 +519,16 @@ export function BeneficiariosManager({
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Número de cuenta</span>
+              <span className={styles.label}>
+                Número de cuenta
+                {requiereDatosBancarios(medioPagoPreferido) && (
+                  <>
+                    {" "}
+                    <strong aria-hidden="true">*</strong>
+                  </>
+                )}
+              </span>
+
               <input
                 className={styles.input}
                 type="text"
@@ -438,6 +546,7 @@ export function BeneficiariosManager({
 
             <label className={styles.field}>
               <span className={styles.label}>Teléfono</span>
+
               <input
                 className={styles.input}
                 type="text"
@@ -449,6 +558,7 @@ export function BeneficiariosManager({
 
             <label className={styles.field}>
               <span className={styles.label}>Correo</span>
+
               <input
                 className={styles.input}
                 type="email"
@@ -460,11 +570,16 @@ export function BeneficiariosManager({
 
             {esEdicion && (
               <label className={styles.field}>
-                <span className={styles.label}>Estado</span>
+                <span className={styles.label}>
+                  Estado <strong aria-hidden="true">*</strong>
+                </span>
+
                 <select
                   className={styles.input}
                   value={activo ? "ACTIVO" : "INACTIVO"}
-                  onChange={(event) => setActivo(event.target.value === "ACTIVO")}
+                  onChange={(event) =>
+                    setActivo(event.target.value === "ACTIVO")
+                  }
                 >
                   <option value="ACTIVO">Activo</option>
                   <option value="INACTIVO">Inactivo</option>
@@ -474,17 +589,19 @@ export function BeneficiariosManager({
           </div>
 
           <label className={styles.field}>
-            <span className={styles.label}>Notas</span>
+            <span className={styles.label}>Concepto de pago</span>
+
             <textarea
               className={styles.textarea}
               value={notas}
               onChange={(event) => setNotas(event.target.value)}
-              placeholder="Observaciones opcionales"
+              placeholder="Concepto u observaciones opcionales"
               rows={3}
             />
           </label>
 
           {mensajeError && <p className={styles.error}>{mensajeError}</p>}
+
           {mensajeExito && <p className={styles.success}>{mensajeExito}</p>}
 
           <div className={styles.actions}>
@@ -499,7 +616,11 @@ export function BeneficiariosManager({
               </button>
             )}
 
-            <button className={styles.button} type="submit" disabled={guardando}>
+            <button
+              className={styles.button}
+              type="submit"
+              disabled={guardando}
+            >
               {guardando
                 ? "Guardando..."
                 : esEdicion
@@ -541,6 +662,7 @@ export function BeneficiariosManager({
                         <strong className={styles.beneficiaryName}>
                           {beneficiario.nombre}
                         </strong>
+
                         <span className={styles.document}>
                           {beneficiario.tipo_documento}{" "}
                           {beneficiario.numero_documento}
@@ -557,6 +679,7 @@ export function BeneficiariosManager({
                         <span className={styles.contact}>
                           {beneficiario.correo ?? "Sin correo"}
                         </span>
+
                         <span className={styles.contact}>
                           {beneficiario.telefono ?? "Sin teléfono"}
                         </span>
@@ -567,6 +690,7 @@ export function BeneficiariosManager({
                           <span className={styles.payment}>
                             {beneficiario.medio_pago_preferido}
                           </span>
+
                           <span>{obtenerTextoCuenta(beneficiario)}</span>
                         </div>
                       </td>
@@ -579,7 +703,9 @@ export function BeneficiariosManager({
                         <button
                           className={styles.editButton}
                           type="button"
-                          onClick={() => cargarBeneficiarioParaEditar(beneficiario)}
+                          onClick={() =>
+                            cargarBeneficiarioParaEditar(beneficiario)
+                          }
                         >
                           Editar
                         </button>
@@ -592,10 +718,14 @@ export function BeneficiariosManager({
 
             <div className={styles.mobileList}>
               {beneficiarios.map((beneficiario) => (
-                <article className={styles.mobileCard} key={beneficiario.id}>
+                <article
+                  className={styles.mobileCard}
+                  key={beneficiario.id}
+                >
                   <div className={styles.mobileHeader}>
                     <div>
                       <h3>{beneficiario.nombre}</h3>
+
                       <p>
                         {beneficiario.tipo_documento}{" "}
                         {beneficiario.numero_documento}
@@ -641,7 +771,9 @@ export function BeneficiariosManager({
                     <button
                       className={styles.editButton}
                       type="button"
-                      onClick={() => cargarBeneficiarioParaEditar(beneficiario)}
+                      onClick={() =>
+                        cargarBeneficiarioParaEditar(beneficiario)
+                      }
                     >
                       Editar
                     </button>

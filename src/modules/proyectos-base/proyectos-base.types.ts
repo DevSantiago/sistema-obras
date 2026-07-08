@@ -39,3 +39,8 @@ export type ProyectoBaseListFilters = {
   estado_proyecto?: EstadoProyectoBase;
   activo?: boolean;
 };
+
+export type AccesoUsuarioProyectoBase = {
+  proyecto_base_id: string;
+  linea_negocio: LineaNegocioCentroCosto;
+};
