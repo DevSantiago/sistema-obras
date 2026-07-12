@@ -3,7 +3,6 @@
 import type {
   BeneficiarioSolicitudCatalogo,
   BeneficiariosSolicitudResponseData,
-  CentroCostoSolicitudCatalogo,
   MedioPagoSolicitud,
   ProyectoBaseSolicitudCatalogo,
   ProyectosBaseSolicitudResponseData,
@@ -21,47 +20,26 @@ import {
   useState,
 } from "react";
 import styles from "./SolicitudesPagoManager.module.css";
+import {
+  buscarBeneficiarioPorEtiqueta,
+  calcularValoresSolicitudPago,
+  CATEGORIAS_GASTO,
+  centroCostoPermitidoParaUsuario,
+  construirFormularioDesdeFormData,
+  ESTADO_INICIAL_FORMULARIO,
+  formatearFecha,
+  formatearMoneda,
+  formatearTextoDominio,
+  formatearValorEntrada,
+  MEDIOS_PAGO,
+  obtenerCentrosCosto,
+  obtenerEtiquetaBeneficiario,
+  type ValoresSolicitudPago,
+} from "./solicitudes-pago.utils";
 
 type SolicitudesPagoManagerProps = {
   usuario: UsuarioSesionSolicitudesPago;
 };
-
-type ValoresSolicitudPago = {
-  valorBruto: number;
-  valorImpuestos: number;
-  valorRetenciones: number;
-  valorDescuentos: number;
-  valorNeto: number;
-};
-
-const ESTADO_INICIAL_FORMULARIO: SolicitudPagoFormularioState = {
-  proyecto_base_id: "",
-  centro_costo_id: "",
-  beneficiario_id: "",
-  categoria_gasto: "",
-  medio_pago: "",
-  descripcion: "",
-  valor_bruto: "",
-  valor_impuestos: "0",
-  valor_retenciones: "0",
-  valor_descuentos: "0",
-};
-
-const CATEGORIAS_GASTO = [
-  "MATERIALES",
-  "MANO_OBRA",
-  "EQUIPOS",
-  "SERVICIOS",
-  "TRANSPORTE",
-  "ADMINISTRATIVO",
-  "OTRO",
-];
-
-const MEDIOS_PAGO: MedioPagoSolicitud[] = [
-  "TRANSFERENCIA",
-  "CONSIGNACION",
-  "EFECTIVO",
-];
 
 function extraerProyectos(data?: ProyectosBaseSolicitudResponseData) {
   if (!data) {
@@ -89,162 +67,6 @@ function extraerBeneficiarios(data?: BeneficiariosSolicitudResponseData) {
 
 function extraerSolicitudes(data?: SolicitudesPagoResponseData) {
   return data?.solicitudes ?? [];
-}
-
-function obtenerCentrosCosto(proyecto?: ProyectoBaseSolicitudCatalogo | null) {
-  return proyecto?.centros_costo ?? proyecto?.centrosCosto ?? [];
-}
-
-function obtenerValorFormulario(formData: FormData, campo: string) {
-  const valor = formData.get(campo);
-
-  return typeof valor === "string" ? valor.trim() : "";
-}
-
-function obtenerMedioPagoFormulario(
-  formData: FormData,
-): MedioPagoSolicitud | "" {
-  const valor = obtenerValorFormulario(formData, "medio_pago");
-
-  if (MEDIOS_PAGO.includes(valor as MedioPagoSolicitud)) {
-    return valor as MedioPagoSolicitud;
-  }
-
-  return "";
-}
-
-function construirFormularioDesdeFormData(
-  formData: FormData,
-): SolicitudPagoFormularioState {
-  return {
-    proyecto_base_id: obtenerValorFormulario(formData, "proyecto_base_id"),
-    centro_costo_id: obtenerValorFormulario(formData, "centro_costo_id"),
-    beneficiario_id: obtenerValorFormulario(formData, "beneficiario_id"),
-    categoria_gasto: obtenerValorFormulario(formData, "categoria_gasto"),
-    medio_pago: obtenerMedioPagoFormulario(formData),
-    descripcion: obtenerValorFormulario(formData, "descripcion"),
-    valor_bruto: obtenerValorFormulario(formData, "valor_bruto"),
-    valor_impuestos:
-      obtenerValorFormulario(formData, "valor_impuestos") || "0",
-    valor_retenciones:
-      obtenerValorFormulario(formData, "valor_retenciones") || "0",
-    valor_descuentos:
-      obtenerValorFormulario(formData, "valor_descuentos") || "0",
-  };
-}
-
-function limpiarSeparadoresNumericos(valor: string) {
-  return valor.replace(/[^\d]/g, "");
-}
-
-function formatearValorEntrada(valor: string) {
-  const valorLimpio = limpiarSeparadoresNumericos(valor);
-
-  if (!valorLimpio) {
-    return "";
-  }
-
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-  }).format(Number(valorLimpio));
-}
-
-function convertirNumero(valor: string) {
-  const valorLimpio = valor.replaceAll(",", "").trim();
-
-  if (!valorLimpio) {
-    return 0;
-  }
-
-  const numero = Number(valorLimpio);
-
-  return Number.isFinite(numero) ? numero : 0;
-}
-
-function calcularValoresSolicitudPago(
-  formulario: SolicitudPagoFormularioState,
-): ValoresSolicitudPago {
-  const valorBruto = convertirNumero(formulario.valor_bruto);
-  const valorImpuestos = convertirNumero(formulario.valor_impuestos);
-  const valorRetenciones = convertirNumero(formulario.valor_retenciones);
-  const valorDescuentos = convertirNumero(formulario.valor_descuentos);
-
-  return {
-    valorBruto,
-    valorImpuestos,
-    valorRetenciones,
-    valorDescuentos,
-    valorNeto:
-      valorBruto - valorImpuestos - valorRetenciones - valorDescuentos,
-  };
-}
-
-function formatearMoneda(valor: number) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(valor);
-}
-
-function formatearFecha(fecha: string | Date) {
-  return new Intl.DateTimeFormat("es-CO", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(fecha));
-}
-
-function formatearTextoDominio(valor?: string | null) {
-  return valor?.replaceAll("_", " ") ?? "No definido";
-}
-
-function usuarioTieneRol(usuario: UsuarioSesionSolicitudesPago, rol: string) {
-  return usuario.roles.includes(rol);
-}
-
-function centroCostoPermitidoParaUsuario(
-  centroCosto: CentroCostoSolicitudCatalogo,
-  usuario: UsuarioSesionSolicitudesPago,
-) {
-  if (centroCosto.activo === false) {
-    return false;
-  }
-
-  if (usuarioTieneRol(usuario, "ADMINISTRADOR")) {
-    return true;
-  }
-
-  if (usuarioTieneRol(usuario, "SOLICITANTE")) {
-    return centroCosto.linea_negocio === "OBRA";
-  }
-
-  return true;
-}
-
-function obtenerEtiquetaBeneficiario(
-  beneficiario: BeneficiarioSolicitudCatalogo,
-) {
-  return `${beneficiario.nombre} · ${beneficiario.tipo_documento} ${beneficiario.numero_documento}`;
-}
-
-function buscarBeneficiarioPorEtiqueta(
-  beneficiarios: BeneficiarioSolicitudCatalogo[],
-  etiqueta: string,
-) {
-  const etiquetaNormalizada = etiqueta.trim().toLowerCase();
-
-  if (!etiquetaNormalizada) {
-    return null;
-  }
-
-  return (
-    beneficiarios.find(
-      (beneficiario) =>
-        obtenerEtiquetaBeneficiario(beneficiario).toLowerCase() ===
-        etiquetaNormalizada,
-    ) ?? null
-  );
 }
 
 async function fetchJson<T>(
