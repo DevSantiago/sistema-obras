@@ -165,3 +165,21 @@ curl -X PATCH "http://localhost:3000/api/v1/proyectos-base/1662a485-54df-4264-bf
     "valor_retenciones": 5000,
     "valor_descuentos": 0
   }'
+
+  curl -i -X POST "http://localhost:3000/api/v1/solicitudes-pago" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session_token=TU_SESSION_TOKEN" \
+  --data-raw '{
+    "tipo_solicitud": "PAGO_NOMINA",
+    "modalidad_nomina": "INDIVIDUAL",
+    "periodo_nomina": "2026-07",
+    "proyecto_base_id": "6e5c471f-5871-40c6-a2a0-2c0bda04485e",
+    "centro_costo_id": "11b8d22d-44e3-444a-acbd-4c597a295129",
+    "beneficiario_id": "6318438f-f9b6-4dcf-9365-8472e59d0759",
+    "concepto_nomina": "SALARIO",
+    "medio_pago": "TRANSFERENCIA",
+    "descripcion": "Pago de nómina individual correspondiente a julio de 2026",
+    "valor_bruto": 2000000,
+    "valor_retenciones": 200000,
+    "valor_descuentos": 100000
+  }'

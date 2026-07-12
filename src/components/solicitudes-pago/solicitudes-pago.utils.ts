@@ -183,10 +183,23 @@ export function centroCostoPermitidoParaUsuario(
   return true;
 }
 
+export function obtenerDocumentoBeneficiario(
+  beneficiario: BeneficiarioSolicitudCatalogo,
+): string {
+  return [beneficiario.tipo_documento, beneficiario.numero_documento]
+    .filter((valor): valor is string => Boolean(valor?.trim()))
+    .map((valor) => valor.trim())
+    .join(" ");
+}
+
 export function obtenerEtiquetaBeneficiario(
   beneficiario: BeneficiarioSolicitudCatalogo,
 ): string {
-  return `${beneficiario.nombre} · ${beneficiario.tipo_documento} ${beneficiario.numero_documento}`;
+  const documento = obtenerDocumentoBeneficiario(beneficiario);
+
+  return documento
+    ? `${beneficiario.nombre} · ${documento}`
+    : beneficiario.nombre;
 }
 
 export function buscarBeneficiarioPorEtiqueta(

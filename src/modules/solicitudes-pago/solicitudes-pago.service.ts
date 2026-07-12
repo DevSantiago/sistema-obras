@@ -1,6 +1,7 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import {
+  buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
@@ -10,9 +11,11 @@ import {
   obtenerProyectoBaseActivoRepository,
 } from "./solicitudes-pago.repository";
 import type {
+  CrearSolicitudNominaIndividualInput,
   CrearSolicitudPagoProveedorInput,
   EstadoSolicitudPago,
   MedioPagoSolicitud,
+  ModalidadNomina,
   ServiceResponse,
   SolicitudPagoListFilters,
   SolicitudPagoListado,
@@ -24,6 +27,11 @@ const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
   "TRANSFERENCIA",
   "CONSIGNACION",
   "EFECTIVO",
+];
+
+const MODALIDADES_NOMINA_VALIDAS: ModalidadNomina[] = [
+  "INDIVIDUAL",
+  "AGRUPADA_EXCEL",
 ];
 
 const TIPOS_SOLICITUD_VALIDOS: TipoSolicitudPago[] = [
@@ -57,13 +65,18 @@ type SolicitudPagoRepositoryResult = {
   id: string;
   numero_solicitud: string;
   tipo_solicitud: string;
+  modalidad_nomina: string | null;
+  periodo_nomina: string | null;
   proyecto_base_id: string;
   fondo_id: string;
   centro_costo_id: string;
   beneficiario_id: string | null;
   proveedor_id: string | null;
   categoria_gasto: string | null;
+  categoria_reembolso: string | null;
+  concepto_nomina: string | null;
   medio_pago: string | null;
+  adjunto_archivo_origen_id: string | null;
   descripcion: string;
   valor_bruto: unknown;
   valor_impuestos: unknown;
@@ -106,24 +119,69 @@ type SolicitudPagoRepositoryResult = {
   } | null;
 };
 
-function usuarioTienePermiso(usuario: UsuarioSesion, permiso: string) {
-  const permisos =
-    "permisos" in usuario && Array.isArray(usuario.permisos)
-      ? usuario.permisos
-      : [];
+type ContextoFinancieroSolicitud = {
+  proyectoBase: {
+    id: string;
+    nombre: string;
+  };
+  centroCosto: {
+    id: string;
+    proyecto_base_id: string;
+    linea_negocio: string;
+    fase_centro_costo: string;
+  };
+  fondo: {
+    id: string;
+  };
+  centroCostoReferencia: string;
+};
 
-  return permisos.includes(permiso) || usuario.roles.includes("ADMINISTRADOR");
+function obtenerPermisosUsuario(usuario: UsuarioSesion): string[] {
+  if ("permisos" in usuario && Array.isArray(usuario.permisos)) {
+    return usuario.permisos;
+  }
+
+  return [];
 }
 
-function usuarioTieneAlgunPermiso(usuario: UsuarioSesion, permisos: string[]) {
+function usuarioTieneRol(usuario: UsuarioSesion, rol: string): boolean {
+  return usuario.roles.includes(rol);
+}
+
+function usuarioEsAdministrador(usuario: UsuarioSesion): boolean {
+  return usuarioTieneRol(usuario, "ADMINISTRADOR");
+}
+
+function usuarioEsDirector(usuario: UsuarioSesion): boolean {
+  return usuarioTieneRol(usuario, "DIRECTOR");
+}
+
+function usuarioTienePermiso(usuario: UsuarioSesion, permiso: string): boolean {
+  return (
+    usuarioEsAdministrador(usuario) ||
+    obtenerPermisosUsuario(usuario).includes(permiso)
+  );
+}
+
+function usuarioTieneAlgunPermiso(
+  usuario: UsuarioSesion,
+  permisos: string[],
+): boolean {
   return permisos.some((permiso) => usuarioTienePermiso(usuario, permiso));
 }
 
-function usuarioEsAdministrador(usuario: UsuarioSesion) {
-  return usuario.roles.includes("ADMINISTRADOR");
+function usuarioPuedeCrearNominaIndividual(usuario: UsuarioSesion): boolean {
+  if (usuarioEsAdministrador(usuario)) {
+    return true;
+  }
+
+  return (
+    usuarioEsDirector(usuario) &&
+    usuarioTienePermiso(usuario, "CREAR_SOLICITUDES")
+  );
 }
 
-function usuarioPuedeConsultarTodo(usuario: UsuarioSesion) {
+function usuarioPuedeConsultarTodo(usuario: UsuarioSesion): boolean {
   return usuarioEsAdministrador(usuario);
 }
 
@@ -154,29 +212,62 @@ function construirVisibilidadSolicitudesPago(
   };
 }
 
-function normalizarTexto(valor?: string | null) {
+function normalizarTexto(valor?: string | null): string {
   return valor?.trim() ?? "";
 }
 
-function normalizarTextoOpcional(valor?: string | null) {
+function normalizarTextoOpcional(valor?: string | null): string | null {
   const texto = valor?.trim();
 
   return texto ? texto : null;
 }
 
-function normalizarMedioPago(valor?: string) {
-  return valor?.trim().toUpperCase() as MedioPagoSolicitud | undefined;
+function normalizarTextoDominio(valor?: string | null): string {
+  return normalizarTexto(valor).toUpperCase();
 }
 
-function normalizarTipoSolicitud(valor?: string) {
-  return valor?.trim().toUpperCase() as TipoSolicitudPago | undefined;
+function normalizarMedioPago(
+  valor?: string | null,
+): MedioPagoSolicitud | undefined {
+  const medioPago = normalizarTextoDominio(valor);
+
+  return medioPago
+    ? (medioPago as MedioPagoSolicitud)
+    : undefined;
 }
 
-function normalizarEstadoSolicitud(valor?: string) {
-  return valor?.trim().toUpperCase() as EstadoSolicitudPago | undefined;
+function normalizarTipoSolicitud(
+  valor?: string | null,
+): TipoSolicitudPago | undefined {
+  const tipoSolicitud = normalizarTextoDominio(valor);
+
+  return tipoSolicitud
+    ? (tipoSolicitud as TipoSolicitudPago)
+    : undefined;
 }
 
-function obtenerNumeroNoNegativo(valor: unknown, valorPorDefecto = 0) {
+function normalizarEstadoSolicitud(
+  valor?: string | null,
+): EstadoSolicitudPago | undefined {
+  const estadoSolicitud = normalizarTextoDominio(valor);
+
+  return estadoSolicitud
+    ? (estadoSolicitud as EstadoSolicitudPago)
+    : undefined;
+}
+
+function normalizarModalidadNomina(
+  valor?: string | null,
+): ModalidadNomina | undefined {
+  const modalidad = normalizarTextoDominio(valor);
+
+  return modalidad ? (modalidad as ModalidadNomina) : undefined;
+}
+
+function obtenerNumeroNoNegativo(
+  valor: unknown,
+  valorPorDefecto = 0,
+): number | null {
   if (valor === undefined || valor === null || valor === "") {
     return valorPorDefecto;
   }
@@ -192,7 +283,7 @@ function obtenerNumeroNoNegativo(valor: unknown, valorPorDefecto = 0) {
   return valor;
 }
 
-function convertirDecimalANumero(valor: unknown) {
+function convertirDecimalANumero(valor: unknown): number {
   if (typeof valor === "number") {
     return valor;
   }
@@ -216,9 +307,9 @@ function convertirDecimalANumero(valor: unknown) {
 function obtenerReferenciaCentroCosto(input: {
   linea_negocio: string;
   fase_centro_costo: string;
-}) {
-  const lineaNegocio = input.linea_negocio.trim().toUpperCase();
-  const faseCentroCosto = input.fase_centro_costo.trim().toUpperCase();
+}): string {
+  const lineaNegocio = normalizarTextoDominio(input.linea_negocio);
+  const faseCentroCosto = normalizarTextoDominio(input.fase_centro_costo);
 
   if (lineaNegocio === "OBRA" && faseCentroCosto === "LICITACION") {
     return "PRO-OBRA";
@@ -247,6 +338,47 @@ function obtenerReferenciaCentroCosto(input: {
   );
 }
 
+function obtenerPeriodoActualColombia(): string {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+
+  const anio = partes.find((parte) => parte.type === "year")?.value;
+  const mes = partes.find((parte) => parte.type === "month")?.value;
+
+  if (!anio || !mes) {
+    throw new Error("No fue posible determinar el periodo actual.");
+  }
+
+  return `${anio}-${mes}`;
+}
+
+function periodoNominaTieneFormatoValido(periodo: string): boolean {
+  return /^[0-9]{4}-(0[1-9]|1[0-2])$/.test(periodo);
+}
+
+function validarPeriodoNomina(periodo: string): string | null {
+  if (!periodoNominaTieneFormatoValido(periodo)) {
+    return "El periodo de nómina debe tener formato YYYY-MM.";
+  }
+
+  const periodoActual = obtenerPeriodoActualColombia();
+  const anioActual = periodoActual.slice(0, 4);
+  const anioPeriodo = periodo.slice(0, 4);
+
+  if (anioPeriodo !== anioActual) {
+    return "El periodo de nómina debe corresponder al año vigente.";
+  }
+
+  if (periodo > periodoActual) {
+    return "El periodo de nómina no puede ser posterior al mes actual.";
+  }
+
+  return null;
+}
+
 function convertirSolicitudPago(
   solicitud: SolicitudPagoRepositoryResult,
 ): SolicitudPagoListado {
@@ -254,13 +386,19 @@ function convertirSolicitudPago(
     id: solicitud.id,
     numero_solicitud: solicitud.numero_solicitud,
     tipo_solicitud: solicitud.tipo_solicitud as TipoSolicitudPago,
+    modalidad_nomina:
+      solicitud.modalidad_nomina as ModalidadNomina | null,
+    periodo_nomina: solicitud.periodo_nomina,
     proyecto_base_id: solicitud.proyecto_base_id,
     fondo_id: solicitud.fondo_id,
     centro_costo_id: solicitud.centro_costo_id,
     beneficiario_id: solicitud.beneficiario_id,
     proveedor_id: solicitud.proveedor_id,
     categoria_gasto: solicitud.categoria_gasto,
+    categoria_reembolso: solicitud.categoria_reembolso,
+    concepto_nomina: solicitud.concepto_nomina,
     medio_pago: solicitud.medio_pago as MedioPagoSolicitud | null,
+    adjunto_archivo_origen_id: solicitud.adjunto_archivo_origen_id,
     descripcion: solicitud.descripcion,
     valor_bruto: convertirDecimalANumero(solicitud.valor_bruto),
     valor_impuestos: convertirDecimalANumero(solicitud.valor_impuestos),
@@ -283,14 +421,26 @@ function normalizarFiltrosListado(
   filters: SolicitudPagoListFilters = {},
 ): SolicitudPagoListFilters {
   const tipoSolicitud = normalizarTipoSolicitud(filters.tipo_solicitud);
+  const modalidadNomina = normalizarModalidadNomina(
+    filters.modalidad_nomina,
+  );
   const estadoSolicitud = normalizarEstadoSolicitud(filters.estado_actual);
   const medioPago = normalizarMedioPago(filters.medio_pago);
+  const periodoNomina =
+    normalizarTextoOpcional(filters.periodo_nomina) ?? undefined;
 
   if (
     tipoSolicitud !== undefined &&
     !TIPOS_SOLICITUD_VALIDOS.includes(tipoSolicitud)
   ) {
     throw new Error("El tipo de solicitud no es válido.");
+  }
+
+  if (
+    modalidadNomina !== undefined &&
+    !MODALIDADES_NOMINA_VALIDAS.includes(modalidadNomina)
+  ) {
+    throw new Error("La modalidad de nómina no es válida.");
   }
 
   if (
@@ -304,8 +454,14 @@ function normalizarFiltrosListado(
     throw new Error("El medio de pago no es válido.");
   }
 
+  if (periodoNomina && !periodoNominaTieneFormatoValido(periodoNomina)) {
+    throw new Error("El periodo de nómina debe tener formato YYYY-MM.");
+  }
+
   return {
     tipo_solicitud: tipoSolicitud,
+    modalidad_nomina: modalidadNomina,
+    periodo_nomina: periodoNomina,
     estado_actual: estadoSolicitud,
     proyecto_base_id:
       normalizarTextoOpcional(filters.proyecto_base_id) ?? undefined,
@@ -315,6 +471,151 @@ function normalizarFiltrosListado(
       normalizarTextoOpcional(filters.beneficiario_id) ?? undefined,
     medio_pago: medioPago,
     busqueda: normalizarTextoOpcional(filters.busqueda) ?? undefined,
+  };
+}
+
+async function obtenerContextoFinancieroSolicitud(input: {
+  usuarioAutenticado: UsuarioSesion;
+  proyectoBaseId: string;
+  centroCostoId: string;
+}): Promise<
+  | {
+      ok: true;
+      data: ContextoFinancieroSolicitud;
+    }
+  | {
+      ok: false;
+      response: ServiceResponse<never>;
+    }
+> {
+  const proyectoBase = await obtenerProyectoBaseActivoRepository(
+    input.proyectoBaseId,
+  );
+
+  if (!proyectoBase) {
+    return {
+      ok: false,
+      response: {
+        status: 404,
+        body: {
+          ok: false,
+          message: "El proyecto base no existe o está inactivo.",
+        },
+      },
+    };
+  }
+
+  const centroCosto = await obtenerCentroCostoActivoRepository(
+    input.centroCostoId,
+  );
+
+  if (!centroCosto) {
+    return {
+      ok: false,
+      response: {
+        status: 404,
+        body: {
+          ok: false,
+          message: "El centro de costo no existe o está inactivo.",
+        },
+      },
+    };
+  }
+
+  if (centroCosto.proyecto_base_id !== input.proyectoBaseId) {
+    return {
+      ok: false,
+      response: {
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            "El centro de costo no pertenece al proyecto base seleccionado.",
+        },
+      },
+    };
+  }
+
+  if (!usuarioEsAdministrador(input.usuarioAutenticado)) {
+    const acceso = await obtenerAccesoActivoUsuarioProyectoLineaRepository(
+      input.usuarioAutenticado.id,
+      input.proyectoBaseId,
+      centroCosto.linea_negocio,
+    );
+
+    if (!acceso) {
+      return {
+        ok: false,
+        response: {
+          status: 403,
+          body: {
+            ok: false,
+            message:
+              "No tiene acceso activo al proyecto y línea de negocio seleccionados.",
+          },
+        },
+      };
+    }
+  }
+
+  const fondo = await obtenerFondoActivoPorProyectoRepository(
+    input.proyectoBaseId,
+  );
+
+  if (!fondo) {
+    return {
+      ok: false,
+      response: {
+        status: 404,
+        body: {
+          ok: false,
+          message: "El proyecto base no tiene un fondo activo asociado.",
+        },
+      },
+    };
+  }
+
+  let centroCostoReferencia: string;
+
+  try {
+    centroCostoReferencia = obtenerReferenciaCentroCosto({
+      linea_negocio: centroCosto.linea_negocio,
+      fase_centro_costo: centroCosto.fase_centro_costo,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      response: {
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "No fue posible construir la referencia del centro de costo.",
+        },
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    data: {
+      proyectoBase: {
+        id: proyectoBase.id,
+        nombre: proyectoBase.nombre,
+      },
+      centroCosto: {
+        id: centroCosto.id,
+        proyecto_base_id: centroCosto.proyecto_base_id,
+        linea_negocio: centroCosto.linea_negocio,
+        fase_centro_costo: centroCosto.fase_centro_costo,
+      },
+      fondo: {
+        id: fondo.id,
+      },
+      centroCostoReferencia,
+    },
   };
 }
 
@@ -392,7 +693,7 @@ export async function crearSolicitudPagoProveedorService(
   const proyectoBaseId = normalizarTexto(input.proyecto_base_id);
   const centroCostoId = normalizarTexto(input.centro_costo_id);
   const beneficiarioId = normalizarTexto(input.beneficiario_id);
-  const categoriaGasto = normalizarTexto(input.categoria_gasto);
+  const categoriaGasto = normalizarTextoDominio(input.categoria_gasto);
   const descripcion = normalizarTexto(input.descripcion);
   const medioPago = normalizarMedioPago(input.medio_pago);
 
@@ -459,75 +760,19 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
-  const proyectoBase =
-    await obtenerProyectoBaseActivoRepository(proyectoBaseId);
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
 
-  if (!proyectoBase) {
-    return {
-      status: 404,
-      body: {
-        ok: false,
-        message: "El proyecto base no existe o está inactivo.",
-      },
-    };
+  if (!contexto.ok) {
+    return contexto.response;
   }
 
-  const centroCosto = await obtenerCentroCostoActivoRepository(centroCostoId);
-
-  if (!centroCosto) {
-    return {
-      status: 404,
-      body: {
-        ok: false,
-        message: "El centro de costo no existe o está inactivo.",
-      },
-    };
-  }
-
-  if (centroCosto.proyecto_base_id !== proyectoBaseId) {
-    return {
-      status: 400,
-      body: {
-        ok: false,
-        message:
-          "El centro de costo no pertenece al proyecto base seleccionado.",
-      },
-    };
-  }
-
-  if (!usuarioEsAdministrador(usuarioAutenticado)) {
-    const acceso = await obtenerAccesoActivoUsuarioProyectoLineaRepository(
-      usuarioAutenticado.id,
-      proyectoBaseId,
-      centroCosto.linea_negocio,
-    );
-
-    if (!acceso) {
-      return {
-        status: 403,
-        body: {
-          ok: false,
-          message:
-            "No tiene acceso activo al proyecto y línea de negocio seleccionados.",
-        },
-      };
-    }
-  }
-
-  const fondo = await obtenerFondoActivoPorProyectoRepository(proyectoBaseId);
-
-  if (!fondo) {
-    return {
-      status: 404,
-      body: {
-        ok: false,
-        message: "El proyecto base no tiene un fondo activo asociado.",
-      },
-    };
-  }
-
-  const beneficiario =
-    await obtenerBeneficiarioActivoRepository(beneficiarioId);
+  const beneficiario = await obtenerBeneficiarioActivoRepository(
+    beneficiarioId,
+  );
 
   if (!beneficiario) {
     return {
@@ -550,43 +795,28 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
-  let centroCostoReferencia: string;
-
-  try {
-    centroCostoReferencia = obtenerReferenciaCentroCosto({
-      linea_negocio: centroCosto.linea_negocio,
-      fase_centro_costo: centroCosto.fase_centro_costo,
-    });
-  } catch (error) {
-    return {
-      status: 400,
-      body: {
-        ok: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "No fue posible construir la referencia del centro de costo.",
-      },
-    };
-  }
-
   const secuencia = await generarNumeroSolicitudPagoService({
     proyecto_base_id: proyectoBaseId,
     centro_costo_id: centroCostoId,
-    proyecto_referencia: proyectoBase.nombre,
-    centro_costo_referencia: centroCostoReferencia,
+    proyecto_referencia: contexto.data.proyectoBase.nombre,
+    centro_costo_referencia: contexto.data.centroCostoReferencia,
   });
 
   const solicitud = await crearSolicitudPagoRepository({
     numero_solicitud: secuencia.referencia,
     tipo_solicitud: "PAGO_PROVEEDOR",
+    modalidad_nomina: null,
+    periodo_nomina: null,
     proyecto_base_id: proyectoBaseId,
-    fondo_id: fondo.id,
+    fondo_id: contexto.data.fondo.id,
     centro_costo_id: centroCostoId,
     beneficiario_id: beneficiarioId,
     proveedor_id: normalizarTextoOpcional(beneficiario.proveedor_id),
-    categoria_gasto: categoriaGasto.toUpperCase(),
+    categoria_gasto: categoriaGasto,
+    categoria_reembolso: null,
+    concepto_nomina: null,
     medio_pago: medioPago,
+    adjunto_archivo_origen_id: null,
     descripcion,
     valor_bruto: valorBruto,
     valor_impuestos: valorImpuestos,
@@ -602,6 +832,217 @@ export async function crearSolicitudPagoProveedorService(
     body: {
       ok: true,
       message: "Solicitud de pago creada correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(solicitud),
+      },
+    },
+  };
+}
+
+export async function crearSolicitudNominaIndividualService(
+  usuarioAutenticado: UsuarioSesion,
+  input: CrearSolicitudNominaIndividualInput,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioPuedeCrearNominaIndividual(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo un Director autorizado o un Administrador puede crear solicitudes de nómina individual.",
+      },
+    };
+  }
+
+  const proyectoBaseId = normalizarTexto(input.proyecto_base_id);
+  const centroCostoId = normalizarTexto(input.centro_costo_id);
+  const beneficiarioId = normalizarTexto(input.beneficiario_id);
+  const conceptoNomina = normalizarTextoDominio(input.concepto_nomina);
+  const periodoNomina = normalizarTexto(input.periodo_nomina);
+  const descripcion = normalizarTexto(input.descripcion);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+  const modalidadNomina = normalizarModalidadNomina(
+    input.modalidad_nomina ?? "INDIVIDUAL",
+  );
+
+  if (
+    !proyectoBaseId ||
+    !centroCostoId ||
+    !beneficiarioId ||
+    !conceptoNomina ||
+    !periodoNomina ||
+    !descripcion ||
+    !medioPago
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Proyecto base, centro de costo, trabajador, concepto de nómina, periodo, medio de pago y descripción son obligatorios.",
+      },
+    };
+  }
+
+  if (modalidadNomina !== "INDIVIDUAL") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "La modalidad debe ser INDIVIDUAL para esta operación.",
+      },
+    };
+  }
+
+  const errorPeriodo = validarPeriodoNomina(periodoNomina);
+
+  if (errorPeriodo) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: errorPeriodo,
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El medio de pago no es válido.",
+      },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(input.valor_bruto, -1);
+  const valorRetenciones = obtenerNumeroNoNegativo(
+    input.valor_retenciones,
+  );
+  const valorDescuentos = obtenerNumeroNoNegativo(
+    input.valor_descuentos,
+  );
+
+  if (
+    valorBruto === null ||
+    valorRetenciones === null ||
+    valorDescuentos === null ||
+    valorBruto <= 0
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Los valores deben ser numéricos y el valor bruto debe ser mayor a cero.",
+      },
+    };
+  }
+
+  const valorNeto = valorBruto - valorRetenciones - valorDescuentos;
+
+  if (valorNeto < 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El valor neto de la nómina no puede ser negativo.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiario = await obtenerBeneficiarioActivoRepository(
+    beneficiarioId,
+  );
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "El trabajador no existe o está inactivo.",
+      },
+    };
+  }
+
+  if (beneficiario.tipo_beneficiario !== "TRABAJADOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Para una nómina individual, el beneficiario debe ser tipo TRABAJADOR.",
+      },
+    };
+  }
+
+  const duplicado = await buscarDuplicadoNominaIndividualRepository({
+    proyecto_base_id: proyectoBaseId,
+    centro_costo_id: centroCostoId,
+    beneficiario_id: beneficiarioId,
+    concepto_nomina: conceptoNomina,
+    periodo_nomina: periodoNomina,
+  });
+
+  if (duplicado) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message: `Ya existe la solicitud ${duplicado.numero_solicitud} para este trabajador, concepto y periodo.`,
+      },
+    };
+  }
+
+  const secuencia = await generarNumeroSolicitudPagoService({
+    proyecto_base_id: proyectoBaseId,
+    centro_costo_id: centroCostoId,
+    proyecto_referencia: contexto.data.proyectoBase.nombre,
+    centro_costo_referencia: contexto.data.centroCostoReferencia,
+  });
+
+  const solicitud = await crearSolicitudPagoRepository({
+    numero_solicitud: secuencia.referencia,
+    tipo_solicitud: "PAGO_NOMINA",
+    modalidad_nomina: "INDIVIDUAL",
+    periodo_nomina: periodoNomina,
+    proyecto_base_id: proyectoBaseId,
+    fondo_id: contexto.data.fondo.id,
+    centro_costo_id: centroCostoId,
+    beneficiario_id: beneficiarioId,
+    proveedor_id: null,
+    categoria_gasto: null,
+    categoria_reembolso: null,
+    concepto_nomina: conceptoNomina,
+    medio_pago: medioPago,
+    adjunto_archivo_origen_id: null,
+    descripcion,
+    valor_bruto: valorBruto,
+    valor_impuestos: 0,
+    valor_retenciones: valorRetenciones,
+    valor_descuentos: valorDescuentos,
+    valor_neto: valorNeto,
+    estado_actual: "BORRADOR",
+    creado_por: usuarioAutenticado.id,
+  });
+
+  return {
+    status: 201,
+    body: {
+      ok: true,
+      message: "Solicitud de nómina individual creada correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
       },

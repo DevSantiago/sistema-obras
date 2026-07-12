@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type {
+  BuscarDuplicadoNominaIndividualInput,
   CrearSolicitudPagoRepositoryInput,
   SolicitudPagoListFilters,
   VisibilidadSolicitudesPago,
@@ -47,7 +48,7 @@ const solicitudPagoInclude = {
       correo: true,
     },
   },
-};
+} satisfies Prisma.solicitudes_pagoInclude;
 
 export async function obtenerProyectoBaseActivoRepository(id: string) {
   return prisma.proyectos_base.findFirst({
@@ -102,6 +103,33 @@ export async function obtenerAccesoActivoUsuarioProyectoLineaRepository(
   });
 }
 
+export async function buscarDuplicadoNominaIndividualRepository(
+  input: BuscarDuplicadoNominaIndividualInput,
+) {
+  return prisma.solicitudes_pago.findFirst({
+    where: {
+      tipo_solicitud: "PAGO_NOMINA",
+      modalidad_nomina: "INDIVIDUAL",
+      proyecto_base_id: input.proyecto_base_id,
+      centro_costo_id: input.centro_costo_id,
+      beneficiario_id: input.beneficiario_id,
+      concepto_nomina: {
+        equals: input.concepto_nomina,
+        mode: "insensitive",
+      },
+      periodo_nomina: input.periodo_nomina,
+      estado_actual: {
+        not: "ANULADA",
+      },
+    },
+    select: {
+      id: true,
+      numero_solicitud: true,
+      estado_actual: true,
+    },
+  });
+}
+
 export async function crearSolicitudPagoRepository(
   data: CrearSolicitudPagoRepositoryInput,
 ) {
@@ -109,13 +137,18 @@ export async function crearSolicitudPagoRepository(
     data: {
       numero_solicitud: data.numero_solicitud,
       tipo_solicitud: data.tipo_solicitud,
+      modalidad_nomina: data.modalidad_nomina,
+      periodo_nomina: data.periodo_nomina,
       proyecto_base_id: data.proyecto_base_id,
       fondo_id: data.fondo_id,
       centro_costo_id: data.centro_costo_id,
       beneficiario_id: data.beneficiario_id,
       proveedor_id: data.proveedor_id,
       categoria_gasto: data.categoria_gasto,
+      categoria_reembolso: data.categoria_reembolso,
+      concepto_nomina: data.concepto_nomina,
       medio_pago: data.medio_pago,
+      adjunto_archivo_origen_id: data.adjunto_archivo_origen_id,
       descripcion: data.descripcion,
       valor_bruto: data.valor_bruto,
       valor_impuestos: data.valor_impuestos,
@@ -137,21 +170,45 @@ export async function listarSolicitudesPagoRepository(input: {
 
   const whereBase: Prisma.solicitudes_pagoWhereInput = {
     ...(filtros.tipo_solicitud
-      ? { tipo_solicitud: filtros.tipo_solicitud }
+      ? {
+          tipo_solicitud: filtros.tipo_solicitud,
+        }
+      : {}),
+    ...(filtros.modalidad_nomina
+      ? {
+          modalidad_nomina: filtros.modalidad_nomina,
+        }
+      : {}),
+    ...(filtros.periodo_nomina
+      ? {
+          periodo_nomina: filtros.periodo_nomina,
+        }
       : {}),
     ...(filtros.estado_actual
-      ? { estado_actual: filtros.estado_actual }
+      ? {
+          estado_actual: filtros.estado_actual,
+        }
       : {}),
     ...(filtros.proyecto_base_id
-      ? { proyecto_base_id: filtros.proyecto_base_id }
+      ? {
+          proyecto_base_id: filtros.proyecto_base_id,
+        }
       : {}),
     ...(filtros.centro_costo_id
-      ? { centro_costo_id: filtros.centro_costo_id }
+      ? {
+          centro_costo_id: filtros.centro_costo_id,
+        }
       : {}),
     ...(filtros.beneficiario_id
-      ? { beneficiario_id: filtros.beneficiario_id }
+      ? {
+          beneficiario_id: filtros.beneficiario_id,
+        }
       : {}),
-    ...(filtros.medio_pago ? { medio_pago: filtros.medio_pago } : {}),
+    ...(filtros.medio_pago
+      ? {
+          medio_pago: filtros.medio_pago,
+        }
+      : {}),
     ...(filtros.busqueda
       ? {
           OR: [
@@ -169,6 +226,24 @@ export async function listarSolicitudesPagoRepository(input: {
             },
             {
               categoria_gasto: {
+                contains: filtros.busqueda,
+                mode: "insensitive",
+              },
+            },
+            {
+              categoria_reembolso: {
+                contains: filtros.busqueda,
+                mode: "insensitive",
+              },
+            },
+            {
+              concepto_nomina: {
+                contains: filtros.busqueda,
+                mode: "insensitive",
+              },
+            },
+            {
+              periodo_nomina: {
                 contains: filtros.busqueda,
                 mode: "insensitive",
               },

@@ -5,6 +5,10 @@ export type TipoSolicitudPago =
   | "PAGO_IMPUESTO"
   | "OTRO_PAGO";
 
+export type ModalidadNomina =
+  | "INDIVIDUAL"
+  | "AGRUPADA_EXCEL";
+
 export type MedioPagoSolicitud =
   | "TRANSFERENCIA"
   | "CONSIGNACION"
@@ -21,6 +25,7 @@ export type EstadoSolicitudPago =
   | "ANULADA";
 
 export type CrearSolicitudPagoProveedorInput = {
+  tipo_solicitud?: "PAGO_PROVEEDOR";
   proyecto_base_id?: string;
   centro_costo_id?: string;
   beneficiario_id?: string;
@@ -33,16 +38,39 @@ export type CrearSolicitudPagoProveedorInput = {
   valor_descuentos?: number;
 };
 
-export type CrearSolicitudPagoRepositoryInput = {
+export type CrearSolicitudNominaIndividualInput = {
+  tipo_solicitud?: "PAGO_NOMINA";
+  modalidad_nomina?: "INDIVIDUAL";
+  periodo_nomina?: string;
+  proyecto_base_id?: string;
+  centro_costo_id?: string;
+  beneficiario_id?: string;
+  concepto_nomina?: string;
+  medio_pago?: MedioPagoSolicitud;
+  descripcion?: string;
+  valor_bruto?: number;
+  valor_retenciones?: number;
+  valor_descuentos?: number;
+};
+
+export type CrearSolicitudPagoInput =
+  | CrearSolicitudPagoProveedorInput
+  | CrearSolicitudNominaIndividualInput;
+
+type CrearSolicitudPagoRepositoryBaseInput = {
   numero_solicitud: string;
-  tipo_solicitud: "PAGO_PROVEEDOR";
   proyecto_base_id: string;
   fondo_id: string;
   centro_costo_id: string;
-  beneficiario_id: string;
+  beneficiario_id: string | null;
   proveedor_id: string | null;
-  categoria_gasto: string;
-  medio_pago: MedioPagoSolicitud;
+  categoria_gasto: string | null;
+  categoria_reembolso: string | null;
+  modalidad_nomina: ModalidadNomina | null;
+  periodo_nomina: string | null;
+  concepto_nomina: string | null;
+  medio_pago: MedioPagoSolicitud | null;
+  adjunto_archivo_origen_id: string | null;
   descripcion: string;
   valor_bruto: number;
   valor_impuestos: number;
@@ -53,8 +81,50 @@ export type CrearSolicitudPagoRepositoryInput = {
   creado_por: string;
 };
 
+export type CrearSolicitudPagoProveedorRepositoryInput =
+  CrearSolicitudPagoRepositoryBaseInput & {
+    tipo_solicitud: "PAGO_PROVEEDOR";
+    beneficiario_id: string;
+    proveedor_id: string | null;
+    categoria_gasto: string;
+    categoria_reembolso: null;
+    modalidad_nomina: null;
+    periodo_nomina: null;
+    concepto_nomina: null;
+    medio_pago: MedioPagoSolicitud;
+    adjunto_archivo_origen_id: null;
+  };
+
+export type CrearSolicitudNominaIndividualRepositoryInput =
+  CrearSolicitudPagoRepositoryBaseInput & {
+    tipo_solicitud: "PAGO_NOMINA";
+    beneficiario_id: string;
+    proveedor_id: null;
+    categoria_gasto: null;
+    categoria_reembolso: null;
+    modalidad_nomina: "INDIVIDUAL";
+    periodo_nomina: string;
+    concepto_nomina: string;
+    medio_pago: MedioPagoSolicitud;
+    adjunto_archivo_origen_id: null;
+  };
+
+export type CrearSolicitudPagoRepositoryInput =
+  | CrearSolicitudPagoProveedorRepositoryInput
+  | CrearSolicitudNominaIndividualRepositoryInput;
+
+export type BuscarDuplicadoNominaIndividualInput = {
+  proyecto_base_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string;
+  concepto_nomina: string;
+  periodo_nomina: string;
+};
+
 export type SolicitudPagoListFilters = {
   tipo_solicitud?: TipoSolicitudPago;
+  modalidad_nomina?: ModalidadNomina;
+  periodo_nomina?: string;
   estado_actual?: EstadoSolicitudPago;
   proyecto_base_id?: string;
   centro_costo_id?: string;
@@ -74,13 +144,18 @@ export type SolicitudPagoListado = {
   id: string;
   numero_solicitud: string;
   tipo_solicitud: TipoSolicitudPago;
+  modalidad_nomina: ModalidadNomina | null;
+  periodo_nomina: string | null;
   proyecto_base_id: string;
   fondo_id: string;
   centro_costo_id: string;
   beneficiario_id: string | null;
   proveedor_id: string | null;
   categoria_gasto: string | null;
+  categoria_reembolso: string | null;
+  concepto_nomina: string | null;
   medio_pago: MedioPagoSolicitud | null;
+  adjunto_archivo_origen_id: string | null;
   descripcion: string;
   valor_bruto: number;
   valor_impuestos: number;
@@ -153,9 +228,9 @@ export type BeneficiarioSolicitudCatalogo = {
   id: string;
   tipo_beneficiario: string;
   nombre: string;
-  tipo_documento: string;
-  numero_documento: string;
-  medio_pago_preferido?: MedioPagoSolicitud;
+  tipo_documento: string | null;
+  numero_documento: string | null;
+  medio_pago_preferido?: MedioPagoSolicitud | null;
   activo?: boolean;
 };
 
