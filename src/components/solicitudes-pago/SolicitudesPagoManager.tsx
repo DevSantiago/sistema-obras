@@ -21,9 +21,14 @@ import ProveedorForm, {
 import SolicitudesPagoList from "./lists/SolicitudesPagoList";
 import styles from "./SolicitudesPagoManager.module.css";
 import {
+  OPCIONES_TIPO_SOLICITUD,
+  type TipoSolicitudFormulario,
+} from "./solicitudes-pago.types";
+import {
   centroCostoPermitidoParaUsuario,
   obtenerCentrosCosto,
 } from "./solicitudes-pago.utils";
+import SolicitudTipoSelector from "./shared/SolicitudTipoSelector";
 
 type SolicitudesPagoManagerProps = {
   usuario: UsuarioSesionSolicitudesPago;
@@ -74,6 +79,9 @@ async function fetchJson<T>(
 export default function SolicitudesPagoManager({
   usuario,
 }: SolicitudesPagoManagerProps) {
+  const [tipoSeleccionado, setTipoSeleccionado] =
+    useState<TipoSolicitudFormulario>("PAGO_PROVEEDOR");
+
   const [proyectos, setProyectos] = useState<
     ProyectoBaseSolicitudCatalogo[]
   >([]);
@@ -198,6 +206,12 @@ export default function SolicitudesPagoManager({
     setMensajeExito("");
   }
 
+  function cambiarTipoSolicitud(tipo: TipoSolicitudFormulario) {
+    setTipoSeleccionado(tipo);
+    setProyectoBaseSeleccionadoId("");
+    limpiarMensajes();
+  }
+
   async function crearSolicitudProveedor(
     payload: CrearSolicitudProveedorPayload,
   ) {
@@ -239,20 +253,44 @@ export default function SolicitudesPagoManager({
     }
   }
 
+  function renderizarFormulario() {
+    switch (tipoSeleccionado) {
+      case "PAGO_PROVEEDOR":
+        return (
+          <ProveedorForm
+            proyectos={proyectos}
+            centrosCostoDisponibles={centrosCostoDisponibles}
+            beneficiarios={beneficiarios}
+            cargandoCatalogos={cargandoCatalogos}
+            guardando={guardando}
+            mensajeExito={mensajeExito}
+            mensajeError={mensajeError}
+            onProyectoChange={setProyectoBaseSeleccionadoId}
+            onCrear={crearSolicitudProveedor}
+            onLimpiarMensajes={limpiarMensajes}
+          />
+        );
+
+      case "NOMINA_INDIVIDUAL":
+      case "NOMINA_GRUPAL":
+      case "PAGO_IMPUESTO":
+      case "REEMBOLSO":
+        return null;
+
+      default:
+        return null;
+    }
+  }
+
   return (
     <div className={styles.container}>
-      <ProveedorForm
-        proyectos={proyectos}
-        centrosCostoDisponibles={centrosCostoDisponibles}
-        beneficiarios={beneficiarios}
-        cargandoCatalogos={cargandoCatalogos}
-        guardando={guardando}
-        mensajeExito={mensajeExito}
-        mensajeError={mensajeError}
-        onProyectoChange={setProyectoBaseSeleccionadoId}
-        onCrear={crearSolicitudProveedor}
-        onLimpiarMensajes={limpiarMensajes}
+      <SolicitudTipoSelector
+        opciones={OPCIONES_TIPO_SOLICITUD}
+        tipoSeleccionado={tipoSeleccionado}
+        onChange={cambiarTipoSolicitud}
       />
+
+      {renderizarFormulario()}
 
       <SolicitudesPagoList
         solicitudes={solicitudes}
