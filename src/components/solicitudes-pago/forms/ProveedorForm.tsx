@@ -7,11 +7,7 @@ import type {
   ProyectoBaseSolicitudCatalogo,
   SolicitudPagoFormularioState,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import {
-  type FormEvent,
-  useMemo,
-  useState,
-} from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
   buscarBeneficiarioPorEtiqueta,
@@ -230,12 +226,18 @@ export default function ProveedorForm({
       throw new Error(errorFormulario);
     }
 
+    const medioPago = formulario.medio_pago;
+
+    if (!medioPago) {
+      throw new Error("Seleccione un medio de pago válido.");
+    }
+
     await onCrear({
       proyecto_base_id: formulario.proyecto_base_id,
       centro_costo_id: formulario.centro_costo_id,
       beneficiario_id: formulario.beneficiario_id,
       categoria_gasto: formulario.categoria_gasto,
-      medio_pago: formulario.medio_pago as MedioPagoSolicitud,
+      medio_pago: medioPago,
       descripcion: formulario.descripcion.trim(),
       valor_bruto: valores.valorBruto,
       valor_impuestos: valores.valorImpuestos,

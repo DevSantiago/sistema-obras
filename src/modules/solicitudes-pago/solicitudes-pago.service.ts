@@ -1,5 +1,3 @@
-// src/modules/solicitudes-pago/solicitudes-pago.service.ts
-
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import {
@@ -54,6 +52,59 @@ const PERMISOS_CONSULTAR_SOLICITUDES = [
   "APROBAR_NIVEL_2",
   "MARCAR_COMO_PAGADO",
 ];
+
+type SolicitudPagoRepositoryResult = {
+  id: string;
+  numero_solicitud: string;
+  tipo_solicitud: string;
+  proyecto_base_id: string;
+  fondo_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string | null;
+  proveedor_id: string | null;
+  categoria_gasto: string | null;
+  medio_pago: string | null;
+  descripcion: string;
+  valor_bruto: unknown;
+  valor_impuestos: unknown;
+  valor_retenciones: unknown;
+  valor_descuentos: unknown;
+  valor_neto: unknown;
+  estado_actual: string;
+  creado_por: string | null;
+  creado_en: Date;
+  actualizado_en: Date;
+  proyecto_base?: {
+    id: string;
+    nombre: string;
+    estado_proyecto: string;
+  };
+  centro_costo?: {
+    id: string;
+    nombre: string;
+    linea_negocio: string;
+    fase_centro_costo: string;
+    estado_centro_costo: string;
+  };
+  beneficiario?: {
+    id: string;
+    nombre: string;
+    tipo_beneficiario: string;
+    tipo_documento: string | null;
+    numero_documento: string | null;
+  } | null;
+  proveedor?: {
+    id: string;
+    nombre: string;
+    tipo_documento: string;
+    numero_documento: string;
+  } | null;
+  creador?: {
+    id: string;
+    nombre: string;
+    correo: string;
+  } | null;
+};
 
 function usuarioTienePermiso(usuario: UsuarioSesion, permiso: string) {
   const permisos =
@@ -196,58 +247,9 @@ function obtenerReferenciaCentroCosto(input: {
   );
 }
 
-function convertirSolicitudPago(solicitud: {
-  id: string;
-  numero_solicitud: string;
-  tipo_solicitud: string;
-  proyecto_base_id: string;
-  fondo_id: string;
-  centro_costo_id: string;
-  beneficiario_id: string | null;
-  proveedor_id: string | null;
-  categoria_gasto: string | null;
-  medio_pago: string | null;
-  descripcion: string;
-  valor_bruto: unknown;
-  valor_impuestos: unknown;
-  valor_retenciones: unknown;
-  valor_descuentos: unknown;
-  valor_neto: unknown;
-  estado_actual: string;
-  creado_por: string | null;
-  creado_en: Date;
-  actualizado_en: Date;
-  proyecto_base?: {
-    id: string;
-    nombre: string;
-    estado_proyecto: string;
-  };
-  centro_costo?: {
-    id: string;
-    nombre: string;
-    linea_negocio: string;
-    fase_centro_costo: string;
-    estado_centro_costo: string;
-  };
-  beneficiario?: {
-    id: string;
-    nombre: string;
-    tipo_beneficiario: string;
-    tipo_documento: string;
-    numero_documento: string;
-  } | null;
-  proveedor?: {
-    id: string;
-    nombre: string;
-    tipo_documento: string;
-    numero_documento: string;
-  } | null;
-  creador?: {
-    id: string;
-    nombre: string;
-    correo: string;
-  } | null;
-}): SolicitudPagoListado {
+function convertirSolicitudPago(
+  solicitud: SolicitudPagoRepositoryResult,
+): SolicitudPagoListado {
   return {
     id: solicitud.id,
     numero_solicitud: solicitud.numero_solicitud,

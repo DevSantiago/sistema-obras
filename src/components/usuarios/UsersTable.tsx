@@ -9,8 +9,8 @@ type UsersTableProps = {
   onEditarUsuario: (usuario: UsuarioListado) => void;
 };
 
-function formatearFechaColombia(fecha: string) {
-  const fechaUsuario = new Date(fecha);
+function formatearFechaColombia(fecha: string | Date) {
+  const fechaUsuario = fecha instanceof Date ? fecha : new Date(fecha);
 
   if (Number.isNaN(fechaUsuario.getTime())) {
     return "Sin fecha";
@@ -46,6 +46,7 @@ function UserActions({
       >
         Editar
       </button>
+
       <UserStatusButton
         usuarioId={usuario.id}
         estadoActual={usuario.estado}
@@ -75,6 +76,7 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
     return (
       <section className={styles.empty}>
         <h2>No hay usuarios registrados</h2>
+
         <p>Cuando cree usuarios, aparecerán en esta sección.</p>
       </section>
     );
@@ -95,21 +97,26 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
               <th>Acciones</th>
             </tr>
           </thead>
+
           <tbody>
             {usuarios.map((usuario) => (
               <tr key={usuario.id}>
                 <td>
                   <strong className={styles.userName}>{usuario.nombre}</strong>
+
                   <span className={styles.document}>
                     {usuario.tipo_documento} {usuario.numero_documento}
                   </span>
                 </td>
+
                 <td>
                   <span className={styles.contact}>{usuario.correo}</span>
+
                   <span className={styles.contact}>
                     {usuario.telefono ?? "Sin teléfono"}
                   </span>
                 </td>
+
                 <td>
                   <span
                     className={
@@ -121,6 +128,7 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                     {usuario.estado}
                   </span>
                 </td>
+
                 <td>
                   <span
                     className={usuario.rol ? styles.role : styles.roleMissing}
@@ -128,8 +136,13 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                     {usuario.rol || "Sin rol"}
                   </span>
                 </td>
-                <td><AccessList usuario={usuario} /></td>
+
+                <td>
+                  <AccessList usuario={usuario} />
+                </td>
+
                 <td>{formatearFechaColombia(usuario.creado_en)}</td>
+
                 <td>
                   <UserActions
                     usuario={usuario}
@@ -148,10 +161,12 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
             <div className={styles.mobileHeader}>
               <div>
                 <h3>{usuario.nombre}</h3>
+
                 <p>
                   {usuario.tipo_documento} {usuario.numero_documento}
                 </p>
               </div>
+
               <span
                 className={
                   usuario.estado === "ACTIVO"
@@ -168,14 +183,17 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                 <dt>Correo</dt>
                 <dd>{usuario.correo}</dd>
               </div>
+
               <div>
                 <dt>Teléfono</dt>
                 <dd>{usuario.telefono ?? "Sin teléfono"}</dd>
               </div>
+
               <div>
                 <dt>Rol</dt>
                 <dd>{usuario.rol || "Sin rol"}</dd>
               </div>
+
               <div>
                 <dt>Creado</dt>
                 <dd>{formatearFechaColombia(usuario.creado_en)}</dd>
