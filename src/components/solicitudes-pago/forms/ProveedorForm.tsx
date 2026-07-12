@@ -1,5 +1,5 @@
 "use client";
-
+import type { CrearSolicitudProveedorPayload } from "@/components/solicitudes-pago/solicitudes-pago.types";
 import type {
   BeneficiarioSolicitudCatalogo,
   CentroCostoSolicitudCatalogo,
@@ -24,18 +24,6 @@ import {
   type ValoresSolicitudPago,
 } from "../solicitudes-pago.utils";
 
-export type CrearSolicitudProveedorPayload = {
-  proyecto_base_id: string;
-  centro_costo_id: string;
-  beneficiario_id: string;
-  categoria_gasto: string;
-  medio_pago: MedioPagoSolicitud;
-  descripcion: string;
-  valor_bruto: number;
-  valor_impuestos: number;
-  valor_retenciones: number;
-  valor_descuentos: number;
-};
 
 type ProveedorFormProps = {
   proyectos: ProyectoBaseSolicitudCatalogo[];
@@ -236,6 +224,7 @@ export default function ProveedorForm({
     }
 
     await onCrear({
+      tipo_solicitud: "PAGO_PROVEEDOR",
       proyecto_base_id: formulario.proyecto_base_id,
       centro_costo_id: formulario.centro_costo_id,
       beneficiario_id: formulario.beneficiario_id,

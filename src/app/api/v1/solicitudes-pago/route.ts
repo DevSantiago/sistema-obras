@@ -48,13 +48,7 @@ function esSolicitudNominaIndividual(body: JsonObject): boolean {
 }
 
 function esSolicitudPagoProveedor(body: JsonObject): boolean {
-  const tipoSolicitud = obtenerTipoSolicitud(body);
-
-  /*
-   * Se conserva compatibilidad con el frontend actual de proveedores,
-   * que inicialmente no enviaba tipo_solicitud.
-   */
-  return !tipoSolicitud || tipoSolicitud === "PAGO_PROVEEDOR";
+  return obtenerTipoSolicitud(body) === "PAGO_PROVEEDOR";
 }
 
 export async function GET(request: Request) {

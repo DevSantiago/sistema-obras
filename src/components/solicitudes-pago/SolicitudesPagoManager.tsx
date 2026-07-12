@@ -15,13 +15,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import ProveedorForm, {
-  type CrearSolicitudProveedorPayload,
-} from "./forms/ProveedorForm";
+import ProveedorForm from "./forms/ProveedorForm";
 import SolicitudesPagoList from "./lists/SolicitudesPagoList";
 import styles from "./SolicitudesPagoManager.module.css";
 import {
   OPCIONES_TIPO_SOLICITUD,
+  type CrearSolicitudProveedorPayload,
   type TipoSolicitudFormulario,
 } from "./solicitudes-pago.types";
 import {
