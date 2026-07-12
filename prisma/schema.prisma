@@ -295,6 +295,7 @@ model solicitudes_pago {
   numero_solicitud           String    @unique
   tipo_solicitud             String    @default("PAGO_PROVEEDOR")
   modalidad_nomina           String?
+  periodo_nomina             String?   @db.VarChar(7)
   proyecto_base_id           String
   fondo_id                   String
   centro_costo_id            String
@@ -350,6 +351,8 @@ model solicitudes_pago {
   @@index([categoria_gasto])
   @@index([categoria_reembolso])
   @@index([concepto_nomina])
+  @@index([periodo_nomina])
+  @@index([proyecto_base_id, centro_costo_id, beneficiario_id, concepto_nomina, periodo_nomina, estado_actual], map: "indice_solicitudes_nomina_individual_duplicados")
   @@index([creado_por])
   @@index([pagado_por])
   @@index([creado_en])

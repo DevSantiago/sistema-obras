@@ -19,6 +19,7 @@ import {
   formatearTextoDominio,
   formatearValorEntrada,
   MEDIOS_PAGO,
+  obtenerDocumentoBeneficiario,
   obtenerEtiquetaBeneficiario,
   type ValoresSolicitudPago,
 } from "../solicitudes-pago.utils";
@@ -76,8 +77,10 @@ export default function ProveedorForm({
 
     return beneficiarios.filter((beneficiario) => {
       const nombre = beneficiario.nombre.toLowerCase();
-      const tipoDocumento = beneficiario.tipo_documento.toLowerCase();
-      const numeroDocumento = beneficiario.numero_documento.toLowerCase();
+      const tipoDocumento =
+        beneficiario.tipo_documento?.toLowerCase() ?? "";
+      const numeroDocumento =
+        beneficiario.numero_documento?.toLowerCase() ?? "";
       const etiqueta = obtenerEtiquetaBeneficiario(beneficiario).toLowerCase();
 
       return (
@@ -376,24 +379,30 @@ export default function ProveedorForm({
                   {beneficiariosFiltrados.length > 0 ? (
                     beneficiariosFiltrados
                       .slice(0, 8)
-                      .map((beneficiario) => (
-                        <button
-                          key={beneficiario.id}
-                          type="button"
-                          className={styles.comboboxOption}
-                          onClick={() => seleccionarBeneficiario(beneficiario)}
-                          disabled={guardando}
-                        >
-                          <strong className={styles.comboboxOptionName}>
-                            {beneficiario.nombre}
-                          </strong>
+                      .map((beneficiario) => {
+                        const documento =
+                          obtenerDocumentoBeneficiario(beneficiario);
 
-                          <span className={styles.comboboxOptionDocument}>
-                            {beneficiario.tipo_documento}{" "}
-                            {beneficiario.numero_documento}
-                          </span>
-                        </button>
-                      ))
+                        return (
+                          <button
+                            key={beneficiario.id}
+                            type="button"
+                            className={styles.comboboxOption}
+                            onClick={() =>
+                              seleccionarBeneficiario(beneficiario)
+                            }
+                            disabled={guardando}
+                          >
+                            <strong className={styles.comboboxOptionName}>
+                              {beneficiario.nombre}
+                            </strong>
+
+                            <span className={styles.comboboxOptionDocument}>
+                              {documento || "Sin documento registrado"}
+                            </span>
+                          </button>
+                        );
+                      })
                   ) : (
                     <p className={styles.comboboxEmpty}>
                       No se encontraron proveedores.
