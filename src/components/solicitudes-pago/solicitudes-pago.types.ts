@@ -48,6 +48,19 @@ export type CrearSolicitudFrontendPayload =
   | CrearSolicitudProveedorPayload
   | CrearSolicitudNominaIndividualPayload;
 
+export type NominaIndividualFormularioState = {
+  proyecto_base_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string;
+  periodo_nomina: string;
+  concepto_nomina: string;
+  medio_pago: MedioPagoSolicitud | "";
+  descripcion: string;
+  valor_bruto: string;
+  valor_retenciones: string;
+  valor_descuentos: string;
+};
+
 export const OPCIONES_TIPO_SOLICITUD: OpcionTipoSolicitud[] = [
   {
     id: "PAGO_PROVEEDOR",
@@ -61,8 +74,7 @@ export const OPCIONES_TIPO_SOLICITUD: OpcionTipoSolicitud[] = [
     titulo: "Nómina individual",
     descripcion:
       "Pago individual de nómina, honorarios u otros conceptos asociados a un trabajador.",
-    habilitado: false,
-    etiquetaEstado: "Próximamente",
+    habilitado: true,
   },
   {
     id: "NOMINA_GRUPAL",
