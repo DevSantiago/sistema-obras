@@ -2,6 +2,7 @@
 
 import type {
   BeneficiariosSolicitudResponseData,
+  BeneficiarioSolicitudCatalogo,
   ProyectoBaseSolicitudCatalogo,
   ProyectosBaseSolicitudResponseData,
   SolicitudPagoListado,
@@ -15,13 +16,16 @@ import {
   useMemo,
   useState,
 } from "react";
-import ProveedorForm, {
-  type CrearSolicitudProveedorPayload,
-} from "./forms/ProveedorForm";
+import NominaIndividualForm from "./forms/NominaIndividualForm";
+import ProveedorForm from "./forms/ProveedorForm";
 import SolicitudesPagoList from "./lists/SolicitudesPagoList";
 import styles from "./SolicitudesPagoManager.module.css";
 import {
   OPCIONES_TIPO_SOLICITUD,
+  type CrearSolicitudFrontendPayload,
+  type CrearSolicitudNominaIndividualPayload,
+  type CrearSolicitudProveedorPayload,
+  type OpcionTipoSolicitud,
   type TipoSolicitudFormulario,
 } from "./solicitudes-pago.types";
 import {
@@ -76,6 +80,26 @@ async function fetchJson<T>(
   return payload;
 }
 
+function usuarioTienePermiso(
+  usuario: UsuarioSesionSolicitudesPago,
+  permiso: string,
+): boolean {
+  return usuario.permisos?.includes(permiso) ?? false;
+}
+
+function usuarioPuedeCrearNominaIndividual(
+  usuario: UsuarioSesionSolicitudesPago,
+): boolean {
+  if (usuario.roles.includes("ADMINISTRADOR")) {
+    return true;
+  }
+
+  return (
+    usuario.roles.includes("DIRECTOR") &&
+    usuarioTienePermiso(usuario, "CREAR_SOLICITUDES")
+  );
+}
+
 export default function SolicitudesPagoManager({
   usuario,
 }: SolicitudesPagoManagerProps) {
@@ -86,9 +110,13 @@ export default function SolicitudesPagoManager({
     ProyectoBaseSolicitudCatalogo[]
   >([]);
 
-  const [beneficiarios, setBeneficiarios] = useState(
-    [] as ReturnType<typeof extraerBeneficiarios>,
-  );
+  const [beneficiariosProveedor, setBeneficiariosProveedor] = useState<
+    BeneficiarioSolicitudCatalogo[]
+  >([]);
+
+  const [trabajadores, setTrabajadores] = useState<
+    BeneficiarioSolicitudCatalogo[]
+  >([]);
 
   const [solicitudes, setSolicitudes] = useState<SolicitudPagoListado[]>([]);
   const [proyectoBaseSeleccionadoId, setProyectoBaseSeleccionadoId] =
@@ -98,6 +126,22 @@ export default function SolicitudesPagoManager({
   const [guardando, setGuardando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState("");
   const [mensajeError, setMensajeError] = useState("");
+
+  const opcionesTipoSolicitud = useMemo<OpcionTipoSolicitud[]>(() => {
+    const puedeCrearNomina = usuarioPuedeCrearNominaIndividual(usuario);
+
+    return OPCIONES_TIPO_SOLICITUD.map((opcion) => {
+      if (opcion.id !== "NOMINA_INDIVIDUAL") {
+        return opcion;
+      }
+
+      return {
+        ...opcion,
+        habilitado: opcion.habilitado && puedeCrearNomina,
+        etiquetaEstado: puedeCrearNomina ? undefined : "Sin permiso",
+      };
+    });
+  }, [usuario]);
 
   const proyectoSeleccionado = useMemo(
     () =>
@@ -146,15 +190,36 @@ export default function SolicitudesPagoManager({
           signal: abortController.signal,
         },
       ),
+      fetchJson<BeneficiariosSolicitudResponseData>(
+        "/api/v1/beneficiarios?tipo_beneficiario=TRABAJADOR&activo=true",
+        {
+          signal: abortController.signal,
+        },
+      ),
       fetchJson<SolicitudesPagoResponseData>("/api/v1/solicitudes-pago", {
         signal: abortController.signal,
       }),
     ])
-      .then(([proyectosResponse, beneficiariosResponse, solicitudesResponse]) => {
-        setProyectos(extraerProyectos(proyectosResponse.data));
-        setBeneficiarios(extraerBeneficiarios(beneficiariosResponse.data));
-        setSolicitudes(extraerSolicitudes(solicitudesResponse.data));
-      })
+      .then(
+        ([
+          proyectosResponse,
+          proveedoresResponse,
+          trabajadoresResponse,
+          solicitudesResponse,
+        ]) => {
+          setProyectos(extraerProyectos(proyectosResponse.data));
+
+          setBeneficiariosProveedor(
+            extraerBeneficiarios(proveedoresResponse.data),
+          );
+
+          setTrabajadores(
+            extraerBeneficiarios(trabajadoresResponse.data),
+          );
+
+          setSolicitudes(extraerSolicitudes(solicitudesResponse.data));
+        },
+      )
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -212,9 +277,9 @@ export default function SolicitudesPagoManager({
     limpiarMensajes();
   }
 
-  async function crearSolicitudProveedor(
-    payload: CrearSolicitudProveedorPayload,
-  ) {
+  async function crearSolicitud(
+    payload: CrearSolicitudFrontendPayload,
+  ): Promise<void> {
     setGuardando(true);
     setMensajeError("");
     setMensajeExito("");
@@ -253,6 +318,18 @@ export default function SolicitudesPagoManager({
     }
   }
 
+  async function crearSolicitudProveedor(
+    payload: CrearSolicitudProveedorPayload,
+  ): Promise<void> {
+    await crearSolicitud(payload);
+  }
+
+  async function crearSolicitudNominaIndividual(
+    payload: CrearSolicitudNominaIndividualPayload,
+  ): Promise<void> {
+    await crearSolicitud(payload);
+  }
+
   function renderizarFormulario() {
     switch (tipoSeleccionado) {
       case "PAGO_PROVEEDOR":
@@ -260,7 +337,7 @@ export default function SolicitudesPagoManager({
           <ProveedorForm
             proyectos={proyectos}
             centrosCostoDisponibles={centrosCostoDisponibles}
-            beneficiarios={beneficiarios}
+            beneficiarios={beneficiariosProveedor}
             cargandoCatalogos={cargandoCatalogos}
             guardando={guardando}
             mensajeExito={mensajeExito}
@@ -272,6 +349,21 @@ export default function SolicitudesPagoManager({
         );
 
       case "NOMINA_INDIVIDUAL":
+        return (
+          <NominaIndividualForm
+            proyectos={proyectos}
+            centrosCostoDisponibles={centrosCostoDisponibles}
+            trabajadores={trabajadores}
+            cargandoCatalogos={cargandoCatalogos}
+            guardando={guardando}
+            mensajeExito={mensajeExito}
+            mensajeError={mensajeError}
+            onProyectoChange={setProyectoBaseSeleccionadoId}
+            onCrear={crearSolicitudNominaIndividual}
+            onLimpiarMensajes={limpiarMensajes}
+          />
+        );
+
       case "NOMINA_GRUPAL":
       case "PAGO_IMPUESTO":
       case "REEMBOLSO":
@@ -285,7 +377,7 @@ export default function SolicitudesPagoManager({
   return (
     <div className={styles.container}>
       <SolicitudTipoSelector
-        opciones={OPCIONES_TIPO_SOLICITUD}
+        opciones={opcionesTipoSolicitud}
         tipoSeleccionado={tipoSeleccionado}
         onChange={cambiarTipoSolicitud}
       />

@@ -1,3 +1,5 @@
+import type { MedioPagoSolicitud } from "@/modules/solicitudes-pago/solicitudes-pago.types";
+
 export type TipoSolicitudFormulario =
   | "PAGO_PROVEEDOR"
   | "NOMINA_INDIVIDUAL"
@@ -13,6 +15,52 @@ export type OpcionTipoSolicitud = {
   etiquetaEstado?: string;
 };
 
+export type CrearSolicitudProveedorPayload = {
+  tipo_solicitud: "PAGO_PROVEEDOR";
+  proyecto_base_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string;
+  categoria_gasto: string;
+  medio_pago: MedioPagoSolicitud;
+  descripcion: string;
+  valor_bruto: number;
+  valor_impuestos: number;
+  valor_retenciones: number;
+  valor_descuentos: number;
+};
+
+export type CrearSolicitudNominaIndividualPayload = {
+  tipo_solicitud: "PAGO_NOMINA";
+  modalidad_nomina: "INDIVIDUAL";
+  periodo_nomina: string;
+  proyecto_base_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string;
+  concepto_nomina: string;
+  medio_pago: MedioPagoSolicitud;
+  descripcion: string;
+  valor_bruto: number;
+  valor_retenciones: number;
+  valor_descuentos: number;
+};
+
+export type CrearSolicitudFrontendPayload =
+  | CrearSolicitudProveedorPayload
+  | CrearSolicitudNominaIndividualPayload;
+
+export type NominaIndividualFormularioState = {
+  proyecto_base_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string;
+  periodo_nomina: string;
+  concepto_nomina: string;
+  medio_pago: MedioPagoSolicitud | "";
+  descripcion: string;
+  valor_bruto: string;
+  valor_retenciones: string;
+  valor_descuentos: string;
+};
+
 export const OPCIONES_TIPO_SOLICITUD: OpcionTipoSolicitud[] = [
   {
     id: "PAGO_PROVEEDOR",
@@ -26,8 +74,7 @@ export const OPCIONES_TIPO_SOLICITUD: OpcionTipoSolicitud[] = [
     titulo: "Nómina individual",
     descripcion:
       "Pago individual de nómina, honorarios u otros conceptos asociados a un trabajador.",
-    habilitado: false,
-    etiquetaEstado: "Próximamente",
+    habilitado: true,
   },
   {
     id: "NOMINA_GRUPAL",
