@@ -107,8 +107,8 @@ export type SolicitudPagoListado = {
     id: string;
     nombre: string;
     tipo_beneficiario: string;
-    tipo_documento: string;
-    numero_documento: string;
+    tipo_documento: string | null;
+    numero_documento: string | null;
   } | null;
   proveedor?: {
     id: string;
@@ -164,7 +164,7 @@ export type SolicitudPagoFormularioState = {
   centro_costo_id: string;
   beneficiario_id: string;
   categoria_gasto: string;
-  medio_pago: MedioPagoSolicitud;
+  medio_pago: MedioPagoSolicitud | "";
   descripcion: string;
   valor_bruto: string;
   valor_impuestos: string;

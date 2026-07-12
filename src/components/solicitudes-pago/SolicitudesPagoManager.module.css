@@ -14,6 +14,118 @@
   overflow: hidden;
 }
 
+.typeSelectorSection {
+  padding: 20px;
+}
+
+.typeSelectorHeader {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.typeSelectorDescription {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.typeSelectorGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.typeSelectorCard {
+  box-sizing: border-box;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.typeSelectorCard:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #f8fbff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.typeSelectorCard:focus-visible {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+.typeSelectorCardSelected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.typeSelectorCardDisabled {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.typeSelectorCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.typeSelectorCardTitle {
+  color: inherit;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.typeSelectorCardDescription {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.typeSelectorSelectedBadge,
+.typeSelectorDisabledBadge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.typeSelectorSelectedBadge {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.typeSelectorDisabledBadge {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
 .form {
   display: grid;
   gap: 18px;
@@ -106,14 +218,12 @@
   top: calc(100% + 6px);
   right: 0;
   left: 0;
-
   display: flex;
   flex-direction: column;
   width: 100%;
   max-height: 260px;
   overflow-x: hidden;
   overflow-y: auto;
-
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background: #ffffff;
@@ -129,18 +239,15 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 3px;
-
   width: 100%;
   min-width: 0;
   margin: 0;
   padding: 11px 12px;
-
   border: 0;
   border-bottom: 1px solid #e5e7eb;
   border-radius: 0;
   background: #ffffff;
   color: #111827;
-
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -167,11 +274,9 @@
   width: 100%;
   min-width: 0;
   overflow: hidden;
-
   color: #111827;
   font-size: 14px;
   font-weight: 800;
-
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -181,11 +286,9 @@
   width: 100%;
   min-width: 0;
   overflow: hidden;
-
   color: #6b7280;
   font-size: 12px;
   font-weight: 500;
-
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -195,7 +298,6 @@
   width: 100%;
   margin: 0;
   padding: 14px 12px;
-
   color: #6b7280;
   font-size: 13px;
   line-height: 1.4;
@@ -419,6 +521,12 @@
   display: none;
 }
 
+@media (max-width: 1050px) {
+  .typeSelectorGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .desktopTable {
     display: none;
@@ -499,6 +607,18 @@
     gap: 18px;
   }
 
+  .typeSelectorSection {
+    padding: 16px;
+  }
+
+  .typeSelectorGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .typeSelectorCard {
+    min-height: auto;
+  }
+
   .form {
     padding: 16px;
   }
@@ -547,8 +667,13 @@
 }
 
 @media (max-width: 480px) {
+  .typeSelectorSection,
   .form {
     padding: 14px;
+  }
+
+  .typeSelectorCardHeader {
+    display: grid;
   }
 
   .formTitle,
