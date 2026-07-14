@@ -1,5 +1,7 @@
 # 04. Máquinas de estado
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Solicitudes de pago
 
 ### Estados
@@ -26,6 +28,10 @@ stateDiagram-v2
     PROGRAMADA_PAGO --> PAGADA: Marcar como pagada
     PAGADA --> [*]
 ```
+
+### Edición durante aprobación de nivel 1
+
+Mientras una solicitud esté en `PENDIENTE_APROBADOR_1` o `DEVUELTA_APROBADOR_1`, el `APROBADOR_1` puede editar sus valores y demás datos funcionales, excepto `creado_por`. La edición no cambia por sí sola el estado y debe registrar auditoría de campos modificados, usuario editor y fecha.
 
 ### Flujos alternos
 
@@ -116,6 +122,10 @@ Reglas:
 - La inactivación no elimina historial de solicitudes ni movimientos.
 - La deduplicación de creación se valida sobre beneficiarios activos por tipo y número de documento.
 
+## Nómina
+
+Las solicitudes de nómina individual usan `modalidad_nomina = INDIVIDUAL` y requieren `periodo_nomina` como mes al que corresponde el pago, en formato `YYYY-MM`. Solo se permiten meses del año vigente hasta el mes actual. La combinación proyecto base, centro de costo, trabajador, concepto de nómina y periodo no puede repetirse mientras exista una solicitud distinta de `ANULADA`.
+
 ## Operaciones de efectivo
 
 ```text
@@ -179,3 +189,20 @@ Aplica para:
 - Cargos financieros.
 - Pagos tributarios independientes.
 - Ajustes autorizados.
+
+## Estado de retiro agrupado
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDIENTE_RETIRO
+    PENDIENTE_RETIRO --> RETIRADO: Registrar retiro
+    RETIRADO --> PAGADO: Registrar pagos de solicitudes asociadas
+    PAGADO --> CERRADO: Sin sobrante
+    PAGADO --> SOBRANTE_PENDIENTE_REINGRESO: Existe sobrante
+    SOBRANTE_PENDIENTE_REINGRESO --> SOBRANTE_REINGRESADO: Reingreso total
+    SOBRANTE_PENDIENTE_REINGRESO --> SOBRANTE_AJUSTADO: Ajuste autorizado
+    SOBRANTE_REINGRESADO --> CERRADO
+    SOBRANTE_AJUSTADO --> CERRADO
+```
+
+El estado corresponde al retiro agrupado. Las solicitudes relacionadas mantienen su propio estado de pago.

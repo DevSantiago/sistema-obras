@@ -1,5 +1,7 @@
 # 05. Arquitectura
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Tipo de aplicación
 
 Aplicación web responsiva con backend API, base de datos relacional y almacenamiento de archivos.
@@ -152,6 +154,12 @@ Registrar auditoría
 Confirmar transacción
 ```
 
+## Visibilidad y autorización de solicitudes
+
+La consulta de solicitudes debe construir el alcance en la capa de servicio y aplicarlo en el repositorio. Los accesos por proyecto y línea sirven para autorizar dónde opera el usuario, pero no para otorgar visibilidad de solicitudes de terceros. Solo `ADMINISTRADOR` tiene consulta total.
+
+El `APROBADOR_1` puede actualizar valores y datos funcionales de una solicitud en revisión, excepto `creado_por`. El cambio debe ejecutarse transaccionalmente junto con su registro de auditoría.
+
 ## Beneficiarios
 
 El módulo de beneficiarios maneja:
@@ -170,12 +178,194 @@ Reglas arquitectónicas:
 - La creación de proveedor y beneficiario debe ser transaccional cuando se envían juntos.
 - Los campos de documento y datos bancarios se validan en service y deben reforzarse en base de datos.
 
+## Nómina
+
+La nómina individual y agrupada es creada exclusivamente por `ADMINISTRADOR`. El `DIRECTOR` no está autorizado para crear solicitudes de nómina.
+
+`periodo_nomina` se modela como una cadena normalizada `YYYY-MM`; la capa de servicio valida que pertenezca al año vigente y que no supere el mes actual.
+
+### Nómina individual
+
+La nómina individual reutiliza la estructura general de `solicitudes_pago`.
+
+Características:
+
+- La cabecera registra `beneficiario_id`.
+- La cabecera registra `concepto_nomina`.
+- La cabecera registra `medio_pago`.
+- El beneficiario debe ser tipo `TRABAJADOR`.
+- La validación de duplicados se realiza por:
+  - proyecto base;
+  - centro de costo;
+  - trabajador;
+  - concepto de nómina;
+  - periodo de nómina.
+- Las solicitudes con estado `ANULADA` no participan en la validación de duplicados.
+
+### Nómina agrupada
+
+La nómina agrupada utiliza una cabecera única (`solicitudes_pago`) y un detalle por trabajador (`detalles_nomina_solicitud`).
+
+La cabecera registra:
+
+- proyecto base;
+- centro de costo;
+- fondo;
+- periodo de nómina;
+- archivo origen;
+- valores consolidados.
+
+La cabecera **no** registra:
+
+- beneficiario;
+- concepto de nómina;
+- medio de pago.
+
+Estos datos pertenecen al detalle de cada trabajador.
+
+Cada solicitud agrupada pertenece a:
+
+- un único proyecto base;
+- un único centro de costo;
+- un único fondo;
+- un único periodo de nómina.
+
+Un mismo archivo puede contener simultáneamente conceptos como:
+
+- salario;
+- honorarios;
+- bonificación;
+- liquidación;
+- auxilio;
+- otro.
+
+Cada concepto pertenece exclusivamente al detalle de la solicitud.
+
+La clave funcional para detectar duplicados dentro del archivo es:
+
+```text
+tipo_documento
++
+numero_documento
++
+concepto_nomina
+```
+
+Por lo tanto, un mismo trabajador puede aparecer varias veces dentro del mismo archivo siempre que el concepto sea diferente.
+
+La validación contra solicitudes existentes agrega además:
+
+- proyecto base;
+- centro de costo;
+- periodo de nómina.
+
+Las solicitudes con estado `ANULADA` no participan en esta validación.
+
+### Flujo arquitectónico
+
+El backend divide el proceso en dos etapas.
+
+#### VALIDAR
+
+Responsabilidades:
+
+- validar permisos;
+- validar proyecto;
+- validar centro de costo;
+- validar fondo;
+- leer el archivo Excel;
+- normalizar encabezados;
+- validar filas;
+- calcular valores netos;
+- calcular valores consolidados;
+- detectar duplicados;
+- identificar trabajadores inexistentes;
+- almacenar temporalmente el archivo.
+
+La acción `VALIDAR` nunca crea:
+
+- beneficiarios;
+- solicitudes;
+- detalles de solicitud.
+
+#### CREAR
+
+Responsabilidades:
+
+- revalidar toda la información;
+- crear beneficiarios faltantes cuando el usuario lo confirme;
+- reutilizar beneficiarios existentes;
+- generar el consecutivo documental;
+- crear la cabecera;
+- crear los detalles;
+- asociar el archivo origen;
+- registrar auditoría cuando la funcionalidad transversal de auditoría esté implementada.
+
+Toda la operación debe ejecutarse dentro de una única transacción.
+
+### Organización del módulo
+
+```text
+src/modules/solicitudes-pago/
+│
+├── solicitudes-pago.repository.ts
+├── solicitudes-pago.service.ts
+├── solicitudes-pago.types.ts
+│
+└── nomina-grupal/
+    ├── nomina-grupal.types.ts
+    ├── nomina-grupal.validators.ts
+    ├── nomina-grupal.excel.ts
+    ├── nomina-grupal.repository.ts
+    ├── nomina-grupal.service.ts
+    └── __tests__/
+        └── nomina-grupal.service.test.ts
+```
+
+Responsabilidades de cada componente:
+
+- **nomina-grupal.excel.ts**
+  - lectura del archivo Excel;
+  - validación de encabezados;
+  - normalización de filas.
+
+- **nomina-grupal.validators.ts**
+  - validaciones de negocio;
+  - validación de conceptos;
+  - validación bancaria;
+  - cálculo de valores;
+  - detección de duplicados;
+  - estados de validación.
+
+- **nomina-grupal.repository.ts**
+  - consultas a Prisma;
+  - búsqueda y reutilización de beneficiarios;
+  - validación de duplicados persistidos;
+  - persistencia transaccional.
+
+- **nomina-grupal.service.ts**
+  - orquestación del proceso;
+  - validaciones finales;
+  - permisos;
+  - generación del consecutivo;
+  - creación de beneficiarios;
+  - creación de la solicitud.
+
+- **route.ts**
+  - autenticación;
+  - recepción de `multipart/form-data`;
+  - acciones `VALIDAR` y `CREAR`.
+
+## Secuencias documentales
+
+La generación de referencias debe ser atómica y contextual por `tipo_secuencia + proyecto_base_id + centro_costo_id + anio`. La referencia visible usa prefijo documental, referencia del centro, referencia del proyecto, año y consecutivo.
+
 ## Pagos en efectivo
 
 Política recomendada:
 
 - Si se retira más de lo pagado, registrar egreso por el valor retirado.
-- Registrar valor pagado al beneficiario dentro de `operaciones_efectivo`.
+- Registrar el retiro agrupado en `operaciones_efectivo` y cada solicitud incluida en `operaciones_efectivo_solicitudes`.
 - Mantener sobrante pendiente.
 - Registrar ingreso cuando el sobrante vuelva al fondo.
 - Evitar doble descuento entre `EGRESO_RETIRO_EFECTIVO` y `EGRESO_SOLICITUD_PAGO`.
@@ -218,3 +408,11 @@ Cada módulo debe incluir:
 - Validación funcional en navegador cuando exista frontend.
 - `npm run lint` exitoso.
 - `npm run test:run` exitoso.
+
+### Diseño de operaciones de efectivo agrupadas
+
+- `operaciones_efectivo` actúa como cabecera del retiro.
+- `operaciones_efectivo_solicitudes` resuelve la relación muchos a muchos entre retiro y solicitudes, con el valor asignado a cada solicitud.
+- `reingresos_sobrante_efectivo` registra uno o varios reingresos asociados al retiro.
+- Los movimientos de fondo conservan la referencia a la operación de efectivo y al fondo afectado.
+- Los préstamos se procesan antes del retiro cuando un proyecto requiere disponibilidad adicional.

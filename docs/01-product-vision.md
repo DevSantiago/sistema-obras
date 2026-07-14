@@ -1,5 +1,7 @@
 # 01. Visión del producto
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Objetivo
 
 Construir una aplicación web responsiva para gestionar solicitudes de pago, beneficiarios, aprobaciones, pagos, fondo general por proyecto base, centros de costo operativos, préstamos, anticipos, reembolsos, nómina, impuestos, cargos financieros, operaciones de efectivo, adjuntos, auditoría y exportación de información.
@@ -43,7 +45,7 @@ El MVP debe incluir:
 - Movimientos financieros.
 - Préstamos, anticipos y devoluciones.
 - Cargos financieros.
-- Operaciones de efectivo y reingreso de sobrantes.
+- Operaciones de efectivo agrupadas para uno o varios pagos, con trazabilidad por solicitud y reingreso de sobrantes asociado al retiro.
 - Impuestos y retenciones.
 - Auditoría.
 - Exportación a Excel.
@@ -140,6 +142,10 @@ SOLICITANTE
 
 El rol `LECTURA` queda como referencia histórica y no es parte activa del flujo del MVP salvo decisión posterior.
 
+El `ADMINISTRADOR` actúa como superadministrador y es el único rol autorizado para preparar y crear solicitudes de nómina individual y agrupada. El `DIRECTOR` conserva las funciones operativas y de consulta que le sean otorgadas mediante permisos y accesos, pero no crea solicitudes de nómina.
+
+La visibilidad del módulo Solicitudes se determina por rol y estado del flujo: el creador conserva acceso a sus propias solicitudes; el `APROBADOR_1` recibe las solicitudes enviadas a primer nivel; el `APROBADOR_2` recibe las aprobadas por primer nivel; `PAGOS` recibe las programadas para pago; y el `ADMINISTRADOR` puede consultar todas. El permiso genérico `CONSULTAR_TODO` no sustituye esta regla de visibilidad dentro del módulo Solicitudes.
+
 ### Pagos no programa pagos
 
 El rol `PAGOS` no programa pagos.
@@ -172,16 +178,9 @@ OTRO
 
 No todos los beneficiarios son usuarios del sistema. Por eso `usuario_id` es opcional.
 
-Para que el módulo Pagos pueda operar correctamente, los siguientes campos son obligatorios en el beneficiario:
+Para que el módulo Pagos pueda operar correctamente, todo beneficiario debe registrar tipo de documento, número de documento y medio de pago preferido. Cuando el medio de pago sea `TRANSFERENCIA` o `CONSIGNACION`, también son obligatorios el banco, el tipo de cuenta y el número de cuenta. Para `EFECTIVO`, esos datos bancarios son opcionales.
 
-- Tipo de documento.
-- Número de documento.
-- Medio de pago preferido.
-- Banco.
-- Tipo de cuenta bancaria.
-- Número de cuenta bancaria.
-
-Los beneficiarios tipo `PROVEEDOR` pueden estar asociados a un registro en `proveedores`.
+Los beneficiarios tipo `PROVEEDOR` pueden estar asociados a un registro en `proveedores`. Los beneficiarios tipo `TRABAJADOR` no pueden registrar `NIT` como tipo de documento.
 
 ### Categorías y conceptos
 
@@ -191,8 +190,8 @@ No se usa un campo genérico `item` como clasificación principal. Se usan campo
 |---|---|
 | Pago a proveedor | `categoria_gasto` |
 | Reembolso | `categoria_reembolso` |
-| Nómina | `concepto_nomina` |
-| Otro pago | `categoria_gasto` |
+| Nómina | `concepto_nomina` y `periodo_nomina` en formato `YYYY-MM`, limitado al mes actual del año vigente |
+| Pago de impuesto | `categoria_gasto` y detalle tributario asociado |
 
 Si el valor es `OTRO`, la descripción es obligatoria.
 
@@ -205,7 +204,7 @@ Los impuestos y retenciones no son cargos financieros.
 | Impuestos y retenciones | Desglose tributario de una solicitud o registro contable |
 | Cargos financieros | Costos bancarios u operativos del movimiento de dinero |
 
-Ejemplos de impuestos: IVA, RETEFUENTE, RETEICA, RETEIVA, estampillas.
+Ejemplos de impuestos: IVA, RETEFUENTE, RETEICA, RETEIVA, estampillas. `PAGO_IMPUESTO` se conserva como tipo de solicitud independiente cuando el pago tributario debe recorrer el flujo de aprobación.
 
 Ejemplos de cargos financieros: GMF, cuatro por mil, comisión bancaria, costo de retiro.
 
@@ -223,6 +222,40 @@ Sobrante: 13.000
 ```
 
 El sobrante debe quedar pendiente de reingreso hasta que sea consignado o ajustado.
+
+### Referencias documentales contextuales
+
+Las solicitudes y demás documentos secuenciales deben usar una referencia legible por contexto:
+
+```text
+SOL-{TIPO_SOLICITUD}-{REFERENCIA_CENTRO}-{REFERENCIA_PROYECTO}-{AÑO}-{CONSECUTIVO}
+```
+
+Ejemplos:
+
+```text
+SOL-PRV-OBRA-HUMAPO-2026-000001
+SOL-OBRA-HUMAPO-2026-000001
+SOL-PRV-PRO-INT-HUMAPO-2026-000001
+SOL-INT-HUMAPO-2026-000001
+```
+
+El consecutivo se controla de forma independiente por tipo de secuencia, proyecto base, centro de costo y año.
+
+Códigos de tipo de solicitud:
+
+```text
+PRV = pago a proveedor
+NOM = nómina
+IMP = pago de impuesto
+REE = reembolso
+```
+
+Ejemplo completo:
+
+```text
+SOL-PRV-OBRA-HUMAPO-2026-000001
+```
 
 ## Fuera del MVP
 
@@ -265,3 +298,12 @@ Para evitar pérdida de información, toda decisión funcional debe quedar refle
 - API.
 - Seguridad.
 - Backlog.
+
+### Retiros agrupados y préstamos para disponibilidad
+
+- Un retiro de efectivo puede cubrir varias solicitudes de pago.
+- Cada solicitud conserva su proyecto base, centro de costo, fondo y valor asignado dentro del retiro.
+- El sobrante se calcula a nivel del retiro agrupado y su reingreso se asocia al retiro, no a una solicitud individual.
+- Si un proyecto no tiene saldo suficiente para cubrir sus solicitudes, debe registrarse previamente un préstamo `PROYECTO_A_PROYECTO` desde otro proyecto con saldo disponible.
+- También se permiten préstamos `PERSONA_A_PROYECTO`.
+- El préstamo, el retiro agrupado y el reingreso son operaciones distintas y auditables.

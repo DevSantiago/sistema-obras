@@ -1,5 +1,6 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
+import { obtenerDetalleNominaGrupalService } from "./nomina-grupal/nomina-grupal.service";
 import {
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
@@ -9,6 +10,7 @@ import {
   obtenerCentroCostoActivoRepository,
   obtenerFondoActivoPorProyectoRepository,
   obtenerProyectoBaseActivoRepository,
+  obtenerSolicitudPagoPorIdRepository,
 } from "./solicitudes-pago.repository";
 import type {
   CrearSolicitudNominaIndividualInput,
@@ -671,6 +673,93 @@ export async function listarSolicitudesPagoService(
       message: "Solicitudes consultadas correctamente.",
       data: {
         solicitudes: solicitudes.map(convertirSolicitudPago),
+      },
+    },
+  };
+}
+
+
+export async function obtenerSolicitudPagoPorIdService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+) {
+  if (
+    !usuarioTieneAlgunPermiso(
+      usuarioAutenticado,
+      PERMISOS_CONSULTAR_SOLICITUDES,
+    )
+  ) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "No tiene permisos para consultar solicitudes de pago.",
+      },
+    };
+  }
+
+  const id = normalizarTexto(solicitudId);
+
+  if (!id) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El identificador de la solicitud es obligatorio.",
+      },
+    };
+  }
+
+  const solicitud = await obtenerSolicitudPagoPorIdRepository(id);
+
+  if (!solicitud) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "La solicitud de pago no existe.",
+      },
+    };
+  }
+
+  const visibilidad =
+    construirVisibilidadSolicitudesPago(usuarioAutenticado);
+
+  const puedeConsultar =
+    visibilidad.consultar_todas ||
+    (visibilidad.incluir_propias &&
+      solicitud.creado_por === visibilidad.usuario_id) ||
+    visibilidad.estados_flujo.includes(
+      solicitud.estado_actual as EstadoSolicitudPago,
+    );
+
+  if (!puedeConsultar) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "No tiene autorización para consultar esta solicitud.",
+      },
+    };
+  }
+
+  if (
+    solicitud.tipo_solicitud === "PAGO_NOMINA" &&
+    solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
+  ) {
+    return obtenerDetalleNominaGrupalService(id);
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Solicitud de pago consultada correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(solicitud),
       },
     },
   };

@@ -1,5 +1,7 @@
 # 03. Roles y permisos
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Principio vigente
 
 El sistema autoriza por permisos, no únicamente por nombre de rol.
@@ -94,6 +96,7 @@ Responsable de proyectos asignados. Los directores llevan diferentes proyectos d
 Puede:
 
 - Crear solicitudes.
+- Consultar y apoyar la operación de los proyectos y líneas asignadas, conforme a sus permisos. No crea solicitudes de nómina.
 - Crear proyectos si el negocio lo requiere.
 - Crear usuarios.
 - Asignar accesos.
@@ -132,7 +135,9 @@ Puede:
 - Crear usuarios.
 - Asignar accesos.
 - Aprobar nivel 1.
-- Consultar todo.
+- Consultar las solicitudes propias y las que llegan a primer nivel de aprobación.
+- Editar los valores y demás datos funcionales de una solicitud en revisión, excepto el usuario creador.
+- Devolver solicitudes al creador.
 - Supervisar operación.
 
 No puede:
@@ -158,6 +163,13 @@ OBRA
 INTERVENTORIA
 ```
 
+Reglas de visibilidad y edición:
+
+- No ve solicitudes `BORRADOR` creadas por otros usuarios.
+- Ve solicitudes en `PENDIENTE_APROBADOR_1` y `DEVUELTA_APROBADOR_1`, además de las propias.
+- El permiso `CONSULTAR_TODO` no concede visibilidad total dentro del módulo Solicitudes; esa facultad se reserva al `ADMINISTRADOR`.
+- Toda edición debe generar trazabilidad con usuario editor, fecha, campo modificado, valor anterior y valor nuevo.
+
 ## Aprobador 2
 
 Socio financiero. Valida solicitudes en segundo nivel.
@@ -165,7 +177,7 @@ Socio financiero. Valida solicitudes en segundo nivel.
 Puede:
 
 - Aprobar nivel 2.
-- Consultar todo.
+- Consultar solicitudes propias y solicitudes en `PENDIENTE_APROBADOR_2`.
 
 No puede:
 
@@ -275,7 +287,7 @@ No puede:
 - Crear proyectos.
 - Crear usuarios.
 - Asignar accesos.
-- Operar sobre `INTERVENTORIA`.
+- Operar sobre proyectos o líneas para los cuales no tenga un acceso activo.
 
 Permisos:
 
@@ -283,10 +295,11 @@ Permisos:
 CREAR_SOLICITUDES
 ```
 
-Líneas permitidas:
+Líneas permitidas según asignación:
 
 ```text
 OBRA
+INTERVENTORIA
 ```
 
 ## Accesos por proyecto y línea
@@ -307,9 +320,10 @@ Ejemplo:
 
 Reglas:
 
-- `SOLICITANTE` solo puede recibir acceso a `OBRA`.
+- `SOLICITANTE` puede recibir acceso a `OBRA` o `INTERVENTORIA`, según la asignación realizada por el `ADMINISTRADOR`.
 - Los demás roles vigentes pueden recibir `OBRA` e `INTERVENTORIA` según asignación.
-- Un usuario no opera sobre un proyecto si no tiene acceso activo o permiso `CONSULTAR_TODO`, según la acción.
+- Un usuario no opera sobre un proyecto si no tiene acceso activo, salvo el `ADMINISTRADOR` como superadministrador.
+- El permiso `CONSULTAR_TODO` no amplía por sí solo la visibilidad del módulo Solicitudes.
 - Los accesos se pueden activar, revocar y reactivar sin duplicar registros.
 
 ## Registros que no pasan por aprobación
@@ -331,6 +345,8 @@ Se controlan por permisos, soportes y auditoría.
 | Crear usuario | Sí | Sí | Sí | No | No | No | No |
 | Asignar accesos | Sí | Sí | Sí | No | No | No | No |
 | Crear solicitud | Sí | Sí | Sí | No | Sí | No | Sí |
+| Crear nómina individual o agrupada | Sí | Sí | No | No | No | No | No |
+| Editar solicitud en revisión de nivel 1, excepto creador | Sí | No | Sí | No | No | No | No |
 | Aprobar nivel 1 | Sí | No | Sí | No | No | No | No |
 | Aprobar nivel 2 | Sí | No | No | Sí | No | No | No |
 | Marcar como pagada | Sí | No | No | No | No | Sí | No |
@@ -338,4 +354,12 @@ Se controlan por permisos, soportes y auditoría.
 | Registrar reingreso de sobrante | Sí | No | No | No | Sí | Según política | No |
 | Registrar cargo financiero | Sí | No | No | No | Sí | No | No |
 | Registrar impuesto o retención | Sí | No | No | No | Sí | No | No |
-| Consultar todo | Sí | No | Sí | Sí | No | No | No |
+| Consultar todas las solicitudes | Sí | No | No | No | No | No | No |
+
+## Permisos sobre retiros agrupados y reingresos
+
+- Pagos puede crear un retiro agrupado y asociar una o varias solicitudes programadas para pago.
+- Pagos no puede incluir solicitudes cuyo proyecto no tenga saldo suficiente.
+- El usuario autorizado para préstamos puede registrar `PERSONA_A_PROYECTO` o `PROYECTO_A_PROYECTO` antes del retiro.
+- Auxiliar contable puede registrar reingresos contra el retiro agrupado y no contra una solicitud individual.
+- Administrador conserva acceso total como superadministrador.

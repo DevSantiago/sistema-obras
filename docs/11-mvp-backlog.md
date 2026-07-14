@@ -1,5 +1,7 @@
 # 11. Backlog MVP
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Objetivo
 
 Definir el backlog del MVP para el sistema de gestión de solicitudes de pago, fondo general por proyecto base, centros de costo operativos, aprobaciones, pagos, beneficiarios, nómina, reembolsos, préstamos, anticipos, cargos financieros, operaciones de efectivo, impuestos, retenciones, auditoría, exportaciones y OCR futuro.
@@ -122,8 +124,9 @@ Estado a la fecha de actualización:
 | Proyectos base | APROBADA | Creación de proyecto, fondo general y centros iniciales |
 | Centros de costo | APROBADA | `PRO-OBRA`, `OBRA`, `PRO-INT`, `INT` y cambios de estado implementados |
 | Autorización por permisos | APROBADA | Crear usuarios/proyectos y asignar accesos valida permisos, no solo rol |
-| Beneficiarios | PENDIENTE | Siguiente módulo funcional sugerido antes de solicitudes |
-| Solicitudes de pago | PENDIENTE | Siguiente bloque principal después de beneficiarios y secuencias |
+| Beneficiarios | APROBADA | Backend y frontend integrados; validación de `TRABAJADOR` sin `NIT` y pruebas completadas |
+| Secuencias documentales | APROBADA | Consecutivo contextual por tipo, proyecto, centro de costo y año |
+| Solicitudes de pago | EN_DESARROLLO | Pago a proveedor, listado y visibilidad por flujo completados; faltan nómina, reembolso, impuestos, otros pagos, edición y envío |
 
 ---
 
@@ -160,7 +163,8 @@ Criterios:
 - Muestra campos tributarios cuando aplique.
 - Muestra adjuntos.
 - Muestra estado actual.
-- Diferencia pago a proveedor, nómina, reembolso y otro pago.
+- Diferencia pago a proveedor, nómina, reembolso, pago de impuesto y otro pago.
+- Admite `TRANSFERENCIA`, `CONSIGNACION` y `EFECTIVO`.
 
 ### HU-0002. Diseñar wireframes del módulo Pagos
 
@@ -568,7 +572,7 @@ Criterios:
 - Se puede cambiar `PRO-INT` a `INT`.
 - Se puede finalizar `OBRA` e `INT`.
 - Se pueden crear usuarios con rol único y accesos por proyecto/línea.
-- `SOLICITANTE` queda limitado a `OBRA`.
+- `SOLICITANTE` puede operar en `OBRA` o `INTERVENTORIA`, exclusivamente sobre los accesos activos asignados.
 - `DIRECTOR` y `APROBADOR_1` pueden crear proyectos, usuarios y asignar accesos si tienen permisos.
 - Las rutas API no autorizan por nombre de rol, sino por permisos.
 - `npm run lint` y `npm run test:run` pasan correctamente.
@@ -646,11 +650,6 @@ Criterios:
 - No se repite.
 - Se guarda en `solicitudes_pago.numero_solicitud`.
 
-Estado:
-
-- Implementada infraestructura base de secuencias documentales mediante `secuencias_documentales`.
-- La integración con `solicitudes_pago.numero_solicitud` se realiza al implementar Épica 6, cuando exista el módulo de solicitudes de pago.
-
 ### HU-0502. Generar referencia de movimiento financiero
 
 Como sistema, quiero generar referencia de movimiento, para auditar ingresos y egresos.
@@ -661,12 +660,6 @@ Criterios:
 - Se guarda en `movimientos_fondo_centro_costo.referencia_sistema`.
 - Permite filtrar por centro de costo.
 
-Estado:
-
-- Diferida a la épica/módulo donde se implemente `movimientos_fondo`.
-- La infraestructura de secuencias queda lista en Épica 5, pero la asignación efectiva de `referencia_sistema` debe integrarse cuando exista el flujo transaccional de movimientos financieros.
-- Nota de alineación técnica: el modelo vigente usa `movimientos_fondo.referencia_sistema`; la referencia a `movimientos_fondo_centro_costo` queda como nombre histórico del backlog.
-
 ### HU-0503. Generar referencias de cargos y efectivo
 
 Como sistema, quiero generar referencias para cargos financieros y operaciones de efectivo, para trazabilidad.
@@ -676,11 +669,6 @@ Criterios:
 - Cargos financieros tienen referencia.
 - Operaciones de efectivo tienen referencia.
 - Reingresos pueden tener referencia documental externa.
-
-Estado:
-
-- Diferida a las épicas/módulos donde se implementen `cargos_financieros` y `operaciones_efectivo`.
-- La infraestructura de secuencias queda lista en Épica 5, pero la asignación efectiva de referencias debe integrarse con los flujos propios de cargos financieros y operaciones de efectivo.
 
 ---
 
@@ -703,6 +691,14 @@ Crear, editar, enviar y consultar solicitudes de pago.
 - Permite impuestos y retenciones.
 - Valida medio de pago.
 - Valida categoría o concepto según tipo.
+
+Reglas de visibilidad:
+
+- El creador ve sus solicitudes.
+- `APROBADOR_1` no ve borradores de terceros; recibe solicitudes en `PENDIENTE_APROBADOR_1` y `DEVUELTA_APROBADOR_1`.
+- `APROBADOR_2` recibe solicitudes en `PENDIENTE_APROBADOR_2`.
+- `PAGOS` recibe solicitudes en `PROGRAMADA_PAGO`.
+- `ADMINISTRADOR` ve todas.
 
 ## Historias
 
@@ -734,22 +730,32 @@ Criterios:
 
 ### HU-0603. Crear solicitud de nómina individual
 
-Como usuario autorizado, quiero crear una solicitud de nómina individual, para pagar a un trabajador.
+Como Administrador, quiero crear una solicitud de nómina individual, para pagar a un trabajador de un proyecto.
 
 Criterios:
 
+- Solo `ADMINISTRADOR` puede crear y administrar esta solicitud de nómina.
 - Tipo `PAGO_NOMINA`.
 - Modalidad `INDIVIDUAL`.
 - Selecciona beneficiario tipo `TRABAJADOR`.
+- El trabajador no puede tener `NIT` como tipo de documento.
 - Selecciona concepto de nómina.
+- Registra `periodo_nomina` como el mes correspondiente al pago en formato `YYYY-MM`.
+- El periodo es independiente de la fecha de creación y de la fecha efectiva del pago.
+- No permite seleccionar meses futuros ni meses de años distintos al vigente.
+- Permite `TRANSFERENCIA`, `CONSIGNACION` o `EFECTIVO`.
+- No permite otra solicitud no anulada con el mismo proyecto, centro, trabajador, concepto y periodo.
+- Estado inicial `BORRADOR`.
 
 ### HU-0604. Crear solicitud de nómina agrupada por Excel
 
-Como usuario autorizado, quiero cargar nómina agrupada, para pagar varios trabajadores.
+Como Director, quiero cargar nómina agrupada, para pagar varios trabajadores de un proyecto asignado.
 
 Criterios:
 
+- Solo `ADMINISTRADOR` puede crear y administrar esta solicitud de nómina.
 - Modalidad `AGRUPADA_EXCEL`.
+- Registra periodo de nómina mediante un selector con los meses disponibles del año vigente hasta el mes actual.
 - Carga archivo.
 - Valida filas.
 - Detecta nuevos beneficiarios.
@@ -757,7 +763,18 @@ Criterios:
 - Permite confirmar carga.
 - Crea ítems de solicitud.
 
-### HU-0605. Enviar solicitud
+### HU-0605. Crear solicitud de pago de impuesto
+
+Como Auxiliar contable o Administrador, quiero crear una solicitud `PAGO_IMPUESTO`, para tramitar una obligación tributaria independiente.
+
+Criterios:
+
+- Registra tipo de impuesto, periodo, entidad beneficiaria y valor.
+- Permite `TRANSFERENCIA`, `CONSIGNACION` o `EFECTIVO` cuando corresponda.
+- Recorre el flujo normal de aprobación.
+- Genera movimiento `EGRESO_IMPUESTO_RETENCION` al pagarse.
+
+### HU-0606. Enviar solicitud
 
 Como Solicitante, quiero enviar una solicitud, para iniciar aprobación.
 
@@ -837,7 +854,10 @@ Como Aprobador 1, quiero aprobar solicitudes, para enviarlas a segundo nivel.
 Criterios:
 
 - Solo desde `PENDIENTE_APROBADOR_1`.
-- Cambia a `PENDIENTE_APROBADOR_2`.
+- Puede editar valores y demás datos funcionales, excepto `creado_por`.
+- Toda edición registra usuario, fecha, campo, valor anterior y valor nuevo.
+- Puede devolver al solicitante.
+- Al aprobar cambia a `PENDIENTE_APROBADOR_2`.
 - Registra usuario y fecha.
 
 ### HU-0802. Devolver al Solicitante
@@ -1006,55 +1026,63 @@ Criterios:
 
 ## Objetivo
 
-Controlar retiros, pagos en efectivo y reingresos de sobrantes.
+Controlar retiros agrupados, pagos en efectivo y reingresos de sobrantes.
 
 ## Criterios de aceptación de la épica
 
-- Registra retiro.
-- Registra pago.
-- Calcula sobrante.
-- Permite reingreso.
-- Reingreso no pasa por aprobación.
-- Crea movimiento financiero de ingreso cuando se reingresa sobrante.
+- Un retiro puede incluir una o varias solicitudes programadas para pago.
+- Cada solicitud conserva fondo, proyecto, centro de costo y valor asignado.
+- Calcula valor requerido, retirado, pagado y sobrante a nivel del retiro.
+- Permite uno o varios reingresos asociados al retiro.
+- El reingreso no pasa por aprobación.
+- Crea movimientos financieros de retiro y reingreso sin duplicar el egreso de las solicitudes.
+- Si un proyecto no tiene saldo suficiente, exige registrar previamente el préstamo correspondiente.
 
 ## Historias
 
-### HU-1101. Registrar operación de efectivo
+### HU-1101. Registrar retiro agrupado
 
-Como usuario de Pagos, quiero registrar operación de efectivo, para dejar trazabilidad del retiro y pago.
+Como usuario de Pagos, quiero agrupar solicitudes en un retiro, para ejecutar varios pagos en efectivo con una sola operación bancaria.
 
 Criterios:
 
-- `valor_retirado >= valor_pagado`.
+- Solo incluye solicitudes programadas para pago y con medio de pago efectivo.
+- Permite una o varias solicitudes.
+- Registra `operaciones_efectivo`.
+- Registra una fila en `operaciones_efectivo_solicitudes` por solicitud.
+- `valor_requerido` corresponde a la suma de valores asignados.
+- `valor_retirado >= valor_requerido`.
 - Calcula `valor_sobrante`.
 - Estado `SIN_SOBRANTE` si no sobra.
 - Estado `SOBRANTE_PENDIENTE_REINGRESO` si sobra.
 
 ### HU-1102. Registrar reingreso de sobrante
 
-Como usuario autorizado, quiero registrar reingreso de sobrante, para devolver dinero al fondo.
+Como usuario autorizado, quiero registrar un reingreso contra el retiro, para devolver el sobrante al fondo correspondiente.
 
 Criterios:
 
 - Solo si existe sobrante pendiente.
+- Se asocia a `operacion_efectivo_id`, no a una solicitud individual.
+- Permite reingresos parciales.
+- La suma reingresada no supera el sobrante.
 - No pasa por aprobación.
+- Crea `reingresos_sobrante_efectivo`.
 - Crea movimiento `INGRESO_REINGRESO_SOBRANTE_EFECTIVO`.
-- Actualiza saldo.
-- Cambia estado a `SOBRANTE_REINGRESADO`.
+- Actualiza saldo y estado del retiro.
 
 ### HU-1103. Consultar pendientes de reingreso
 
-Como usuario financiero, quiero consultar sobrantes pendientes, para hacer seguimiento.
+Como usuario financiero, quiero consultar retiros con sobrante pendiente, para hacer seguimiento.
 
 Criterios:
 
-- Lista operaciones con `SOBRANTE_PENDIENTE_REINGRESO`.
-- Muestra centro de costo.
-- Muestra solicitud.
-- Muestra valor sobrante.
+- Lista retiros con `SOBRANTE_PENDIENTE_REINGRESO`.
+- Muestra solicitudes incluidas.
+- Muestra distribución por fondo, proyecto y centro.
+- Muestra valor requerido, retirado, reingresado y pendiente.
 - Permite exportar.
 
----
 
 # Épica 12. Impuestos y retenciones
 
@@ -1187,8 +1215,8 @@ Como usuario autorizado, quiero registrar préstamo de una persona a un proyecto
 
 Criterios:
 
-- Crea `prestamos_obra`.
-- Tipo `PERSONA_A_OBRA` o equivalente vigente en el modelo.
+- Crea `prestamos_proyecto`.
+- Tipo `PERSONA_A_PROYECTO` o equivalente vigente en el modelo.
 - Asocia el préstamo al proyecto base y fondo general.
 - Crea movimiento de ingreso.
 - Actualiza saldo pendiente.
@@ -1200,7 +1228,7 @@ Como usuario autorizado, quiero registrar préstamo entre proyectos base, para c
 
 Criterios:
 
-- Tipo `OBRA_A_OBRA`.
+- Tipo `PROYECTO_A_PROYECTO`.
 - Crea egreso en proyecto/fondo origen.
 - Crea ingreso en proyecto/fondo destino.
 - Actualiza saldos de ambos fondos.
