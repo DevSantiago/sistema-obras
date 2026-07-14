@@ -10,12 +10,8 @@ import type {
   SolicitudesPagoResponseData,
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import NominaGrupalForm from "./forms/NominaGrupalForm";
 import NominaIndividualForm from "./forms/NominaIndividualForm";
 import ProveedorForm from "./forms/ProveedorForm";
 import SolicitudesPagoList from "./lists/SolicitudesPagoList";
@@ -87,7 +83,7 @@ function usuarioTienePermiso(
   return usuario.permisos?.includes(permiso) ?? false;
 }
 
-function usuarioPuedeCrearNominaIndividual(
+function usuarioPuedeCrearNomina(
   usuario: UsuarioSesionSolicitudesPago,
 ): boolean {
   if (usuario.roles.includes("ADMINISTRADOR")) {
@@ -98,6 +94,10 @@ function usuarioPuedeCrearNominaIndividual(
     usuario.roles.includes("DIRECTOR") &&
     usuarioTienePermiso(usuario, "CREAR_SOLICITUDES")
   );
+}
+
+function esTipoNomina(tipo: TipoSolicitudFormulario): boolean {
+  return tipo === "NOMINA_INDIVIDUAL" || tipo === "NOMINA_GRUPAL";
 }
 
 export default function SolicitudesPagoManager({
@@ -128,10 +128,10 @@ export default function SolicitudesPagoManager({
   const [mensajeError, setMensajeError] = useState("");
 
   const opcionesTipoSolicitud = useMemo<OpcionTipoSolicitud[]>(() => {
-    const puedeCrearNomina = usuarioPuedeCrearNominaIndividual(usuario);
+    const puedeCrearNomina = usuarioPuedeCrearNomina(usuario);
 
     return OPCIONES_TIPO_SOLICITUD.map((opcion) => {
-      if (opcion.id !== "NOMINA_INDIVIDUAL") {
+      if (!esTipoNomina(opcion.id)) {
         return opcion;
       }
 
@@ -330,6 +330,16 @@ export default function SolicitudesPagoManager({
     await crearSolicitud(payload);
   }
 
+  async function manejarNominaGrupalCreada(
+    mensaje: string,
+  ): Promise<void> {
+    setMensajeError("");
+    setMensajeExito(mensaje);
+    setProyectoBaseSeleccionadoId("");
+
+    await cargarSolicitudes();
+  }
+
   function renderizarFormulario() {
     switch (tipoSeleccionado) {
       case "PAGO_PROVEEDOR":
@@ -365,6 +375,19 @@ export default function SolicitudesPagoManager({
         );
 
       case "NOMINA_GRUPAL":
+        return (
+          <NominaGrupalForm
+            proyectos={proyectos}
+            centrosCostoDisponibles={centrosCostoDisponibles}
+            cargandoCatalogos={cargandoCatalogos}
+            mensajeExito={mensajeExito}
+            mensajeError={mensajeError}
+            onProyectoChange={setProyectoBaseSeleccionadoId}
+            onCreada={manejarNominaGrupalCreada}
+            onLimpiarMensajes={limpiarMensajes}
+          />
+        );
+
       case "PAGO_IMPUESTO":
       case "REEMBOLSO":
         return null;
