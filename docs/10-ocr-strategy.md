@@ -1,5 +1,7 @@
 # 10. Estrategia OCR
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Alcance futuro
 
 OCR no es obligatorio para el MVP. En fases posteriores puede apoyar la lectura de soportes.

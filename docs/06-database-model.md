@@ -1,5 +1,7 @@
 # 06. Modelo de base de datos
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Objetivo
 
 Definir el modelo completo de base de datos para solicitudes de pago, usuarios, roles, acceso por proyecto base y centro de costo, beneficiarios, proveedores, trabajadores, nómina, carga de Excel, fondos generales por proyecto base, préstamos, anticipos, devoluciones, movimientos financieros, operaciones de efectivo, reingresos de sobrantes, cargos financieros, impuestos, retenciones, adjuntos, historial, comentarios, auditoría, referencias internas y OCR futuro.
@@ -54,9 +56,11 @@ Ejemplos:
 - `devoluciones_prestamo`
 - `anticipos_proyecto`
 - `solicitudes_pago`
-- `items_solicitud_pago`
+- `detalles_nomina_solicitud`
 - `impuestos_retenciones_solicitud`
 - `operaciones_efectivo`
+- `operaciones_efectivo_solicitudes`
+- `reingresos_sobrante_efectivo`
 - `cargos_financieros`
 - `movimientos_fondo`
 - `adjuntos`
@@ -117,13 +121,13 @@ La tabla `fondos` conserva el saldo actual general del proyecto base. Los centro
 
 El fondo responde: de dónde sale la plata. El centro de costo responde: en qué línea y fase se gastó.
 
-Para nómina agrupada, `items_solicitud_pago` almacena el detalle de trabajadores y conceptos, pero el descuento financiero se realiza sobre `solicitudes_pago.valor_neto`.
+Para nómina agrupada, `detalles_nomina_solicitud` almacena el detalle de trabajadores y conceptos, pero el descuento financiero se realiza sobre `solicitudes_pago.valor_neto`.
 
-Cuando una solicitud se paga por transferencia directa, el fondo se afecta con `EGRESO_SOLICITUD_PAGO`. Cuando una solicitud se paga mediante retiro de efectivo, el fondo se afecta con `EGRESO_RETIRO_EFECTIVO` por el valor retirado y, si sobra dinero, con `INGRESO_REINGRESO_SOBRANTE_EFECTIVO` por el valor reingresado. En este caso no debe generarse adicionalmente `EGRESO_SOLICITUD_PAGO`, para evitar doble descuento.
+Cuando una solicitud se paga por transferencia directa, el fondo se afecta con `EGRESO_SOLICITUD_PAGO`. Cuando varias solicitudes se pagan mediante un retiro agrupado de efectivo, `operaciones_efectivo` registra la cabecera del retiro y `operaciones_efectivo_solicitudes` registra cada solicitud y su valor asignado. El fondo se afecta con `EGRESO_RETIRO_EFECTIVO` según la imputación financiera del retiro y, si sobra dinero, con `INGRESO_REINGRESO_SOBRANTE_EFECTIVO` por cada reingreso registrado. No debe generarse adicionalmente `EGRESO_SOLICITUD_PAGO` para las mismas solicitudes, para evitar doble descuento.
 
 Los reingresos de sobrantes de retiros, cargos financieros y pagos de impuestos o retenciones que afecten saldo también deben registrarse en `movimientos_fondo`.
 
-Los préstamos se registran como una deuda en `prestamos_proyecto` y como un ingreso al fondo general mediante `movimientos_fondo`. Cuando el prestamista recoge dinero, la devolución disminuye el saldo del fondo y disminuye el saldo pendiente del préstamo. La devolución puede ocurrir aunque todavía exista dinero disponible del préstamo inicial.
+Los préstamos se registran en `prestamos_proyecto` y admiten `PERSONA_A_PROYECTO` y `PROYECTO_A_PROYECTO`. En la primera modalidad se registra un ingreso al proyecto receptor y una deuda con la persona prestamista. En la segunda se registra un egreso en el proyecto origen y un ingreso por el mismo valor en el proyecto destino. Las devoluciones disminuyen el saldo pendiente y generan los movimientos inversos correspondientes. Un préstamo puede registrarse antes de un retiro agrupado cuando el proyecto receptor no tenga saldo suficiente para cubrir sus solicitudes.
 
 Los cargos financieros corresponden a costos bancarios o financieros generados al retirar, consignar, transferir o mover dinero. Incluyen, entre otros, GMF, 4x1000, comisiones bancarias, costos de retiro, costos de transferencia, costos de consignación y diferencias asociadas a operaciones de efectivo. Estos cargos no se calculan automáticamente como valor oficial; deben registrarse manualmente desde la plataforma por un usuario autorizado, normalmente auxiliar contable o financiero, con soporte cuando aplique. Cuando afecten el saldo del fondo, deben generar un movimiento `EGRESO_CARGO_FINANCIERO`.
 
@@ -162,7 +166,7 @@ Reglas principales:
 - Un usuario puede tener acceso a una o varias líneas dentro de un proyecto.
 - La línea `OBRA` autoriza operación sobre centros `PRO-OBRA` y `OBRA` del proyecto.
 - La línea `INTERVENTORIA` autoriza operación sobre centros `PRO-INT` e `INT` del proyecto.
-- El rol `SOLICITANTE` solo puede tener acceso a `OBRA`.
+- El rol `SOLICITANTE` puede tener acceso a `OBRA` o `INTERVENTORIA`, según asignación administrativa.
 - Los roles `ADMINISTRADOR`, `DIRECTOR`, `APROBADOR_1`, `APROBADOR_2`, `AUXILIAR_CONTABLE` y `PAGOS` pueden tener acceso a `OBRA` e `INTERVENTORIA`, según asignación.
 - La creación de solicitudes debe validar permiso funcional y acceso activo al proyecto/línea seleccionada.
 - La consulta de saldo se hace sobre el fondo general del proyecto base, no sobre un saldo independiente del centro de costo.
@@ -192,6 +196,7 @@ El campo `beneficiarios_pago.usuario_id` es opcional:
 Reglas principales:
 
 - `tipo_beneficiario` debe ser `PROVEEDOR`, `TRABAJADOR` u `OTRO`.
+- Un beneficiario `TRABAJADOR` no puede usar `NIT` como tipo de documento; esta regla se valida en backend.
 - `medio_pago_preferido` puede ser `TRANSFERENCIA`, `EFECTIVO` o `NULL`.
 - `tipo_cuenta_bancaria` puede ser `AHORROS`, `CORRIENTE`, `OTRO` o `NULL`.
 - El documento del beneficiario debe usarse para deduplicación funcional, pero la política de unicidad estricta debe definirse en backend para evitar bloquear casos operativos especiales.
@@ -199,7 +204,11 @@ Reglas principales:
 - El trabajador puede existir sin usuario del sistema.
 - Crear un beneficiario no debe crear automáticamente un usuario.
 
-Para nómina agrupada, `items_solicitud_pago` conserva datos originales del Excel:
+Para nómina individual, `solicitudes_pago.periodo_nomina` identifica exclusivamente el mes al que corresponde el pago. Debe almacenarse como texto normalizado en formato `YYYY-MM` mediante `VARCHAR(7)`. Este valor es independiente de `creado_en` y `pagado_en`; por ejemplo, una solicitud creada en mayo puede corresponder al periodo `2026-02`. El backend valida que pertenezca al año vigente y que no sea posterior al mes actual.
+
+No debe existir más de una solicitud de nómina individual no anulada para la misma combinación de `proyecto_base_id`, `centro_costo_id`, `beneficiario_id`, `concepto_nomina` y `periodo_nomina`. La validación funcional se realiza en backend y se respalda con índice de consulta.
+
+Para nómina agrupada, `detalles_nomina_solicitud` conserva datos originales del Excel:
 
 - `nombre_beneficiario_original`
 - `tipo_documento_original`
@@ -211,6 +220,10 @@ Esto permite auditar diferencias entre el nombre registrado del beneficiario y e
 El sistema deduplica trabajadores por `tipo_documento_original + numero_documento_original`, no por nombre.
 
 Un documento puede aparecer varias veces en el Excel si corresponde a conceptos diferentes. En ese caso, el sistema debe marcar advertencia `ADVERTENCIA_DOCUMENTO_REPETIDO_ARCHIVO`, pero no bloquear automáticamente la carga.
+
+## Trazabilidad de edición por Aprobador 1
+
+Las modificaciones realizadas por `APROBADOR_1` deben conservar `creado_por` sin cambios y generar registros de auditoría con entidad, identificador, campo, valor anterior, valor nuevo, usuario editor y fecha.
 
 ## Diagrama entidad-relación
 
@@ -407,6 +420,7 @@ erDiagram
         string categoria_gasto
         string categoria_reembolso
         string concepto_nomina
+        varchar periodo_nomina
         string modalidad_nomina
         string medio_pago
         decimal valor_bruto
@@ -418,7 +432,7 @@ erDiagram
         string estado_actual
     }
 
-    ITEMS_SOLICITUD_PAGO {
+    DETALLES_NOMINA_SOLICITUD {
         uuid id PK
         uuid solicitud_pago_id FK
         uuid beneficiario_id FK
@@ -562,11 +576,11 @@ erDiagram
     PROVEEDORES ||--o{ BENEFICIARIOS_PAGO : origina
     USUARIOS ||--o{ BENEFICIARIOS_PAGO : puede_asociarse
     BENEFICIARIOS_PAGO ||--o{ SOLICITUDES_PAGO : recibe
-    BENEFICIARIOS_PAGO ||--o{ ITEMS_SOLICITUD_PAGO : recibe
+    BENEFICIARIOS_PAGO ||--o{ DETALLES_NOMINA_SOLICITUD : recibe
     FONDOS ||--o{ SOLICITUDES_PAGO : financia
     PROYECTOS_BASE ||--o{ SOLICITUDES_PAGO : agrupa
     CENTROS_COSTO ||--o{ SOLICITUDES_PAGO : agrupa
-    SOLICITUDES_PAGO ||--o{ ITEMS_SOLICITUD_PAGO : contiene
+    SOLICITUDES_PAGO ||--o{ DETALLES_NOMINA_SOLICITUD : contiene
     SOLICITUDES_PAGO ||--o{ IMPUESTOS_RETENCIONES_SOLICITUD : desglosa
     SOLICITUDES_PAGO ||--o{ OPERACIONES_EFECTIVO : puede_generar
     OPERACIONES_EFECTIVO ||--o{ CARGOS_FINANCIEROS : puede_generar
@@ -1007,6 +1021,7 @@ CREATE TABLE prestamistas (
 CREATE TABLE secuencias_documentales (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tipo_secuencia VARCHAR(50) NOT NULL,
+    clave_contexto VARCHAR(200) NOT NULL,
     proyecto_base_id UUID REFERENCES proyectos_base(id),
     centro_costo_id UUID REFERENCES centros_costo(id),
     prefijo VARCHAR(20) NOT NULL,
@@ -1014,7 +1029,7 @@ CREATE TABLE secuencias_documentales (
     valor_actual INTEGER NOT NULL DEFAULT 0,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT unico_secuencia_proyecto_centro_anio UNIQUE (tipo_secuencia, proyecto_base_id, centro_costo_id, anio),
+    CONSTRAINT unico_secuencia_contexto_anio UNIQUE (tipo_secuencia, clave_contexto, anio),
     CONSTRAINT restriccion_tipo_secuencia CHECK (
         tipo_secuencia IN (
             'SOLICITUD_PAGO',
@@ -1046,12 +1061,14 @@ CREATE TABLE fondos (
 
 CREATE TABLE prestamos_proyecto (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    fondo_id UUID NOT NULL REFERENCES fondos(id),
-    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
     referencia_sistema VARCHAR(100) UNIQUE NOT NULL,
     referencia_documental VARCHAR(100),
-    prestamista_id UUID NOT NULL REFERENCES prestamistas(id),
-    tipo_prestamo VARCHAR(50) NOT NULL DEFAULT 'PERSONA_A_PROYECTO',
+    tipo_prestamo VARCHAR(50) NOT NULL,
+    prestamista_id UUID REFERENCES prestamistas(id),
+    proyecto_origen_id UUID REFERENCES proyectos_base(id),
+    fondo_origen_id UUID REFERENCES fondos(id),
+    proyecto_destino_id UUID NOT NULL REFERENCES proyectos_base(id),
+    fondo_destino_id UUID NOT NULL REFERENCES fondos(id),
     valor_principal NUMERIC(14,2) NOT NULL,
     saldo_pendiente NUMERIC(14,2) NOT NULL,
     estado VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE',
@@ -1061,7 +1078,21 @@ CREATE TABLE prestamos_proyecto (
     creado_por UUID REFERENCES usuarios(id),
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT restriccion_tipo_prestamo CHECK (tipo_prestamo IN ('PERSONA_A_PROYECTO')),
+    CONSTRAINT restriccion_tipo_prestamo CHECK (
+        tipo_prestamo IN ('PERSONA_A_PROYECTO', 'PROYECTO_A_PROYECTO')
+    ),
+    CONSTRAINT restriccion_origen_prestamo CHECK (
+        (tipo_prestamo = 'PERSONA_A_PROYECTO'
+            AND prestamista_id IS NOT NULL
+            AND proyecto_origen_id IS NULL
+            AND fondo_origen_id IS NULL)
+        OR
+        (tipo_prestamo = 'PROYECTO_A_PROYECTO'
+            AND prestamista_id IS NULL
+            AND proyecto_origen_id IS NOT NULL
+            AND fondo_origen_id IS NOT NULL
+            AND proyecto_origen_id <> proyecto_destino_id)
+    ),
     CONSTRAINT restriccion_estado_prestamo CHECK (estado IN ('PENDIENTE', 'PAGADO_PARCIAL', 'PAGADA', 'ANULADA')),
     CONSTRAINT restriccion_valores_prestamo CHECK (
         valor_principal > 0
@@ -1108,6 +1139,7 @@ CREATE TABLE solicitudes_pago (
     categoria_gasto VARCHAR(80),
     categoria_reembolso VARCHAR(80),
     concepto_nomina VARCHAR(80),
+    periodo_nomina VARCHAR(7),
     medio_pago VARCHAR(30),
     adjunto_archivo_origen_id UUID,
     descripcion TEXT NOT NULL,
@@ -1132,13 +1164,16 @@ CREATE TABLE solicitudes_pago (
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT restriccion_tipo_solicitud CHECK (
-        tipo_solicitud IN ('PAGO_PROVEEDOR', 'PAGO_NOMINA', 'REEMBOLSO', 'PAGO_IMPUESTO', 'OTRO_PAGO')
+        tipo_solicitud IN ('PAGO_PROVEEDOR', 'PAGO_NOMINA', 'REEMBOLSO', 'PAGO_IMPUESTO')
     ),
     CONSTRAINT restriccion_modalidad_nomina CHECK (
         modalidad_nomina IS NULL OR modalidad_nomina IN ('INDIVIDUAL', 'AGRUPADA_EXCEL')
     ),
+    CONSTRAINT restriccion_periodo_nomina CHECK (
+        periodo_nomina IS NULL OR periodo_nomina ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'
+    ),
     CONSTRAINT restriccion_medio_pago CHECK (
-        medio_pago IS NULL OR medio_pago IN ('TRANSFERENCIA', 'EFECTIVO')
+        medio_pago IS NULL OR medio_pago IN ('TRANSFERENCIA', 'CONSIGNACION', 'EFECTIVO')
     ),
     CONSTRAINT restriccion_estado_solicitud CHECK (
         estado_actual IN (
@@ -1163,7 +1198,7 @@ CREATE TABLE solicitudes_pago (
     )
 );
 
-CREATE TABLE items_solicitud_pago (
+CREATE TABLE detalles_nomina_solicitud (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     solicitud_pago_id UUID NOT NULL REFERENCES solicitudes_pago(id) ON DELETE CASCADE,
     beneficiario_id UUID REFERENCES beneficiarios_pago(id),
@@ -1181,12 +1216,12 @@ CREATE TABLE items_solicitud_pago (
     valor_neto NUMERIC(14,2) NOT NULL,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT restriccion_valores_item CHECK (
+    CONSTRAINT restriccion_valores_detalle_nomina CHECK (
         valor_bruto >= 0
         AND valor_neto >= 0
         AND valor_neto <= valor_bruto
     ),
-    CONSTRAINT restriccion_estado_validacion_item CHECK (
+    CONSTRAINT restriccion_estado_validacion_detalle_nomina CHECK (
         estado_validacion IS NULL OR estado_validacion IN (
             'VALIDO',
             'NUEVO_BENEFICIARIO',
@@ -1239,52 +1274,66 @@ CREATE TABLE impuestos_retenciones_solicitud (
 
 CREATE TABLE operaciones_efectivo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    fondo_id UUID NOT NULL REFERENCES fondos(id),
-    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
-    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
-    solicitud_pago_id UUID REFERENCES solicitudes_pago(id),
     referencia_sistema VARCHAR(80) NOT NULL UNIQUE,
     referencia_retiro VARCHAR(120),
-    referencia_reingreso VARCHAR(120),
     valor_requerido NUMERIC(14,2) NOT NULL CHECK (valor_requerido > 0),
     valor_retirado NUMERIC(14,2) NOT NULL CHECK (valor_retirado > 0),
-    valor_pagado NUMERIC(14,2) NOT NULL CHECK (valor_pagado > 0),
+    valor_pagado NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (valor_pagado >= 0),
     valor_sobrante NUMERIC(14,2) NOT NULL DEFAULT 0,
     valor_reingresado NUMERIC(14,2) NOT NULL DEFAULT 0,
     estado_operacion VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE_RETIRO',
-    estado_sobrante VARCHAR(50) NOT NULL,
+    estado_sobrante VARCHAR(50) NOT NULL DEFAULT 'SIN_SOBRANTE',
     fecha_retiro TIMESTAMP,
     fecha_pago TIMESTAMP,
-    fecha_reingreso TIMESTAMP,
     soporte_retiro_adjunto_id UUID,
     soporte_pago_adjunto_id UUID,
-    soporte_reingreso_adjunto_id UUID,
     observacion TEXT,
     creado_por UUID NOT NULL REFERENCES usuarios(id),
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT restriccion_estado_operacion_efectivo CHECK (
         estado_operacion IN (
-            'PENDIENTE_RETIRO',
-            'RETIRADO',
-            'PAGADO',
-            'SOBRANTE_PENDIENTE_REINGRESO',
-            'SOBRANTE_REINGRESADO',
-            'CERRADO',
-            'ANULADO'
+            'PENDIENTE_RETIRO', 'RETIRADO', 'PAGADO',
+            'SOBRANTE_PENDIENTE_REINGRESO', 'SOBRANTE_REINGRESADO',
+            'CERRADO', 'ANULADO'
         )
     ),
     CONSTRAINT restriccion_estado_sobrante CHECK (
         estado_sobrante IN (
-            'SIN_SOBRANTE',
-            'SOBRANTE_PENDIENTE_REINGRESO',
-            'SOBRANTE_REINGRESADO',
-            'SOBRANTE_AJUSTADO'
+            'SIN_SOBRANTE', 'SOBRANTE_PENDIENTE_REINGRESO',
+            'SOBRANTE_REINGRESADO', 'SOBRANTE_AJUSTADO'
         )
     ),
     CONSTRAINT restriccion_valores_efectivo CHECK (valor_retirado >= valor_pagado),
     CONSTRAINT restriccion_sobrante_efectivo CHECK (valor_sobrante = valor_retirado - valor_pagado),
     CONSTRAINT restriccion_reingreso_efectivo CHECK (valor_reingresado <= valor_sobrante)
+);
+
+CREATE TABLE operaciones_efectivo_solicitudes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    operacion_efectivo_id UUID NOT NULL REFERENCES operaciones_efectivo(id) ON DELETE CASCADE,
+    solicitud_pago_id UUID NOT NULL REFERENCES solicitudes_pago(id),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    valor_asignado NUMERIC(14,2) NOT NULL CHECK (valor_asignado > 0),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_operacion_efectivo_solicitud UNIQUE (operacion_efectivo_id, solicitud_pago_id)
+);
+
+CREATE TABLE reingresos_sobrante_efectivo (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    operacion_efectivo_id UUID NOT NULL REFERENCES operaciones_efectivo(id),
+    fondo_id UUID NOT NULL REFERENCES fondos(id),
+    proyecto_base_id UUID NOT NULL REFERENCES proyectos_base(id),
+    centro_costo_id UUID NOT NULL REFERENCES centros_costo(id),
+    valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
+    fecha_reingreso TIMESTAMP NOT NULL,
+    referencia_reingreso VARCHAR(120),
+    soporte_reingreso_adjunto_id UUID,
+    observacion TEXT,
+    registrado_por UUID NOT NULL REFERENCES usuarios(id),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE cargos_financieros (
@@ -1536,16 +1585,20 @@ CREATE INDEX indice_solicitudes_pago_medio_pago ON solicitudes_pago(medio_pago);
 CREATE INDEX indice_solicitudes_pago_categoria_gasto ON solicitudes_pago(categoria_gasto);
 CREATE INDEX indice_solicitudes_pago_categoria_reembolso ON solicitudes_pago(categoria_reembolso);
 CREATE INDEX indice_solicitudes_pago_concepto_nomina ON solicitudes_pago(concepto_nomina);
+CREATE INDEX indice_solicitudes_pago_periodo_nomina ON solicitudes_pago(periodo_nomina);
+CREATE INDEX indice_solicitudes_pago_duplicado_nomina_individual
+    ON solicitudes_pago(proyecto_base_id, centro_costo_id, beneficiario_id, concepto_nomina, periodo_nomina, estado_actual)
+    WHERE tipo_solicitud = 'PAGO_NOMINA' AND modalidad_nomina = 'INDIVIDUAL';
 CREATE INDEX indice_solicitudes_pago_creado_por ON solicitudes_pago(creado_por);
 CREATE INDEX indice_solicitudes_pago_pagado_por ON solicitudes_pago(pagado_por);
 CREATE INDEX indice_solicitudes_pago_creado_en ON solicitudes_pago(creado_en);
 CREATE INDEX indice_solicitudes_pago_pagado_en ON solicitudes_pago(pagado_en);
 
-CREATE INDEX indice_items_solicitud_pago_solicitud ON items_solicitud_pago(solicitud_pago_id);
-CREATE INDEX indice_items_solicitud_pago_beneficiario ON items_solicitud_pago(beneficiario_id);
-CREATE INDEX indice_items_solicitud_pago_documento_original ON items_solicitud_pago(tipo_documento_original, numero_documento_original);
-CREATE INDEX indice_items_solicitud_pago_concepto_nomina ON items_solicitud_pago(concepto_nomina);
-CREATE INDEX indice_items_solicitud_pago_estado_validacion ON items_solicitud_pago(estado_validacion);
+CREATE INDEX indice_detalles_nomina_solicitud_solicitud ON detalles_nomina_solicitud(solicitud_pago_id);
+CREATE INDEX indice_detalles_nomina_solicitud_beneficiario ON detalles_nomina_solicitud(beneficiario_id);
+CREATE INDEX indice_detalles_nomina_solicitud_documento_original ON detalles_nomina_solicitud(tipo_documento_original, numero_documento_original);
+CREATE INDEX indice_detalles_nomina_solicitud_concepto_nomina ON detalles_nomina_solicitud(concepto_nomina);
+CREATE INDEX indice_detalles_nomina_solicitud_estado_validacion ON detalles_nomina_solicitud(estado_validacion);
 
 CREATE INDEX indice_impuestos_retenciones_solicitud ON impuestos_retenciones_solicitud(solicitud_pago_id);
 CREATE INDEX indice_impuestos_retenciones_tipo ON impuestos_retenciones_solicitud(tipo_impuesto_retencion);
@@ -1611,3 +1664,24 @@ CREATE INDEX indice_auditoria_creado_en ON auditoria(creado_en);
 CREATE INDEX indice_resultados_ocr_adjunto ON resultados_ocr(adjunto_id);
 CREATE INDEX indice_resultados_ocr_solicitud ON resultados_ocr(solicitud_pago_id);
 ```
+
+CREATE INDEX indice_operaciones_efectivo_solicitudes_operacion ON operaciones_efectivo_solicitudes(operacion_efectivo_id);
+CREATE INDEX indice_operaciones_efectivo_solicitudes_solicitud ON operaciones_efectivo_solicitudes(solicitud_pago_id);
+CREATE INDEX indice_operaciones_efectivo_solicitudes_fondo ON operaciones_efectivo_solicitudes(fondo_id);
+CREATE INDEX indice_reingresos_sobrante_operacion ON reingresos_sobrante_efectivo(operacion_efectivo_id);
+CREATE INDEX indice_reingresos_sobrante_fondo ON reingresos_sobrante_efectivo(fondo_id);
+CREATE INDEX indice_reingresos_sobrante_fecha ON reingresos_sobrante_efectivo(fecha_reingreso);
+CREATE INDEX indice_prestamos_proyecto_origen ON prestamos_proyecto(proyecto_origen_id);
+CREATE INDEX indice_prestamos_proyecto_destino ON prestamos_proyecto(proyecto_destino_id);
+CREATE INDEX indice_prestamos_fondo_origen ON prestamos_proyecto(fondo_origen_id);
+CREATE INDEX indice_prestamos_fondo_destino ON prestamos_proyecto(fondo_destino_id);
+
+## Regla consolidada: retiros agrupados, reingresos y préstamos
+
+1. `operaciones_efectivo` representa un retiro agrupado y no pertenece a una sola solicitud.
+2. `operaciones_efectivo_solicitudes` relaciona el retiro con una o varias solicitudes e identifica el fondo, proyecto, centro de costo y valor asignado de cada una.
+3. La suma de `valor_asignado` debe coincidir con `valor_requerido` y con el valor total efectivamente pagado cuando se cierre la operación.
+4. `reingresos_sobrante_efectivo` registra uno o varios reingresos asociados al retiro. La suma de sus valores no puede superar `valor_sobrante`.
+5. Cada movimiento financiero de retiro o reingreso debe conservar el fondo, proyecto y centro de costo afectado.
+6. Si un proyecto no tiene saldo suficiente, debe registrarse antes un préstamo `PROYECTO_A_PROYECTO`; también se permiten préstamos `PERSONA_A_PROYECTO`.
+7. El préstamo, el retiro y el reingreso son hechos contables separados y auditables.

@@ -1,5 +1,7 @@
 # 12. Flujos por usuario y rol
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Administrador
 
 Rol técnico de superusuario.
@@ -43,12 +45,14 @@ Ingresar a Beneficiarios
 ↓
 Crear beneficiario
 ↓
-Registrar tipo, documento y datos bancarios
+Registrar tipo, documento, medio de pago y datos bancarios cuando aplique
 ↓
 Si es proveedor, registrar proveedor asociado
 ↓
 Sistema valida duplicados
 ```
+
+El Administrador, como superadministrador, puede consultar todas las solicitudes y operar excepcionalmente cualquier flujo.
 
 ## Director
 
@@ -60,6 +64,12 @@ Ingresar al sistema
 Consultar proyectos asignados
 ↓
 Crear solicitudes
+↓
+Preparar nómina individual o agrupada
+↓
+Seleccionar trabajador, concepto y periodo de nómina en formato `YYYY-MM`, limitado a los meses transcurridos del año vigente
+↓
+Validar que no exista duplicado por proyecto, centro, trabajador, concepto y periodo
 ↓
 Crear proyectos si el negocio lo requiere
 ↓
@@ -99,9 +109,15 @@ El solicitante no opera sobre `INTERVENTORIA`.
 Socio operativo.
 
 ```text
-Ver solicitudes PENDIENTE_APROBADOR_1
+Ver solicitudes `PENDIENTE_APROBADOR_1` y `DEVUELTA_APROBADOR_1`
+↓
+No ver borradores creados por otros usuarios
 ↓
 Revisar soporte, valores, impuestos, beneficiario y categoría
+↓
+Editar valores y demás datos funcionales si aplica, excepto el creador
+↓
+Sistema registra trazabilidad de la edición
 ↓
 Aprobar nivel 1 o devolver al solicitante
 ```
@@ -200,6 +216,22 @@ Registra cargo financiero
 Sistema crea egreso
 ```
 
+## Solicitud de pago de impuesto
+
+```text
+Auxiliar contable o Administrador crea PAGO_IMPUESTO
+↓
+Registra impuesto, periodo, beneficiario, medio de pago y valor
+↓
+Envía a aprobación
+↓
+Recorre Aprobador 1 y Aprobador 2
+↓
+Queda PROGRAMADA_PAGO
+↓
+Pagos marca PAGADA
+```
+
 ## Impuestos y retenciones
 
 ```text
@@ -237,7 +269,7 @@ Usuario autorizado ingresa al módulo Beneficiarios
 ↓
 Registra beneficiario PROVEEDOR, TRABAJADOR u OTRO
 ↓
-Registra documento y datos bancarios obligatorios
+Registra documento, medio de pago y datos bancarios cuando aplique
 ↓
 Sistema valida duplicado activo
 ↓
@@ -252,4 +284,18 @@ Crear beneficiario tipo PROVEEDOR
 Enviar datos de proveedor asociado
 ↓
 Sistema crea proveedor y beneficiario en transacción
+```
+
+## Flujo de retiro agrupado y reingreso
+
+```text
+Pagos selecciona solicitudes programadas para pago en efectivo
+→ el sistema valida saldo por proyecto
+→ si existe déficit, se registra previamente un préstamo
+→ Pagos crea el retiro agrupado
+→ el sistema relaciona cada solicitud y su valor
+→ se registran los pagos
+→ si existe sobrante, queda pendiente de reingreso
+→ Auxiliar contable registra el reingreso contra el retiro
+→ el sistema actualiza movimientos, saldos y auditoría
 ```

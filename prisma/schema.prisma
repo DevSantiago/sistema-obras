@@ -41,6 +41,8 @@ model usuarios {
   solicitudes_aprobadas1 solicitudes_pago[] @relation("SolicitudesAprobadas1Por")
   solicitudes_aprobadas2 solicitudes_pago[] @relation("SolicitudesAprobadas2Por")
   solicitudes_pagadas    solicitudes_pago[] @relation("SolicitudesPagadasPor")
+
+  adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
 
 model roles {
@@ -118,10 +120,10 @@ model proyectos_base {
   creado_en       DateTime @default(now())
   actualizado_en  DateTime @updatedAt
 
-  creador       usuarios?                  @relation("ProyectosBaseCreadoPor", fields: [creado_por], references: [id])
-  centros_costo centros_costo[]
-  fondo         fondos?
-  accesos       accesos_usuario_proyecto[]
+  creador                 usuarios?                  @relation("ProyectosBaseCreadoPor", fields: [creado_por], references: [id])
+  centros_costo           centros_costo[]
+  fondo                   fondos?
+  accesos                 accesos_usuario_proyecto[]
   secuencias_documentales secuencias_documentales[]
 
   solicitudes_pago solicitudes_pago[]
@@ -152,9 +154,9 @@ model centros_costo {
   creado_en                           DateTime  @default(now())
   actualizado_en                      DateTime  @updatedAt
 
-  proyecto_base            proyectos_base @relation(fields: [proyecto_base_id], references: [id])
-  usuario_inicio_ejecucion usuarios?      @relation("CentrosCostoInicioEjecucionPor", fields: [inicio_ejecucion_por], references: [id])
-  secuencias_documentales secuencias_documentales[]
+  proyecto_base            proyectos_base            @relation(fields: [proyecto_base_id], references: [id])
+  usuario_inicio_ejecucion usuarios?                 @relation("CentrosCostoInicioEjecucionPor", fields: [inicio_ejecucion_por], references: [id])
+  secuencias_documentales  secuencias_documentales[]
 
   solicitudes_pago solicitudes_pago[]
 
@@ -260,6 +262,8 @@ model beneficiarios_pago {
 
   solicitudes_pago solicitudes_pago[]
 
+  detalles_nomina detalles_nomina_solicitud[]
+
   @@index([tipo_beneficiario])
   @@index([usuario_id])
   @@index([proveedor_id])
@@ -291,42 +295,42 @@ model secuencias_documentales {
 }
 
 model solicitudes_pago {
-  id                         String    @id @default(uuid())
-  numero_solicitud           String    @unique
-  tipo_solicitud             String    @default("PAGO_PROVEEDOR")
-  modalidad_nomina           String?
-  periodo_nomina             String?   @db.VarChar(7)
-  proyecto_base_id           String
-  fondo_id                   String
-  centro_costo_id            String
-  beneficiario_id            String?
-  proveedor_id               String?
-  categoria_gasto            String?
-  categoria_reembolso        String?
-  concepto_nomina            String?
-  medio_pago                 String?
-  adjunto_archivo_origen_id  String?
-  descripcion                String
-  valor_bruto                Decimal   @db.Decimal(14, 2)
-  valor_impuestos            Decimal   @default(0) @db.Decimal(14, 2)
-  valor_retenciones          Decimal   @default(0) @db.Decimal(14, 2)
-  valor_descuentos           Decimal   @default(0) @db.Decimal(14, 2)
-  valor_neto                 Decimal   @db.Decimal(14, 2)
-  valor_pagado               Decimal?  @db.Decimal(14, 2)
-  valor_reservado            Decimal?  @db.Decimal(14, 2)
-  estado_actual              String    @default("BORRADOR")
-  creado_por                 String?
-  aprobado_1_por             String?
-  aprobado_2_por             String?
-  pagado_por                 String?
-  enviado_en                 DateTime?
-  aprobado_1_en              DateTime?
-  aprobado_2_en              DateTime?
-  devuelto_aprobador_1_en    DateTime?
-  devuelto_solicitante_en    DateTime?
-  pagado_en                  DateTime?
-  creado_en                  DateTime  @default(now())
-  actualizado_en             DateTime  @updatedAt
+  id                        String    @id @default(uuid())
+  numero_solicitud          String    @unique
+  tipo_solicitud            String    @default("PAGO_PROVEEDOR")
+  modalidad_nomina          String?
+  periodo_nomina            String?   @db.VarChar(7)
+  proyecto_base_id          String
+  fondo_id                  String
+  centro_costo_id           String
+  beneficiario_id           String?
+  proveedor_id              String?
+  categoria_gasto           String?
+  categoria_reembolso       String?
+  concepto_nomina           String?
+  medio_pago                String?
+  adjunto_archivo_origen_id String?
+  descripcion               String
+  valor_bruto               Decimal   @db.Decimal(14, 2)
+  valor_impuestos           Decimal   @default(0) @db.Decimal(14, 2)
+  valor_retenciones         Decimal   @default(0) @db.Decimal(14, 2)
+  valor_descuentos          Decimal   @default(0) @db.Decimal(14, 2)
+  valor_neto                Decimal   @db.Decimal(14, 2)
+  valor_pagado              Decimal?  @db.Decimal(14, 2)
+  valor_reservado           Decimal?  @db.Decimal(14, 2)
+  estado_actual             String    @default("BORRADOR")
+  creado_por                String?
+  aprobado_1_por            String?
+  aprobado_2_por            String?
+  pagado_por                String?
+  enviado_en                DateTime?
+  aprobado_1_en             DateTime?
+  aprobado_2_en             DateTime?
+  devuelto_aprobador_1_en   DateTime?
+  devuelto_solicitante_en   DateTime?
+  pagado_en                 DateTime?
+  creado_en                 DateTime  @default(now())
+  actualizado_en            DateTime  @updatedAt
 
   proyecto_base proyectos_base      @relation(fields: [proyecto_base_id], references: [id])
   fondo         fondos              @relation(fields: [fondo_id], references: [id])
@@ -338,6 +342,10 @@ model solicitudes_pago {
   aprobador1 usuarios? @relation("SolicitudesAprobadas1Por", fields: [aprobado_1_por], references: [id])
   aprobador2 usuarios? @relation("SolicitudesAprobadas2Por", fields: [aprobado_2_por], references: [id])
   pagador    usuarios? @relation("SolicitudesPagadasPor", fields: [pagado_por], references: [id])
+
+  adjuntos        adjuntos[]                  @relation("AdjuntosSolicitudPago")
+  archivo_origen  adjuntos?                   @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
+  detalles_nomina detalles_nomina_solicitud[]
 
   @@index([numero_solicitud])
   @@index([proyecto_base_id])
@@ -357,4 +365,60 @@ model solicitudes_pago {
   @@index([pagado_por])
   @@index([creado_en])
   @@index([pagado_en])
+}
+
+model adjuntos {
+  id                String   @id @default(uuid())
+  solicitud_pago_id String?
+  nombre_archivo    String   @db.VarChar(255)
+  ruta_archivo      String
+  nombre_bucket     String   @db.VarChar(150)
+  tipo_mime         String?  @db.VarChar(100)
+  tamano_archivo    BigInt?
+  subido_por        String?
+  subido_en         DateTime @default(now())
+  estado_ocr        String   @default("NO_PROCESADO") @db.VarChar(50)
+  texto_ocr         String?
+  json_ocr          Json?
+
+  solicitud_pago             solicitudes_pago?  @relation("AdjuntosSolicitudPago", fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  solicitudes_archivo_origen solicitudes_pago[] @relation("SolicitudPagoArchivoOrigen")
+  usuario_subio              usuarios?          @relation("AdjuntosSubidosPor", fields: [subido_por], references: [id])
+
+  @@index([solicitud_pago_id])
+  @@index([subido_por])
+  @@index([estado_ocr])
+  @@index([subido_en])
+}
+
+model detalles_nomina_solicitud {
+  id                     String   @id @default(uuid())
+  solicitud_pago_id      String
+  numero_fila            Int
+  beneficiario_id        String?
+  tipo_documento         String
+  numero_documento       String
+  nombre_trabajador      String
+  concepto_nomina        String
+  medio_pago             String
+  banco                  String?
+  tipo_cuenta_bancaria   String?
+  numero_cuenta_bancaria String?
+  valor_bruto            Decimal  @db.Decimal(14, 2)
+  valor_retenciones      Decimal  @default(0) @db.Decimal(14, 2)
+  valor_descuentos       Decimal  @default(0) @db.Decimal(14, 2)
+  valor_neto             Decimal  @db.Decimal(14, 2)
+  estado_validacion      String   @default("VALIDO")
+  errores_validacion     Json?
+  creado_en              DateTime @default(now())
+  actualizado_en         DateTime @updatedAt
+
+  solicitud_pago solicitudes_pago    @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  beneficiario   beneficiarios_pago? @relation(fields: [beneficiario_id], references: [id])
+
+  @@unique([solicitud_pago_id, numero_fila])
+  @@index([solicitud_pago_id])
+  @@index([beneficiario_id])
+  @@index([tipo_documento, numero_documento])
+  @@index([estado_validacion])
 }

@@ -1,5 +1,7 @@
 # 09. Despliegue
 
+> Última actualización funcional: 14 de julio de 2026.
+
 ## Ambientes
 
 ```text
@@ -88,7 +90,7 @@ El seed debe garantizar:
 - Listar beneficiarios.
 - Consultar beneficiario por ID.
 - Validar duplicado por tipo y número de documento.
-- Validar que datos bancarios obligatorios sean requeridos.
+- Validar que los datos bancarios sean requeridos para `TRANSFERENCIA` o `CONSIGNACION` y opcionales para `EFECTIVO`.
 
 ### Solicitudes
 

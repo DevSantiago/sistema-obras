@@ -305,3 +305,12 @@ export async function listarSolicitudesPagoRepository(input: {
     },
   });
 }
+
+export async function obtenerSolicitudPagoPorIdRepository(id: string) {
+  return prisma.solicitudes_pago.findUnique({
+    where: {
+      id,
+    },
+    include: solicitudPagoInclude,
+  });
+}
