@@ -1,11 +1,13 @@
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
 import {
   crearSolicitudNominaIndividualService,
+  crearSolicitudPagoImpuestoService,
   crearSolicitudPagoProveedorService,
   listarSolicitudesPagoService,
 } from "@/modules/solicitudes-pago/solicitudes-pago.service";
 import type {
   CrearSolicitudNominaIndividualInput,
+  CrearSolicitudPagoImpuestoInput,
   CrearSolicitudPagoProveedorInput,
   SolicitudPagoListFilters,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
@@ -51,6 +53,10 @@ function esSolicitudPagoProveedor(body: JsonObject): boolean {
   return obtenerTipoSolicitud(body) === "PAGO_PROVEEDOR";
 }
 
+function esSolicitudPagoImpuesto(body: JsonObject): boolean {
+  return obtenerTipoSolicitud(body) === "PAGO_IMPUESTO";
+}
+
 export async function GET(request: Request) {
   try {
     const resultadoAutenticacion = await obtenerUsuarioSesionDesdeCookie();
@@ -70,6 +76,10 @@ export async function GET(request: Request) {
         searchParams.get("modalidad_nomina")?.trim().toUpperCase() || undefined,
       periodo_nomina:
         searchParams.get("periodo_nomina")?.trim() || undefined,
+      tipo_impuesto:
+        searchParams.get("tipo_impuesto")?.trim().toUpperCase() || undefined,
+      periodo_impuesto:
+        searchParams.get("periodo_impuesto")?.trim() || undefined,
       estado_actual:
         searchParams.get("estado_actual")?.trim().toUpperCase() || undefined,
       proyecto_base_id:
@@ -164,6 +174,17 @@ export async function POST(request: Request) {
       const resultado = await crearSolicitudPagoProveedorService(
         usuario,
         body as CrearSolicitudPagoProveedorInput,
+      );
+
+      return Response.json(resultado.body, {
+        status: resultado.status,
+      });
+    }
+
+    if (esSolicitudPagoImpuesto(body)) {
+      const resultado = await crearSolicitudPagoImpuestoService(
+        usuario,
+        body as CrearSolicitudPagoImpuestoInput,
       );
 
       return Response.json(resultado.body, {

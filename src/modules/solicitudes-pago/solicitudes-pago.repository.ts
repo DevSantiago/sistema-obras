@@ -147,6 +147,8 @@ export async function crearSolicitudPagoRepository(
       categoria_gasto: data.categoria_gasto,
       categoria_reembolso: data.categoria_reembolso,
       concepto_nomina: data.concepto_nomina,
+      tipo_impuesto: data.tipo_impuesto,
+      periodo_impuesto: data.periodo_impuesto,
       medio_pago: data.medio_pago,
       adjunto_archivo_origen_id: data.adjunto_archivo_origen_id,
       descripcion: data.descripcion,
@@ -182,6 +184,16 @@ export async function listarSolicitudesPagoRepository(input: {
     ...(filtros.periodo_nomina
       ? {
           periodo_nomina: filtros.periodo_nomina,
+        }
+      : {}),
+    ...(filtros.tipo_impuesto
+      ? {
+          tipo_impuesto: filtros.tipo_impuesto,
+        }
+      : {}),
+    ...(filtros.periodo_impuesto
+      ? {
+          periodo_impuesto: filtros.periodo_impuesto,
         }
       : {}),
     ...(filtros.estado_actual
@@ -244,6 +256,18 @@ export async function listarSolicitudesPagoRepository(input: {
             },
             {
               periodo_nomina: {
+                contains: filtros.busqueda,
+                mode: "insensitive",
+              },
+            },
+            {
+              tipo_impuesto: {
+                contains: filtros.busqueda,
+                mode: "insensitive",
+              },
+            },
+            {
+              periodo_impuesto: {
                 contains: filtros.busqueda,
                 mode: "insensitive",
               },
