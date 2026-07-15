@@ -282,8 +282,7 @@ function convertirSolicitudPago(
     id: solicitud.id,
     numero_solicitud: solicitud.numero_solicitud,
     tipo_solicitud: solicitud.tipo_solicitud as TipoSolicitudPago,
-    modalidad_nomina:
-      solicitud.modalidad_nomina as ModalidadNomina | null,
+    modalidad_nomina: solicitud.modalidad_nomina as ModalidadNomina | null,
     periodo_nomina: solicitud.periodo_nomina,
     proyecto_base_id: solicitud.proyecto_base_id,
     fondo_id: solicitud.fondo_id,
@@ -293,6 +292,8 @@ function convertirSolicitudPago(
     categoria_gasto: solicitud.categoria_gasto,
     categoria_reembolso: solicitud.categoria_reembolso,
     concepto_nomina: solicitud.concepto_nomina,
+    tipo_impuesto: null,
+    periodo_impuesto: null,
     medio_pago: solicitud.medio_pago as MedioPagoSolicitud | null,
     adjunto_archivo_origen_id: solicitud.adjunto_archivo_origen_id,
     descripcion: solicitud.descripcion,

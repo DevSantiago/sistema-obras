@@ -13,6 +13,7 @@ import {
 } from "../solicitudes-pago.repository";
 import {
   crearSolicitudNominaIndividualService,
+  crearSolicitudPagoImpuestoService,
   crearSolicitudPagoProveedorService,
   listarSolicitudesPagoService,
 } from "../solicitudes-pago.service";
@@ -245,6 +246,18 @@ const inputNominaBase = {
   valor_bruto: 2000000,
   valor_retenciones: 200000,
   valor_descuentos: 100000,
+};
+
+const inputImpuestoBase = {
+  tipo_solicitud: "PAGO_IMPUESTO" as const,
+  proyecto_base_id: "proyecto-1",
+  centro_costo_id: "centro-1",
+  beneficiario_id: "beneficiario-1",
+  tipo_impuesto: "RETEFUENTE" as const,
+  periodo_impuesto: "2026-07",
+  medio_pago: "TRANSFERENCIA" as const,
+  descripcion: "Pago de retención en la fuente de julio",
+  valor_bruto: 500000,
 };
 
 function prepararMocksProveedor() {
@@ -878,6 +891,8 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
       categoria_gasto: "MATERIALES",
       categoria_reembolso: null,
       concepto_nomina: null,
+      tipo_impuesto: null,
+      periodo_impuesto: null,
       medio_pago: "TRANSFERENCIA",
       adjunto_archivo_origen_id: null,
       descripcion: "Pago de materiales",
@@ -940,6 +955,8 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
       categoria_gasto: null,
       categoria_reembolso: null,
       concepto_nomina: "SALARIO",
+      tipo_impuesto: null,
+      periodo_impuesto: null,
       medio_pago: "TRANSFERENCIA",
       adjunto_archivo_origen_id: null,
       descripcion: "Pago de nómina individual de julio",
@@ -1254,6 +1271,8 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
       categoria_gasto: null,
       categoria_reembolso: null,
       concepto_nomina: "SALARIO",
+      tipo_impuesto: null,
+      periodo_impuesto: null,
       medio_pago: "TRANSFERENCIA",
       adjunto_archivo_origen_id: null,
       descripcion: "Pago de nómina individual de julio",
@@ -1267,3 +1286,69 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
     });
   });
 });
+
+describe(
+  "solicitudes-pago.service - crearSolicitudPagoImpuestoService",
+  () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("debe rechazar al solicitante para crear una solicitud de impuesto", async () => {
+      const resultado = await crearSolicitudPagoImpuestoService(
+        usuarioSolicitante,
+        inputImpuestoBase,
+      );
+
+      expect(resultado.status).toBe(403);
+      expect(resultado.body.ok).toBe(false);
+      expect(resultado.body.message).toBe(
+        "Solo un Aprobador nivel 1, Director, Auxiliar contable o Administrador puede crear solicitudes de pago de impuestos.",
+      );
+
+      expect(
+        obtenerProyectoBaseActivoRepository,
+      ).not.toHaveBeenCalled();
+
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar al aprobador 2 para crear una solicitud de impuesto", async () => {
+      const resultado = await crearSolicitudPagoImpuestoService(
+        usuarioAprobador2,
+        inputImpuestoBase,
+      );
+
+      expect(resultado.status).toBe(403);
+      expect(resultado.body.ok).toBe(false);
+      expect(resultado.body.message).toBe(
+        "Solo un Aprobador nivel 1, Director, Auxiliar contable o Administrador puede crear solicitudes de pago de impuestos.",
+      );
+
+      expect(
+        obtenerProyectoBaseActivoRepository,
+      ).not.toHaveBeenCalled();
+
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar al rol pagos para crear una solicitud de impuesto", async () => {
+      const resultado = await crearSolicitudPagoImpuestoService(
+        usuarioPagos,
+        inputImpuestoBase,
+      );
+
+      expect(resultado.status).toBe(403);
+      expect(resultado.body.ok).toBe(false);
+      expect(resultado.body.message).toBe(
+        "Solo un Aprobador nivel 1, Director, Auxiliar contable o Administrador puede crear solicitudes de pago de impuestos.",
+      );
+
+      expect(
+        obtenerProyectoBaseActivoRepository,
+      ).not.toHaveBeenCalled();
+
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+  },
+);

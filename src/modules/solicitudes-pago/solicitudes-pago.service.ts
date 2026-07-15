@@ -1,6 +1,7 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import { obtenerDetalleNominaGrupalService } from "./nomina-grupal/nomina-grupal.service";
+import { TIPOS_IMPUESTO_SOLICITUD } from "./solicitudes-pago.types";
 import {
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
@@ -14,6 +15,7 @@ import {
 } from "./solicitudes-pago.repository";
 import type {
   CrearSolicitudNominaIndividualInput,
+  CrearSolicitudPagoImpuestoInput,
   CrearSolicitudPagoProveedorInput,
   EstadoSolicitudPago,
   MedioPagoSolicitud,
@@ -21,6 +23,7 @@ import type {
   ServiceResponse,
   SolicitudPagoListFilters,
   SolicitudPagoListado,
+  TipoImpuestoSolicitud,
   TipoSolicitudPago,
   VisibilidadSolicitudesPago,
 } from "./solicitudes-pago.types";
@@ -77,6 +80,8 @@ type SolicitudPagoRepositoryResult = {
   categoria_gasto: string | null;
   categoria_reembolso: string | null;
   concepto_nomina: string | null;
+  tipo_impuesto: string | null;
+  periodo_impuesto: string | null;
   medio_pago: string | null;
   adjunto_archivo_origen_id: string | null;
   descripcion: string;
@@ -183,6 +188,17 @@ function usuarioPuedeCrearNominaIndividual(usuario: UsuarioSesion): boolean {
   );
 }
 
+function usuarioPuedeCrearSolicitudImpuesto(
+  usuario: UsuarioSesion,
+): boolean {
+  return [
+    "APROBADOR_1",
+    "DIRECTOR",
+    "AUXILIAR_CONTABLE",
+    "ADMINISTRADOR",
+  ].some((rol) => usuarioTieneRol(usuario, rol));
+}
+
 function usuarioPuedeConsultarTodo(usuario: UsuarioSesion): boolean {
   return usuarioEsAdministrador(usuario);
 }
@@ -264,6 +280,16 @@ function normalizarModalidadNomina(
   const modalidad = normalizarTextoDominio(valor);
 
   return modalidad ? (modalidad as ModalidadNomina) : undefined;
+}
+
+function normalizarTipoImpuesto(
+  valor?: string | null,
+): TipoImpuestoSolicitud | undefined {
+  const tipoImpuesto = normalizarTextoDominio(valor);
+
+  return tipoImpuesto
+    ? (tipoImpuesto as TipoImpuestoSolicitud)
+    : undefined;
 }
 
 function obtenerNumeroNoNegativo(
@@ -381,6 +407,26 @@ function validarPeriodoNomina(periodo: string): string | null {
   return null;
 }
 
+function validarPeriodoImpuesto(periodo: string): string | null {
+  if (!periodoNominaTieneFormatoValido(periodo)) {
+    return "El periodo del impuesto debe tener formato YYYY-MM.";
+  }
+
+  const periodoActual = obtenerPeriodoActualColombia();
+  const anioActual = periodoActual.slice(0, 4);
+  const anioPeriodo = periodo.slice(0, 4);
+
+  if (anioPeriodo !== anioActual) {
+    return "El periodo del impuesto debe corresponder al año vigente.";
+  }
+
+  if (periodo > periodoActual) {
+    return "El periodo del impuesto no puede ser posterior al mes actual.";
+  }
+
+  return null;
+}
+
 function convertirSolicitudPago(
   solicitud: SolicitudPagoRepositoryResult,
 ): SolicitudPagoListado {
@@ -399,6 +445,9 @@ function convertirSolicitudPago(
     categoria_gasto: solicitud.categoria_gasto,
     categoria_reembolso: solicitud.categoria_reembolso,
     concepto_nomina: solicitud.concepto_nomina,
+    tipo_impuesto:
+      solicitud.tipo_impuesto as TipoImpuestoSolicitud | null,
+    periodo_impuesto: solicitud.periodo_impuesto,
     medio_pago: solicitud.medio_pago as MedioPagoSolicitud | null,
     adjunto_archivo_origen_id: solicitud.adjunto_archivo_origen_id,
     descripcion: solicitud.descripcion,
@@ -904,6 +953,8 @@ export async function crearSolicitudPagoProveedorService(
     categoria_gasto: categoriaGasto,
     categoria_reembolso: null,
     concepto_nomina: null,
+    tipo_impuesto: null,
+    periodo_impuesto: null,
     medio_pago: medioPago,
     adjunto_archivo_origen_id: null,
     descripcion,
@@ -1115,6 +1166,8 @@ export async function crearSolicitudNominaIndividualService(
     categoria_gasto: null,
     categoria_reembolso: null,
     concepto_nomina: conceptoNomina,
+    tipo_impuesto: null,
+    periodo_impuesto: null,
     medio_pago: medioPago,
     adjunto_archivo_origen_id: null,
     descripcion,
@@ -1138,3 +1191,163 @@ export async function crearSolicitudNominaIndividualService(
     },
   };
 }
+
+export async function crearSolicitudPagoImpuestoService(
+  usuarioAutenticado: UsuarioSesion,
+  input: CrearSolicitudPagoImpuestoInput,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioPuedeCrearSolicitudImpuesto(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo un Aprobador nivel 1, Director, Auxiliar contable o Administrador puede crear solicitudes de pago de impuestos.",
+      },
+    };
+  }
+
+  const proyectoBaseId = normalizarTexto(input.proyecto_base_id);
+  const centroCostoId = normalizarTexto(input.centro_costo_id);
+  const beneficiarioId = normalizarTexto(input.beneficiario_id);
+  const tipoImpuesto = normalizarTipoImpuesto(input.tipo_impuesto);
+  const periodoImpuesto = normalizarTexto(input.periodo_impuesto);
+  const descripcion = normalizarTexto(input.descripcion);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+
+  if (
+    !proyectoBaseId ||
+    !centroCostoId ||
+    !beneficiarioId ||
+    !tipoImpuesto ||
+    !periodoImpuesto ||
+    !descripcion ||
+    !medioPago
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Proyecto base, centro de costo, entidad beneficiaria, tipo de impuesto, periodo, medio de pago y descripción son obligatorios.",
+      },
+    };
+  }
+
+  if (!TIPOS_IMPUESTO_SOLICITUD.includes(tipoImpuesto)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El tipo de impuesto no es válido.",
+      },
+    };
+  }
+
+  const errorPeriodo = validarPeriodoImpuesto(periodoImpuesto);
+
+  if (errorPeriodo) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: errorPeriodo,
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El medio de pago no es válido.",
+      },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(input.valor_bruto, -1);
+
+  if (valorBruto === null || valorBruto <= 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El valor del impuesto debe ser numérico y mayor a cero.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiario = await obtenerBeneficiarioActivoRepository(
+    beneficiarioId,
+  );
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message:
+          "La entidad beneficiaria no existe o está inactiva.",
+      },
+    };
+  }
+
+  const secuencia = await generarNumeroSolicitudPagoService({
+    proyecto_base_id: proyectoBaseId,
+    centro_costo_id: centroCostoId,
+    proyecto_referencia: contexto.data.proyectoBase.nombre,
+    centro_costo_referencia: contexto.data.centroCostoReferencia,
+  });
+
+  const solicitud = await crearSolicitudPagoRepository({
+    numero_solicitud: secuencia.referencia,
+    tipo_solicitud: "PAGO_IMPUESTO",
+    modalidad_nomina: null,
+    periodo_nomina: null,
+    proyecto_base_id: proyectoBaseId,
+    fondo_id: contexto.data.fondo.id,
+    centro_costo_id: centroCostoId,
+    beneficiario_id: beneficiarioId,
+    proveedor_id: null,
+    categoria_gasto: null,
+    categoria_reembolso: null,
+    concepto_nomina: null,
+    tipo_impuesto: tipoImpuesto,
+    periodo_impuesto: periodoImpuesto,
+    medio_pago: medioPago,
+    adjunto_archivo_origen_id: null,
+    descripcion,
+    valor_bruto: valorBruto,
+    valor_impuestos: 0,
+    valor_retenciones: 0,
+    valor_descuentos: 0,
+    valor_neto: valorBruto,
+    estado_actual: "BORRADOR",
+    creado_por: usuarioAutenticado.id,
+  });
+
+  return {
+    status: 201,
+    body: {
+      ok: true,
+      message:
+        "Solicitud de pago de impuesto creada correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(solicitud),
+      },
+    },
+  };
+}
+

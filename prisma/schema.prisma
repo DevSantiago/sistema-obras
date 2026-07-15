@@ -308,6 +308,8 @@ model solicitudes_pago {
   categoria_gasto           String?
   categoria_reembolso       String?
   concepto_nomina           String?
+  tipo_impuesto             String?
+  periodo_impuesto          String?   @db.VarChar(7)
   medio_pago                String?
   adjunto_archivo_origen_id String?
   descripcion               String
@@ -360,6 +362,8 @@ model solicitudes_pago {
   @@index([categoria_reembolso])
   @@index([concepto_nomina])
   @@index([periodo_nomina])
+  @@index([tipo_impuesto])
+  @@index([periodo_impuesto])
   @@index([proyecto_base_id, centro_costo_id, beneficiario_id, concepto_nomina, periodo_nomina, estado_actual], map: "indice_solicitudes_nomina_individual_duplicados")
   @@index([creado_por])
   @@index([pagado_por])

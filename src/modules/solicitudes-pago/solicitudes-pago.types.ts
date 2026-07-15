@@ -14,6 +14,22 @@ export type MedioPagoSolicitud =
   | "CONSIGNACION"
   | "EFECTIVO";
 
+export const TIPOS_IMPUESTO_SOLICITUD = [
+  "IVA",
+  "RENTA",
+  "RETEFUENTE",
+  "RETEIVA",
+  "RETEICA",
+  "ICA",
+  "ESTAMPILLA",
+  "IMPUESTO_CONSUMO",
+  "OTRO",
+] as const;
+
+export type TipoImpuestoSolicitud =
+  (typeof TIPOS_IMPUESTO_SOLICITUD)[number];
+
+
 export type EstadoSolicitudPago =
   | "BORRADOR"
   | "PENDIENTE_APROBADOR_1"
@@ -53,9 +69,23 @@ export type CrearSolicitudNominaIndividualInput = {
   valor_descuentos?: number;
 };
 
+export type CrearSolicitudPagoImpuestoInput = {
+  tipo_solicitud?: "PAGO_IMPUESTO";
+  proyecto_base_id?: string;
+  centro_costo_id?: string;
+  beneficiario_id?: string;
+  tipo_impuesto?: TipoImpuestoSolicitud;
+  periodo_impuesto?: string;
+  medio_pago?: MedioPagoSolicitud;
+  descripcion?: string;
+  valor_bruto?: number;
+};
+
 export type CrearSolicitudPagoInput =
   | CrearSolicitudPagoProveedorInput
-  | CrearSolicitudNominaIndividualInput;
+  | CrearSolicitudNominaIndividualInput
+  | CrearSolicitudPagoImpuestoInput;
+
 
 type CrearSolicitudPagoRepositoryBaseInput = {
   numero_solicitud: string;
@@ -69,6 +99,8 @@ type CrearSolicitudPagoRepositoryBaseInput = {
   modalidad_nomina: ModalidadNomina | null;
   periodo_nomina: string | null;
   concepto_nomina: string | null;
+  tipo_impuesto: TipoImpuestoSolicitud | null;
+  periodo_impuesto: string | null;
   medio_pago: MedioPagoSolicitud | null;
   adjunto_archivo_origen_id: string | null;
   descripcion: string;
@@ -91,6 +123,8 @@ export type CrearSolicitudPagoProveedorRepositoryInput =
     modalidad_nomina: null;
     periodo_nomina: null;
     concepto_nomina: null;
+    tipo_impuesto: null;
+    periodo_impuesto: null;
     medio_pago: MedioPagoSolicitud;
     adjunto_archivo_origen_id: null;
   };
@@ -105,13 +139,32 @@ export type CrearSolicitudNominaIndividualRepositoryInput =
     modalidad_nomina: "INDIVIDUAL";
     periodo_nomina: string;
     concepto_nomina: string;
+    tipo_impuesto: null;
+    periodo_impuesto: null;
     medio_pago: MedioPagoSolicitud;
     adjunto_archivo_origen_id: null;
   };
 
+export type CrearSolicitudPagoImpuestoRepositoryInput =
+CrearSolicitudPagoRepositoryBaseInput & {
+  tipo_solicitud: "PAGO_IMPUESTO";
+  beneficiario_id: string;
+  proveedor_id: null;
+  categoria_gasto: null;
+  categoria_reembolso: null;
+  modalidad_nomina: null;
+  periodo_nomina: null;
+  concepto_nomina: null;
+  tipo_impuesto: TipoImpuestoSolicitud;
+  periodo_impuesto: string;
+  medio_pago: MedioPagoSolicitud;
+  adjunto_archivo_origen_id: null;
+};
+
 export type CrearSolicitudPagoRepositoryInput =
   | CrearSolicitudPagoProveedorRepositoryInput
-  | CrearSolicitudNominaIndividualRepositoryInput;
+  | CrearSolicitudNominaIndividualRepositoryInput
+  | CrearSolicitudPagoImpuestoRepositoryInput;
 
 export type BuscarDuplicadoNominaIndividualInput = {
   proyecto_base_id: string;
@@ -130,6 +183,8 @@ export type SolicitudPagoListFilters = {
   centro_costo_id?: string;
   beneficiario_id?: string;
   medio_pago?: MedioPagoSolicitud;
+  tipo_impuesto?: TipoImpuestoSolicitud;
+  periodo_impuesto?: string;
   busqueda?: string;
 };
 
@@ -154,6 +209,8 @@ export type SolicitudPagoListado = {
   categoria_gasto: string | null;
   categoria_reembolso: string | null;
   concepto_nomina: string | null;
+  tipo_impuesto: TipoImpuestoSolicitud | null;
+  periodo_impuesto: string | null;
   medio_pago: MedioPagoSolicitud | null;
   adjunto_archivo_origen_id: string | null;
   descripcion: string;
