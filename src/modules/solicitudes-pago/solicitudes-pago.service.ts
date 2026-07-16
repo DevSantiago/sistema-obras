@@ -1,7 +1,10 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import { obtenerDetalleNominaGrupalService } from "./nomina-grupal/nomina-grupal.service";
-import { TIPOS_IMPUESTO_SOLICITUD } from "./solicitudes-pago.types";
+import {
+  CATEGORIAS_REEMBOLSO,
+  TIPOS_IMPUESTO_SOLICITUD,
+} from "./solicitudes-pago.types";
 import {
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
@@ -14,8 +17,10 @@ import {
   obtenerSolicitudPagoPorIdRepository,
 } from "./solicitudes-pago.repository";
 import type {
+  CategoriaReembolso,
   CrearSolicitudNominaIndividualInput,
   CrearSolicitudPagoImpuestoInput,
+  CrearSolicitudReembolsoInput,
   CrearSolicitudPagoProveedorInput,
   EstadoSolicitudPago,
   MedioPagoSolicitud,
@@ -199,6 +204,18 @@ function usuarioPuedeCrearSolicitudImpuesto(
   ].some((rol) => usuarioTieneRol(usuario, rol));
 }
 
+function usuarioPuedeCrearReembolso(
+  usuario: UsuarioSesion,
+): boolean {
+  return [
+    "SOLICITANTE",
+    "DIRECTOR",
+    "AUXILIAR_CONTABLE",
+    "APROBADOR_1",
+    "ADMINISTRADOR",
+  ].some((rol) => usuarioTieneRol(usuario, rol));
+}
+
 function usuarioPuedeConsultarTodo(usuario: UsuarioSesion): boolean {
   return usuarioEsAdministrador(usuario);
 }
@@ -290,6 +307,14 @@ function normalizarTipoImpuesto(
   return tipoImpuesto
     ? (tipoImpuesto as TipoImpuestoSolicitud)
     : undefined;
+}
+
+function normalizarCategoriaReembolso(
+  valor?: string | null,
+): CategoriaReembolso | undefined {
+  const categoria = normalizarTextoDominio(valor);
+
+  return categoria ? (categoria as CategoriaReembolso) : undefined;
 }
 
 function obtenerNumeroNoNegativo(
@@ -443,7 +468,7 @@ function convertirSolicitudPago(
     beneficiario_id: solicitud.beneficiario_id,
     proveedor_id: solicitud.proveedor_id,
     categoria_gasto: solicitud.categoria_gasto,
-    categoria_reembolso: solicitud.categoria_reembolso,
+    categoria_reembolso: solicitud.categoria_reembolso as CategoriaReembolso | null,
     concepto_nomina: solicitud.concepto_nomina,
     tipo_impuesto:
       solicitud.tipo_impuesto as TipoImpuestoSolicitud | null,
@@ -1344,6 +1369,205 @@ export async function crearSolicitudPagoImpuestoService(
       ok: true,
       message:
         "Solicitud de pago de impuesto creada correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(solicitud),
+      },
+    },
+  };
+}
+
+export async function crearSolicitudReembolsoService(
+  usuarioAutenticado: UsuarioSesion,
+  input: CrearSolicitudReembolsoInput,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioPuedeCrearReembolso(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo un Solicitante, Director, Auxiliar contable, Aprobador nivel 1 o Administrador puede crear solicitudes de reembolso.",
+      },
+    };
+  }
+
+  const proyectoBaseId = normalizarTexto(input.proyecto_base_id);
+  const centroCostoId = normalizarTexto(input.centro_costo_id);
+  const beneficiarioId = normalizarTexto(input.beneficiario_id);
+  const categoriaReembolso = normalizarCategoriaReembolso(
+    input.categoria_reembolso,
+  );
+  const descripcion = normalizarTexto(input.descripcion);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+
+  if (
+    !proyectoBaseId ||
+    !centroCostoId ||
+    !beneficiarioId ||
+    !categoriaReembolso ||
+    !descripcion ||
+    !medioPago
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Proyecto base, centro de costo, beneficiario, categoría de reembolso, medio de pago y descripción son obligatorios.",
+      },
+    };
+  }
+
+  if (!CATEGORIAS_REEMBOLSO.includes(categoriaReembolso)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La categoría de reembolso no es válida.",
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El medio de pago no es válido.",
+      },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(input.valor_bruto, -1);
+  const valorImpuestos = obtenerNumeroNoNegativo(
+    input.valor_impuestos,
+    0,
+  );
+  const valorRetenciones = obtenerNumeroNoNegativo(
+    input.valor_retenciones,
+    0,
+  );
+  const valorDescuentos = obtenerNumeroNoNegativo(
+    input.valor_descuentos,
+    0,
+  );
+
+  if (valorBruto === null || valorBruto <= 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El valor bruto del reembolso debe ser numérico y mayor a cero.",
+      },
+    };
+  }
+
+  if (
+    valorImpuestos === null ||
+    valorRetenciones === null ||
+    valorDescuentos === null
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Impuestos, retenciones y descuentos deben ser valores numéricos no negativos.",
+      },
+    };
+  }
+
+  const valorNeto =
+    valorBruto - valorRetenciones - valorDescuentos;
+
+  if (valorNeto < 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El valor neto del reembolso no puede ser negativo.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiario = await obtenerBeneficiarioActivoRepository(
+    beneficiarioId,
+  );
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message:
+          "El beneficiario del reembolso no existe o está inactivo.",
+      },
+    };
+  }
+
+  if (beneficiario.tipo_beneficiario !== "TRABAJADOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El beneficiario del reembolso debe ser de tipo TRABAJADOR.",
+      },
+    };
+  }
+
+  const secuencia = await generarNumeroSolicitudPagoService({
+    proyecto_base_id: proyectoBaseId,
+    centro_costo_id: centroCostoId,
+    proyecto_referencia: contexto.data.proyectoBase.nombre,
+    centro_costo_referencia: contexto.data.centroCostoReferencia,
+  });
+
+  const solicitud = await crearSolicitudPagoRepository({
+    numero_solicitud: secuencia.referencia,
+    tipo_solicitud: "REEMBOLSO",
+    modalidad_nomina: null,
+    periodo_nomina: null,
+    proyecto_base_id: proyectoBaseId,
+    fondo_id: contexto.data.fondo.id,
+    centro_costo_id: centroCostoId,
+    beneficiario_id: beneficiarioId,
+    proveedor_id: null,
+    categoria_gasto: null,
+    categoria_reembolso: categoriaReembolso,
+    concepto_nomina: null,
+    tipo_impuesto: null,
+    periodo_impuesto: null,
+    medio_pago: medioPago,
+    adjunto_archivo_origen_id: null,
+    descripcion,
+    valor_bruto: valorBruto,
+    valor_impuestos: valorImpuestos,
+    valor_retenciones: valorRetenciones,
+    valor_descuentos: valorDescuentos,
+    valor_neto: valorNeto,
+    estado_actual: "BORRADOR",
+    creado_por: usuarioAutenticado.id,
+  });
+
+  return {
+    status: 201,
+    body: {
+      ok: true,
+      message:
+        "Solicitud de reembolso creada correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
       },

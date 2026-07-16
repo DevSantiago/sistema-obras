@@ -12,6 +12,31 @@ type SolicitudesPagoListProps = {
   onActualizar: () => void | Promise<void>;
 };
 
+function obtenerCategoriaSolicitud(
+  solicitud: SolicitudPagoListado,
+): string | null {
+  switch (solicitud.tipo_solicitud) {
+    case "PAGO_PROVEEDOR":
+      return solicitud.categoria_gasto;
+
+    case "PAGO_IMPUESTO":
+      return solicitud.tipo_impuesto;
+
+    case "REEMBOLSO":
+      return solicitud.categoria_reembolso;
+
+    case "PAGO_NOMINA":
+      if (solicitud.modalidad_nomina === "INDIVIDUAL") {
+        return solicitud.concepto_nomina ?? "NOMINA_INDIVIDUAL";
+      }
+
+      return solicitud.concepto_nomina ?? "NOMINA_GRUPAL";
+
+    default:
+      return null;
+  }
+}
+
 export default function SolicitudesPagoList({
   solicitudes,
   cargando,
@@ -102,7 +127,7 @@ export default function SolicitudesPagoList({
 
                     <td>
                       <span className={styles.badge}>
-                        {formatearTextoDominio(solicitud.categoria_gasto)}
+                        {formatearTextoDominio(obtenerCategoriaSolicitud(solicitud))}
                       </span>
 
                       <span className={styles.muted}>
@@ -178,7 +203,7 @@ export default function SolicitudesPagoList({
                   <div>
                     <dt>Categoría</dt>
                     <dd>
-                      {formatearTextoDominio(solicitud.categoria_gasto)}
+                      {formatearTextoDominio(obtenerCategoriaSolicitud(solicitud))}
                     </dd>
                   </div>
 

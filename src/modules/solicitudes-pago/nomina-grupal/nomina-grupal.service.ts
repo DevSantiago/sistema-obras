@@ -290,7 +290,7 @@ function convertirSolicitudPago(
     beneficiario_id: solicitud.beneficiario_id,
     proveedor_id: solicitud.proveedor_id,
     categoria_gasto: solicitud.categoria_gasto,
-    categoria_reembolso: solicitud.categoria_reembolso,
+    categoria_reembolso: null,
     concepto_nomina: solicitud.concepto_nomina,
     tipo_impuesto: null,
     periodo_impuesto: null,
