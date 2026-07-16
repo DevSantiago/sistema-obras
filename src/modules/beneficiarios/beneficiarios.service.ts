@@ -460,13 +460,22 @@ export async function crearBeneficiarioService(
     ? normalizarTextoMayuscula(input.numero_cuenta_bancaria ?? "")
     : null;
 
-  const existeBeneficiario = await existeBeneficiarioPorDocumentoRepository(
-    tipoDocumento,
-    numeroDocumento,
-  );
+  const beneficiarioExistente =
+    await existeBeneficiarioPorDocumentoRepository(
+      tipoDocumento,
+      numeroDocumento,
+    );
 
-  if (existeBeneficiario) {
-    throw new Error("Ya existe un beneficiario activo con ese documento.");
+  if (beneficiarioExistente?.activo) {
+    throw new Error(
+      "Ya existe un beneficiario activo con ese tipo y número de documento.",
+    );
+  }
+
+  if (beneficiarioExistente && !beneficiarioExistente.activo) {
+    throw new Error(
+      "Ya existe un beneficiario inactivo con ese tipo y número de documento. Reactívelo en lugar de crear uno nuevo.",
+    );
   }
 
   if (input.usuario_id) {

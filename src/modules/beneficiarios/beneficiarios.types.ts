@@ -2,10 +2,7 @@
 
 export type TipoBeneficiario = "PROVEEDOR" | "TRABAJADOR" | "OTRO";
 
-export type TipoBeneficiarioFormulario = Extract<
-  TipoBeneficiario,
-  "PROVEEDOR" | "TRABAJADOR"
->;
+export type TipoBeneficiarioFormulario = TipoBeneficiario;
 
 export type MedioPagoPreferido =
   | "TRANSFERENCIA"

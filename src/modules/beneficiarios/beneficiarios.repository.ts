@@ -69,18 +69,16 @@ export async function existeBeneficiarioPorDocumentoRepository(
   tipoDocumento: string,
   numeroDocumento: string,
 ) {
-  const beneficiario = await prisma.beneficiarios_pago.findFirst({
+  return prisma.beneficiarios_pago.findFirst({
     where: {
       tipo_documento: tipoDocumento,
       numero_documento: numeroDocumento,
-      activo: true,
     },
     select: {
       id: true,
+      activo: true,
     },
   });
-
-  return Boolean(beneficiario);
 }
 
 export async function obtenerProveedorPorDocumentoRepository(

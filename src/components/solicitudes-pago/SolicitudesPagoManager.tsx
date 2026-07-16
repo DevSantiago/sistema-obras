@@ -13,6 +13,7 @@ import type {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import NominaGrupalForm from "./forms/NominaGrupalForm";
 import NominaIndividualForm from "./forms/NominaIndividualForm";
+import PagoImpuestoForm from "./forms/PagoImpuestoForm";
 import ProveedorForm from "./forms/ProveedorForm";
 import SolicitudesPagoList from "./lists/SolicitudesPagoList";
 import styles from "./SolicitudesPagoManager.module.css";
@@ -20,6 +21,7 @@ import {
   OPCIONES_TIPO_SOLICITUD,
   type CrearSolicitudFrontendPayload,
   type CrearSolicitudNominaIndividualPayload,
+  type CrearSolicitudPagoImpuestoPayload,
   type CrearSolicitudProveedorPayload,
   type OpcionTipoSolicitud,
   type TipoSolicitudFormulario,
@@ -100,6 +102,17 @@ function esTipoNomina(tipo: TipoSolicitudFormulario): boolean {
   return tipo === "NOMINA_INDIVIDUAL" || tipo === "NOMINA_GRUPAL";
 }
 
+function usuarioPuedeCrearPagoImpuesto(
+  usuario: UsuarioSesionSolicitudesPago,
+): boolean {
+  return [
+    "APROBADOR_1",
+    "DIRECTOR",
+    "AUXILIAR_CONTABLE",
+    "ADMINISTRADOR",
+  ].some((rol) => usuario.roles.includes(rol));
+}
+
 export default function SolicitudesPagoManager({
   usuario,
 }: SolicitudesPagoManagerProps) {
@@ -118,6 +131,10 @@ export default function SolicitudesPagoManager({
     BeneficiarioSolicitudCatalogo[]
   >([]);
 
+  const [entidadesRecaudadoras, setEntidadesRecaudadoras] = useState<
+    BeneficiarioSolicitudCatalogo[]
+  >([]);
+
   const [solicitudes, setSolicitudes] = useState<SolicitudPagoListado[]>([]);
   const [proyectoBaseSeleccionadoId, setProyectoBaseSeleccionadoId] =
     useState("");
@@ -129,17 +146,26 @@ export default function SolicitudesPagoManager({
 
   const opcionesTipoSolicitud = useMemo<OpcionTipoSolicitud[]>(() => {
     const puedeCrearNomina = usuarioPuedeCrearNomina(usuario);
+    const puedeCrearImpuesto = usuarioPuedeCrearPagoImpuesto(usuario);
 
     return OPCIONES_TIPO_SOLICITUD.map((opcion) => {
-      if (!esTipoNomina(opcion.id)) {
-        return opcion;
+      if (esTipoNomina(opcion.id)) {
+        return {
+          ...opcion,
+          habilitado: opcion.habilitado && puedeCrearNomina,
+          etiquetaEstado: puedeCrearNomina ? undefined : "Sin permiso",
+        };
       }
 
-      return {
-        ...opcion,
-        habilitado: opcion.habilitado && puedeCrearNomina,
-        etiquetaEstado: puedeCrearNomina ? undefined : "Sin permiso",
-      };
+      if (opcion.id === "PAGO_IMPUESTO") {
+        return {
+          ...opcion,
+          habilitado: opcion.habilitado && puedeCrearImpuesto,
+          etiquetaEstado: puedeCrearImpuesto ? undefined : "Sin permiso",
+        };
+      }
+
+      return opcion;
     });
   }, [usuario]);
 
@@ -196,6 +222,12 @@ export default function SolicitudesPagoManager({
           signal: abortController.signal,
         },
       ),
+      fetchJson<BeneficiariosSolicitudResponseData>(
+        "/api/v1/beneficiarios?tipo_beneficiario=OTRO&activo=true",
+        {
+          signal: abortController.signal,
+        },
+      ),
       fetchJson<SolicitudesPagoResponseData>("/api/v1/solicitudes-pago", {
         signal: abortController.signal,
       }),
@@ -205,6 +237,7 @@ export default function SolicitudesPagoManager({
           proyectosResponse,
           proveedoresResponse,
           trabajadoresResponse,
+          entidadesResponse,
           solicitudesResponse,
         ]) => {
           setProyectos(extraerProyectos(proyectosResponse.data));
@@ -215,6 +248,10 @@ export default function SolicitudesPagoManager({
 
           setTrabajadores(
             extraerBeneficiarios(trabajadoresResponse.data),
+          );
+
+          setEntidadesRecaudadoras(
+            extraerBeneficiarios(entidadesResponse.data),
           );
 
           setSolicitudes(extraerSolicitudes(solicitudesResponse.data));
@@ -330,6 +367,12 @@ export default function SolicitudesPagoManager({
     await crearSolicitud(payload);
   }
 
+  async function crearSolicitudPagoImpuesto(
+    payload: CrearSolicitudPagoImpuestoPayload,
+  ): Promise<void> {
+    await crearSolicitud(payload);
+  }
+
   async function manejarNominaGrupalCreada(
     mensaje: string,
   ): Promise<void> {
@@ -389,6 +432,21 @@ export default function SolicitudesPagoManager({
         );
 
       case "PAGO_IMPUESTO":
+        return (
+          <PagoImpuestoForm
+            proyectos={proyectos}
+            centrosCostoDisponibles={centrosCostoDisponibles}
+            entidadesRecaudadoras={entidadesRecaudadoras}
+            cargandoCatalogos={cargandoCatalogos}
+            guardando={guardando}
+            mensajeExito={mensajeExito}
+            mensajeError={mensajeError}
+            onProyectoChange={setProyectoBaseSeleccionadoId}
+            onCrear={crearSolicitudPagoImpuesto}
+            onLimpiarMensajes={limpiarMensajes}
+          />
+        );
+
       case "REEMBOLSO":
         return null;
 

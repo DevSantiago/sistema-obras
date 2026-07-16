@@ -357,9 +357,7 @@ export function BeneficiariosManager({
                 <option value="TRABAJADOR">Trabajador</option>
                 <option value="PROVEEDOR">Proveedor</option>
 
-                {tipoBeneficiario === "OTRO" && (
-                  <option value="OTRO">Otro</option>
-                )}
+                <option value="OTRO">Otro</option>
               </select>
             </label>
 
