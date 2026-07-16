@@ -15,6 +15,7 @@ import {
   crearSolicitudNominaIndividualService,
   crearSolicitudPagoImpuestoService,
   crearSolicitudPagoProveedorService,
+  crearSolicitudReembolsoService,
   listarSolicitudesPagoService,
 } from "../solicitudes-pago.service";
 
@@ -83,6 +84,16 @@ const usuarioAprobador1: UsuarioSesion = {
   estado: "ACTIVO",
   roles: ["APROBADOR_1"],
   permisos: ["APROBAR_NIVEL_1"],
+};
+
+const usuarioAuxiliarContable: UsuarioSesion = {
+  id: "auxiliar-contable-1",
+  nombre: "Auxiliar contable",
+  correo: "auxiliar@test.com",
+  telefono: null,
+  estado: "ACTIVO",
+  roles: ["AUXILIAR_CONTABLE"],
+  permisos: [],
 };
 
 const usuarioAprobador2: UsuarioSesion = {
@@ -260,6 +271,20 @@ const inputImpuestoBase = {
   valor_bruto: 500000,
 };
 
+const inputReembolsoBase = {
+  tipo_solicitud: "REEMBOLSO" as const,
+  proyecto_base_id: "proyecto-1",
+  centro_costo_id: "centro-1",
+  beneficiario_id: "trabajador-1",
+  categoria_reembolso: "TRANSPORTE" as const,
+  medio_pago: "TRANSFERENCIA" as const,
+  descripcion: "Reembolso de transporte para visita de obra",
+  valor_bruto: 500000,
+  valor_impuestos: 95000,
+  valor_retenciones: 25000,
+  valor_descuentos: 10000,
+};
+
 function prepararMocksProveedor() {
   vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
     proyectoBaseMock as never,
@@ -398,6 +423,89 @@ function prepararMocksNomina() {
     valor_reservado: null,
     estado_actual: "BORRADOR",
     creado_por: "director-1",
+    aprobado_1_por: null,
+    aprobado_2_por: null,
+    pagado_por: null,
+    enviado_en: null,
+    aprobado_1_en: null,
+    aprobado_2_en: null,
+    devuelto_aprobador_1_en: null,
+    devuelto_solicitante_en: null,
+    pagado_en: null,
+    creado_en: fechaMock,
+    actualizado_en: fechaMock,
+  } as never);
+}
+
+
+function prepararMocksReembolso(
+  usuario: UsuarioSesion = usuarioSolicitante,
+) {
+  vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
+    proyectoBaseMock as never,
+  );
+
+  vi.mocked(obtenerCentroCostoActivoRepository).mockResolvedValue(
+    centroCostoMock as never,
+  );
+
+  vi.mocked(
+    obtenerAccesoActivoUsuarioProyectoLineaRepository,
+  ).mockResolvedValue({
+    ...accesoSolicitanteMock,
+    id: `acceso-${usuario.id}`,
+    usuario_id: usuario.id,
+  } as never);
+
+  vi.mocked(obtenerFondoActivoPorProyectoRepository).mockResolvedValue(
+    fondoMock as never,
+  );
+
+  vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(
+    beneficiarioTrabajadorMock as never,
+  );
+
+  vi.mocked(generarNumeroSolicitudPagoService).mockResolvedValue({
+    tipo_secuencia: "SOLICITUD_PAGO",
+    proyecto_base_id: "proyecto-1",
+    centro_costo_id: "centro-1",
+    clave_contexto: "CENTRO:proyecto-1:centro-1",
+    prefijo: "SOL",
+    proyecto_referencia: "HUMAPO",
+    centro_costo_referencia: "PRO-OBRA",
+    anio: 2026,
+    valor: 3,
+    referencia: "SOL-PRO-OBRA-HUMAPO-2026-000003",
+  });
+
+  vi.mocked(crearSolicitudPagoRepository).mockResolvedValue({
+    id: "solicitud-reembolso-1",
+    numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000003",
+    tipo_solicitud: "REEMBOLSO",
+    modalidad_nomina: null,
+    periodo_nomina: null,
+    proyecto_base_id: "proyecto-1",
+    fondo_id: "fondo-1",
+    centro_costo_id: "centro-1",
+    beneficiario_id: "trabajador-1",
+    proveedor_id: null,
+    categoria_gasto: null,
+    categoria_reembolso: "TRANSPORTE",
+    concepto_nomina: null,
+    tipo_impuesto: null,
+    periodo_impuesto: null,
+    medio_pago: "TRANSFERENCIA",
+    adjunto_archivo_origen_id: null,
+    descripcion: "Reembolso de transporte para visita de obra",
+    valor_bruto: 500000 as never,
+    valor_impuestos: 95000 as never,
+    valor_retenciones: 25000 as never,
+    valor_descuentos: 10000 as never,
+    valor_neto: 465000 as never,
+    valor_pagado: null,
+    valor_reservado: null,
+    estado_actual: "BORRADOR",
+    creado_por: usuario.id,
     aprobado_1_por: null,
     aprobado_2_por: null,
     pagado_por: null,
@@ -1352,3 +1460,239 @@ describe(
     });
   },
 );
+
+describe(
+  "solicitudes-pago.service - crearSolicitudReembolsoService",
+  () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it.each([
+      ["solicitante", usuarioSolicitante],
+      ["director", usuarioDirector],
+      ["auxiliar contable", usuarioAuxiliarContable],
+      ["aprobador nivel 1", usuarioAprobador1],
+      ["administrador", usuarioAdministrador],
+    ])(
+      "debe permitir crear un reembolso al rol %s",
+      async (_rol, usuario) => {
+        prepararMocksReembolso(usuario);
+
+        const resultado = await crearSolicitudReembolsoService(
+          usuario,
+          inputReembolsoBase,
+        );
+
+        expect(resultado.status).toBe(201);
+        expect(resultado.body.ok).toBe(true);
+      },
+    );
+
+    it.each([
+      ["aprobador nivel 2", usuarioAprobador2],
+      ["pagos", usuarioPagos],
+    ])(
+      "debe rechazar al rol %s",
+      async (_rol, usuario) => {
+        const resultado = await crearSolicitudReembolsoService(
+          usuario,
+          inputReembolsoBase,
+        );
+
+        expect(resultado.status).toBe(403);
+        expect(resultado.body.ok).toBe(false);
+        expect(resultado.body.message).toBe(
+          "Solo un Solicitante, Director, Auxiliar contable, Aprobador nivel 1 o Administrador puede crear solicitudes de reembolso.",
+        );
+        expect(
+          obtenerProyectoBaseActivoRepository,
+        ).not.toHaveBeenCalled();
+        expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+      },
+    );
+
+    it("debe validar los campos obligatorios", async () => {
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        {
+          ...inputReembolsoBase,
+          categoria_reembolso: undefined,
+        },
+      );
+
+      expect(resultado.status).toBe(400);
+      expect(resultado.body.message).toBe(
+        "Proyecto base, centro de costo, beneficiario, categoría de reembolso, medio de pago y descripción son obligatorios.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar una categoría de reembolso inválida", async () => {
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        {
+          ...inputReembolsoBase,
+          categoria_reembolso: "HONORARIOS" as never,
+        },
+      );
+
+      expect(resultado.status).toBe(400);
+      expect(resultado.body.message).toBe(
+        "La categoría de reembolso no es válida.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar un medio de pago inválido", async () => {
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        {
+          ...inputReembolsoBase,
+          medio_pago: "CHEQUE" as never,
+        },
+      );
+
+      expect(resultado.status).toBe(400);
+      expect(resultado.body.message).toBe(
+        "El medio de pago no es válido.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe validar que el valor bruto sea mayor a cero", async () => {
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        {
+          ...inputReembolsoBase,
+          valor_bruto: 0,
+        },
+      );
+
+      expect(resultado.status).toBe(400);
+      expect(resultado.body.message).toBe(
+        "El valor bruto del reembolso debe ser numérico y mayor a cero.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar valores secundarios negativos", async () => {
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        {
+          ...inputReembolsoBase,
+          valor_retenciones: -1,
+        },
+      );
+
+      expect(resultado.status).toBe(400);
+      expect(resultado.body.message).toBe(
+        "Impuestos, retenciones y descuentos deben ser valores numéricos no negativos.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar un valor neto negativo", async () => {
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        {
+          ...inputReembolsoBase,
+          valor_bruto: 100000,
+          valor_retenciones: 80000,
+          valor_descuentos: 30000,
+        },
+      );
+
+      expect(resultado.status).toBe(400);
+      expect(resultado.body.message).toBe(
+        "El valor neto del reembolso no puede ser negativo.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar un beneficiario inexistente o inactivo", async () => {
+      prepararMocksReembolso();
+
+      vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(
+        null,
+      );
+
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        inputReembolsoBase,
+      );
+
+      expect(resultado.status).toBe(404);
+      expect(resultado.body.message).toBe(
+        "El beneficiario del reembolso no existe o está inactivo.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe exigir que el beneficiario sea tipo TRABAJADOR", async () => {
+      prepararMocksReembolso();
+
+      vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(
+        beneficiarioProveedorMock as never,
+      );
+
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        inputReembolsoBase,
+      );
+
+      expect(resultado.status).toBe(400);
+      expect(resultado.body.message).toBe(
+        "El beneficiario del reembolso debe ser de tipo TRABAJADOR.",
+      );
+      expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
+    });
+
+    it("debe crear una solicitud de reembolso en borrador", async () => {
+      prepararMocksReembolso();
+
+      const resultado = await crearSolicitudReembolsoService(
+        usuarioSolicitante,
+        inputReembolsoBase,
+      );
+
+      expect(resultado.status).toBe(201);
+      expect(resultado.body.ok).toBe(true);
+      expect(resultado.body.message).toBe(
+        "Solicitud de reembolso creada correctamente.",
+      );
+      expect(resultado.body.data?.solicitud.tipo_solicitud).toBe(
+        "REEMBOLSO",
+      );
+      expect(resultado.body.data?.solicitud.valor_neto).toBe(465000);
+
+      expect(crearSolicitudPagoRepository).toHaveBeenCalledWith({
+        numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000003",
+        tipo_solicitud: "REEMBOLSO",
+        modalidad_nomina: null,
+        periodo_nomina: null,
+        proyecto_base_id: "proyecto-1",
+        fondo_id: "fondo-1",
+        centro_costo_id: "centro-1",
+        beneficiario_id: "trabajador-1",
+        proveedor_id: null,
+        categoria_gasto: null,
+        categoria_reembolso: "TRANSPORTE",
+        concepto_nomina: null,
+        tipo_impuesto: null,
+        periodo_impuesto: null,
+        medio_pago: "TRANSFERENCIA",
+        adjunto_archivo_origen_id: null,
+        descripcion: "Reembolso de transporte para visita de obra",
+        valor_bruto: 500000,
+        valor_impuestos: 95000,
+        valor_retenciones: 25000,
+        valor_descuentos: 10000,
+        valor_neto: 465000,
+        estado_actual: "BORRADOR",
+        creado_por: "usuario-1",
+      });
+    });
+  },
+);
+

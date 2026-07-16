@@ -30,6 +30,21 @@ export type TipoImpuestoSolicitud =
   (typeof TIPOS_IMPUESTO_SOLICITUD)[number];
 
 
+export const CATEGORIAS_REEMBOLSO = [
+  "TRANSPORTE",
+  "ALIMENTACION",
+  "ALOJAMIENTO",
+  "PEAJES",
+  "COMBUSTIBLE",
+  "PAPELERIA",
+  "COMPRA_MENOR",
+  "SERVICIO",
+  "OTRO",
+] as const;
+
+export type CategoriaReembolso =
+  (typeof CATEGORIAS_REEMBOLSO)[number];
+
 export type EstadoSolicitudPago =
   | "BORRADOR"
   | "PENDIENTE_APROBADOR_1"
@@ -39,6 +54,20 @@ export type EstadoSolicitudPago =
   | "PROGRAMADA_PAGO"
   | "PAGADA"
   | "ANULADA";
+
+export type CrearSolicitudReembolsoInput = {
+  tipo_solicitud?: "REEMBOLSO";
+  proyecto_base_id?: string;
+  centro_costo_id?: string;
+  beneficiario_id?: string;
+  categoria_reembolso?: CategoriaReembolso;
+  medio_pago?: MedioPagoSolicitud;
+  descripcion?: string;
+  valor_bruto?: number;
+  valor_impuestos?: number;
+  valor_retenciones?: number;
+  valor_descuentos?: number;
+};
 
 export type CrearSolicitudPagoProveedorInput = {
   tipo_solicitud?: "PAGO_PROVEEDOR";
@@ -84,7 +113,8 @@ export type CrearSolicitudPagoImpuestoInput = {
 export type CrearSolicitudPagoInput =
   | CrearSolicitudPagoProveedorInput
   | CrearSolicitudNominaIndividualInput
-  | CrearSolicitudPagoImpuestoInput;
+  | CrearSolicitudPagoImpuestoInput
+  | CrearSolicitudReembolsoInput;
 
 
 type CrearSolicitudPagoRepositoryBaseInput = {
@@ -161,10 +191,27 @@ CrearSolicitudPagoRepositoryBaseInput & {
   adjunto_archivo_origen_id: null;
 };
 
+export type CrearSolicitudReembolsoRepositoryInput =
+  CrearSolicitudPagoRepositoryBaseInput & {
+    tipo_solicitud: "REEMBOLSO";
+    beneficiario_id: string;
+    proveedor_id: null;
+    categoria_gasto: null;
+    categoria_reembolso: CategoriaReembolso;
+    modalidad_nomina: null;
+    periodo_nomina: null;
+    concepto_nomina: null;
+    tipo_impuesto: null;
+    periodo_impuesto: null;
+    medio_pago: MedioPagoSolicitud;
+    adjunto_archivo_origen_id: null;
+  };
+
 export type CrearSolicitudPagoRepositoryInput =
   | CrearSolicitudPagoProveedorRepositoryInput
   | CrearSolicitudNominaIndividualRepositoryInput
-  | CrearSolicitudPagoImpuestoRepositoryInput;
+  | CrearSolicitudPagoImpuestoRepositoryInput
+  | CrearSolicitudReembolsoRepositoryInput;
 
 export type BuscarDuplicadoNominaIndividualInput = {
   proyecto_base_id: string;
@@ -185,6 +232,7 @@ export type SolicitudPagoListFilters = {
   medio_pago?: MedioPagoSolicitud;
   tipo_impuesto?: TipoImpuestoSolicitud;
   periodo_impuesto?: string;
+  categoria_reembolso?: CategoriaReembolso;
   busqueda?: string;
 };
 
@@ -207,7 +255,7 @@ export type SolicitudPagoListado = {
   beneficiario_id: string | null;
   proveedor_id: string | null;
   categoria_gasto: string | null;
-  categoria_reembolso: string | null;
+  categoria_reembolso: CategoriaReembolso | null;
   concepto_nomina: string | null;
   tipo_impuesto: TipoImpuestoSolicitud | null;
   periodo_impuesto: string | null;

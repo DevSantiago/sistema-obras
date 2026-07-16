@@ -113,6 +113,8 @@ function usuarioPuedeCrearPagoImpuesto(
   ].some((rol) => usuario.roles.includes(rol));
 }
 
+
+
 export default function SolicitudesPagoManager({
   usuario,
 }: SolicitudesPagoManagerProps) {
