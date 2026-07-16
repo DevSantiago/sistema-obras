@@ -266,13 +266,46 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
   });
 
   it("debe lanzar error si ya existe un beneficiario activo con el documento", async () => {
-    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(true);
+    vi.mocked(
+      existeBeneficiarioPorDocumentoRepository,
+    ).mockResolvedValue({
+      id: "beneficiario-existente",
+      activo: true,
+    });
 
     await expect(
       crearBeneficiarioService(usuarioAutorizado, inputBase),
-    ).rejects.toThrow("Ya existe un beneficiario activo con ese documento.");
+    ).rejects.toThrow(
+      "Ya existe un beneficiario activo con ese tipo y número de documento.",
+    );
 
-    expect(existeBeneficiarioPorDocumentoRepository).toHaveBeenCalledWith(
+    expect(
+      existeBeneficiarioPorDocumentoRepository,
+    ).toHaveBeenCalledWith(
+      "CC",
+      "123456789",
+    );
+
+    expect(crearBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe indicar que se reactive un beneficiario inactivo con el mismo documento", async () => {
+    vi.mocked(
+      existeBeneficiarioPorDocumentoRepository,
+    ).mockResolvedValue({
+      id: "beneficiario-inactivo",
+      activo: false,
+    });
+
+    await expect(
+      crearBeneficiarioService(usuarioAutorizado, inputBase),
+    ).rejects.toThrow(
+      "Ya existe un beneficiario inactivo con ese tipo y número de documento. Reactívelo en lugar de crear uno nuevo.",
+    );
+
+    expect(
+      existeBeneficiarioPorDocumentoRepository,
+    ).toHaveBeenCalledWith(
       "CC",
       "123456789",
     );

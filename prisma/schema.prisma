@@ -264,6 +264,7 @@ model beneficiarios_pago {
 
   detalles_nomina detalles_nomina_solicitud[]
 
+  @@unique([tipo_documento, numero_documento], map: "beneficiarios_pago_tipo_documento_numero_documento_key")
   @@index([tipo_beneficiario])
   @@index([usuario_id])
   @@index([proveedor_id])

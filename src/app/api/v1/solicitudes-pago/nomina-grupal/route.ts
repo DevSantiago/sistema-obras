@@ -21,6 +21,17 @@ export const runtime = "nodejs";
 
 const MAX_TAMANO_ARCHIVO_BYTES = 10 * 1024 * 1024;
 
+const DIRECTORIO_NOMINA_GRUPAL_RELATIVO = path.join(
+  "storage",
+  "nomina-grupal",
+);
+
+const DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO = path.join(
+  process.cwd(),
+  "storage",
+  "nomina-grupal",
+);
+
 const TIPOS_MIME_PERMITIDOS = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.ms-excel.sheet.macroEnabled.12",
@@ -164,21 +175,12 @@ async function guardarArchivoNominaGrupal(input: {
   );
   const nombreFisico = `${idAdjunto}-${nombreSeguro}`;
 
-  const directorioRelativo =
-    process.env.NOMINA_GRUPAL_STORAGE_DIR?.trim() ||
-    "storage/nomina-grupal";
-
-  const directorioAbsoluto = path.resolve(
-    process.cwd(),
-    directorioRelativo,
-  );
-
-  await mkdir(directorioAbsoluto, {
+  await mkdir(DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO, {
     recursive: true,
   });
 
   const rutaAbsoluta = path.join(
-    directorioAbsoluto,
+    DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
     nombreFisico,
   );
 
@@ -191,7 +193,10 @@ async function guardarArchivoNominaGrupal(input: {
         solicitud_pago_id: null,
         nombre_archivo: input.archivo.name,
         ruta_archivo: path
-          .join(directorioRelativo, nombreFisico)
+          .join(
+            DIRECTORIO_NOMINA_GRUPAL_RELATIVO,
+            nombreFisico,
+          )
           .replaceAll(path.sep, "/"),
         nombre_bucket: "LOCAL_NOMINA_GRUPAL",
         tipo_mime: input.archivo.type || null,

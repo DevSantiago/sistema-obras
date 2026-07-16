@@ -6,6 +6,14 @@ import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
+const DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO = path.join(
+  process.cwd(),
+  "storage",
+  "nomina-grupal",
+);
+
+const PREFIJO_RUTA_NOMINA_GRUPAL = "storage/nomina-grupal/";
+
 type RouteContext = {
   params: Promise<{
     id: string;
@@ -47,29 +55,27 @@ function construirContentDisposition(nombreArchivo: string): string {
 }
 
 function resolverRutaArchivo(rutaRegistrada: string): string | null {
-  const rutaRelativa = rutaRegistrada.trim();
+  const rutaNormalizada = rutaRegistrada
+    .trim()
+    .replaceAll("\\", "/");
 
-  if (!rutaRelativa) {
+  if (
+    !rutaNormalizada ||
+    !rutaNormalizada.startsWith(PREFIJO_RUTA_NOMINA_GRUPAL)
+  ) {
     return null;
   }
 
-  const rutaBase = path.resolve(process.cwd());
-  const rutaAbsoluta = path.resolve(rutaBase, rutaRelativa);
+  const nombreFisico = path.basename(rutaNormalizada);
 
-  const rutaRelativaValidada = path.relative(
-    rutaBase,
-    rutaAbsoluta,
+  if (!nombreFisico || nombreFisico === "." || nombreFisico === "..") {
+    return null;
+  }
+
+  return path.join(
+    DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
+    nombreFisico,
   );
-
-  const estaFueraDelProyecto =
-    rutaRelativaValidada.startsWith("..") ||
-    path.isAbsolute(rutaRelativaValidada);
-
-  if (estaFueraDelProyecto) {
-    return null;
-  }
-
-  return rutaAbsoluta;
 }
 
 export async function GET(
