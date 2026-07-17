@@ -338,3 +338,32 @@ export async function obtenerSolicitudPagoPorIdRepository(id: string) {
     include: solicitudPagoInclude,
   });
 }
+
+export async function enviarSolicitudPagoRepository(input: {
+  solicitudId: string;
+  enviadoEn: Date;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const resultado = await tx.solicitudes_pago.updateMany({
+      where: {
+        id: input.solicitudId,
+        estado_actual: "BORRADOR",
+      },
+      data: {
+        estado_actual: "PENDIENTE_APROBADOR_1",
+        enviado_en: input.enviadoEn,
+      },
+    });
+
+    if (resultado.count === 0) {
+      return null;
+    }
+
+    return tx.solicitudes_pago.findUnique({
+      where: {
+        id: input.solicitudId,
+      },
+      include: solicitudPagoInclude,
+    });
+  });
+}

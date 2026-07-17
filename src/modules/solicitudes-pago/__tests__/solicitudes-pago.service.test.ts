@@ -4,18 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
+  enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerBeneficiarioActivoRepository,
   obtenerCentroCostoActivoRepository,
   obtenerFondoActivoPorProyectoRepository,
   obtenerProyectoBaseActivoRepository,
+  obtenerSolicitudPagoPorIdRepository,
 } from "../solicitudes-pago.repository";
 import {
   crearSolicitudNominaIndividualService,
   crearSolicitudPagoImpuestoService,
   crearSolicitudPagoProveedorService,
   crearSolicitudReembolsoService,
+  enviarSolicitudPagoService,
   listarSolicitudesPagoService,
 } from "../solicitudes-pago.service";
 
@@ -26,12 +29,14 @@ vi.mock("@/modules/secuencias/secuencias.service", () => ({
 vi.mock("../solicitudes-pago.repository", () => ({
   buscarDuplicadoNominaIndividualRepository: vi.fn(),
   crearSolicitudPagoRepository: vi.fn(),
+  enviarSolicitudPagoRepository: vi.fn(),
   listarSolicitudesPagoRepository: vi.fn(),
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
   obtenerBeneficiarioActivoRepository: vi.fn(),
   obtenerCentroCostoActivoRepository: vi.fn(),
   obtenerFondoActivoPorProyectoRepository: vi.fn(),
   obtenerProyectoBaseActivoRepository: vi.fn(),
+  obtenerSolicitudPagoPorIdRepository: vi.fn(),
 }));
 
 const fechaMock = new Date("2026-07-03T10:00:00.000Z");
@@ -1696,3 +1701,229 @@ describe(
   },
 );
 
+describe("solicitudes-pago.service - enviarSolicitudPagoService", () => {
+  const solicitudBorrador = {
+    id: "solicitud-1",
+    numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000010",
+    tipo_solicitud: "REEMBOLSO",
+    modalidad_nomina: null,
+    periodo_nomina: null,
+    proyecto_base_id: "proyecto-1",
+    fondo_id: "fondo-1",
+    centro_costo_id: "centro-1",
+    beneficiario_id: "trabajador-1",
+    proveedor_id: null,
+    categoria_gasto: null,
+    categoria_reembolso: "TRANSPORTE",
+    concepto_nomina: null,
+    tipo_impuesto: null,
+    periodo_impuesto: null,
+    medio_pago: "TRANSFERENCIA",
+    adjunto_archivo_origen_id: null,
+    descripcion: "Reembolso de transporte",
+    valor_bruto: 500000 as never,
+    valor_impuestos: 0 as never,
+    valor_retenciones: 0 as never,
+    valor_descuentos: 0 as never,
+    valor_neto: 500000 as never,
+    valor_pagado: null,
+    valor_reservado: null,
+    estado_actual: "BORRADOR",
+    creado_por: "usuario-1",
+    aprobado_1_por: null,
+    aprobado_2_por: null,
+    pagado_por: null,
+    enviado_en: null,
+    aprobado_1_en: null,
+    aprobado_2_en: null,
+    devuelto_aprobador_1_en: null,
+    devuelto_solicitante_en: null,
+    pagado_en: null,
+    creado_en: fechaMock,
+    actualizado_en: fechaMock,
+    proyecto_base: {
+      id: "proyecto-1",
+      nombre: "HUMAPO",
+      estado_proyecto: "EN_EJECUCION",
+    },
+    centro_costo: {
+      id: "centro-1",
+      nombre: "PRO-OBRA - HUMAPO",
+      linea_negocio: "OBRA",
+      fase_centro_costo: "LICITACION",
+      estado_centro_costo: "EN_LICITACION",
+    },
+    beneficiario: {
+      id: "trabajador-1",
+      nombre: "Trabajador Uno",
+      tipo_beneficiario: "TRABAJADOR",
+      tipo_documento: "CC",
+      numero_documento: "123456789",
+    },
+    proveedor: null,
+    creador: {
+      id: "usuario-1",
+      nombre: "Solicitante",
+      correo: "solicitante@test.com",
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe rechazar a un usuario sin autorización para enviar", async () => {
+    const resultado = await enviarSolicitudPagoService(
+      usuarioPagos,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(resultado.body.message).toBe(
+      "No tiene permisos para enviar solicitudes de pago.",
+    );
+    expect(obtenerSolicitudPagoPorIdRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe validar el identificador obligatorio", async () => {
+    const resultado = await enviarSolicitudPagoService(
+      usuarioSolicitante,
+      "   ",
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "El identificador de la solicitud es obligatorio.",
+    );
+  });
+
+  it("debe responder 404 cuando la solicitud no existe", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue(
+      null,
+    );
+
+    const resultado = await enviarSolicitudPagoService(
+      usuarioSolicitante,
+      "solicitud-inexistente",
+    );
+
+    expect(resultado.status).toBe(404);
+    expect(resultado.body.message).toBe(
+      "La solicitud de pago no existe.",
+    );
+  });
+
+  it("debe impedir que otro usuario envíe la solicitud", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue(
+      solicitudBorrador as never,
+    );
+
+    const resultado = await enviarSolicitudPagoService(
+      usuarioDirector,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(resultado.body.message).toBe(
+      "Solo el creador de la solicitud o un Administrador puede enviarla.",
+    );
+    expect(enviarSolicitudPagoRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe permitir que un Administrador envíe una solicitud ajena", async () => {
+    const fechaEnvio = new Date("2026-07-17T20:00:00.000Z");
+
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue(
+      solicitudBorrador as never,
+    );
+
+    vi.mocked(enviarSolicitudPagoRepository).mockResolvedValue({
+      ...solicitudBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_1",
+      enviado_en: fechaEnvio,
+    } as never);
+
+    const resultado = await enviarSolicitudPagoService(
+      usuarioAdministrador,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.ok).toBe(true);
+    expect(resultado.body.data?.solicitud.estado_actual).toBe(
+      "PENDIENTE_APROBADOR_1",
+    );
+  });
+
+  it("debe rechazar una solicitud que no esté en BORRADOR", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_1",
+      enviado_en: new Date("2026-07-17T20:00:00.000Z"),
+    } as never);
+
+    const resultado = await enviarSolicitudPagoService(
+      usuarioSolicitante,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(409);
+    expect(resultado.body.message).toBe(
+      "Solo se pueden enviar solicitudes en estado BORRADOR.",
+    );
+    expect(enviarSolicitudPagoRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe controlar una transición concurrente", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue(
+      solicitudBorrador as never,
+    );
+    vi.mocked(enviarSolicitudPagoRepository).mockResolvedValue(null);
+
+    const resultado = await enviarSolicitudPagoService(
+      usuarioSolicitante,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(409);
+    expect(resultado.body.message).toBe(
+      "La solicitud ya no se encuentra en estado BORRADOR. Actualice la información e inténtelo nuevamente.",
+    );
+  });
+
+  it("debe enviar una solicitud propia en estado BORRADOR", async () => {
+    const fechaEnvio = new Date("2026-07-17T20:00:00.000Z");
+
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue(
+      solicitudBorrador as never,
+    );
+
+    vi.mocked(enviarSolicitudPagoRepository).mockResolvedValue({
+      ...solicitudBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_1",
+      enviado_en: fechaEnvio,
+    } as never);
+
+    const resultado = await enviarSolicitudPagoService(
+      usuarioSolicitante,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.ok).toBe(true);
+    expect(resultado.body.message).toBe(
+      "Solicitud de pago enviada correctamente.",
+    );
+    expect(resultado.body.data?.solicitud.estado_actual).toBe(
+      "PENDIENTE_APROBADOR_1",
+    );
+    expect(resultado.body.data?.solicitud.enviado_en).toEqual(
+      fechaEnvio,
+    );
+
+    expect(enviarSolicitudPagoRepository).toHaveBeenCalledWith({
+      solicitudId: "solicitud-1",
+      enviadoEn: expect.any(Date),
+    });
+  });
+});

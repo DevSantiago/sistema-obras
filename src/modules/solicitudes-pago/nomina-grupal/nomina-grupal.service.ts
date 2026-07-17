@@ -81,6 +81,7 @@ type SolicitudNominaGrupalRepositoryResult = {
   valor_neto: unknown;
   estado_actual: string;
   creado_por: string | null;
+  enviado_en: Date | null;
   creado_en: Date;
   actualizado_en: Date;
   proyecto_base?: {
@@ -310,6 +311,7 @@ function convertirSolicitudPago(
     valor_neto: convertirDecimalANumero(solicitud.valor_neto),
     estado_actual: solicitud.estado_actual as EstadoSolicitudPago,
     creado_por: solicitud.creado_por,
+    enviado_en: solicitud.enviado_en,
     creado_en: solicitud.creado_en,
     actualizado_en: solicitud.actualizado_en,
     proyecto_base: solicitud.proyecto_base,
