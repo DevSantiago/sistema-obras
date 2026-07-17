@@ -8,6 +8,7 @@ import {
 import {
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
+  enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerBeneficiarioActivoRepository,
@@ -71,6 +72,14 @@ const PERMISOS_CONSULTAR_SOLICITUDES = [
   "MARCAR_COMO_PAGADO",
 ];
 
+const ROLES_QUE_PUEDEN_ENVIAR_SOLICITUDES = [
+  "SOLICITANTE",
+  "DIRECTOR",
+  "AUXILIAR_CONTABLE",
+  "APROBADOR_1",
+  "ADMINISTRADOR",
+];
+
 type SolicitudPagoRepositoryResult = {
   id: string;
   numero_solicitud: string;
@@ -97,6 +106,7 @@ type SolicitudPagoRepositoryResult = {
   valor_neto: unknown;
   estado_actual: string;
   creado_por: string | null;
+  enviado_en: Date | null;
   creado_en: Date;
   actualizado_en: Date;
   proyecto_base?: {
@@ -483,6 +493,7 @@ function convertirSolicitudPago(
     valor_neto: convertirDecimalANumero(solicitud.valor_neto),
     estado_actual: solicitud.estado_actual as EstadoSolicitudPago,
     creado_por: solicitud.creado_por,
+    enviado_en: solicitud.enviado_en,
     creado_en: solicitud.creado_en,
     actualizado_en: solicitud.actualizado_en,
     proyecto_base: solicitud.proyecto_base,
@@ -1575,3 +1586,96 @@ export async function crearSolicitudReembolsoService(
   };
 }
 
+export async function enviarSolicitudPagoService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  const puedeEnviar =
+    ROLES_QUE_PUEDEN_ENVIAR_SOLICITUDES.some((rol) =>
+      usuarioTieneRol(usuarioAutenticado, rol),
+    ) ||
+    usuarioTienePermiso(usuarioAutenticado, "CREAR_SOLICITUDES");
+
+  if (!puedeEnviar) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para enviar solicitudes de pago.",
+      },
+    };
+  }
+
+  const id = normalizarTexto(solicitudId);
+
+  if (!id) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El identificador de la solicitud es obligatorio.",
+      },
+    };
+  }
+
+  const solicitud = await obtenerSolicitudPagoPorIdRepository(id);
+
+  if (!solicitud) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "La solicitud de pago no existe.",
+      },
+    };
+  }
+
+  const esPropietario = solicitud.creado_por === usuarioAutenticado.id;
+
+  if (!esPropietario && !usuarioEsAdministrador(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "Solo el creador de la solicitud o un Administrador puede enviarla.",
+      },
+    };
+  }
+
+  if (solicitud.estado_actual !== "BORRADOR") {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message: "Solo se pueden enviar solicitudes en estado BORRADOR.",
+      },
+    };
+  }
+
+  const solicitudEnviada = await enviarSolicitudPagoRepository({
+    solicitudId: id,
+    enviadoEn: new Date(),
+  });
+
+  if (!solicitudEnviada) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "La solicitud ya no se encuentra en estado BORRADOR. Actualice la información e inténtelo nuevamente.",
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Solicitud de pago enviada correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(solicitudEnviada),
+      },
+    },
+  };
+}

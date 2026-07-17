@@ -269,6 +269,7 @@ export type SolicitudPagoListado = {
   valor_neto: number;
   estado_actual: EstadoSolicitudPago;
   creado_por: string | null;
+  enviado_en: string | Date | null;
   creado_en: string | Date;
   actualizado_en: string | Date;
   proyecto_base?: {
