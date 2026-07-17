@@ -155,6 +155,7 @@ export default function SolicitudesPagoManager({
   const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
   const [cargandoSolicitudes, setCargandoSolicitudes] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [enviandoSolicitudId, setEnviandoSolicitudId] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState("");
   const [mensajeError, setMensajeError] = useState("");
 
@@ -446,6 +447,47 @@ export default function SolicitudesPagoManager({
     await cargarSolicitudes();
   }
 
+  async function enviarSolicitud(solicitudId: string): Promise<void> {
+    setEnviandoSolicitudId(solicitudId);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetchJson<SolicitudesPagoResponseData>(
+        `/api/v1/solicitudes-pago/${solicitudId}/enviar`,
+        {
+          method: "POST",
+        },
+      );
+
+      const solicitudActualizada = response.data?.solicitud;
+
+      if (solicitudActualizada) {
+        setSolicitudes((actuales) =>
+          actuales.map((solicitud) =>
+            solicitud.id === solicitudActualizada.id
+              ? solicitudActualizada
+              : solicitud,
+          ),
+        );
+      } else {
+        await cargarSolicitudes();
+      }
+
+      setMensajeExito(
+        response.message ?? "Solicitud enviada para aprobación correctamente.",
+      );
+    } catch (error) {
+      setMensajeError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible enviar la solicitud para aprobación.",
+      );
+    } finally {
+      setEnviandoSolicitudId(null);
+    }
+  }
+
   function renderizarFormulario() {
     switch (tipoSeleccionado) {
       case "PAGO_PROVEEDOR":
@@ -543,7 +585,10 @@ export default function SolicitudesPagoManager({
 
       <SolicitudesPagoList
         solicitudes={solicitudes}
+        usuario={usuario}
         cargando={cargandoSolicitudes}
+        enviandoSolicitudId={enviandoSolicitudId}
+        onEnviar={enviarSolicitud}
         onActualizar={cargarSolicitudes}
       />
     </div>
