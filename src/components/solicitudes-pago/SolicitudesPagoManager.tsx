@@ -15,6 +15,7 @@ import NominaGrupalForm from "./forms/NominaGrupalForm";
 import NominaIndividualForm from "./forms/NominaIndividualForm";
 import PagoImpuestoForm from "./forms/PagoImpuestoForm";
 import ProveedorForm from "./forms/ProveedorForm";
+import ReembolsoForm from "./forms/ReembolsoForm";
 import SolicitudesPagoList from "./lists/SolicitudesPagoList";
 import styles from "./SolicitudesPagoManager.module.css";
 import {
@@ -114,6 +115,17 @@ function usuarioPuedeCrearPagoImpuesto(
 }
 
 
+function usuarioPuedeCrearReembolso(
+  usuario: UsuarioSesionSolicitudesPago,
+): boolean {
+  return [
+    "SOLICITANTE",
+    "APROBADOR_1",
+    "DIRECTOR",
+    "AUXILIAR_CONTABLE",
+    "ADMINISTRADOR",
+  ].some((rol) => usuario.roles.includes(rol));
+}
 
 export default function SolicitudesPagoManager({
   usuario,
@@ -149,6 +161,7 @@ export default function SolicitudesPagoManager({
   const opcionesTipoSolicitud = useMemo<OpcionTipoSolicitud[]>(() => {
     const puedeCrearNomina = usuarioPuedeCrearNomina(usuario);
     const puedeCrearImpuesto = usuarioPuedeCrearPagoImpuesto(usuario);
+    const puedeCrearReembolso = usuarioPuedeCrearReembolso(usuario);
 
     return OPCIONES_TIPO_SOLICITUD.map((opcion) => {
       if (esTipoNomina(opcion.id)) {
@@ -164,6 +177,14 @@ export default function SolicitudesPagoManager({
           ...opcion,
           habilitado: opcion.habilitado && puedeCrearImpuesto,
           etiquetaEstado: puedeCrearImpuesto ? undefined : "Sin permiso",
+        };
+      }
+
+      if (opcion.id === "REEMBOLSO") {
+        return {
+          ...opcion,
+          habilitado: opcion.habilitado && puedeCrearReembolso,
+          etiquetaEstado: puedeCrearReembolso ? undefined : "Sin permiso",
         };
       }
 
@@ -375,6 +396,46 @@ export default function SolicitudesPagoManager({
     await crearSolicitud(payload);
   }
 
+  async function crearSolicitudReembolso(
+    formData: FormData,
+  ): Promise<void> {
+    setGuardando(true);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetchJson<SolicitudesPagoResponseData>(
+        "/api/v1/solicitudes-pago/reembolsos",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      const solicitudCreada = response.data?.solicitud;
+
+      if (solicitudCreada) {
+        setSolicitudes((actuales) => [solicitudCreada, ...actuales]);
+      } else {
+        await cargarSolicitudes();
+      }
+
+      setMensajeExito(
+        response.message ?? "Solicitud de reembolso creada correctamente.",
+      );
+    } catch (error) {
+      const mensaje =
+        error instanceof Error
+          ? error.message
+          : "No fue posible crear la solicitud de reembolso.";
+
+      setMensajeError(mensaje);
+      throw new Error(mensaje);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
   async function manejarNominaGrupalCreada(
     mensaje: string,
   ): Promise<void> {
@@ -450,7 +511,20 @@ export default function SolicitudesPagoManager({
         );
 
       case "REEMBOLSO":
-        return null;
+        return (
+          <ReembolsoForm
+            proyectos={proyectos}
+            centrosCostoDisponibles={centrosCostoDisponibles}
+            trabajadores={trabajadores}
+            cargandoCatalogos={cargandoCatalogos}
+            guardando={guardando}
+            mensajeExito={mensajeExito}
+            mensajeError={mensajeError}
+            onProyectoChange={setProyectoBaseSeleccionadoId}
+            onCrear={crearSolicitudReembolso}
+            onLimpiarMensajes={limpiarMensajes}
+          />
+        );
 
       default:
         return null;

@@ -1,4 +1,5 @@
 import type {
+  CategoriaReembolso,
   MedioPagoSolicitud,
   TipoImpuestoSolicitud,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
@@ -57,6 +58,20 @@ export type CrearSolicitudPagoImpuestoPayload = {
   medio_pago: MedioPagoSolicitud;
   descripcion: string;
   valor_bruto: number;
+};
+
+export type ReembolsoFormularioState = {
+  proyecto_base_id: string;
+  centro_costo_id: string;
+  beneficiario_id: string;
+  categoria_reembolso: CategoriaReembolso | "";
+  medio_pago: MedioPagoSolicitud | "";
+  descripcion: string;
+  valor_bruto: string;
+  valor_impuestos: string;
+  valor_retenciones: string;
+  valor_descuentos: string;
+  archivos: File[];
 };
 
 export type CrearSolicitudFrontendPayload =
@@ -196,7 +211,6 @@ export const OPCIONES_TIPO_SOLICITUD: OpcionTipoSolicitud[] = [
     titulo: "Reembolso",
     descripcion:
       "Devolución de gastos asumidos por ingenieros, directores u otros colaboradores del proyecto.",
-    habilitado: false,
-    etiquetaEstado: "Próximamente",
+    habilitado: true,
   },
 ];
