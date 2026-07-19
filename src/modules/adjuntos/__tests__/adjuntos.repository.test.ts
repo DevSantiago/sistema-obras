@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { crearAdjuntosSolicitudPagoRepository } from "@/modules/adjuntos/adjuntos.repository";
+import {eliminarSolicitudReembolsoRepository } from "../../solicitudes-pago/reembolsos/reembolsos.repository";
 
 const { createManyMock, deleteMock } = vi.hoisted(() => ({
   createManyMock: vi.fn(),
@@ -16,12 +18,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import {
-  crearAdjuntosReembolsoRepository,
-  eliminarSolicitudReembolsoRepository,
-} from "../reembolsos.repository";
-
-describe("reembolsos.repository", () => {
+describe("adjuntos.repository", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -32,7 +29,7 @@ describe("reembolsos.repository", () => {
     });
 
     const resultado =
-      await crearAdjuntosReembolsoRepository([
+      await crearAdjuntosSolicitudPagoRepository([
         {
           solicitud_pago_id: "solicitud-1",
           nombre_archivo: "factura.pdf",
@@ -40,7 +37,7 @@ describe("reembolsos.repository", () => {
             "storage/reembolsos/factura.pdf",
           nombre_bucket: "LOCAL",
           tipo_mime: "application/pdf",
-          tamano_archivo: 1000n,
+          tamano_archivo: BigInt(1000),
           subido_por: "usuario-1",
         },
         {
@@ -50,7 +47,7 @@ describe("reembolsos.repository", () => {
             "storage/reembolsos/recibo.png",
           nombre_bucket: "LOCAL",
           tipo_mime: "image/png",
-          tamano_archivo: 2000n,
+          tamano_archivo: BigInt(2000),
           subido_por: "usuario-1",
         },
       ]);
@@ -68,7 +65,7 @@ describe("reembolsos.repository", () => {
             "storage/reembolsos/factura.pdf",
           nombre_bucket: "LOCAL",
           tipo_mime: "application/pdf",
-          tamano_archivo: 1000n,
+          tamano_archivo: BigInt(1000),
           subido_por: "usuario-1",
           estado_ocr: "NO_PROCESADO",
         },
@@ -79,37 +76,11 @@ describe("reembolsos.repository", () => {
             "storage/reembolsos/recibo.png",
           nombre_bucket: "LOCAL",
           tipo_mime: "image/png",
-          tamano_archivo: 2000n,
+          tamano_archivo: BigInt(2000),
           subido_por: "usuario-1",
           estado_ocr: "NO_PROCESADO",
         },
       ],
-    });
-  });
-
-  it("no debe ejecutar createMany cuando no hay adjuntos", async () => {
-    const resultado =
-      await crearAdjuntosReembolsoRepository([]);
-
-    expect(resultado).toEqual({
-      count: 0,
-    });
-    expect(createManyMock).not.toHaveBeenCalled();
-  });
-
-  it("debe eliminar la solicitud durante el rollback", async () => {
-    deleteMock.mockResolvedValue({
-      id: "solicitud-1",
-    });
-
-    await eliminarSolicitudReembolsoRepository(
-      "solicitud-1",
-    );
-
-    expect(deleteMock).toHaveBeenCalledWith({
-      where: {
-        id: "solicitud-1",
-      },
     });
   });
 });

@@ -1,18 +1,23 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const {
   obtenerUsuarioAutenticadoMock,
   crearSolicitudReembolsoServiceMock,
-  crearAdjuntosReembolsoRepositoryMock,
+  crearAdjuntosSolicitudPagoServiceMock,
   eliminarSolicitudReembolsoRepositoryMock,
-  guardarArchivoMock,
   eliminarArchivoMock,
 } = vi.hoisted(() => ({
   obtenerUsuarioAutenticadoMock: vi.fn(),
   crearSolicitudReembolsoServiceMock: vi.fn(),
-  crearAdjuntosReembolsoRepositoryMock: vi.fn(),
+  crearAdjuntosSolicitudPagoServiceMock: vi.fn(),
   eliminarSolicitudReembolsoRepositoryMock: vi.fn(),
-  guardarArchivoMock: vi.fn(),
   eliminarArchivoMock: vi.fn(),
 }));
 
@@ -37,11 +42,14 @@ vi.mock(
   }),
 );
 
+vi.mock("@/modules/adjuntos/adjuntos.service", () => ({
+  crearAdjuntosSolicitudPagoService:
+    crearAdjuntosSolicitudPagoServiceMock,
+}));
+
 vi.mock(
   "@/modules/solicitudes-pago/reembolsos/reembolsos.repository",
   () => ({
-    crearAdjuntosReembolsoRepository:
-      crearAdjuntosReembolsoRepositoryMock,
     eliminarSolicitudReembolsoRepository:
       eliminarSolicitudReembolsoRepositoryMock,
   }),
@@ -49,7 +57,6 @@ vi.mock(
 
 vi.mock("@/modules/storage/storage.service", () => ({
   storageService: {
-    guardarArchivo: guardarArchivoMock,
     eliminarArchivo: eliminarArchivoMock,
   },
 }));
@@ -76,7 +83,10 @@ function crearFormDataBase(): FormData {
   formData.set("proyecto_base_id", "proyecto-1");
   formData.set("centro_costo_id", "centro-1");
   formData.set("beneficiario_id", "trabajador-1");
-  formData.set("categoria_reembolso", "TRANSPORTE");
+  formData.set(
+    "categoria_reembolso",
+    "TRANSPORTE",
+  );
   formData.set("medio_pago", "TRANSFERENCIA");
   formData.set(
     "descripcion",
@@ -131,204 +141,265 @@ beforeEach(() => {
     },
   });
 
-  guardarArchivoMock.mockResolvedValue({
-    nombre_archivo: "soporte.pdf",
-    nombre_bucket: "LOCAL",
-    ruta_archivo:
-      "storage/reembolsos/uuid-soporte.pdf",
-    tipo_mime: "application/pdf",
-    tamano_archivo: 100n,
-  });
-
-  crearAdjuntosReembolsoRepositoryMock.mockResolvedValue({
+  crearAdjuntosSolicitudPagoServiceMock.mockResolvedValue({
     count: 1,
+    archivos: [
+      {
+        nombre_archivo: "soporte.pdf",
+        nombre_bucket: "LOCAL",
+        ruta_archivo:
+          "storage/reembolsos/uuid-soporte.pdf",
+        tipo_mime: "application/pdf",
+        tamano_archivo: BigInt(100),
+      },
+    ],
   });
 
   eliminarArchivoMock.mockResolvedValue(undefined);
+
   eliminarSolicitudReembolsoRepositoryMock.mockResolvedValue(
     undefined,
   );
 });
 
-describe("POST /api/v1/solicitudes-pago/reembolsos", () => {
-  it("debe rechazar una solicitud sin soportes", async () => {
-    const response = await POST(
-      crearRequest(crearFormDataBase()),
-    );
+describe(
+  "POST /api/v1/solicitudes-pago/reembolsos",
+  () => {
+    it("debe rechazar una solicitud sin soportes", async () => {
+      const response = await POST(
+        crearRequest(crearFormDataBase()),
+      );
 
-    const body = await response.json();
+      const body = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(body.message).toBe(
-      "Debe adjuntar al menos un soporte para crear el reembolso.",
-    );
-    expect(
-      crearSolicitudReembolsoServiceMock,
-    ).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(400);
 
-  it("debe rechazar más de diez archivos", async () => {
-    const formData = crearFormDataBase();
+      expect(body.message).toBe(
+        "Debe adjuntar al menos un soporte para crear el reembolso.",
+      );
 
-    for (let indice = 0; indice < 11; indice += 1) {
+      expect(
+        crearSolicitudReembolsoServiceMock,
+      ).not.toHaveBeenCalled();
+
+      expect(
+        crearAdjuntosSolicitudPagoServiceMock,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar más de diez archivos", async () => {
+      const formData = crearFormDataBase();
+
+      for (
+        let indice = 0;
+        indice < 11;
+        indice += 1
+      ) {
+        formData.append(
+          "archivos",
+          new File(
+            ["contenido"],
+            `soporte-${indice}.pdf`,
+            {
+              type: "application/pdf",
+            },
+          ),
+        );
+      }
+
+      const response = await POST(
+        crearRequest(formData),
+      );
+
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+
+      expect(body.message).toBe(
+        "Solo se permiten máximo 10 archivos por reembolso.",
+      );
+
+      expect(
+        crearAdjuntosSolicitudPagoServiceMock,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("debe rechazar una extensión no permitida", async () => {
+      const formData = crearFormDataBase();
+
       formData.append(
         "archivos",
-        new File(["contenido"], `soporte-${indice}.pdf`, {
+        new File(["contenido"], "soporte.exe", {
+          type: "application/octet-stream",
+        }),
+      );
+
+      const response = await POST(
+        crearRequest(formData),
+      );
+
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+
+      expect(body.message).toBe(
+        'El archivo "soporte.exe" debe ser PDF, JPG, JPEG o PNG.',
+      );
+
+      expect(
+        crearAdjuntosSolicitudPagoServiceMock,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("debe crear la solicitud y registrar sus soportes", async () => {
+      const formData = crearFormDataBase();
+
+      formData.append(
+        "archivos",
+        new File(["contenido"], "soporte.pdf", {
           type: "application/pdf",
         }),
       );
-    }
 
-    const response = await POST(crearRequest(formData));
-    const body = await response.json();
+      const response = await POST(
+        crearRequest(formData),
+      );
 
-    expect(response.status).toBe(400);
-    expect(body.message).toBe(
-      "Solo se permiten máximo 10 archivos por reembolso.",
-    );
-  });
+      const body = await response.json();
 
-  it("debe rechazar una extensión no permitida", async () => {
-    const formData = crearFormDataBase();
+      expect(response.status).toBe(201);
+      expect(body.ok).toBe(true);
 
-    formData.append(
-      "archivos",
-      new File(["contenido"], "soporte.exe", {
-        type: "application/octet-stream",
-      }),
-    );
+      expect(body.data.solicitud.id).toBe(
+        "solicitud-1",
+      );
 
-    const response = await POST(crearRequest(formData));
-    const body = await response.json();
+      expect(body.data.soportes).toEqual([
+        {
+          nombre_archivo: "soporte.pdf",
+          ruta_archivo:
+            "storage/reembolsos/uuid-soporte.pdf",
+          tipo_mime: "application/pdf",
+          tamano_archivo: 100,
+        },
+      ]);
 
-    expect(response.status).toBe(400);
-    expect(body.message).toBe(
-      'El archivo "soporte.exe" debe ser PDF, JPG, JPEG o PNG.',
-    );
-  });
+      expect(
+        crearSolicitudReembolsoServiceMock,
+      ).toHaveBeenCalledWith(usuario, {
+        tipo_solicitud: "REEMBOLSO",
+        proyecto_base_id: "proyecto-1",
+        centro_costo_id: "centro-1",
+        beneficiario_id: "trabajador-1",
+        categoria_reembolso: "TRANSPORTE",
+        medio_pago: "TRANSFERENCIA",
+        descripcion: "Reembolso de transporte",
+        valor_bruto: 500000,
+        valor_impuestos: 95000,
+        valor_retenciones: 25000,
+        valor_descuentos: 10000,
+      });
 
-  it("debe crear la solicitud y registrar sus soportes", async () => {
-    const formData = crearFormDataBase();
+      expect(
+        crearAdjuntosSolicitudPagoServiceMock,
+      ).toHaveBeenCalledTimes(1);
 
-    formData.append(
-      "archivos",
-      new File(["contenido"], "soporte.pdf", {
-        type: "application/pdf",
-      }),
-    );
+      expect(
+        crearAdjuntosSolicitudPagoServiceMock,
+      ).toHaveBeenCalledWith({
+        solicitudPagoId: "solicitud-1",
+        archivos: [
+          expect.objectContaining({
+            name: "soporte.pdf",
+            type: "application/pdf",
+          }),
+        ],
+        subidoPor: "usuario-1",
+        carpeta: "reembolsos",
+      });
 
-    const response = await POST(crearRequest(formData));
-    const body = await response.json();
-
-    expect(response.status).toBe(201);
-    expect(body.ok).toBe(true);
-    expect(body.data.solicitud.id).toBe("solicitud-1");
-    expect(body.data.soportes).toEqual([
-      {
-        nombre_archivo: "soporte.pdf",
-        ruta_archivo:
-          "storage/reembolsos/uuid-soporte.pdf",
-        tipo_mime: "application/pdf",
-        tamano_archivo: 100,
-      },
-    ]);
-
-    expect(
-      crearSolicitudReembolsoServiceMock,
-    ).toHaveBeenCalledWith(usuario, {
-      tipo_solicitud: "REEMBOLSO",
-      proyecto_base_id: "proyecto-1",
-      centro_costo_id: "centro-1",
-      beneficiario_id: "trabajador-1",
-      categoria_reembolso: "TRANSPORTE",
-      medio_pago: "TRANSFERENCIA",
-      descripcion: "Reembolso de transporte",
-      valor_bruto: 500000,
-      valor_impuestos: 95000,
-      valor_retenciones: 25000,
-      valor_descuentos: 10000,
+      expect(
+        eliminarSolicitudReembolsoRepositoryMock,
+      ).not.toHaveBeenCalled();
     });
 
-    expect(guardarArchivoMock).toHaveBeenCalledTimes(1);
-    expect(
-      crearAdjuntosReembolsoRepositoryMock,
-    ).toHaveBeenCalledWith([
-      {
-        solicitud_pago_id: "solicitud-1",
-        nombre_archivo: "soporte.pdf",
-        ruta_archivo:
-          "storage/reembolsos/uuid-soporte.pdf",
-        nombre_bucket: "LOCAL",
-        tipo_mime: "application/pdf",
-        tamano_archivo: 100n,
-        subido_por: "usuario-1",
-      },
-    ]);
-  });
+    it("debe eliminar la solicitud si falla el registro de adjuntos", async () => {
+      const formData = crearFormDataBase();
 
-  it("debe eliminar archivos y solicitud si falla el registro de adjuntos", async () => {
-    const formData = crearFormDataBase();
+      formData.append(
+        "archivos",
+        new File(["contenido"], "soporte.pdf", {
+          type: "application/pdf",
+        }),
+      );
 
-    formData.append(
-      "archivos",
-      new File(["contenido"], "soporte.pdf", {
-        type: "application/pdf",
-      }),
-    );
+      crearAdjuntosSolicitudPagoServiceMock.mockRejectedValue(
+        new Error("Error de base de datos"),
+      );
 
-    crearAdjuntosReembolsoRepositoryMock.mockRejectedValue(
-      new Error("Error de base de datos"),
-    );
+      const response = await POST(
+        crearRequest(formData),
+      );
 
-    const response = await POST(crearRequest(formData));
-    const body = await response.json();
+      const body = await response.json();
 
-    expect(response.status).toBe(500);
-    expect(body.message).toBe("Error de base de datos");
+      expect(response.status).toBe(500);
 
-    expect(consoleErrorMock).toHaveBeenCalledWith(
-      "Error creando solicitud de reembolso:",
-      expect.any(Error),
-    );
+      expect(body.message).toBe(
+        "Error de base de datos",
+      );
 
-    expect(eliminarArchivoMock).toHaveBeenCalledWith(
-      "storage/reembolsos/uuid-soporte.pdf",
-    );
+      expect(consoleErrorMock).toHaveBeenCalledWith(
+        "Error creando solicitud de reembolso:",
+        expect.any(Error),
+      );
 
-    expect(
-      eliminarSolicitudReembolsoRepositoryMock,
-    ).toHaveBeenCalledWith("solicitud-1");
-  });
+      expect(
+        eliminarSolicitudReembolsoRepositoryMock,
+      ).toHaveBeenCalledWith("solicitud-1");
 
-  it("debe propagar la respuesta del servicio cuando la solicitud es inválida", async () => {
-    const formData = crearFormDataBase();
-
-    formData.append(
-      "archivos",
-      new File(["contenido"], "soporte.pdf", {
-        type: "application/pdf",
-      }),
-    );
-
-    crearSolicitudReembolsoServiceMock.mockResolvedValue({
-      status: 400,
-      body: {
-        ok: false,
-        message:
-          "La categoría de reembolso no es válida.",
-      },
+      expect(
+        eliminarArchivoMock,
+      ).not.toHaveBeenCalled();
     });
 
-    const response = await POST(crearRequest(formData));
-    const body = await response.json();
+    it("debe propagar la respuesta del servicio cuando la solicitud es inválida", async () => {
+      const formData = crearFormDataBase();
 
-    expect(response.status).toBe(400);
-    expect(body.message).toBe(
-      "La categoría de reembolso no es válida.",
-    );
-    expect(guardarArchivoMock).not.toHaveBeenCalled();
-  });
-});
+      formData.append(
+        "archivos",
+        new File(["contenido"], "soporte.pdf", {
+          type: "application/pdf",
+        }),
+      );
+
+      crearSolicitudReembolsoServiceMock.mockResolvedValue({
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            "La categoría de reembolso no es válida.",
+        },
+      });
+
+      const response = await POST(
+        crearRequest(formData),
+      );
+
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+
+      expect(body.message).toBe(
+        "La categoría de reembolso no es válida.",
+      );
+
+      expect(
+        crearAdjuntosSolicitudPagoServiceMock,
+      ).not.toHaveBeenCalled();
+    });
+  },
+);
 
 afterAll(() => {
   consoleErrorMock.mockRestore();

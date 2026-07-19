@@ -314,7 +314,7 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
   });
 
   it("debe lanzar error si el usuario asociado no existe o está inactivo", async () => {
-    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
     vi.mocked(obtenerUsuarioActivoPorIdRepository).mockResolvedValue(null);
 
     await expect(
@@ -332,7 +332,7 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
   });
 
   it("debe crear beneficiario trabajador normalizado", async () => {
-    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
 
     vi.mocked(crearBeneficiarioRepository).mockResolvedValue(
       beneficiarioMock as never,
@@ -366,7 +366,7 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
   });
 
   it("debe lanzar error si se envía proveedor_id y proveedor nuevo al mismo tiempo", async () => {
-    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
 
     await expect(
       crearBeneficiarioService(usuarioAutorizado, {
@@ -390,7 +390,7 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
   });
 
   it("debe lanzar error si ya existe proveedor activo con ese documento", async () => {
-    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
 
     vi.mocked(obtenerProveedorPorDocumentoRepository).mockResolvedValue({
       id: "proveedor-1",
@@ -420,7 +420,7 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
   });
 
   it("debe crear beneficiario proveedor con proveedor nuevo", async () => {
-    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(false);
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
     vi.mocked(obtenerProveedorPorDocumentoRepository).mockResolvedValue(null);
 
     vi.mocked(crearBeneficiarioRepository).mockResolvedValue(
