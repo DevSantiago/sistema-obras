@@ -1,5 +1,6 @@
 "use client";
 
+import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
 import type { ReembolsoFormularioState } from "@/components/solicitudes-pago/solicitudes-pago.types";
 import {
   CATEGORIAS_REEMBOLSO,
@@ -9,7 +10,7 @@ import {
   type MedioPagoSolicitud,
   type ProyectoBaseSolicitudCatalogo,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { type ChangeEvent, type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
   buscarBeneficiarioPorEtiqueta,
@@ -20,15 +21,6 @@ import {
   obtenerDocumentoBeneficiario,
   obtenerEtiquetaBeneficiario,
 } from "../solicitudes-pago.utils";
-
-const MAXIMO_ARCHIVOS = 10;
-const TAMANO_MAXIMO_ARCHIVO = 10 * 1024 * 1024;
-
-const TIPOS_MIME_PERMITIDOS = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-]);
 
 const ESTADO_INICIAL: ReembolsoFormularioState = {
   proyecto_base_id: "",
@@ -67,10 +59,6 @@ function convertirValorMoneda(valor: string): number {
   return Number(valorNormalizado);
 }
 
-function obtenerNombreArchivoSeguro(archivo: File): string {
-  return archivo.name || "archivo-sin-nombre";
-}
-
 export default function ReembolsoForm({
   proyectos,
   centrosCostoDisponibles,
@@ -83,9 +71,9 @@ export default function ReembolsoForm({
   onCrear,
   onLimpiarMensajes,
 }: ReembolsoFormProps) {
-  const [form, setForm] = useState<ReembolsoFormularioState>(ESTADO_INICIAL);
+  const [form, setForm] =
+    useState<ReembolsoFormularioState>(ESTADO_INICIAL);
   const [busquedaBeneficiario, setBusquedaBeneficiario] = useState("");
-  const [inputArchivosKey, setInputArchivosKey] = useState(0);
 
   const trabajadoresFiltrados = useMemo(() => {
     const busqueda = busquedaBeneficiario.trim().toLowerCase();
@@ -182,53 +170,12 @@ export default function ReembolsoForm({
     actualizarCampo("beneficiario_id", trabajador.id);
   }
 
-  function manejarArchivos(event: ChangeEvent<HTMLInputElement>) {
-    const archivosSeleccionados = Array.from(event.target.files ?? []);
-
-    if (archivosSeleccionados.length === 0) {
-      actualizarCampo("archivos", []);
-      return;
-    }
-
-    if (archivosSeleccionados.length > MAXIMO_ARCHIVOS) {
-      throw new Error(
-        `Puede adjuntar máximo ${MAXIMO_ARCHIVOS} soportes por solicitud.`,
-      );
-    }
-
-    const archivoTipoInvalido = archivosSeleccionados.find(
-      (archivo) => !TIPOS_MIME_PERMITIDOS.has(archivo.type),
+  function informarErrorFormulario(mensaje: string) {
+    window.dispatchEvent(
+      new CustomEvent("solicitudes-pago-form-error", {
+        detail: mensaje,
+      }),
     );
-
-    if (archivoTipoInvalido) {
-      throw new Error(
-        `El archivo "${obtenerNombreArchivoSeguro(
-          archivoTipoInvalido,
-        )}" no tiene un formato permitido. Use PDF, JPG, JPEG o PNG.`,
-      );
-    }
-
-    const archivoDemasiadoGrande = archivosSeleccionados.find(
-      (archivo) => archivo.size > TAMANO_MAXIMO_ARCHIVO,
-    );
-
-    if (archivoDemasiadoGrande) {
-      throw new Error(
-        `El archivo "${obtenerNombreArchivoSeguro(
-          archivoDemasiadoGrande,
-        )}" supera el tamaño máximo de 10 MB.`,
-      );
-    }
-
-    actualizarCampo("archivos", archivosSeleccionados);
-  }
-
-  function eliminarArchivo(indice: number) {
-    actualizarCampo(
-      "archivos",
-      form.archivos.filter((_, indiceActual) => indiceActual !== indice),
-    );
-    setInputArchivosKey((actual) => actual + 1);
   }
 
   function validarFormulario(): string | null {
@@ -331,7 +278,6 @@ export default function ReembolsoForm({
 
     setForm(ESTADO_INICIAL);
     setBusquedaBeneficiario("");
-    setInputArchivosKey((actual) => actual + 1);
     onProyectoChange("");
   }
 
@@ -339,30 +285,10 @@ export default function ReembolsoForm({
     try {
       await manejarEnvio(event);
     } catch (error) {
-      window.dispatchEvent(
-        new CustomEvent("solicitudes-pago-form-error", {
-          detail:
-            error instanceof Error
-              ? error.message
-              : "No fue posible validar el formulario de reembolso.",
-        }),
-      );
-    }
-  }
-
-  function manejarArchivosSeguro(event: ChangeEvent<HTMLInputElement>) {
-    try {
-      manejarArchivos(event);
-    } catch (error) {
-      event.target.value = "";
-
-      window.dispatchEvent(
-        new CustomEvent("solicitudes-pago-form-error", {
-          detail:
-            error instanceof Error
-              ? error.message
-              : "No fue posible validar los soportes seleccionados.",
-        }),
+      informarErrorFormulario(
+        error instanceof Error
+          ? error.message
+          : "No fue posible validar el formulario de reembolso.",
       );
     }
   }
@@ -648,59 +574,14 @@ export default function ReembolsoForm({
           />
         </label>
 
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="soportes-reembolso">
-            Soportes <strong aria-hidden="true">*</strong>
-          </label>
-
-          <input
-            key={inputArchivosKey}
-            id="soportes-reembolso"
-            className={styles.fileInput}
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-            multiple
-            onChange={manejarArchivosSeguro}
-            disabled={guardando}
-            required={form.archivos.length === 0}
-          />
-
-          <p className={styles.fieldHelp}>
-            Adjunta entre 1 y 10 archivos PDF, JPG, JPEG o PNG. Máximo 10 MB
-            por archivo.
-          </p>
-
-          {form.archivos.length > 0 ? (
-            <ul className={styles.fileList}>
-              {form.archivos.map((archivo, indice) => (
-                <li
-                  key={`${archivo.name}-${archivo.size}-${indice}`}
-                  className={styles.fileItem}
-                >
-                  <span className={styles.fileName}>
-                    {obtenerNombreArchivoSeguro(archivo)}
-                  </span>
-
-                  <span className={styles.fileSize}>
-                    {(archivo.size / 1024 / 1024).toFixed(2)} MB
-                  </span>
-
-                  <button
-                    type="button"
-                    className={styles.fileRemoveButton}
-                    onClick={() => eliminarArchivo(indice)}
-                    disabled={guardando}
-                    aria-label={`Eliminar ${obtenerNombreArchivoSeguro(
-                      archivo,
-                    )}`}
-                  >
-                    Eliminar
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
+        <SelectorAdjuntos
+          id="soportes-reembolso"
+          archivos={form.archivos}
+          onChange={(archivos) => actualizarCampo("archivos", archivos)}
+          onError={informarErrorFormulario}
+          disabled={guardando}
+          required
+        />
 
         <div className={styles.actions}>
           <button className={styles.button} type="submit" disabled={guardando}>

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { crearAdjuntosSolicitudPagoRepository } from "@/modules/adjuntos/adjuntos.repository";
-import {eliminarSolicitudReembolsoRepository } from "../../solicitudes-pago/reembolsos/reembolsos.repository";
 
 const { createManyMock, deleteMock } = vi.hoisted(() => ({
   createManyMock: vi.fn(),
