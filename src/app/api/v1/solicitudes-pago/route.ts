@@ -4,16 +4,38 @@ import {
   crearSolicitudPagoImpuestoService,
   crearSolicitudPagoProveedorService,
   listarSolicitudesPagoService,
+  registrarAdjuntosSolicitudPagoService,
 } from "@/modules/solicitudes-pago/solicitudes-pago.service";
 import type {
   CrearSolicitudNominaIndividualInput,
   CrearSolicitudPagoImpuestoInput,
   CrearSolicitudPagoProveedorInput,
+  ServiceResponse,
   SolicitudPagoListFilters,
+  SolicitudPagoListado,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
+import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { cookies } from "next/headers";
 
 type JsonObject = Record<string, unknown>;
+
+type DatosSolicitudCreada = {
+  solicitud: SolicitudPagoListado;
+};
+
+type ResultadoCreacionSolicitud = ServiceResponse<DatosSolicitudCreada>;
+
+type SolicitudMultipart = {
+  body: JsonObject;
+  archivos: File[];
+};
+
+const CAMPOS_NUMERICOS = new Set([
+  "valor_bruto",
+  "valor_impuestos",
+  "valor_retenciones",
+  "valor_descuentos",
+]);
 
 async function obtenerUsuarioSesionDesdeCookie() {
   const cookieStore = await cookies();
@@ -55,6 +77,186 @@ function esSolicitudPagoProveedor(body: JsonObject): boolean {
 
 function esSolicitudPagoImpuesto(body: JsonObject): boolean {
   return obtenerTipoSolicitud(body) === "PAGO_IMPUESTO";
+}
+
+function convertirValorFormulario(
+  campo: string,
+  valor: FormDataEntryValue,
+): unknown {
+  if (valor instanceof File) {
+    return valor;
+  }
+
+  const texto = valor.trim();
+
+  if (CAMPOS_NUMERICOS.has(campo)) {
+    return texto === "" ? "" : Number(texto);
+  }
+
+  return texto;
+}
+
+function convertirFormDataAObjeto(formData: FormData): SolicitudMultipart {
+  const body: JsonObject = {};
+  const archivos: File[] = [];
+
+  for (const [campo, valor] of formData.entries()) {
+    if (campo === "archivos") {
+      if (valor instanceof File && valor.size > 0) {
+        archivos.push(valor);
+      }
+
+      continue;
+    }
+
+    body[campo] = convertirValorFormulario(campo, valor);
+  }
+
+  return {
+    body,
+    archivos,
+  };
+}
+
+async function leerCuerpoSolicitud(
+  request: Request,
+): Promise<
+  | {
+      ok: true;
+      body: JsonObject;
+      archivos: File[];
+    }
+  | {
+      ok: false;
+      response: Response;
+    }
+> {
+  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const formData = await request.formData();
+      const resultado = convertirFormDataAObjeto(formData);
+
+      return {
+        ok: true,
+        body: resultado.body,
+        archivos: resultado.archivos,
+      };
+    } catch {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            ok: false,
+            message:
+              "El cuerpo multipart de la solicitud no pudo ser procesado.",
+          },
+          {
+            status: 400,
+          },
+        ),
+      };
+    }
+  }
+
+  if (contentType.includes("application/json")) {
+    let json: unknown;
+
+    try {
+      json = await request.json();
+    } catch {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            ok: false,
+            message: "El cuerpo de la solicitud debe ser JSON válido.",
+          },
+          {
+            status: 400,
+          },
+        ),
+      };
+    }
+
+    if (!esObjetoJson(json)) {
+      return {
+        ok: false,
+        response: Response.json(
+          {
+            ok: false,
+            message:
+              "El cuerpo de la solicitud debe ser un objeto JSON válido.",
+          },
+          {
+            status: 400,
+          },
+        ),
+      };
+    }
+
+    return {
+      ok: true,
+      body: json,
+      archivos: [],
+    };
+  }
+
+  return {
+    ok: false,
+    response: Response.json(
+      {
+        ok: false,
+        message:
+          "El tipo de contenido debe ser application/json o multipart/form-data.",
+      },
+      {
+        status: 415,
+      },
+    ),
+  };
+}
+
+function obtenerCarpetaAdjuntos(body: JsonObject): string {
+  if (esSolicitudPagoProveedor(body)) {
+    return "solicitudes-pago/proveedores";
+  }
+
+  if (esSolicitudPagoImpuesto(body)) {
+    return "solicitudes-pago/impuestos";
+  }
+
+  if (esSolicitudNominaIndividual(body)) {
+    return "solicitudes-pago/nomina-individual";
+  }
+
+  return "solicitudes-pago";
+}
+
+async function responderCreacionSolicitud(
+  resultado: ResultadoCreacionSolicitud,
+  archivos: File[],
+  usuario: UsuarioSesion,
+  body: JsonObject,
+): Promise<Response> {
+  if (
+    resultado.status === 201 &&
+    resultado.body.ok &&
+    resultado.body.data &&
+    archivos.length > 0
+  ) {
+    await registrarAdjuntosSolicitudPagoService({
+      solicitudPagoId: resultado.body.data.solicitud.id,
+      archivos,
+      usuarioId: usuario.id,
+      carpeta: obtenerCarpetaAdjuntos(body),
+    });
+  }
+
+  return Response.json(resultado.body, {
+    status: resultado.status,
+  });
 }
 
 export async function GET(request: Request) {
@@ -126,35 +328,14 @@ export async function POST(request: Request) {
       });
     }
 
-    let json: unknown;
+    const resultadoCuerpo = await leerCuerpoSolicitud(request);
 
-    try {
-      json = await request.json();
-    } catch {
-      return Response.json(
-        {
-          ok: false,
-          message: "El cuerpo de la solicitud debe ser JSON válido.",
-        },
-        {
-          status: 400,
-        },
-      );
+    if (!resultadoCuerpo.ok) {
+      return resultadoCuerpo.response;
     }
 
-    if (!esObjetoJson(json)) {
-      return Response.json(
-        {
-          ok: false,
-          message: "El cuerpo de la solicitud debe ser un objeto JSON válido.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    const body = json;
+    const body = resultadoCuerpo.body;
+    const archivos = resultadoCuerpo.archivos;
     const usuario = resultadoAutenticacion.body.data.usuario;
     const tipoSolicitud = obtenerTipoSolicitud(body);
     const modalidadNomina = obtenerModalidadNomina(body);
@@ -165,9 +346,12 @@ export async function POST(request: Request) {
         body as CrearSolicitudNominaIndividualInput,
       );
 
-      return Response.json(resultado.body, {
-        status: resultado.status,
-      });
+      return await responderCreacionSolicitud(
+        resultado,
+        archivos,
+        usuario,
+        body,
+      );
     }
 
     if (esSolicitudPagoProveedor(body)) {
@@ -176,9 +360,12 @@ export async function POST(request: Request) {
         body as CrearSolicitudPagoProveedorInput,
       );
 
-      return Response.json(resultado.body, {
-        status: resultado.status,
-      });
+      return await responderCreacionSolicitud(
+        resultado,
+        archivos,
+        usuario,
+        body,
+      );
     }
 
     if (esSolicitudPagoImpuesto(body)) {
@@ -187,9 +374,12 @@ export async function POST(request: Request) {
         body as CrearSolicitudPagoImpuestoInput,
       );
 
-      return Response.json(resultado.body, {
-        status: resultado.status,
-      });
+      return await responderCreacionSolicitud(
+        resultado,
+        archivos,
+        usuario,
+        body,
+      );
     }
 
     if (

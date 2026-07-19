@@ -367,3 +367,13 @@ export async function enviarSolicitudPagoRepository(input: {
     });
   });
 }
+
+export async function eliminarSolicitudPagoRepository(
+  solicitudPagoId: string,
+) {
+  return prisma.solicitudes_pago.delete({
+    where: {
+      id: solicitudPagoId,
+    },
+  });
+}
