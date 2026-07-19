@@ -1,9 +1,7 @@
 import path from "node:path";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import {
-  crearAdjuntosReembolsoRepository,
-  eliminarSolicitudReembolsoRepository,
-} from "@/modules/solicitudes-pago/reembolsos/reembolsos.repository";
+import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
+import { eliminarSolicitudReembolsoRepository } from "@/modules/solicitudes-pago/reembolsos/reembolsos.repository";
 import { crearSolicitudReembolsoService } from "@/modules/solicitudes-pago/solicitudes-pago.service";
 import type { CrearSolicitudReembolsoInput } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import { storageService } from "@/modules/storage/storage.service";
@@ -253,34 +251,41 @@ export async function POST(request: Request) {
     solicitudCreadaId =
       resultado.body.data.solicitud.id;
 
-    for (const archivo of archivos) {
-      const contenido = Buffer.from(
-        await archivo.arrayBuffer(),
-      );
+    solicitudCreadaId =
+      resultado.body.data.solicitud.id;
 
-      const archivoGuardado =
-        await storageService.guardarArchivo({
-          contenido,
-          nombre_original: archivo.name,
-          tipo_mime: archivo.type || null,
-          carpeta: "reembolsos",
-        });
+    const resultadoAdjuntos =
+      await crearAdjuntosSolicitudPagoService({
+        solicitudPagoId: solicitudCreadaId,
+        archivos,
+        subidoPor: usuario.id,
+        carpeta: "reembolsos",
+      });
 
-      archivosGuardados.push(archivoGuardado);
-    }
-
-    await crearAdjuntosReembolsoRepository(
-      archivosGuardados.map((archivo) => ({
-        solicitud_pago_id: solicitudCreadaId!,
-        nombre_archivo: archivo.nombre_archivo,
-        ruta_archivo: archivo.ruta_archivo,
-        nombre_bucket: archivo.nombre_bucket,
-        tipo_mime: archivo.tipo_mime,
-        tamano_archivo: archivo.tamano_archivo,
-        subido_por: usuario.id,
-      })),
+    archivosGuardados.push(
+      ...resultadoAdjuntos.archivos,
     );
 
+    return Response.json(
+      {
+        ...resultado.body,
+        data: {
+          ...resultado.body.data,
+          soportes: archivosGuardados.map((archivo) => ({
+            nombre_archivo: archivo.nombre_archivo,
+            ruta_archivo: archivo.ruta_archivo,
+            tipo_mime: archivo.tipo_mime,
+            tamano_archivo: Number(
+              archivo.tamano_archivo,
+            ),
+          })),
+        },
+      },
+      {
+        status: resultado.status,
+      },
+    );
+    
     return Response.json(
       {
         ...resultado.body,
