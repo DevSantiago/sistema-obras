@@ -10,14 +10,13 @@ import {
 const {
   obtenerUsuarioAutenticadoMock,
   crearSolicitudReembolsoServiceMock,
-  crearAdjuntosSolicitudPagoServiceMock,
-  eliminarSolicitudReembolsoRepositoryMock,
+  registrarAdjuntosSolicitudPagoServiceMock,
   eliminarArchivoMock,
 } = vi.hoisted(() => ({
   obtenerUsuarioAutenticadoMock: vi.fn(),
   crearSolicitudReembolsoServiceMock: vi.fn(),
-  crearAdjuntosSolicitudPagoServiceMock: vi.fn(),
-  eliminarSolicitudReembolsoRepositoryMock: vi.fn(),
+  registrarAdjuntosSolicitudPagoServiceMock:
+    vi.fn(),
   eliminarArchivoMock: vi.fn(),
 }));
 
@@ -39,19 +38,9 @@ vi.mock(
   () => ({
     crearSolicitudReembolsoService:
       crearSolicitudReembolsoServiceMock,
-  }),
-);
 
-vi.mock("@/modules/adjuntos/adjuntos.service", () => ({
-  crearAdjuntosSolicitudPagoService:
-    crearAdjuntosSolicitudPagoServiceMock,
-}));
-
-vi.mock(
-  "@/modules/solicitudes-pago/reembolsos/reembolsos.repository",
-  () => ({
-    eliminarSolicitudReembolsoRepository:
-      eliminarSolicitudReembolsoRepositoryMock,
+    registrarAdjuntosSolicitudPagoService:
+      registrarAdjuntosSolicitudPagoServiceMock,
   }),
 );
 
@@ -141,25 +130,23 @@ beforeEach(() => {
     },
   });
 
-  crearAdjuntosSolicitudPagoServiceMock.mockResolvedValue({
-    count: 1,
-    archivos: [
-      {
-        nombre_archivo: "soporte.pdf",
-        nombre_bucket: "LOCAL",
-        ruta_archivo:
-          "storage/reembolsos/uuid-soporte.pdf",
-        tipo_mime: "application/pdf",
-        tamano_archivo: BigInt(100),
-      },
-    ],
-  });
+  registrarAdjuntosSolicitudPagoServiceMock.mockResolvedValue(
+    {
+      count: 1,
+      archivos: [
+        {
+          nombre_archivo: "soporte.pdf",
+          nombre_bucket: "LOCAL",
+          ruta_archivo:
+            "storage/reembolsos/uuid-soporte.pdf",
+          tipo_mime: "application/pdf",
+          tamano_archivo: BigInt(100),
+        },
+      ],
+    },
+  );
 
   eliminarArchivoMock.mockResolvedValue(undefined);
-
-  eliminarSolicitudReembolsoRepositoryMock.mockResolvedValue(
-    undefined,
-  );
 });
 
 describe(
@@ -183,7 +170,7 @@ describe(
       ).not.toHaveBeenCalled();
 
       expect(
-        crearAdjuntosSolicitudPagoServiceMock,
+        registrarAdjuntosSolicitudPagoServiceMock,
       ).not.toHaveBeenCalled();
     });
 
@@ -220,7 +207,7 @@ describe(
       );
 
       expect(
-        crearAdjuntosSolicitudPagoServiceMock,
+        registrarAdjuntosSolicitudPagoServiceMock,
       ).not.toHaveBeenCalled();
     });
 
@@ -247,7 +234,7 @@ describe(
       );
 
       expect(
-        crearAdjuntosSolicitudPagoServiceMock,
+        registrarAdjuntosSolicitudPagoServiceMock,
       ).not.toHaveBeenCalled();
     });
 
@@ -301,11 +288,11 @@ describe(
       });
 
       expect(
-        crearAdjuntosSolicitudPagoServiceMock,
+        registrarAdjuntosSolicitudPagoServiceMock,
       ).toHaveBeenCalledTimes(1);
 
       expect(
-        crearAdjuntosSolicitudPagoServiceMock,
+        registrarAdjuntosSolicitudPagoServiceMock,
       ).toHaveBeenCalledWith({
         solicitudPagoId: "solicitud-1",
         archivos: [
@@ -314,16 +301,16 @@ describe(
             type: "application/pdf",
           }),
         ],
-        subidoPor: "usuario-1",
+        usuarioId: "usuario-1",
         carpeta: "reembolsos",
       });
 
       expect(
-        eliminarSolicitudReembolsoRepositoryMock,
+        eliminarArchivoMock,
       ).not.toHaveBeenCalled();
     });
 
-    it("debe eliminar la solicitud si falla el registro de adjuntos", async () => {
+    it("debe responder 500 si falla el registro de adjuntos", async () => {
       const formData = crearFormDataBase();
 
       formData.append(
@@ -333,7 +320,7 @@ describe(
         }),
       );
 
-      crearAdjuntosSolicitudPagoServiceMock.mockRejectedValue(
+      registrarAdjuntosSolicitudPagoServiceMock.mockRejectedValue(
         new Error("Error de base de datos"),
       );
 
@@ -355,8 +342,8 @@ describe(
       );
 
       expect(
-        eliminarSolicitudReembolsoRepositoryMock,
-      ).toHaveBeenCalledWith("solicitud-1");
+        registrarAdjuntosSolicitudPagoServiceMock,
+      ).toHaveBeenCalledTimes(1);
 
       expect(
         eliminarArchivoMock,
@@ -395,7 +382,7 @@ describe(
       );
 
       expect(
-        crearAdjuntosSolicitudPagoServiceMock,
+        registrarAdjuntosSolicitudPagoServiceMock,
       ).not.toHaveBeenCalled();
     });
   },

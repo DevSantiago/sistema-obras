@@ -886,16 +886,28 @@ export async function crearNominaGrupalService(
     return contexto.response;
   }
 
-  const adjunto = await obtenerAdjuntoNominaGrupalPorIdRepository(
-    entrada.data.adjuntoArchivoOrigenId,
-  );
+  const adjunto =
+    await obtenerAdjuntoNominaGrupalPorIdRepository(
+      entrada.data.adjuntoArchivoOrigenId,
+    );
 
-  if (!adjunto) {
+    if (!adjunto) {
     return {
       status: 404,
       body: {
         ok: false,
         message: "El archivo Excel de origen no existe.",
+      },
+    };
+  }
+
+  if (adjunto.subido_por !== usuarioAutenticado.id) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "El archivo Excel de origen no pertenece al usuario autenticado.",
       },
     };
   }

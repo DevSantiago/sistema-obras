@@ -1,4 +1,5 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
+import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import { obtenerDetalleNominaGrupalService } from "./nomina-grupal/nomina-grupal.service";
 import {
@@ -16,6 +17,7 @@ import {
   obtenerFondoActivoPorProyectoRepository,
   obtenerProyectoBaseActivoRepository,
   obtenerSolicitudPagoPorIdRepository,
+  eliminarSolicitudPagoRepository,
 } from "./solicitudes-pago.repository";
 import type {
   CategoriaReembolso,
@@ -156,6 +158,13 @@ type ContextoFinancieroSolicitud = {
     id: string;
   };
   centroCostoReferencia: string;
+};
+
+type RegistrarAdjuntosSolicitudPagoInput = {
+  solicitudPagoId: string;
+  archivos: File[];
+  usuarioId: string;
+  carpeta: string;
 };
 
 function obtenerPermisosUsuario(usuario: UsuarioSesion): string[] {
@@ -1584,6 +1593,39 @@ export async function crearSolicitudReembolsoService(
       },
     },
   };
+}
+
+
+export async function registrarAdjuntosSolicitudPagoService(
+  input: RegistrarAdjuntosSolicitudPagoInput,
+) {
+  if (input.archivos.length === 0) {
+    return {
+      archivos: [],
+    };
+  }
+
+  try {
+    return await crearAdjuntosSolicitudPagoService({
+      solicitudPagoId: input.solicitudPagoId,
+      archivos: input.archivos,
+      subidoPor: input.usuarioId,
+      carpeta: input.carpeta,
+    });
+  } catch (error) {
+    try {
+      await eliminarSolicitudPagoRepository(
+        input.solicitudPagoId,
+      );
+    } catch (rollbackError) {
+      console.error(
+        "No fue posible eliminar la solicitud después del fallo al registrar adjuntos:",
+        rollbackError,
+      );
+    }
+
+    throw error;
+  }
 }
 
 export async function enviarSolicitudPagoService(

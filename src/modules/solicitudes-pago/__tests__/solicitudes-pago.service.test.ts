@@ -1,5 +1,6 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
+import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buscarDuplicadoNominaIndividualRepository,
@@ -12,6 +13,7 @@ import {
   obtenerFondoActivoPorProyectoRepository,
   obtenerProyectoBaseActivoRepository,
   obtenerSolicitudPagoPorIdRepository,
+  eliminarSolicitudPagoRepository,
 } from "../solicitudes-pago.repository";
 import {
   crearSolicitudNominaIndividualService,
@@ -20,10 +22,15 @@ import {
   crearSolicitudReembolsoService,
   enviarSolicitudPagoService,
   listarSolicitudesPagoService,
+  registrarAdjuntosSolicitudPagoService,
 } from "../solicitudes-pago.service";
 
 vi.mock("@/modules/secuencias/secuencias.service", () => ({
   generarNumeroSolicitudPagoService: vi.fn(),
+}));
+
+vi.mock("@/modules/adjuntos/adjuntos.service", () => ({
+  crearAdjuntosSolicitudPagoService: vi.fn(),
 }));
 
 vi.mock("../solicitudes-pago.repository", () => ({
@@ -37,6 +44,7 @@ vi.mock("../solicitudes-pago.repository", () => ({
   obtenerFondoActivoPorProyectoRepository: vi.fn(),
   obtenerProyectoBaseActivoRepository: vi.fn(),
   obtenerSolicitudPagoPorIdRepository: vi.fn(),
+  eliminarSolicitudPagoRepository: vi.fn(),
 }));
 
 const fechaMock = new Date("2026-07-03T10:00:00.000Z");
@@ -1697,6 +1705,105 @@ describe(
         estado_actual: "BORRADOR",
         creado_por: "usuario-1",
       });
+    });
+  },
+);
+
+describe(
+  "solicitudes-pago.service - registrarAdjuntosSolicitudPagoService",
+  () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("no debe registrar adjuntos ni eliminar la solicitud cuando no hay archivos", async () => {
+      await registrarAdjuntosSolicitudPagoService({
+        solicitudPagoId: "solicitud-1",
+        archivos: [],
+        usuarioId: "usuario-1",
+        carpeta: "solicitudes-pago/proveedores",
+      });
+
+      expect(
+        crearAdjuntosSolicitudPagoService,
+      ).not.toHaveBeenCalled();
+
+      expect(
+        eliminarSolicitudPagoRepository,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("debe registrar los adjuntos asociados a la solicitud", async () => {
+      const archivos = [
+        new File(["contenido factura"], "factura.pdf", {
+          type: "application/pdf",
+        }),
+      ];
+
+      vi.mocked(
+        crearAdjuntosSolicitudPagoService,
+      ).mockResolvedValue([] as never);
+
+      await registrarAdjuntosSolicitudPagoService({
+        solicitudPagoId: "solicitud-1",
+        archivos,
+        usuarioId: "usuario-1",
+        carpeta: "solicitudes-pago/proveedores",
+      });
+
+      expect(
+        crearAdjuntosSolicitudPagoService,
+      ).toHaveBeenCalledTimes(1);
+
+      expect(
+        crearAdjuntosSolicitudPagoService,
+      ).toHaveBeenCalledWith({
+        solicitudPagoId: "solicitud-1",
+        archivos,
+        subidoPor: "usuario-1",
+        carpeta: "solicitudes-pago/proveedores",
+      });
+
+      expect(
+        eliminarSolicitudPagoRepository,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("debe eliminar la solicitud y relanzar el error cuando falla el registro de adjuntos", async () => {
+      const archivos = [
+        new File(["contenido factura"], "factura.pdf", {
+          type: "application/pdf",
+        }),
+      ];
+
+      const errorAdjuntos = new Error(
+        "No fue posible registrar los adjuntos.",
+      );
+
+      vi.mocked(
+        crearAdjuntosSolicitudPagoService,
+      ).mockRejectedValue(errorAdjuntos);
+
+      vi.mocked(
+        eliminarSolicitudPagoRepository,
+      ).mockResolvedValue({} as never);
+
+      await expect(
+        registrarAdjuntosSolicitudPagoService({
+          solicitudPagoId: "solicitud-1",
+          archivos,
+          usuarioId: "usuario-1",
+          carpeta: "solicitudes-pago/proveedores",
+        }),
+      ).rejects.toBe(errorAdjuntos);
+
+      expect(
+        eliminarSolicitudPagoRepository,
+      ).toHaveBeenCalledTimes(1);
+
+      expect(
+        eliminarSolicitudPagoRepository,
+      ).toHaveBeenCalledWith("solicitud-1");
     });
   },
 );

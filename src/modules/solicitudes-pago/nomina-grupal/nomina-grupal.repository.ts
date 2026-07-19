@@ -337,11 +337,15 @@ export async function crearSolicitudNominaGrupalRepository(
     async (tx) => {
       const adjunto = await tx.adjuntos.findUnique({
         where: { id: data.adjunto_archivo_origen_id },
-        select: { id: true, solicitud_pago_id: true },
+        select: { id: true, solicitud_pago_id: true, subido_por: true},
       });
 
       if (!adjunto) {
         throw new Error("El archivo de origen de la nómina no existe.");
+      }
+
+      if (adjunto.subido_por !== data.creado_por) {
+        throw new Error("El archivo de origen no pertenece al usuario autenticado.");
       }
 
       if (adjunto.solicitud_pago_id) {
