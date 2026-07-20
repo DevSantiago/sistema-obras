@@ -127,6 +127,23 @@ function usuarioPuedeCrearReembolso(
   ].some((rol) => usuario.roles.includes(rol));
 }
 
+function construirSolicitudFormData(
+  payload: CrearSolicitudFrontendPayload,
+  archivos: File[],
+): FormData {
+  const formData = new FormData();
+
+  for (const [campo, valor] of Object.entries(payload)) {
+    formData.append(campo, String(valor));
+  }
+
+  for (const archivo of archivos) {
+    formData.append("archivos", archivo);
+  }
+
+  return formData;
+}
+
 export default function SolicitudesPagoManager({
   usuario,
 }: SolicitudesPagoManagerProps) {
@@ -340,21 +357,30 @@ export default function SolicitudesPagoManager({
 
   async function crearSolicitud(
     payload: CrearSolicitudFrontendPayload,
+    archivos: File[] = [],
   ): Promise<void> {
     setGuardando(true);
     setMensajeError("");
     setMensajeExito("");
 
     try {
+      const requestInit: RequestInit =
+        archivos.length > 0
+          ? {
+              method: "POST",
+              body: construirSolicitudFormData(payload, archivos),
+            }
+          : {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            };
+
       const response = await fetchJson<SolicitudesPagoResponseData>(
         "/api/v1/solicitudes-pago",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
+        requestInit,
       );
 
       const solicitudCreada = response.data?.solicitud;
@@ -365,7 +391,9 @@ export default function SolicitudesPagoManager({
         await cargarSolicitudes();
       }
 
-      setMensajeExito(response.message ?? "Solicitud creada correctamente.");
+      setMensajeExito(
+        response.message ?? "Solicitud creada correctamente.",
+      );
     } catch (error) {
       const mensaje =
         error instanceof Error
@@ -381,20 +409,23 @@ export default function SolicitudesPagoManager({
 
   async function crearSolicitudProveedor(
     payload: CrearSolicitudProveedorPayload,
+    archivos: File[] = [],
   ): Promise<void> {
-    await crearSolicitud(payload);
+    await crearSolicitud(payload, archivos);
   }
 
   async function crearSolicitudNominaIndividual(
     payload: CrearSolicitudNominaIndividualPayload,
+    archivos: File[] = [],
   ): Promise<void> {
-    await crearSolicitud(payload);
+    await crearSolicitud(payload, archivos);
   }
 
   async function crearSolicitudPagoImpuesto(
     payload: CrearSolicitudPagoImpuestoPayload,
+    archivos: File[] = [],
   ): Promise<void> {
-    await crearSolicitud(payload);
+    await crearSolicitud(payload, archivos);
   }
 
   async function crearSolicitudReembolso(

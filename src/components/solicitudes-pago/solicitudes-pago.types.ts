@@ -101,6 +101,7 @@ export type PagoImpuestoFormularioState = {
   medio_pago: MedioPagoSolicitud | "";
   descripcion: string;
   valor_bruto: string;
+  archivos: File[];
 };
 
 export type EstadoValidacionNominaGrupal =

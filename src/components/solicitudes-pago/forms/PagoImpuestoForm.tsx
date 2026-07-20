@@ -1,5 +1,6 @@
 "use client";
 
+import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
 import {
   TIPOS_IMPUESTO_SOLICITUD,
   BeneficiarioSolicitudCatalogo,
@@ -32,7 +33,10 @@ type PagoImpuestoFormProps = {
   mensajeExito: string;
   mensajeError: string;
   onProyectoChange: (proyectoBaseId: string) => void;
-  onCrear: (payload: CrearSolicitudPagoImpuestoPayload) => Promise<void>;
+  onCrear: (
+    payload: CrearSolicitudPagoImpuestoPayload,
+    archivos: File[],
+  ) => Promise<void>;
   onLimpiarMensajes: () => void;
 };
 
@@ -60,6 +64,7 @@ const ESTADO_INICIAL: PagoImpuestoFormularioState = {
   medio_pago: "",
   descripcion: "",
   valor_bruto: "",
+  archivos: [],
 };
 
 function convertirNumero(valor: string): number {
@@ -227,17 +232,20 @@ export default function PagoImpuestoForm({
       throw new Error("Seleccione un tipo de impuesto y medio de pago válidos.");
     }
 
-    await onCrear({
-      tipo_solicitud: "PAGO_IMPUESTO",
-      proyecto_base_id: form.proyecto_base_id,
-      centro_costo_id: form.centro_costo_id,
-      beneficiario_id: form.beneficiario_id,
-      tipo_impuesto: form.tipo_impuesto,
-      periodo_impuesto: form.periodo_impuesto,
-      medio_pago: form.medio_pago,
-      descripcion: form.descripcion.trim(),
-      valor_bruto: valorBruto,
-    });
+    await onCrear(
+      {
+        tipo_solicitud: "PAGO_IMPUESTO",
+        proyecto_base_id: form.proyecto_base_id,
+        centro_costo_id: form.centro_costo_id,
+        beneficiario_id: form.beneficiario_id,
+        tipo_impuesto: form.tipo_impuesto,
+        periodo_impuesto: form.periodo_impuesto,
+        medio_pago: form.medio_pago,
+        descripcion: form.descripcion.trim(),
+        valor_bruto: valorBruto,
+      },
+      form.archivos,
+    );
 
     setForm(ESTADO_INICIAL);
     setBusquedaEntidad("");
@@ -508,6 +516,22 @@ export default function PagoImpuestoForm({
             {formatearMoneda(valorBruto)}
           </strong>
         </div>
+
+        <SelectorAdjuntos
+          id="soportes-impuesto"
+          archivos={form.archivos}
+          onChange={(archivos) => actualizarCampo("archivos", archivos)}
+          onError={(mensaje) => {
+            window.dispatchEvent(
+              new CustomEvent("solicitudes-pago-form-error", {
+                detail: mensaje,
+              }),
+            );
+          }}
+          disabled={guardando}
+          titulo="Soportes del impuesto"
+          ayuda="Adjunta declaraciones, recibos oficiales, formularios tributarios u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+        />
 
         <div className={styles.actions}>
           <button

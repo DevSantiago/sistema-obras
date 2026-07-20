@@ -1,5 +1,6 @@
 "use client";
 
+import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
 import type {
   BeneficiarioSolicitudCatalogo,
   CentroCostoSolicitudCatalogo,
@@ -32,6 +33,7 @@ type NominaIndividualFormProps = {
   onProyectoChange: (proyectoBaseId: string) => void;
   onCrear: (
     payload: CrearSolicitudNominaIndividualPayload,
+    archivos: File[],
   ) => Promise<void>;
   onLimpiarMensajes: () => void;
 };
@@ -106,6 +108,7 @@ export default function NominaIndividualForm({
   );
 
   const [busquedaTrabajador, setBusquedaTrabajador] = useState("");
+  const [archivos, setArchivos] = useState<File[]>([]);
 
   const trabajadoresFiltrados = useMemo(() => {
     const busqueda = busquedaTrabajador.trim().toLowerCase();
@@ -305,24 +308,28 @@ export default function NominaIndividualForm({
       throw new Error("Seleccione un medio de pago válido.");
     }
 
-    await onCrear({
-      tipo_solicitud: "PAGO_NOMINA",
-      modalidad_nomina: "INDIVIDUAL",
-      periodo_nomina: form.periodo_nomina,
-      proyecto_base_id: form.proyecto_base_id,
-      centro_costo_id: form.centro_costo_id,
-      beneficiario_id: form.beneficiario_id,
-      concepto_nomina: form.concepto_nomina,
-      medio_pago: medioPago,
-      descripcion: form.descripcion.trim(),
-      valor_bruto: valores.valorBruto,
-      valor_retenciones: valores.valorRetenciones,
-      valor_descuentos: valores.valorDescuentos,
-    });
+    await onCrear(
+      {
+        tipo_solicitud: "PAGO_NOMINA",
+        modalidad_nomina: "INDIVIDUAL",
+        periodo_nomina: form.periodo_nomina,
+        proyecto_base_id: form.proyecto_base_id,
+        centro_costo_id: form.centro_costo_id,
+        beneficiario_id: form.beneficiario_id,
+        concepto_nomina: form.concepto_nomina,
+        medio_pago: medioPago,
+        descripcion: form.descripcion.trim(),
+        valor_bruto: valores.valorBruto,
+        valor_retenciones: valores.valorRetenciones,
+        valor_descuentos: valores.valorDescuentos,
+      },
+      archivos,
+    );
 
     setForm(ESTADO_INICIAL_NOMINA);
     setBusquedaTrabajador("");
     onProyectoChange("");
+    setArchivos([]);
   }
 
   async function manejarEnvioSeguro(event: FormEvent<HTMLFormElement>) {
@@ -648,6 +655,25 @@ export default function NominaIndividualForm({
             required
           />
         </label>
+
+        <SelectorAdjuntos
+            id="soportes-nomina-individual"
+            archivos={archivos}
+            onChange={(archivosSeleccionados) => {
+              setArchivos(archivosSeleccionados);
+              onLimpiarMensajes();
+            }}
+            onError={(mensaje) => {
+              window.dispatchEvent(
+                new CustomEvent("solicitudes-pago-form-error", {
+                  detail: mensaje,
+                }),
+              );
+            }}
+            disabled={guardando}
+            titulo="Soportes de la nómina"
+            ayuda="Adjunta contratos, cuentas de cobro, desprendibles, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+        />
 
         <div className={styles.actions}>
           <button className={styles.button} type="submit" disabled={guardando}>

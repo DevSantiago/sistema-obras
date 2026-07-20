@@ -1,4 +1,5 @@
 "use client";
+import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
 import type { CrearSolicitudProveedorPayload } from "@/components/solicitudes-pago/solicitudes-pago.types";
 import type {
   BeneficiarioSolicitudCatalogo,
@@ -24,7 +25,6 @@ import {
   type ValoresSolicitudPago,
 } from "../solicitudes-pago.utils";
 
-
 type ProveedorFormProps = {
   proyectos: ProyectoBaseSolicitudCatalogo[];
   centrosCostoDisponibles: CentroCostoSolicitudCatalogo[];
@@ -34,7 +34,10 @@ type ProveedorFormProps = {
   mensajeExito: string;
   mensajeError: string;
   onProyectoChange: (proyectoBaseId: string) => void;
-  onCrear: (payload: CrearSolicitudProveedorPayload) => Promise<void>;
+  onCrear: (
+    payload: CrearSolicitudProveedorPayload,
+    archivos: File[],
+  ) => Promise<void>;
   onLimpiarMensajes: () => void;
 };
 
@@ -55,6 +58,7 @@ export default function ProveedorForm({
   );
 
   const [busquedaBeneficiario, setBusquedaBeneficiario] = useState("");
+  const [archivos, setArchivos] = useState<File[]>([]);
 
   const beneficiariosFiltrados = useMemo(() => {
     const busqueda = busquedaBeneficiario.trim().toLowerCase();
@@ -223,22 +227,26 @@ export default function ProveedorForm({
       throw new Error("Seleccione un medio de pago válido.");
     }
 
-    await onCrear({
-      tipo_solicitud: "PAGO_PROVEEDOR",
-      proyecto_base_id: formulario.proyecto_base_id,
-      centro_costo_id: formulario.centro_costo_id,
-      beneficiario_id: formulario.beneficiario_id,
-      categoria_gasto: formulario.categoria_gasto,
-      medio_pago: medioPago,
-      descripcion: formulario.descripcion.trim(),
-      valor_bruto: valores.valorBruto,
-      valor_impuestos: valores.valorImpuestos,
-      valor_retenciones: valores.valorRetenciones,
-      valor_descuentos: valores.valorDescuentos,
-    });
+    await onCrear(
+      {
+        tipo_solicitud: "PAGO_PROVEEDOR",
+        proyecto_base_id: formulario.proyecto_base_id,
+        centro_costo_id: formulario.centro_costo_id,
+        beneficiario_id: formulario.beneficiario_id,
+        categoria_gasto: formulario.categoria_gasto,
+        medio_pago: medioPago,
+        descripcion: formulario.descripcion.trim(),
+        valor_bruto: valores.valorBruto,
+        valor_impuestos: valores.valorImpuestos,
+        valor_retenciones: valores.valorRetenciones,
+        valor_descuentos: valores.valorDescuentos,
+      },
+      archivos,
+    );
 
     setForm(ESTADO_INICIAL_FORMULARIO);
     setBusquedaBeneficiario("");
+    setArchivos([]);
     onProyectoChange("");
   }
 
@@ -550,6 +558,25 @@ export default function ProveedorForm({
             required
           />
         </label>
+
+        <SelectorAdjuntos
+            id="soportes-proveedor"
+            archivos={archivos}
+            onChange={(archivosSeleccionados) => {
+              setArchivos(archivosSeleccionados);
+              onLimpiarMensajes();
+            }}
+            onError={(mensaje) => {
+              window.dispatchEvent(
+                new CustomEvent("solicitudes-pago-form-error", {
+                  detail: mensaje,
+                }),
+              );
+            }}
+            disabled={guardando}
+            titulo="Soportes de la solicitud"
+            ayuda="Adjunta facturas, cuentas de cobro, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+          />
 
         <div className={styles.actions}>
           <button className={styles.button} type="submit" disabled={guardando}>
