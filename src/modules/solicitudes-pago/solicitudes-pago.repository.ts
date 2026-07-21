@@ -50,6 +50,21 @@ const solicitudPagoInclude = {
   },
 } satisfies Prisma.solicitudes_pagoInclude;
 
+export class SolicitudesPagoCambioConcurrenteError extends Error {
+  constructor() {
+    super(
+      "Una o más solicitudes cambiaron de estado durante la aprobación.",
+    );
+
+    this.name = "SolicitudesPagoCambioConcurrenteError";
+  }
+}
+
+type SolicitudReservaNivel1 = {
+  id: string;
+  valor_reservado: Prisma.Decimal;
+};
+
 export async function obtenerProyectoBaseActivoRepository(id: string) {
   return prisma.proyectos_base.findFirst({
     where: {
@@ -365,6 +380,97 @@ export async function enviarSolicitudPagoRepository(input: {
       },
       include: solicitudPagoInclude,
     });
+  });
+}
+
+export async function obtenerSolicitudesPagoPorIdsRepository(
+  solicitudIds: string[],
+) {
+  return prisma.solicitudes_pago.findMany({
+    where: {
+      id: {
+        in: solicitudIds,
+      },
+    },
+    select: {
+      id: true,
+      numero_solicitud: true,
+      proyecto_base_id: true,
+      fondo_id: true,
+      valor_neto: true,
+      valor_reservado: true,
+      estado_actual: true,
+      proyecto_base: {
+        select: {
+          id: true,
+          nombre: true,
+        },
+      },
+      fondo: {
+        select: {
+          id: true,
+          proyecto_base_id: true,
+          saldo_actual: true,
+          activo: true,
+        },
+      },
+    },
+  });
+}
+
+export async function obtenerReservasPorFondosRepository(
+  fondoIds: string[],
+) {
+  return prisma.solicitudes_pago.groupBy({
+    by: ["fondo_id"],
+    where: {
+      fondo_id: {
+        in: fondoIds,
+      },
+      valor_reservado: {
+        gt: 0,
+      },
+    },
+    _sum: {
+      valor_reservado: true,
+    },
+  });
+}
+
+export async function aprobarSolicitudesNivel1Repository(
+  solicitudes: SolicitudReservaNivel1[],
+  usuarioAprobadorId: string,
+  fechaAprobacion: Date,
+) {
+  return prisma.$transaction(async (tx) => {
+    let cantidadActualizada = 0;
+
+    for (const solicitud of solicitudes) {
+      const resultado = await tx.solicitudes_pago.updateMany({
+        where: {
+          id: solicitud.id,
+          estado_actual: "PENDIENTE_APROBADOR_1",
+          valor_reservado: null,
+        },
+        data: {
+          estado_actual: "PENDIENTE_APROBADOR_2",
+          valor_reservado: solicitud.valor_reservado,
+          aprobado_1_por: usuarioAprobadorId,
+          aprobado_1_en: fechaAprobacion,
+          actualizado_en: fechaAprobacion,
+        },
+      });
+
+      if (resultado.count !== 1) {
+        throw new SolicitudesPagoCambioConcurrenteError();
+      }
+
+      cantidadActualizada += resultado.count;
+    }
+
+    return {
+      count: cantidadActualizada,
+    };
   });
 }
 

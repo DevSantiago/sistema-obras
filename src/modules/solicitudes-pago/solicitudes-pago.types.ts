@@ -55,6 +55,40 @@ export type EstadoSolicitudPago =
   | "PAGADA"
   | "ANULADA";
 
+
+export type AprobarSolicitudesNivel1Input = {
+  solicitud_ids?: string[];
+};
+
+export type SolicitudAprobadaNivel1 = {
+  id: string;
+  numero_solicitud: string;
+  proyecto_base_id: string;
+  fondo_id: string;
+  valor_neto: number;
+  estado_actual: "PENDIENTE_APROBADOR_2";
+  aprobado_1_por: string;
+  aprobado_1_en: string | Date;
+};
+
+export type ResumenProyectoAprobacionNivel1 = {
+  proyecto_base_id: string;
+  proyecto_base_nombre: string;
+  fondo_id: string;
+  saldo_actual: number;
+  reservas_existentes: number;
+  saldo_disponible: number;
+  valor_seleccionado: number;
+  saldo_proyectado: number;
+  cantidad_solicitudes: number;
+};
+
+export type AprobarSolicitudesNivel1Data = {
+  cantidad_aprobada: number;
+  solicitudes: SolicitudAprobadaNivel1[];
+  proyectos: ResumenProyectoAprobacionNivel1[];
+};
+
 export type CrearSolicitudReembolsoInput = {
   tipo_solicitud?: "REEMBOLSO";
   proyecto_base_id?: string;
