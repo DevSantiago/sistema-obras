@@ -22,6 +22,7 @@ import {
   obtenerReservasPorFondosRepository,
   obtenerFondosPorIdsRepository,
   aprobarSolicitudesNivel1Repository,
+  aprobarSolicitudesNivel2Repository,
   SolicitudesPagoCambioConcurrenteError,
 } from "./solicitudes-pago.repository";
 import type {
@@ -43,6 +44,11 @@ import type {
   VisibilidadSolicitudesPago,
   AprobarSolicitudesNivel1Input,
   AprobarSolicitudesNivel1Data,
+  ConsultarAprobacionesNivel2Data,
+  ProyectoPendienteAprobacionNivel2,
+  AprobarSolicitudesNivel2Input,
+  ResumenProyectoAprobacionNivel2,
+  AprobarSolicitudesNivel2Data,
 } from "./solicitudes-pago.types";
 
 const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
@@ -924,6 +930,131 @@ export async function consultarAprobacionesNivel1Service(
     body: {
       ok: true,
       message: "Aprobaciones consultadas correctamente.",
+      data: {
+        proyectos: Array.from(proyectos.values()),
+      },
+    },
+  };
+}
+
+export async function consultarAprobacionesNivel2Service(
+  usuarioAutenticado: UsuarioSesion,
+): Promise<ServiceResponse<ConsultarAprobacionesNivel2Data>> {
+  if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_2")) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "No tiene permisos para consultar las aprobaciones de nivel 2.",
+      },
+    };
+  }
+
+  const visibilidad =
+    construirVisibilidadSolicitudesPago(usuarioAutenticado);
+
+  const solicitudes = (
+    await listarSolicitudesPagoRepository({
+      filters: {
+        estado_actual: "PENDIENTE_APROBADOR_2",
+      },
+      visibilidad,
+    })
+  ).map(convertirSolicitudPago);
+
+  if (solicitudes.length === 0) {
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message:
+          "No existen solicitudes pendientes de aprobación en nivel 2.",
+        data: {
+          proyectos: [],
+        },
+      },
+    };
+  }
+
+  const fondoIds = [
+    ...new Set(
+      solicitudes.map((solicitud) => solicitud.fondo_id),
+    ),
+  ];
+
+  const [fondos, reservas] = await Promise.all([
+    obtenerFondosPorIdsRepository(fondoIds),
+    obtenerReservasPorFondosRepository(fondoIds),
+  ]);
+
+  const reservasPorFondo = new Map(
+    reservas.map((reserva) => [
+      reserva.fondo_id,
+      convertirDecimalANumero(
+        reserva._sum.valor_reservado ?? 0,
+      ),
+    ]),
+  );
+
+  const fondosPorId = new Map(
+    fondos.map((fondo) => [fondo.id, fondo]),
+  );
+
+  const proyectos = new Map<
+    string,
+    ProyectoPendienteAprobacionNivel2
+  >();
+
+  for (const solicitud of solicitudes) {
+    const fondo = fondosPorId.get(solicitud.fondo_id);
+
+    if (!fondo) {
+      continue;
+    }
+
+    const reservasExistentes =
+      reservasPorFondo.get(fondo.id) ?? 0;
+
+    const saldoActual =
+      convertirDecimalANumero(fondo.saldo_actual);
+
+    const saldoDisponible =
+      saldoActual - reservasExistentes;
+
+    const valorPendiente = solicitud.valor_neto;
+
+    const existente = proyectos.get(fondo.id);
+
+    if (existente) {
+      existente.valor_pendiente += valorPendiente;
+      existente.cantidad_solicitudes += 1;
+      existente.solicitudes.push(solicitud);
+
+      continue;
+    }
+
+    proyectos.set(fondo.id, {
+      proyecto_base_id: solicitud.proyecto_base_id,
+      proyecto_base_nombre:
+        solicitud.proyecto_base?.nombre ?? "",
+      fondo_id: fondo.id,
+      saldo_actual: saldoActual,
+      reservas_existentes: reservasExistentes,
+      saldo_disponible: saldoDisponible,
+      valor_pendiente: valorPendiente,
+      saldo_proyectado: saldoDisponible,
+      cantidad_solicitudes: 1,
+      solicitudes: [solicitud],
+    });
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message:
+        "Aprobaciones de nivel 2 consultadas correctamente.",
       data: {
         proyectos: Array.from(proyectos.values()),
       },
@@ -2010,47 +2141,47 @@ export async function aprobarSolicitudesNivel1Service(
       valor_neto: number;
     }[];
   }
->();
+  >();
 
-for (const solicitud of solicitudes) {
-  const valorNeto = Number(solicitud.valor_neto);
-  const saldoActual = Number(solicitud.fondo.saldo_actual);
-  const reservasExistentes =
-    reservasPorFondo.get(solicitud.fondo_id) ?? 0;
-  const saldoDisponible = saldoActual - reservasExistentes;
+  for (const solicitud of solicitudes) {
+    const valorNeto = Number(solicitud.valor_neto);
+    const saldoActual = Number(solicitud.fondo.saldo_actual);
+    const reservasExistentes =
+      reservasPorFondo.get(solicitud.fondo_id) ?? 0;
+    const saldoDisponible = saldoActual - reservasExistentes;
 
-  const grupoExistente = solicitudesAgrupadasPorFondo.get(
-    solicitud.fondo_id,
-  );
+    const grupoExistente = solicitudesAgrupadasPorFondo.get(
+      solicitud.fondo_id,
+    );
 
-  if (grupoExistente) {
-    grupoExistente.valor_seleccionado += valorNeto;
-    grupoExistente.solicitudes.push({
-      id: solicitud.id,
-      numero_solicitud: solicitud.numero_solicitud,
-      valor_neto: valorNeto,
-    });
-
-    continue;
-  }
-
-  solicitudesAgrupadasPorFondo.set(solicitud.fondo_id, {
-    fondo_id: solicitud.fondo_id,
-    proyecto_base_id: solicitud.proyecto_base_id,
-    proyecto_base_nombre: solicitud.proyecto_base.nombre,
-    saldo_actual: saldoActual,
-    reservas_existentes: reservasExistentes,
-    saldo_disponible: saldoDisponible,
-    valor_seleccionado: valorNeto,
-    solicitudes: [
-      {
+    if (grupoExistente) {
+      grupoExistente.valor_seleccionado += valorNeto;
+      grupoExistente.solicitudes.push({
         id: solicitud.id,
         numero_solicitud: solicitud.numero_solicitud,
         valor_neto: valorNeto,
-      },
-    ],
-  });
-}
+      });
+
+      continue;
+    }
+
+    solicitudesAgrupadasPorFondo.set(solicitud.fondo_id, {
+      fondo_id: solicitud.fondo_id,
+      proyecto_base_id: solicitud.proyecto_base_id,
+      proyecto_base_nombre: solicitud.proyecto_base.nombre,
+      saldo_actual: saldoActual,
+      reservas_existentes: reservasExistentes,
+      saldo_disponible: saldoDisponible,
+      valor_seleccionado: valorNeto,
+      solicitudes: [
+        {
+          id: solicitud.id,
+          numero_solicitud: solicitud.numero_solicitud,
+          valor_neto: valorNeto,
+        },
+      ],
+    });
+  }
 
   const gruposConSaldoInsuficiente = Array.from(
     solicitudesAgrupadasPorFondo.values(),
@@ -2171,6 +2302,219 @@ for (const solicitud of solicitudes) {
           aprobado_1_en: fechaAprobacion,
         })),
         proyectos: gruposAprobados,
+      },
+    },
+  };
+}
+
+export async function aprobarSolicitudesNivel2Service(
+  usuarioAutenticado: UsuarioSesion,
+  input: AprobarSolicitudesNivel2Input,
+): Promise<ServiceResponse<AprobarSolicitudesNivel2Data>> {
+  if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_2")) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "No tiene permisos para aprobar solicitudes en nivel 2.",
+      },
+    };
+  }
+
+  const resultadoIds = normalizarIdsSolicitudes(
+    input.solicitud_ids,
+  );
+
+  if (resultadoIds.ids.length === 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Debe seleccionar al menos una solicitud.",
+      },
+    };
+  }
+
+  if (resultadoIds.tieneValoresInvalidos) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Todos los identificadores de solicitudes deben ser textos no vacíos.",
+      },
+    };
+  }
+
+  if (resultadoIds.tieneDuplicados) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "La selección contiene identificadores de solicitudes duplicados.",
+      },
+    };
+  }
+
+  const solicitudes =
+    await obtenerSolicitudesPagoPorIdsRepository(
+      resultadoIds.ids,
+    );
+
+  if (solicitudes.length !== resultadoIds.ids.length) {
+    const idsEncontrados = new Set(
+      solicitudes.map((solicitud) => solicitud.id),
+    );
+
+    const idsNoEncontrados = resultadoIds.ids.filter(
+      (id) => !idsEncontrados.has(id),
+    );
+
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: `No existen las siguientes solicitudes de pago: ${idsNoEncontrados.join(", ")}.`,
+      },
+    };
+  }
+
+  const solicitudesEstadoInvalido = solicitudes.filter(
+    (solicitud) =>
+      solicitud.estado_actual !== "PENDIENTE_APROBADOR_2",
+  );
+
+  if (solicitudesEstadoInvalido.length > 0) {
+    const referenciasInvalidas = solicitudesEstadoInvalido.map(
+      (solicitud) =>
+        `${solicitud.numero_solicitud} (${solicitud.estado_actual})`,
+    );
+
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "Todas las solicitudes deben estar en estado PENDIENTE_APROBADOR_2. " +
+          `Solicitudes no aprobables: ${referenciasInvalidas.join(", ")}.`,
+      },
+    };
+  }
+
+  const fechaAprobacion = new Date();
+
+  let resultadoActualizacion: {
+    count: number;
+  };
+
+  try {
+    resultadoActualizacion =
+      await aprobarSolicitudesNivel2Repository(
+        solicitudes.map((solicitud) => solicitud.id),
+        usuarioAutenticado.id,
+        fechaAprobacion,
+      );
+  } catch (error) {
+    if (error instanceof SolicitudesPagoCambioConcurrenteError) {
+      return {
+        status: 409,
+        body: {
+          ok: false,
+          message:
+            "Una o más solicitudes cambiaron de estado durante la aprobación. " +
+            "Actualice la información e intente nuevamente.",
+        },
+      };
+    }
+
+    throw error;
+  }
+
+  const reservasExistentes =
+  await obtenerReservasPorFondosRepository(
+    Array.from(
+      new Set(
+        solicitudes.map(
+          (solicitud) => solicitud.fondo_id,
+        ),
+      ),
+    ),
+  );
+
+  const reservasPorFondo = new Map<string, number>();
+
+  for (const reserva of reservasExistentes) {
+    reservasPorFondo.set(
+      reserva.fondo_id,
+      convertirDecimalANumero(
+        reserva._sum.valor_reservado ?? 0,
+      ),
+    );
+  }
+
+  const proyectos = new Map<
+    string,
+    ResumenProyectoAprobacionNivel2
+  >();
+
+  for (const solicitud of solicitudes) {
+    const existente = proyectos.get(solicitud.fondo_id);
+
+    if (existente) {
+      existente.valor_seleccionado +=
+        convertirDecimalANumero(solicitud.valor_neto);
+
+      existente.cantidad_solicitudes += 1;
+
+      continue;
+    }
+
+    const saldoActual = convertirDecimalANumero(
+      solicitud.fondo.saldo_actual,
+    );
+
+    const reservasDelFondo =
+      reservasPorFondo.get(solicitud.fondo_id) ?? 0;
+
+    const saldoDisponible =
+      saldoActual - reservasDelFondo;
+
+    proyectos.set(solicitud.fondo_id, {
+      proyecto_base_id: solicitud.proyecto_base_id,
+      proyecto_base_nombre:
+        solicitud.proyecto_base.nombre,
+      fondo_id: solicitud.fondo_id,
+      saldo_actual: saldoActual,
+      reservas_existentes: reservasDelFondo,
+      saldo_disponible: saldoDisponible,
+      valor_seleccionado:
+        convertirDecimalANumero(solicitud.valor_neto),
+      saldo_proyectado: saldoDisponible,
+      cantidad_solicitudes: 1,
+    });
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message:
+        "Las solicitudes fueron aprobadas correctamente en nivel 2.",
+      data: {
+        cantidad_aprobada: resultadoActualizacion.count,
+        solicitudes: solicitudes.map((solicitud) => ({
+          id: solicitud.id,
+          numero_solicitud: solicitud.numero_solicitud,
+          proyecto_base_id: solicitud.proyecto_base_id,
+          fondo_id: solicitud.fondo_id,
+          valor_neto: Number(solicitud.valor_neto),
+          estado_actual: "PROGRAMADA_PAGO",
+          aprobado_2_por: usuarioAutenticado.id,
+          aprobado_2_en: fechaAprobacion,
+        })),
+        proyectos: Array.from(proyectos.values()),
       },
     },
   };

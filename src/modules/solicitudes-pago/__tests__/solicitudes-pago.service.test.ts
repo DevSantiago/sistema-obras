@@ -4,6 +4,7 @@ import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.s
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   aprobarSolicitudesNivel1Repository,
+  aprobarSolicitudesNivel2Repository,
   obtenerReservasPorFondosRepository,
   obtenerSolicitudesPagoPorIdsRepository,
   SolicitudesPagoCambioConcurrenteError,
@@ -22,6 +23,7 @@ import {
 import {
   crearSolicitudNominaIndividualService,
   aprobarSolicitudesNivel1Service,
+  aprobarSolicitudesNivel2Service,
   crearSolicitudPagoImpuestoService,
   crearSolicitudPagoProveedorService,
   crearSolicitudReembolsoService,
@@ -42,6 +44,7 @@ vi.mock("../solicitudes-pago.repository", () => ({
   SolicitudesPagoCambioConcurrenteError: class
     SolicitudesPagoCambioConcurrenteError extends Error {},
   aprobarSolicitudesNivel1Repository: vi.fn(),
+  aprobarSolicitudesNivel2Repository: vi.fn(),
   obtenerReservasPorFondosRepository: vi.fn(),
   obtenerSolicitudesPagoPorIdsRepository: vi.fn(),
   buscarDuplicadoNominaIndividualRepository: vi.fn(),
@@ -2710,5 +2713,479 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel1Service", () => {
       usuarioAprobador1.id,
       expect.any(Date),
     );
+  });
+});
+
+describe("solicitudes-pago.service - aprobarSolicitudesNivel2Service", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe rechazar un usuario sin permiso para aprobar en nivel 2", async () => {
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioSinPermisos,
+      {
+        solicitud_ids: ["solicitud-1"],
+      },
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "No tiene permisos para aprobar solicitudes en nivel 2.",
+    );
+
+    expect(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar una selección vacía de solicitudes", async () => {
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: [],
+      },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Debe seleccionar al menos una solicitud.",
+    );
+
+    expect(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar identificadores de solicitudes inválidos", async () => {
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: ["solicitud-1", "", "   "] as never,
+      },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Todos los identificadores de solicitudes deben ser textos no vacíos.",
+    );
+
+    expect(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar identificadores de solicitudes duplicados", async () => {
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: ["solicitud-1", "solicitud-1"],
+      },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "La selección contiene identificadores de solicitudes duplicados.",
+    );
+
+    expect(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar cuando alguna solicitud seleccionada no existe", async () => {
+    vi.mocked(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).mockResolvedValue([
+      {
+        id: "solicitud-1",
+      },
+    ] as never);
+
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: ["solicitud-1", "solicitud-2"],
+      },
+    );
+
+    expect(resultado.status).toBe(404);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "No existen las siguientes solicitudes de pago: solicitud-2.",
+    );
+
+    expect(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).toHaveBeenCalledWith([
+      "solicitud-1",
+      "solicitud-2",
+    ]);
+
+    expect(
+      obtenerReservasPorFondosRepository,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar solicitudes que no estén pendientes de aprobación nivel 2", async () => {
+    vi.mocked(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).mockResolvedValue([
+      {
+        id: "solicitud-1",
+        numero_solicitud:
+          "SOL-PRO-OBRA-HUMAPO-2026-000001",
+        estado_actual: "PENDIENTE_APROBADOR_1",
+      },
+    ] as never);
+
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: ["solicitud-1"],
+      },
+    );
+
+    expect(resultado.status).toBe(409);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Todas las solicitudes deben estar en estado PENDIENTE_APROBADOR_2. " +
+        "Solicitudes no aprobables: " +
+        "SOL-PRO-OBRA-HUMAPO-2026-000001 (PENDIENTE_APROBADOR_1).",
+    );
+
+    expect(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).toHaveBeenCalledWith(["solicitud-1"]);
+
+    expect(
+      obtenerReservasPorFondosRepository,
+    ).not.toHaveBeenCalled();
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe aprobar solicitudes en nivel 2 y programarlas para pago sin crear una nueva reserva", async () => {
+    const fechaAprobacion = new Date(
+      "2026-07-22T10:00:00.000Z",
+    );
+
+    vi.useFakeTimers();
+    vi.setSystemTime(fechaAprobacion);
+
+    vi.mocked(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).mockResolvedValue([
+      {
+        id: "solicitud-1",
+        numero_solicitud:
+          "SOL-PRO-OBRA-HUMAPO-2026-000001",
+        proyecto_base_id: "proyecto-1",
+        fondo_id: "fondo-1",
+        valor_neto: 100,
+        valor_reservado: 100,
+        estado_actual: "PENDIENTE_APROBADOR_2",
+        proyecto_base: {
+          nombre: "HUMAPO",
+        },
+        fondo: {
+          saldo_actual: 1000,
+        },
+      },
+    ] as never);
+
+    vi.mocked(
+      aprobarSolicitudesNivel2Repository,
+    ).mockResolvedValue({
+      count: 1,
+    });
+
+    vi.mocked(
+      obtenerReservasPorFondosRepository,
+    ).mockResolvedValue([
+      {
+        fondo_id: "fondo-1",
+        _sum: {
+          valor_reservado: 250,
+        },
+      },
+    ] as never);
+
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: ["solicitud-1"],
+      },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.ok).toBe(true);
+    expect(resultado.body.message).toBe(
+      "Las solicitudes fueron aprobadas correctamente en nivel 2.",
+    );
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).toHaveBeenCalledWith(
+      ["solicitud-1"],
+      usuarioAprobador2.id,
+      fechaAprobacion,
+    );
+
+    expect(
+      obtenerReservasPorFondosRepository,
+    ).toHaveBeenCalledWith(["fondo-1"]);
+
+    expect(resultado.body.data).toEqual({
+      cantidad_aprobada: 1,
+      solicitudes: [
+        {
+          id: "solicitud-1",
+          numero_solicitud:
+            "SOL-PRO-OBRA-HUMAPO-2026-000001",
+          proyecto_base_id: "proyecto-1",
+          fondo_id: "fondo-1",
+          valor_neto: 100,
+          estado_actual: "PROGRAMADA_PAGO",
+          aprobado_2_por: usuarioAprobador2.id,
+          aprobado_2_en: fechaAprobacion,
+        },
+      ],
+      proyectos: [
+        {
+          proyecto_base_id: "proyecto-1",
+          proyecto_base_nombre: "HUMAPO",
+          fondo_id: "fondo-1",
+          saldo_actual: 1000,
+          reservas_existentes: 250,
+          saldo_disponible: 750,
+          valor_seleccionado: 100,
+          saldo_proyectado: 750,
+          cantidad_solicitudes: 1,
+        },
+      ],
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("debe controlar un cambio concurrente durante la aprobación en nivel 2", async () => {
+    vi.mocked(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).mockResolvedValue([
+      {
+        id: "solicitud-1",
+        numero_solicitud:
+          "SOL-PRO-OBRA-HUMAPO-2026-000001",
+        proyecto_base_id: "proyecto-1",
+        fondo_id: "fondo-1",
+        valor_neto: 100,
+        valor_reservado: 100,
+        estado_actual: "PENDIENTE_APROBADOR_2",
+        proyecto_base: {
+          nombre: "HUMAPO",
+        },
+        fondo: {
+          saldo_actual: 1000,
+        },
+      },
+    ] as never);
+
+    vi.mocked(
+      aprobarSolicitudesNivel2Repository,
+    ).mockRejectedValue(
+      new SolicitudesPagoCambioConcurrenteError(),
+    );
+
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: ["solicitud-1"],
+      },
+    );
+
+    expect(resultado.status).toBe(409);
+    expect(resultado.body.ok).toBe(false);
+    expect(resultado.body.message).toBe(
+      "Una o más solicitudes cambiaron de estado durante la aprobación. " +
+        "Actualice la información e intente nuevamente.",
+    );
+
+    expect(
+      aprobarSolicitudesNivel2Repository,
+    ).toHaveBeenCalledWith(
+      ["solicitud-1"],
+      usuarioAprobador2.id,
+      expect.any(Date),
+    );
+
+    expect(
+      obtenerReservasPorFondosRepository,
+    ).not.toHaveBeenCalled();
+  });
+
+    it("debe agrupar el resumen de aprobación nivel 2 por proyecto y fondo", async () => {
+    vi.mocked(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).mockResolvedValue([
+      {
+        id: "solicitud-1",
+        numero_solicitud:
+          "SOL-PRO-OBRA-HUMAPO-2026-000001",
+        proyecto_base_id: "proyecto-1",
+        fondo_id: "fondo-1",
+        valor_neto: 100,
+        valor_reservado: 100,
+        estado_actual: "PENDIENTE_APROBADOR_2",
+        proyecto_base: {
+          nombre: "HUMAPO",
+        },
+        fondo: {
+          saldo_actual: 1000,
+        },
+      },
+      {
+        id: "solicitud-2",
+        numero_solicitud:
+          "SOL-PRO-OBRA-HUMAPO-2026-000002",
+        proyecto_base_id: "proyecto-1",
+        fondo_id: "fondo-1",
+        valor_neto: 150,
+        valor_reservado: 150,
+        estado_actual: "PENDIENTE_APROBADOR_2",
+        proyecto_base: {
+          nombre: "HUMAPO",
+        },
+        fondo: {
+          saldo_actual: 1000,
+        },
+      },
+    ] as never);
+
+    vi.mocked(
+      aprobarSolicitudesNivel2Repository,
+    ).mockResolvedValue({
+      count: 2,
+    });
+
+    vi.mocked(
+      obtenerReservasPorFondosRepository,
+    ).mockResolvedValue([
+      {
+        fondo_id: "fondo-1",
+        _sum: {
+          valor_reservado: 400,
+        },
+      },
+    ] as never);
+
+    const resultado = await aprobarSolicitudesNivel2Service(
+      usuarioAprobador2,
+      {
+        solicitud_ids: [
+          "solicitud-1",
+          "solicitud-2",
+        ],
+      },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.ok).toBe(true);
+
+    expect(resultado.body.data?.cantidad_aprobada).toBe(2);
+
+    expect(resultado.body.data?.proyectos).toEqual([
+      {
+        proyecto_base_id: "proyecto-1",
+        proyecto_base_nombre: "HUMAPO",
+        fondo_id: "fondo-1",
+        saldo_actual: 1000,
+        reservas_existentes: 400,
+        saldo_disponible: 600,
+        valor_seleccionado: 250,
+        saldo_proyectado: 600,
+        cantidad_solicitudes: 2,
+      },
+    ]);
+
+    expect(
+      obtenerReservasPorFondosRepository,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(
+      obtenerReservasPorFondosRepository,
+    ).toHaveBeenCalledWith(["fondo-1"]);
+  });
+
+  it("debe propagar errores inesperados del repositorio durante la aprobación en nivel 2", async () => {
+    const errorInesperado = new Error(
+      "Error inesperado de base de datos",
+    );
+
+    vi.mocked(
+      obtenerSolicitudesPagoPorIdsRepository,
+    ).mockResolvedValue([
+      {
+        id: "solicitud-1",
+        numero_solicitud:
+          "SOL-PRO-OBRA-HUMAPO-2026-000001",
+        proyecto_base_id: "proyecto-1",
+        fondo_id: "fondo-1",
+        valor_neto: 100,
+        valor_reservado: 100,
+        estado_actual: "PENDIENTE_APROBADOR_2",
+        proyecto_base: {
+          nombre: "HUMAPO",
+        },
+        fondo: {
+          saldo_actual: 1000,
+        },
+      },
+    ] as never);
+
+    vi.mocked(
+      aprobarSolicitudesNivel2Repository,
+    ).mockRejectedValue(errorInesperado);
+
+    await expect(
+      aprobarSolicitudesNivel2Service(
+        usuarioAprobador2,
+        {
+          solicitud_ids: ["solicitud-1"],
+        },
+      ),
+    ).rejects.toThrow(
+      "Error inesperado de base de datos",
+    );
+
+    expect(
+      obtenerReservasPorFondosRepository,
+    ).not.toHaveBeenCalled();
   });
 });

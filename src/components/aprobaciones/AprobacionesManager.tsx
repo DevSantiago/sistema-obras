@@ -114,14 +114,16 @@ export default function AprobacionesManager({
 
   useEffect(() => {
     if (!puedeAprobar) {
-      setEstadoCarga("ERROR");
-      setMensajeError(
-        "No tienes permiso para aprobar solicitudes en nivel 1.",
-      );
       return;
     }
 
-    void cargarSolicitudes();
+    const tareaCarga = window.setTimeout(() => {
+      void cargarSolicitudes();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(tareaCarga);
+    };
   }, [cargarSolicitudes, puedeAprobar]);
 
   const solicitudesSeleccionadas = useMemo(
@@ -300,7 +302,7 @@ export default function AprobacionesManager({
         </button>
       </div>
 
-      {mensajeError && (
+      {(!puedeAprobar || mensajeError) && (
         <div
           className={styles.alertaError}
           role="alert"
@@ -314,7 +316,9 @@ export default function AprobacionesManager({
           className={styles.alertaExito}
           role="status"
         >
-          {mensajeExito}
+          {!puedeAprobar
+            ? "No tienes permiso para aprobar solicitudes en nivel 1."
+            : mensajeError}
         </div>
       )}
 

@@ -492,6 +492,44 @@ export async function aprobarSolicitudesNivel1Repository(
   });
 }
 
+export async function aprobarSolicitudesNivel2Repository(
+  solicitudIds: string[],
+  usuarioAprobadorId: string,
+  fechaAprobacion: Date,
+) {
+  return prisma.$transaction(async (tx) => {
+    let cantidadActualizada = 0;
+
+    for (const solicitudId of solicitudIds) {
+      const resultado = await tx.solicitudes_pago.updateMany({
+        where: {
+          id: solicitudId,
+          estado_actual: "PENDIENTE_APROBADOR_2",
+          valor_reservado: {
+            not: null,
+          },
+        },
+        data: {
+          estado_actual: "PROGRAMADA_PAGO",
+          aprobado_2_por: usuarioAprobadorId,
+          aprobado_2_en: fechaAprobacion,
+          actualizado_en: fechaAprobacion,
+        },
+      });
+
+      if (resultado.count !== 1) {
+        throw new SolicitudesPagoCambioConcurrenteError();
+      }
+
+      cantidadActualizada += resultado.count;
+    }
+
+    return {
+      count: cantidadActualizada,
+    };
+  });
+}
+
 export async function eliminarSolicitudPagoRepository(
   solicitudPagoId: string,
 ) {
