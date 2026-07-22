@@ -75,7 +75,7 @@ beforeEach(() => {
           telefono: null,
           estado: "ACTIVO",
           roles: ["APROBADOR_1"],
-          permisos: ["APROBAR_SOLICITUDES_NIVEL_1"],
+          permisos: ["APROBAR_NIVEL_1"],
         },
       },
     },
@@ -218,7 +218,7 @@ describe(
             estado: "ACTIVO",
             roles: ["APROBADOR_1"],
             permisos: [
-                "APROBAR_SOLICITUDES_NIVEL_1",
+                "APROBAR_NIVEL_1",
             ],
             },
             payload,
