@@ -20,6 +20,7 @@ import {
   eliminarSolicitudPagoRepository,
   obtenerSolicitudesPagoPorIdsRepository,
   obtenerReservasPorFondosRepository,
+  obtenerFondosPorIdsRepository,
   aprobarSolicitudesNivel1Repository,
   SolicitudesPagoCambioConcurrenteError,
 } from "./solicitudes-pago.repository";
@@ -35,6 +36,8 @@ import type {
   ServiceResponse,
   SolicitudPagoListFilters,
   SolicitudPagoListado,
+  ConsultarAprobacionesNivel1Data,
+  ProyectoPendienteAprobacionNivel1,
   TipoImpuestoSolicitud,
   TipoSolicitudPago,
   VisibilidadSolicitudesPago,
@@ -811,6 +814,122 @@ export async function listarSolicitudesPagoService(
   };
 }
 
+export async function consultarAprobacionesNivel1Service(
+  usuarioAutenticado: UsuarioSesion,
+): Promise<ServiceResponse<ConsultarAprobacionesNivel1Data>> {
+  if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_1")) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para consultar las aprobaciones.",
+      },
+    };
+  }
+
+  const visibilidad =
+    construirVisibilidadSolicitudesPago(usuarioAutenticado);
+
+  const solicitudes = (
+    await listarSolicitudesPagoRepository({
+      filters: {
+        estado_actual: "PENDIENTE_APROBADOR_1",
+      },
+      visibilidad,
+    })
+  ).map(convertirSolicitudPago);
+
+  if (solicitudes.length === 0) {
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message: "No existen solicitudes pendientes.",
+        data: {
+          proyectos: [],
+        },
+      },
+    };
+  }
+
+  const fondoIds = [...new Set(solicitudes.map((s) => s.fondo_id))];
+
+  const [fondos, reservas] = await Promise.all([
+    obtenerFondosPorIdsRepository(fondoIds),
+    obtenerReservasPorFondosRepository(fondoIds),
+  ]);
+
+  const reservasPorFondo = new Map(
+    reservas.map((r) => [
+      r.fondo_id,
+      convertirDecimalANumero(r._sum.valor_reservado ?? 0),
+    ]),
+  );
+
+  const fondosPorId = new Map(fondos.map((f) => [f.id, f]));
+
+  const proyectos = new Map<
+    string,
+    ProyectoPendienteAprobacionNivel1
+  >();
+
+  for (const solicitud of solicitudes) {
+    const fondo = fondosPorId.get(solicitud.fondo_id);
+
+    if (!fondo) {
+      continue;
+    }
+
+    const reservasExistentes =
+      reservasPorFondo.get(fondo.id) ?? 0;
+
+    const saldoActual =
+      convertirDecimalANumero(fondo.saldo_actual);
+
+    const valorPendiente = solicitud.valor_neto;
+
+    const saldoDisponible =
+      saldoActual - reservasExistentes;
+
+    const saldoProyectado =
+      saldoDisponible - valorPendiente;
+
+    const existente = proyectos.get(fondo.id);
+
+    if (existente) {
+      existente.valor_pendiente += valorPendiente;
+      existente.saldo_proyectado -= valorPendiente;
+      existente.cantidad_solicitudes += 1;
+      existente.solicitudes.push(solicitud);
+      continue;
+    }
+
+    proyectos.set(fondo.id, {
+      proyecto_base_id: solicitud.proyecto_base_id,
+      proyecto_base_nombre:
+        solicitud.proyecto_base?.nombre ?? "",
+      fondo_id: fondo.id,
+      saldo_actual: saldoActual,
+      reservas_existentes: reservasExistentes,
+      saldo_disponible: saldoDisponible,
+      valor_pendiente: valorPendiente,
+      saldo_proyectado: saldoProyectado,
+      cantidad_solicitudes: 1,
+      solicitudes: [solicitud],
+    });
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Aprobaciones consultadas correctamente.",
+      data: {
+        proyectos: Array.from(proyectos.values()),
+      },
+    },
+  };
+}
 
 export async function obtenerSolicitudPagoPorIdService(
   usuarioAutenticado: UsuarioSesion,

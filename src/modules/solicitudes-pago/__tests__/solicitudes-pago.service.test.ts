@@ -2592,9 +2592,15 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel1Service", () => {
         solicitud_ids: ["solicitud-1", "solicitud-2"],
       },
     );
-
     expect(resultado.status).toBe(200);
     expect(resultado.body.ok).toBe(true);
+    expect(resultado.body.data).toBeDefined();
+
+    if (!resultado.body.data) {
+      throw new Error(
+        "Se esperaba que la respuesta incluyera el resumen de aprobación.",
+      );
+    }
 
     expect(
       obtenerReservasPorFondosRepository,

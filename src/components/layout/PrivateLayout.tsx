@@ -4,20 +4,18 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import Link from "next/link";
 import { useState } from "react";
 import styles from "./PrivateLayout.module.css";
+import type { UsuarioSesion } from "@/modules/auth/auth.types";
 
 type PrivateLayoutProps = {
   children: React.ReactNode;
-  usuario: {
-    nombre: string;
-    correo: string;
-    roles: string[];
-  };
+  usuario: UsuarioSesion;
 };
 
 type MenuItem = {
   label: string;
   href: string;
-  visibleParaRoles: string[];
+  visibleParaRoles?: string[];
+  visibleParaPermisos?: string[];
 };
 
 const MENU_ITEMS: MenuItem[] = [
@@ -59,13 +57,10 @@ const MENU_ITEMS: MenuItem[] = [
     ],
   },
   {
-    label: "Aprobación",
-    href: "/aprobacion",
-    visibleParaRoles: [
-      "ADMINISTRADOR",
-      "DIRECTOR",
-      "APROBADOR_1",
-      "APROBADOR_2",
+    label: "Aprobaciones",
+    href: "/aprobaciones",
+    visibleParaPermisos: [
+      "APROBAR_NIVEL_1",
     ],
   },
   {
@@ -82,15 +77,49 @@ function usuarioTieneAlgunoDeLosRoles(
   return rolesPermitidos.some((rol) => usuarioRoles.includes(rol));
 }
 
-function menuItemEsVisible(item: MenuItem, usuarioRoles: string[]) {
-  return usuarioTieneAlgunoDeLosRoles(usuarioRoles, item.visibleParaRoles);
+function usuarioTieneAlgunoDeLosPermisos(
+  usuarioPermisos: string[],
+  permisosPermitidos: string[],
+) {
+  return permisosPermitidos.some((permiso) =>
+    usuarioPermisos.includes(permiso),
+  );
+}
+
+function menuItemEsVisible(item: MenuItem, usuario: UsuarioSesion) {
+  const visiblePorRol =
+    item.visibleParaRoles !== undefined &&
+    usuarioTieneAlgunoDeLosRoles(usuario.roles, item.visibleParaRoles);
+
+  const visiblePorPermiso =
+    item.visibleParaPermisos !== undefined &&
+    usuarioTieneAlgunoDeLosPermisos(
+      usuario.permisos,
+      item.visibleParaPermisos,
+    );
+
+  return visiblePorRol || visiblePorPermiso;
+}
+
+function obtenerEtiquetaRol(rol: string): string {
+  const etiquetas: Record<string, string> = {
+    ADMINISTRADOR: "Administrador",
+    DIRECTOR: "Director",
+    APROBADOR_1: "Aprobador nivel 1",
+    APROBADOR_2: "Aprobador nivel 2",
+    PAGOS: "Pagos",
+    SOLICITANTE: "Solicitante",
+    AUXILIAR_CONTABLE: "Auxiliar contable",
+  };
+
+  return etiquetas[rol] ?? rol;
 }
 
 export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const menuVisible = MENU_ITEMS.filter((item) =>
-    menuItemEsVisible(item, usuario.roles),
+    menuItemEsVisible(item, usuario),
   );
 
   function cerrarMenu() {
@@ -164,7 +193,7 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
           <div className={styles.roles}>
             {usuario.roles.map((rol) => (
               <span key={rol} className={styles.roleBadge}>
-                {rol}
+                {obtenerEtiquetaRol(rol)}
               </span>
             ))}
           </div>

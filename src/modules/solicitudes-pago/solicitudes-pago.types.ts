@@ -89,6 +89,23 @@ export type AprobarSolicitudesNivel1Data = {
   proyectos: ResumenProyectoAprobacionNivel1[];
 };
 
+export type ProyectoPendienteAprobacionNivel1 = {
+  proyecto_base_id: string;
+  proyecto_base_nombre: string;
+  fondo_id: string;
+  saldo_actual: number;
+  reservas_existentes: number;
+  saldo_disponible: number;
+  valor_pendiente: number;
+  saldo_proyectado: number;
+  cantidad_solicitudes: number;
+  solicitudes: SolicitudPagoListado[];
+};
+
+export type ConsultarAprobacionesNivel1Data = {
+  proyectos: ProyectoPendienteAprobacionNivel1[];
+};
+
 export type CrearSolicitudReembolsoInput = {
   tipo_solicitud?: "REEMBOLSO";
   proyecto_base_id?: string;

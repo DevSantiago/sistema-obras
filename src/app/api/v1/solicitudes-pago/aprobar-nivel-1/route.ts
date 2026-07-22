@@ -1,5 +1,8 @@
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import { aprobarSolicitudesNivel1Service } from "@/modules/solicitudes-pago/solicitudes-pago.service";
+import { 
+  aprobarSolicitudesNivel1Service,
+  consultarAprobacionesNivel1Service,
+} from "@/modules/solicitudes-pago/solicitudes-pago.service";
 import type { AprobarSolicitudesNivel1Input } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import { cookies } from "next/headers";
 
@@ -18,6 +21,47 @@ function esObjetoJson(valor: unknown): valor is JsonObject {
     valor !== null &&
     !Array.isArray(valor)
   );
+}
+
+export async function GET() {
+  try {
+    const resultadoAutenticacion =
+      await obtenerUsuarioSesionDesdeCookie();
+
+    if (
+      !resultadoAutenticacion.body.ok ||
+      !resultadoAutenticacion.body.data
+    ) {
+      return Response.json(resultadoAutenticacion.body, {
+        status: resultadoAutenticacion.status,
+      });
+    }
+
+    const resultado =
+      await consultarAprobacionesNivel1Service(
+        resultadoAutenticacion.body.data.usuario,
+      );
+
+    return Response.json(resultado.body, {
+      status: resultado.status,
+    });
+  } catch (error) {
+    console.error(
+      "Error consultando aprobaciones de nivel 1:",
+      error,
+    );
+
+    return Response.json(
+      {
+        ok: false,
+        message:
+          "No fue posible consultar las aprobaciones de nivel 1.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
 }
 
 export async function POST(request: Request) {

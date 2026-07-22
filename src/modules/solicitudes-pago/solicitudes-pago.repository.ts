@@ -437,6 +437,24 @@ export async function obtenerReservasPorFondosRepository(
   });
 }
 
+export async function obtenerFondosPorIdsRepository(
+  fondoIds: string[],
+) {
+  return prisma.fondos.findMany({
+    where: {
+      id: {
+        in: fondoIds,
+      },
+    },
+    select: {
+      id: true,
+      proyecto_base_id: true,
+      saldo_actual: true,
+      activo: true,
+    },
+  });
+}
+
 export async function aprobarSolicitudesNivel1Repository(
   solicitudes: SolicitudReservaNivel1[],
   usuarioAprobadorId: string,
