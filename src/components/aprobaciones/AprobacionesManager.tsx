@@ -3,8 +3,11 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import type {
   AprobarSolicitudesNivel1Data,
+  AprobarSolicitudesNivel2Data,
   ConsultarAprobacionesNivel1Data,
+  ConsultarAprobacionesNivel2Data,
   ProyectoPendienteAprobacionNivel1,
+  ProyectoPendienteAprobacionNivel2,
   SolicitudesPagoApiResponse,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import {
@@ -16,9 +19,23 @@ import {
 import SolicitudesAprobacionList from "./SolicitudesAprobacionList";
 import styles from "./AprobacionesManager.module.css";
 
+type NivelAprobacion = 1 | 2;
+
+type ProyectoPendienteAprobacion =
+  | ProyectoPendienteAprobacionNivel1
+  | ProyectoPendienteAprobacionNivel2;
+
+type ConsultarAprobacionesData =
+  | ConsultarAprobacionesNivel1Data
+  | ConsultarAprobacionesNivel2Data;
+
+type AprobarSolicitudesData =
+  | AprobarSolicitudesNivel1Data
+  | AprobarSolicitudesNivel2Data;
+
 type AprobacionesManagerProps = {
   usuario: UsuarioSesion;
-  nivel: 1;
+  nivel: NivelAprobacion;
 };
 
 type EstadoCarga =
@@ -43,9 +60,9 @@ export default function AprobacionesManager({
   nivel,
 }: AprobacionesManagerProps) {
   const [proyectos, setProyectos] = useState<
-    ProyectoPendienteAprobacionNivel1[]
-  >([]);
-
+    ProyectoPendienteAprobacion[]
+  >([]);  
+  
   const [idsSeleccionados, setIdsSeleccionados] = useState<
     Set<string>
   >(new Set());
@@ -57,9 +74,26 @@ export default function AprobacionesManager({
   const [mensajeExito, setMensajeExito] = useState("");
   const [aprobando, setAprobando] = useState(false);
 
+  const permisoRequerido =
+    nivel === 1
+      ? "APROBAR_NIVEL_1"
+      : "APROBAR_NIVEL_2";
+
+  const endpointAprobacion =
+    nivel === 1
+      ? "/api/v1/solicitudes-pago/aprobar-nivel-1"
+      : "/api/v1/solicitudes-pago/aprobar-nivel-2";
+
   const puedeAprobar =
-    nivel === 1 &&
-    usuario.permisos.includes("APROBAR_NIVEL_1");
+    usuario.permisos.includes(permisoRequerido);
+
+  const nombreNivel = `nivel ${nivel}`;
+
+  const mensajeSinPermiso =
+    `No tienes permiso para aprobar solicitudes en ${nombreNivel}.`;
+
+const mensajeSinSolicitudes =
+  `No existen solicitudes pendientes de aprobación en ${nombreNivel}.`;
 
   const solicitudes = useMemo(
     () =>
@@ -75,7 +109,7 @@ export default function AprobacionesManager({
 
     try {
       const response = await fetch(
-        "/api/v1/solicitudes-pago/aprobar-nivel-1",
+        endpointAprobacion,
         {
           method: "GET",
           credentials: "include",
@@ -84,7 +118,7 @@ export default function AprobacionesManager({
       );
 
       const body =
-        (await response.json()) as SolicitudesPagoApiResponse<ConsultarAprobacionesNivel1Data>;
+        (await response.json()) as SolicitudesPagoApiResponse<ConsultarAprobacionesData>;
 
       if (!response.ok || !body.ok) {
         throw new Error(
@@ -110,7 +144,7 @@ export default function AprobacionesManager({
       setMensajeError(mensaje);
       setEstadoCarga("ERROR");
     }
-  }, []);
+  }, [endpointAprobacion]);
 
   useEffect(() => {
     if (!puedeAprobar) {
@@ -145,7 +179,7 @@ export default function AprobacionesManager({
   );
 
   function obtenerValorSeleccionadoProyecto(
-    proyecto: ProyectoPendienteAprobacionNivel1,
+    proyecto: ProyectoPendienteAprobacion,
   ): number {
     return proyecto.solicitudes.reduce(
       (total, solicitud) =>
@@ -174,7 +208,7 @@ export default function AprobacionesManager({
   }
 
   function alternarSolicitudesProyecto(
-    proyecto: ProyectoPendienteAprobacionNivel1,
+    proyecto: ProyectoPendienteAprobacion,
   ) {
     setMensajeExito("");
     setMensajeError("");
@@ -220,7 +254,7 @@ export default function AprobacionesManager({
 
     try {
       const response = await fetch(
-        "/api/v1/solicitudes-pago/aprobar-nivel-1",
+        endpointAprobacion,
         {
           method: "POST",
           credentials: "include",
@@ -234,7 +268,7 @@ export default function AprobacionesManager({
       );
 
       const body =
-        (await response.json()) as SolicitudesPagoApiResponse<AprobarSolicitudesNivel1Data>;
+        (await response.json()) as SolicitudesPagoApiResponse<AprobarSolicitudesData>;
 
       if (!response.ok || !body.ok) {
         throw new Error(
@@ -249,8 +283,8 @@ export default function AprobacionesManager({
 
       setMensajeExito(
         cantidadAprobada === 1
-          ? "La solicitud fue aprobada correctamente en nivel 1."
-          : `${cantidadAprobada} solicitudes fueron aprobadas correctamente en nivel 1.`,
+          ? `La solicitud fue aprobada correctamente en ${nombreNivel}.`
+          : `${cantidadAprobada} solicitudes fueron aprobadas correctamente en ${nombreNivel}.`,
       );
 
       await cargarSolicitudes();
@@ -270,7 +304,7 @@ export default function AprobacionesManager({
     return (
       <section className={styles.panel}>
         <div className={styles.alertaError}>
-          No tienes permiso para aprobar solicitudes en nivel 1.
+          {mensajeSinPermiso}
         </div>
       </section>
     );
@@ -316,9 +350,7 @@ export default function AprobacionesManager({
           className={styles.alertaExito}
           role="status"
         >
-          {!puedeAprobar
-            ? "No tienes permiso para aprobar solicitudes en nivel 1."
-            : mensajeError}
+          {mensajeExito}
         </div>
       )}
 
@@ -330,10 +362,9 @@ export default function AprobacionesManager({
 
       {estadoCarga === "LISTO" &&
         solicitudes.length === 0 && (
-          <div className={styles.estado}>
-            No existen solicitudes pendientes de aprobación
-            en nivel 1.
-          </div>
+        <div className={styles.estado}>
+          {mensajeSinSolicitudes}
+        </div>
         )}
 
       {estadoCarga === "LISTO" &&
