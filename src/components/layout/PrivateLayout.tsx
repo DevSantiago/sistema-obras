@@ -61,6 +61,7 @@ const MENU_ITEMS: MenuItem[] = [
     href: "/aprobaciones",
     visibleParaPermisos: [
       "APROBAR_NIVEL_1",
+      "APROBAR_NIVEL_2",
     ],
   },
   {

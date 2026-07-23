@@ -407,7 +407,6 @@ const mensajeSinSolicitudes =
                 >
                   <div className={styles.projectHeader}>
                     <h3 className={styles.projectTitle}>
-                      Proyecto{" "}
                       {proyecto.proyecto_base_nombre}
                     </h3>
 
