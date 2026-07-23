@@ -11,7 +11,7 @@ function usuarioPuedeAccederNivel1(usuario: UsuarioSesion): boolean {
 }
 
 function usuarioPuedeAccederNivel2(usuario: UsuarioSesion): boolean {
-  return usuario.permisos.includes("APROBAR_SOLICITUDES_NIVEL_2");
+  return usuario.permisos.includes("APROBAR_NIVEL_2");
 }
 
 export default function AprobacionesInicio({
@@ -61,12 +61,18 @@ export default function AprobacionesInicio({
           )}
         </article>
 
-        <article className={`${styles.levelCard} ${styles.levelCardDisabled}`}>
+        <article className={styles.levelCard}>
           <div className={styles.levelCardHeader}>
             <span className={styles.levelNumber}>2</span>
 
-            <span className={styles.pendingBadge}>
-              Próximamente
+            <span
+              className={
+                puedeAccederNivel2
+                  ? styles.availableBadge
+                  : styles.unavailableBadge
+              }
+            >
+              {puedeAccederNivel2 ? "Disponible" : "Sin acceso"}
             </span>
           </div>
 
@@ -74,16 +80,23 @@ export default function AprobacionesInicio({
             <h2>Aprobación nivel 2</h2>
 
             <p>
-              Permitirá realizar la aprobación final de las solicitudes que
-              hayan superado el primer nivel.
+              Revisa las solicitudes aprobadas en el primer nivel y
+              apruébalas para dejarlas programadas para pago.
             </p>
           </div>
 
-          <span className={styles.disabledLink}>
-            {puedeAccederNivel2
-              ? "Pendiente de implementación"
-              : "No tiene permiso para este nivel"}
-          </span>
+          {puedeAccederNivel2 ? (
+            <Link
+              className={styles.primaryLink}
+              href="/aprobaciones/nivel-2"
+            >
+              Ingresar a nivel 2
+            </Link>
+          ) : (
+            <span className={styles.disabledLink}>
+              No tiene permiso para este nivel
+            </span>
+          )}
         </article>
       </div>
     </section>
