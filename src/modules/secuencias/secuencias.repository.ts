@@ -68,8 +68,19 @@ function construirReferenciaDocumental(input: {
   return [input.prefijo, input.anio, consecutivo].join("-");
 }
 
+export function construirReferenciaDocumentalRepository(input: {
+  prefijo: string;
+  proyecto_referencia: string | null;
+  centro_costo_referencia: string | null;
+  anio: number;
+  valor: number;
+}) {
+  return construirReferenciaDocumental(input);
+}
+
 export async function generarSecuenciaDocumentalRepository(
   input: GenerarSecuenciaRepositoryInput,
+  db: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<SecuenciaGenerada> {
   const proyectoBaseId = input.proyecto_base_id ?? null;
   const centroCostoId = input.centro_costo_id ?? null;
@@ -82,7 +93,7 @@ export async function generarSecuenciaDocumentalRepository(
     input.centro_costo_referencia,
   );
 
-  const secuencias = await prisma.$queryRaw<SecuenciaActualizada[]>(
+  const secuencias = await db.$queryRaw<SecuenciaActualizada[]>(
     Prisma.sql`
       INSERT INTO secuencias_documentales (
         id,

@@ -178,7 +178,7 @@ export type DuplicadoNominaGrupalRepositoryInput = {
 
 export type DuplicadoNominaGrupalRepositoryResult = {
   solicitud_pago_id: string;
-  numero_solicitud: string;
+  numero_solicitud: string | null;
   beneficiario_id: string | null;
   tipo_documento: string;
   numero_documento: string;

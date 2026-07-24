@@ -347,7 +347,7 @@ function prepararMocksProveedor() {
 
   vi.mocked(crearSolicitudPagoRepository).mockResolvedValue({
     id: "solicitud-1",
-    numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000001",
+    numero_solicitud: null,
     tipo_solicitud: "PAGO_PROVEEDOR",
     modalidad_nomina: null,
     periodo_nomina: null,
@@ -425,7 +425,7 @@ function prepararMocksNomina() {
 
   vi.mocked(crearSolicitudPagoRepository).mockResolvedValue({
     id: "solicitud-nomina-1",
-    numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000002",
+    numero_solicitud: null,
     tipo_solicitud: "PAGO_NOMINA",
     modalidad_nomina: "INDIVIDUAL",
     periodo_nomina: "2026-07",
@@ -1000,20 +1000,13 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
 
     expect(resultado.status).toBe(201);
     expect(resultado.body.ok).toBe(true);
-    expect(resultado.body.data?.solicitud.numero_solicitud).toBe(
-      "SOL-PRO-OBRA-HUMAPO-2026-000001",
-    );
+    expect(resultado.body.data?.solicitud.numero_solicitud).toBeNull();
     expect(resultado.body.data?.solicitud.valor_neto).toBe(76000);
 
-    expect(generarNumeroSolicitudPagoService).toHaveBeenCalledWith({
-      proyecto_base_id: "proyecto-1",
-      centro_costo_id: "centro-1",
-      proyecto_referencia: "HUMAPO",
-      centro_costo_referencia: "PRO-OBRA",
-    });
+    expect(generarNumeroSolicitudPagoService).not.toHaveBeenCalled();
 
     expect(crearSolicitudPagoRepository).toHaveBeenCalledWith({
-      numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000001",
+      numero_solicitud: null,
       tipo_solicitud: "PAGO_PROVEEDOR",
       modalidad_nomina: null,
       periodo_nomina: null,
@@ -1368,12 +1361,10 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
     expect(resultado.status).toBe(201);
     expect(resultado.body.ok).toBe(true);
     expect(resultado.body.message).toBe(
-      "Solicitud de nómina individual creada correctamente.",
+      "Borrador de solicitud de nómina individual creado correctamente.",
     );
 
-    expect(resultado.body.data?.solicitud.numero_solicitud).toBe(
-      "SOL-PRO-OBRA-HUMAPO-2026-000002",
-    );
+    expect(resultado.body.data?.solicitud.numero_solicitud).toBeNull();
 
     expect(resultado.body.data?.solicitud.tipo_solicitud).toBe(
       "PAGO_NOMINA",
@@ -1385,15 +1376,10 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
 
     expect(resultado.body.data?.solicitud.valor_neto).toBe(1700000);
 
-    expect(generarNumeroSolicitudPagoService).toHaveBeenCalledWith({
-      proyecto_base_id: "proyecto-1",
-      centro_costo_id: "centro-1",
-      proyecto_referencia: "HUMAPO",
-      centro_costo_referencia: "PRO-OBRA",
-    });
+    expect(generarNumeroSolicitudPagoService).not.toHaveBeenCalled();
 
     expect(crearSolicitudPagoRepository).toHaveBeenCalledWith({
-      numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000002",
+      numero_solicitud: null,
       tipo_solicitud: "PAGO_NOMINA",
       modalidad_nomina: "INDIVIDUAL",
       periodo_nomina: "2026-07",
@@ -1685,7 +1671,7 @@ describe(
       expect(resultado.status).toBe(201);
       expect(resultado.body.ok).toBe(true);
       expect(resultado.body.message).toBe(
-        "Solicitud de reembolso creada correctamente.",
+        "Borrador de solicitud de reembolso creado correctamente.",
       );
       expect(resultado.body.data?.solicitud.tipo_solicitud).toBe(
         "REEMBOLSO",
@@ -1693,7 +1679,7 @@ describe(
       expect(resultado.body.data?.solicitud.valor_neto).toBe(465000);
 
       expect(crearSolicitudPagoRepository).toHaveBeenCalledWith({
-        numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000003",
+        numero_solicitud: null,
         tipo_solicitud: "REEMBOLSO",
         modalidad_nomina: null,
         periodo_nomina: null,
@@ -1824,7 +1810,7 @@ describe(
 describe("solicitudes-pago.service - enviarSolicitudPagoService", () => {
   const solicitudBorrador = {
     id: "solicitud-1",
-    numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000010",
+    numero_solicitud: null,
     tipo_solicitud: "REEMBOLSO",
     modalidad_nomina: null,
     periodo_nomina: null,
@@ -1989,7 +1975,7 @@ describe("solicitudes-pago.service - enviarSolicitudPagoService", () => {
 
     expect(resultado.status).toBe(409);
     expect(resultado.body.message).toBe(
-      "Solo se pueden enviar solicitudes en estado BORRADOR.",
+      "Solo se pueden enviar borradores que todavía no tengan número de solicitud.",
     );
     expect(enviarSolicitudPagoRepository).not.toHaveBeenCalled();
   });

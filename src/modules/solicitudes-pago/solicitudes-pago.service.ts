@@ -1,6 +1,5 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
-import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import { obtenerDetalleNominaGrupalService } from "./nomina-grupal/nomina-grupal.service";
 import {
   CATEGORIAS_REEMBOLSO,
@@ -99,7 +98,7 @@ const ROLES_QUE_PUEDEN_ENVIAR_SOLICITUDES = [
 
 type SolicitudPagoRepositoryResult = {
   id: string;
-  numero_solicitud: string;
+  numero_solicitud: string | null;
   tipo_solicitud: string;
   modalidad_nomina: string | null;
   periodo_nomina: string | null;
@@ -1267,15 +1266,8 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
-  const secuencia = await generarNumeroSolicitudPagoService({
-    proyecto_base_id: proyectoBaseId,
-    centro_costo_id: centroCostoId,
-    proyecto_referencia: contexto.data.proyectoBase.nombre,
-    centro_costo_referencia: contexto.data.centroCostoReferencia,
-  });
-
   const solicitud = await crearSolicitudPagoRepository({
-    numero_solicitud: secuencia.referencia,
+    numero_solicitud: null,
     tipo_solicitud: "PAGO_PROVEEDOR",
     modalidad_nomina: null,
     periodo_nomina: null,
@@ -1305,7 +1297,7 @@ export async function crearSolicitudPagoProveedorService(
     status: 201,
     body: {
       ok: true,
-      message: "Solicitud de pago creada correctamente.",
+      message: "Borrador de solicitud de pago creado correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
       },
@@ -1480,15 +1472,8 @@ export async function crearSolicitudNominaIndividualService(
     };
   }
 
-  const secuencia = await generarNumeroSolicitudPagoService({
-    proyecto_base_id: proyectoBaseId,
-    centro_costo_id: centroCostoId,
-    proyecto_referencia: contexto.data.proyectoBase.nombre,
-    centro_costo_referencia: contexto.data.centroCostoReferencia,
-  });
-
   const solicitud = await crearSolicitudPagoRepository({
-    numero_solicitud: secuencia.referencia,
+    numero_solicitud: null,
     tipo_solicitud: "PAGO_NOMINA",
     modalidad_nomina: "INDIVIDUAL",
     periodo_nomina: periodoNomina,
@@ -1518,7 +1503,7 @@ export async function crearSolicitudNominaIndividualService(
     status: 201,
     body: {
       ok: true,
-      message: "Solicitud de nómina individual creada correctamente.",
+      message: "Borrador de solicitud de nómina individual creado correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
       },
@@ -1638,15 +1623,8 @@ export async function crearSolicitudPagoImpuestoService(
     };
   }
 
-  const secuencia = await generarNumeroSolicitudPagoService({
-    proyecto_base_id: proyectoBaseId,
-    centro_costo_id: centroCostoId,
-    proyecto_referencia: contexto.data.proyectoBase.nombre,
-    centro_costo_referencia: contexto.data.centroCostoReferencia,
-  });
-
   const solicitud = await crearSolicitudPagoRepository({
-    numero_solicitud: secuencia.referencia,
+    numero_solicitud: null,
     tipo_solicitud: "PAGO_IMPUESTO",
     modalidad_nomina: null,
     periodo_nomina: null,
@@ -1677,7 +1655,7 @@ export async function crearSolicitudPagoImpuestoService(
     body: {
       ok: true,
       message:
-        "Solicitud de pago de impuesto creada correctamente.",
+        "Borrador de solicitud de pago de impuesto creado correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
       },
@@ -1837,15 +1815,8 @@ export async function crearSolicitudReembolsoService(
     };
   }
 
-  const secuencia = await generarNumeroSolicitudPagoService({
-    proyecto_base_id: proyectoBaseId,
-    centro_costo_id: centroCostoId,
-    proyecto_referencia: contexto.data.proyectoBase.nombre,
-    centro_costo_referencia: contexto.data.centroCostoReferencia,
-  });
-
   const solicitud = await crearSolicitudPagoRepository({
-    numero_solicitud: secuencia.referencia,
+    numero_solicitud: null,
     tipo_solicitud: "REEMBOLSO",
     modalidad_nomina: null,
     periodo_nomina: null,
@@ -1876,7 +1847,7 @@ export async function crearSolicitudReembolsoService(
     body: {
       ok: true,
       message:
-        "Solicitud de reembolso creada correctamente.",
+        "Borrador de solicitud de reembolso creado correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
       },
@@ -1973,12 +1944,16 @@ export async function enviarSolicitudPagoService(
     };
   }
 
-  if (solicitud.estado_actual !== "BORRADOR") {
+  if (
+    solicitud.estado_actual !== "BORRADOR" ||
+    solicitud.numero_solicitud !== null
+  ) {
     return {
       status: 409,
       body: {
         ok: false,
-        message: "Solo se pueden enviar solicitudes en estado BORRADOR.",
+        message:
+          "Solo se pueden enviar borradores que todavía no tengan número de solicitud.",
       },
     };
   }
@@ -2137,7 +2112,7 @@ export async function aprobarSolicitudesNivel1Service(
     valor_seleccionado: number;
     solicitudes: {
       id: string;
-      numero_solicitud: string;
+      numero_solicitud: string | null;
       valor_neto: number;
     }[];
   }

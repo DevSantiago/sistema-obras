@@ -62,7 +62,7 @@ export type AprobarSolicitudesNivel1Input = {
 
 export type SolicitudAprobadaNivel1 = {
   id: string;
-  numero_solicitud: string;
+  numero_solicitud: string | null;
   proyecto_base_id: string;
   fondo_id: string;
   valor_neto: number;
@@ -112,7 +112,7 @@ export type AprobarSolicitudesNivel2Input = {
 
 export type SolicitudAprobadaNivel2 = {
   id: string;
-  numero_solicitud: string;
+  numero_solicitud: string | null;
   proyecto_base_id: string;
   fondo_id: string;
   valor_neto: number;
@@ -219,7 +219,7 @@ export type CrearSolicitudPagoInput =
 
 
 type CrearSolicitudPagoRepositoryBaseInput = {
-  numero_solicitud: string;
+  numero_solicitud: string | null;
   proyecto_base_id: string;
   fondo_id: string;
   centro_costo_id: string;
@@ -346,7 +346,7 @@ export type VisibilidadSolicitudesPago = {
 
 export type SolicitudPagoListado = {
   id: string;
-  numero_solicitud: string;
+  numero_solicitud: string | null;
   tipo_solicitud: TipoSolicitudPago;
   modalidad_nomina: ModalidadNomina | null;
   periodo_nomina: string | null;
