@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
 import type {
   BuscarDuplicadoNominaIndividualInput,
   CrearSolicitudPagoRepositoryInput,
@@ -64,6 +65,40 @@ type SolicitudReservaNivel1 = {
   id: string;
   valor_reservado: Prisma.Decimal;
 };
+
+function obtenerReferenciaCentroCosto(input: {
+  lineaNegocio: string;
+  faseCentroCosto: string;
+}): string {
+  const lineaNegocio = input.lineaNegocio.trim().toUpperCase();
+  const faseCentroCosto = input.faseCentroCosto.trim().toUpperCase();
+
+  if (lineaNegocio === "OBRA" && faseCentroCosto === "LICITACION") {
+    return "PRO-OBRA";
+  }
+
+  if (lineaNegocio === "OBRA" && faseCentroCosto === "EJECUCION") {
+    return "OBRA";
+  }
+
+  if (
+    lineaNegocio === "INTERVENTORIA" &&
+    faseCentroCosto === "LICITACION"
+  ) {
+    return "PRO-INT";
+  }
+
+  if (
+    lineaNegocio === "INTERVENTORIA" &&
+    faseCentroCosto === "EJECUCION"
+  ) {
+    return "INT";
+  }
+
+  throw new Error(
+    "La línea de negocio y la fase del centro de costo no permiten construir el consecutivo documental.",
+  );
+}
 
 export async function obtenerProyectoBaseActivoRepository(id: string) {
   return prisma.proyectos_base.findFirst({
@@ -363,6 +398,7 @@ export async function enviarSolicitudPagoRepository(input: {
       where: {
         id: input.solicitudId,
         estado_actual: "BORRADOR",
+        numero_solicitud: null,
       },
       data: {
         estado_actual: "PENDIENTE_APROBADOR_1",
@@ -373,6 +409,62 @@ export async function enviarSolicitudPagoRepository(input: {
     if (resultado.count === 0) {
       return null;
     }
+
+    const solicitud = await tx.solicitudes_pago.findUnique({
+      where: {
+        id: input.solicitudId,
+      },
+      select: {
+        id: true,
+        proyecto_base_id: true,
+        centro_costo_id: true,
+        proyecto_base: {
+          select: {
+            nombre: true,
+          },
+        },
+        centro_costo: {
+          select: {
+            linea_negocio: true,
+            fase_centro_costo: true,
+          },
+        },
+      },
+    });
+
+    if (!solicitud) {
+      throw new Error("La solicitud de pago no existe.");
+    }
+
+    const centroCostoReferencia = obtenerReferenciaCentroCosto({
+      lineaNegocio: solicitud.centro_costo.linea_negocio,
+      faseCentroCosto: solicitud.centro_costo.fase_centro_costo,
+    });
+
+    const secuencia = await generarSecuenciaDocumentalRepository(
+      {
+        tipo_secuencia: "SOLICITUD_PAGO",
+        proyecto_base_id: solicitud.proyecto_base_id,
+        centro_costo_id: solicitud.centro_costo_id,
+        proyecto_referencia: solicitud.proyecto_base.nombre,
+        centro_costo_referencia: centroCostoReferencia,
+        clave_contexto:
+          `CENTRO:${solicitud.proyecto_base_id}:${solicitud.centro_costo_id}`,
+        prefijo: "SOL",
+        anio: input.enviadoEn.getFullYear(),
+      },
+      tx,
+    );
+
+    await tx.solicitudes_pago.update({
+      where: {
+        id: solicitud.id,
+      },
+      data: {
+        numero_solicitud: secuencia.referencia,
+        actualizado_en: input.enviadoEn,
+      },
+    });
 
     return tx.solicitudes_pago.findUnique({
       where: {

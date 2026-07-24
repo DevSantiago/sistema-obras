@@ -297,7 +297,7 @@ model secuencias_documentales {
 
 model solicitudes_pago {
   id                        String    @id @default(uuid())
-  numero_solicitud          String    @unique
+  numero_solicitud String? @unique @db.VarChar(100)
   tipo_solicitud            String    @default("PAGO_PROVEEDOR")
   modalidad_nomina          String?
   periodo_nomina            String?   @db.VarChar(7)
