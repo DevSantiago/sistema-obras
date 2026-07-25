@@ -10,7 +10,7 @@ import type {
   SolicitudesPagoResponseData,
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NominaGrupalForm from "./forms/NominaGrupalForm";
 import NominaIndividualForm from "./forms/NominaIndividualForm";
 import PagoImpuestoForm from "./forms/PagoImpuestoForm";
@@ -175,6 +175,9 @@ export default function SolicitudesPagoManager({
   const [enviandoSolicitudId, setEnviandoSolicitudId] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState("");
   const [mensajeError, setMensajeError] = useState("");
+  const [solicitudEnEdicion, setSolicitudEnEdicion] =
+    useState<SolicitudPagoListado | null>(null);
+  const formularioRef = useRef<HTMLDivElement | null>(null);
 
   const opcionesTipoSolicitud = useMemo<OpcionTipoSolicitud[]>(() => {
     const puedeCrearNomina = usuarioPuedeCrearNomina(usuario);
@@ -351,6 +354,35 @@ export default function SolicitudesPagoManager({
 
   function cambiarTipoSolicitud(tipo: TipoSolicitudFormulario) {
     setTipoSeleccionado(tipo);
+    setSolicitudEnEdicion(null);
+    setProyectoBaseSeleccionadoId("");
+    limpiarMensajes();
+  }
+
+  function editarSolicitud(solicitud: SolicitudPagoListado) {
+    if (solicitud.tipo_solicitud !== "PAGO_PROVEEDOR") {
+      setMensajeError(
+        "Por ahora, la edición desde este formulario está disponible únicamente para solicitudes de pago a proveedor.",
+      );
+      setMensajeExito("");
+      return;
+    }
+
+    setTipoSeleccionado("PAGO_PROVEEDOR");
+    setSolicitudEnEdicion(solicitud);
+    setProyectoBaseSeleccionadoId(solicitud.proyecto_base_id);
+    limpiarMensajes();
+
+    window.requestAnimationFrame(() => {
+      formularioRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function cancelarEdicionProveedor() {
+    setSolicitudEnEdicion(null);
     setProyectoBaseSeleccionadoId("");
     limpiarMensajes();
   }
@@ -407,11 +439,67 @@ export default function SolicitudesPagoManager({
     }
   }
 
-  async function crearSolicitudProveedor(
+  async function guardarSolicitudProveedor(
     payload: CrearSolicitudProveedorPayload,
     archivos: File[] = [],
   ): Promise<void> {
-    await crearSolicitud(payload, archivos);
+    if (!solicitudEnEdicion) {
+      await crearSolicitud(payload, archivos);
+      return;
+    }
+
+    if (archivos.length > 0) {
+      throw new Error(
+        "Los adjuntos nuevos todavía no pueden agregarse durante la edición. Guarde primero los cambios sin seleccionar archivos.",
+      );
+    }
+
+    setGuardando(true);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetchJson<SolicitudesPagoResponseData>(
+        `/api/v1/solicitudes-pago/${solicitudEnEdicion.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const solicitudActualizada = response.data?.solicitud;
+
+      if (solicitudActualizada) {
+        setSolicitudes((actuales) =>
+          actuales.map((solicitud) =>
+            solicitud.id === solicitudActualizada.id
+              ? solicitudActualizada
+              : solicitud,
+          ),
+        );
+      } else {
+        await cargarSolicitudes();
+      }
+
+      setSolicitudEnEdicion(null);
+      setProyectoBaseSeleccionadoId("");
+      setMensajeExito(
+        response.message ?? "Solicitud actualizada correctamente.",
+      );
+    } catch (error) {
+      const mensaje =
+        error instanceof Error
+          ? error.message
+          : "No fue posible actualizar la solicitud de pago.";
+
+      setMensajeError(mensaje);
+      throw new Error(mensaje);
+    } finally {
+      setGuardando(false);
+    }
   }
 
   async function crearSolicitudNominaIndividual(
@@ -532,8 +620,10 @@ export default function SolicitudesPagoManager({
             mensajeExito={mensajeExito}
             mensajeError={mensajeError}
             onProyectoChange={setProyectoBaseSeleccionadoId}
-            onCrear={crearSolicitudProveedor}
+            onCrear={guardarSolicitudProveedor}
             onLimpiarMensajes={limpiarMensajes}
+            solicitudEnEdicion={solicitudEnEdicion}
+            onCancelarEdicion={cancelarEdicionProveedor}
           />
         );
 
@@ -612,7 +702,7 @@ export default function SolicitudesPagoManager({
         onChange={cambiarTipoSolicitud}
       />
 
-      {renderizarFormulario()}
+      <div ref={formularioRef}>{renderizarFormulario()}</div>
 
       <SolicitudesPagoList
         solicitudes={solicitudes}
@@ -620,6 +710,7 @@ export default function SolicitudesPagoManager({
         cargando={cargandoSolicitudes}
         enviandoSolicitudId={enviandoSolicitudId}
         onEnviar={enviarSolicitud}
+        onEditar={editarSolicitud}
         onActualizar={cargarSolicitudes}
       />
     </div>

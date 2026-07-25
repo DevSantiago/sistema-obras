@@ -3,13 +3,14 @@ import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuenci
 import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  actualizarSolicitudPagoRepository,
   aprobarSolicitudesNivel1Repository,
   aprobarSolicitudesNivel2Repository,
-  obtenerReservasPorFondosRepository,
-  obtenerSolicitudesPagoPorIdsRepository,
-  SolicitudesPagoCambioConcurrenteError,
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
+  eliminarSolicitudPagoRepository,
+  obtenerReservasPorFondosRepository,
+  obtenerSolicitudesPagoPorIdsRepository,
   enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
@@ -18,7 +19,7 @@ import {
   obtenerFondoActivoPorProyectoRepository,
   obtenerProyectoBaseActivoRepository,
   obtenerSolicitudPagoPorIdRepository,
-  eliminarSolicitudPagoRepository,
+  SolicitudesPagoCambioConcurrenteError,
 } from "../solicitudes-pago.repository";
 import {
   crearSolicitudNominaIndividualService,
@@ -26,6 +27,7 @@ import {
   aprobarSolicitudesNivel2Service,
   crearSolicitudPagoImpuestoService,
   crearSolicitudPagoProveedorService,
+  actualizarSolicitudPagoProveedorService,
   crearSolicitudReembolsoService,
   enviarSolicitudPagoService,
   listarSolicitudesPagoService,
@@ -42,13 +44,14 @@ vi.mock("@/modules/adjuntos/adjuntos.service", () => ({
 
 vi.mock("../solicitudes-pago.repository", () => ({
   SolicitudesPagoCambioConcurrenteError: class
-    SolicitudesPagoCambioConcurrenteError extends Error {},
+  SolicitudesPagoCambioConcurrenteError extends Error {},
   aprobarSolicitudesNivel1Repository: vi.fn(),
   aprobarSolicitudesNivel2Repository: vi.fn(),
   obtenerReservasPorFondosRepository: vi.fn(),
   obtenerSolicitudesPagoPorIdsRepository: vi.fn(),
   buscarDuplicadoNominaIndividualRepository: vi.fn(),
   crearSolicitudPagoRepository: vi.fn(),
+  actualizarSolicitudPagoRepository: vi.fn(),
   enviarSolicitudPagoRepository: vi.fn(),
   listarSolicitudesPagoRepository: vi.fn(),
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
@@ -384,6 +387,75 @@ function prepararMocksProveedor() {
     actualizado_en: fechaMock,
   } as never);
 }
+
+const solicitudProveedorBorrador = {
+  id: "solicitud-1",
+  numero_solicitud: null,
+  tipo_solicitud: "PAGO_PROVEEDOR",
+  modalidad_nomina: null,
+  periodo_nomina: null,
+  proyecto_base_id: "proyecto-1",
+  fondo_id: "fondo-1",
+  centro_costo_id: "centro-1",
+  beneficiario_id: "beneficiario-1",
+  proveedor_id: "proveedor-1",
+  categoria_gasto: "MATERIALES",
+  categoria_reembolso: null,
+  concepto_nomina: null,
+  tipo_impuesto: null,
+  periodo_impuesto: null,
+  medio_pago: "TRANSFERENCIA",
+  adjunto_archivo_origen_id: null,
+  descripcion: "Pago de materiales",
+  valor_bruto: 100000 as never,
+  valor_impuestos: 19000 as never,
+  valor_retenciones: 5000 as never,
+  valor_descuentos: 0 as never,
+  valor_neto: 76000 as never,
+  valor_pagado: null,
+  valor_reservado: null,
+  estado_actual: "BORRADOR",
+  creado_por: "usuario-1",
+  aprobado_1_por: null,
+  aprobado_2_por: null,
+  pagado_por: null,
+  enviado_en: null,
+  aprobado_1_en: null,
+  aprobado_2_en: null,
+  devuelto_aprobador_1_en: null,
+  devuelto_solicitante_en: null,
+  pagado_en: null,
+  creado_en: fechaMock,
+  actualizado_en: fechaMock,
+  proyecto_base: {
+    id: "proyecto-1",
+    nombre: "HUMAPO",
+    estado_proyecto: "EN_EJECUCION",
+  },
+  centro_costo: {
+    id: "centro-1",
+    nombre: "PRO-OBRA - HUMAPO",
+    linea_negocio: "OBRA",
+    fase_centro_costo: "LICITACION",
+    estado_centro_costo: "EN_LICITACION",
+  },
+  beneficiario: {
+    id: "beneficiario-1",
+    nombre: "Proveedor Uno",
+    tipo_beneficiario: "PROVEEDOR",
+    tipo_documento: "NIT",
+    numero_documento: "900123456",
+  },
+  proveedor: {
+    id: "proveedor-1",
+    nombre: "Proveedor Uno",
+  },
+  creador: {
+    id: "usuario-1",
+    nombre: "Solicitante",
+    correo: "solicitante@test.com",
+  },
+};
 
 function prepararMocksNomina() {
   vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
@@ -3172,6 +3244,123 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel2Service", () => {
 
     expect(
       obtenerReservasPorFondosRepository,
+    ).not.toHaveBeenCalled();
+  });
+});
+
+describe("solicitudes-pago.service - actualizarSolicitudPagoProveedorService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe rechazar usuario sin permiso para modificar solicitudes", async () => {
+    const resultado =
+      await actualizarSolicitudPagoProveedorService(
+        usuarioSinPermisos,
+        "solicitud-1",
+        inputProveedorBase,
+      );
+
+    expect(resultado.status).toBe(403);
+    expect(resultado.body.ok).toBe(false);
+
+    expect(
+      actualizarSolicitudPagoRepository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe actualizar una solicitud de pago a proveedor en borrador", async () => {
+    prepararMocksProveedor();
+
+    vi.mocked(
+      obtenerSolicitudPagoPorIdRepository,
+    ).mockResolvedValue(
+      solicitudProveedorBorrador as never,
+    );
+
+    vi.mocked(
+      actualizarSolicitudPagoRepository,
+    ).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      descripcion: "Pago actualizado de materiales",
+      valor_bruto: 120000 as never,
+      valor_impuestos: 19000 as never,
+      valor_retenciones: 5000 as never,
+      valor_descuentos: 0 as never,
+      valor_neto: 96000 as never,
+    } as never);
+
+    const resultado =
+      await actualizarSolicitudPagoProveedorService(
+        usuarioSolicitante,
+        "solicitud-1",
+        {
+          ...inputProveedorBase,
+          descripcion: "Pago actualizado de materiales",
+          valor_bruto: 120000,
+        },
+      );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.ok).toBe(true);
+    expect(resultado.body.data?.solicitud.descripcion).toBe(
+      "Pago actualizado de materiales",
+    );
+    expect(resultado.body.data?.solicitud.valor_neto).toBe(96000);
+
+    expect(
+      actualizarSolicitudPagoRepository,
+    ).toHaveBeenCalledWith({
+      id: "solicitud-1",
+      data: {
+        numero_solicitud: null,
+        tipo_solicitud: "PAGO_PROVEEDOR",
+        modalidad_nomina: null,
+        periodo_nomina: null,
+        proyecto_base_id: "proyecto-1",
+        fondo_id: "fondo-1",
+        centro_costo_id: "centro-1",
+        beneficiario_id: "beneficiario-1",
+        proveedor_id: "proveedor-1",
+        categoria_gasto: "MATERIALES",
+        categoria_reembolso: null,
+        concepto_nomina: null,
+        tipo_impuesto: null,
+        periodo_impuesto: null,
+        medio_pago: "TRANSFERENCIA",
+        adjunto_archivo_origen_id: null,
+        descripcion: "Pago actualizado de materiales",
+        valor_bruto: 120000,
+        valor_impuestos: 19000,
+        valor_retenciones: 5000,
+        valor_descuentos: 0,
+        valor_neto: 96000,
+        estado_actual: "BORRADOR",
+        creado_por: "usuario-1",
+      },
+    });
+  });
+
+  it("debe impedir modificar una solicitud que no esté en estado BORRADOR", async () => {
+    vi.mocked(
+      obtenerSolicitudPagoPorIdRepository,
+    ).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_1",
+    } as never);
+
+    const resultado =
+      await actualizarSolicitudPagoProveedorService(
+        usuarioSolicitante,
+        "solicitud-1",
+        inputProveedorBase,
+      );
+
+    expect(resultado.status).toBe(409);
+    expect(resultado.body.ok).toBe(false);
+
+    expect(
+      actualizarSolicitudPagoRepository,
     ).not.toHaveBeenCalled();
   });
 });

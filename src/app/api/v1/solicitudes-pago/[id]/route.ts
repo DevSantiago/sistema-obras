@@ -1,5 +1,8 @@
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import { obtenerSolicitudPagoPorIdService } from "@/modules/solicitudes-pago/solicitudes-pago.service";
+import { 
+  obtenerSolicitudPagoPorIdService,
+  actualizarSolicitudPagoProveedorService,
+} from "@/modules/solicitudes-pago/solicitudes-pago.service";
 import { cookies } from "next/headers";
 
 type RouteContext = {
@@ -55,6 +58,58 @@ export async function GET(
           error instanceof Error
             ? error.message
             : "No fue posible consultar la solicitud de pago.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  context: RouteContext,
+) {
+  try {
+    const resultadoAutenticacion =
+      await obtenerUsuarioSesionDesdeCookie();
+
+    if (
+      !resultadoAutenticacion.body.ok ||
+      !resultadoAutenticacion.body.data
+    ) {
+      return Response.json(resultadoAutenticacion.body, {
+        status: resultadoAutenticacion.status,
+      });
+    }
+
+    const { id } = await context.params;
+
+    const body = await request.json();
+
+    const resultado =
+      await actualizarSolicitudPagoProveedorService(
+        resultadoAutenticacion.body.data.usuario,
+        id,
+        body,
+      );
+
+    return Response.json(resultado.body, {
+      status: resultado.status,
+    });
+  } catch (error) {
+    console.error(
+      "Error actualizando solicitud de pago:",
+      error,
+    );
+
+    return Response.json(
+      {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "No fue posible actualizar la solicitud de pago.",
       },
       {
         status: 500,

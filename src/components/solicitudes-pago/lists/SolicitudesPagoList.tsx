@@ -15,6 +15,7 @@ type SolicitudesPagoListProps = {
   cargando: boolean;
   enviandoSolicitudId: string | null;
   onEnviar: (solicitudId: string) => void | Promise<void>;
+  onEditar: (solicitud: SolicitudPagoListado) => void;
   onActualizar: () => void | Promise<void>;
 };
 
@@ -57,6 +58,20 @@ function usuarioPuedeEnviarSolicitud(
   );
 }
 
+function usuarioPuedeEditarSolicitud(
+  solicitud: SolicitudPagoListado,
+  usuario: UsuarioSesionSolicitudesPago,
+): boolean {
+  if (solicitud.estado_actual !== "BORRADOR") {
+    return false;
+  }
+
+  return (
+    solicitud.creado_por === usuario.id ||
+    usuario.roles.includes("ADMINISTRADOR")
+  );
+}
+
 function confirmarEnvio(solicitud: SolicitudPagoListado): boolean {
   return window.confirm(
     `¿Está seguro de enviar la solicitud ${solicitud.numero_solicitud} para aprobación?`,
@@ -69,6 +84,7 @@ export default function SolicitudesPagoList({
   cargando,
   enviandoSolicitudId,
   onEnviar,
+  onEditar,
   onActualizar,
 }: SolicitudesPagoListProps) {
   function manejarEnvio(solicitud: SolicitudPagoListado) {
@@ -202,6 +218,17 @@ export default function SolicitudesPagoList({
 
                       <td>
                         <div className={styles.rowActions}>
+                          {usuarioPuedeEditarSolicitud(solicitud, usuario) ? (
+                            <button
+                              className={styles.secondaryButton}
+                              type="button"
+                              onClick={() => onEditar(solicitud)}
+                              disabled={enviandoSolicitudId !== null}
+                            >
+                              Editar
+                            </button>
+                          ) : null}
+
                           {puedeEnviar ? (
                             <button
                               className={styles.sendButton}
@@ -211,9 +238,12 @@ export default function SolicitudesPagoList({
                             >
                               {enviando ? "Enviando..." : "Enviar solicitud"}
                             </button>
-                          ) : (
+                          ) : null}
+
+                          {!usuarioPuedeEditarSolicitud(solicitud, usuario) &&
+                          !puedeEnviar ? (
                             <span className={styles.noActions}>—</span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -226,6 +256,10 @@ export default function SolicitudesPagoList({
           <div className={styles.mobileList}>
             {solicitudes.map((solicitud) => {
               const puedeEnviar = usuarioPuedeEnviarSolicitud(
+                solicitud,
+                usuario,
+              );
+              const puedeEditar = usuarioPuedeEditarSolicitud(
                 solicitud,
                 usuario,
               );
@@ -301,16 +335,29 @@ export default function SolicitudesPagoList({
                     </div>
                   </dl>
 
-                  {puedeEnviar ? (
+                  {puedeEditar || puedeEnviar ? (
                     <div className={styles.mobileActions}>
-                      <button
-                        className={styles.sendButton}
-                        type="button"
-                        onClick={() => manejarEnvio(solicitud)}
-                        disabled={enviandoSolicitudId !== null}
-                      >
-                        {enviando ? "Enviando..." : "Enviar solicitud"}
-                      </button>
+                      {puedeEditar ? (
+                        <button
+                          className={styles.secondaryButton}
+                          type="button"
+                          onClick={() => onEditar(solicitud)}
+                          disabled={enviandoSolicitudId !== null}
+                        >
+                          Editar
+                        </button>
+                      ) : null}
+
+                      {puedeEnviar ? (
+                        <button
+                          className={styles.sendButton}
+                          type="button"
+                          onClick={() => manejarEnvio(solicitud)}
+                          disabled={enviandoSolicitudId !== null}
+                        >
+                          {enviando ? "Enviando..." : "Enviar solicitud"}
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </article>

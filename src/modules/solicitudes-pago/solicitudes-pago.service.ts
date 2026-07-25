@@ -6,6 +6,7 @@ import {
   TIPOS_IMPUESTO_SOLICITUD,
 } from "./solicitudes-pago.types";
 import {
+  actualizarSolicitudPagoRepository,
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
   enviarSolicitudPagoRepository,
@@ -30,6 +31,7 @@ import type {
   CrearSolicitudPagoImpuestoInput,
   CrearSolicitudReembolsoInput,
   CrearSolicitudPagoProveedorInput,
+  CrearSolicitudPagoProveedorRepositoryInput,
   EstadoSolicitudPago,
   MedioPagoSolicitud,
   ModalidadNomina,
@@ -617,6 +619,50 @@ function normalizarFiltrosListado(
   };
 }
 
+function construirSolicitudPagoProveedorRepositoryInput(input: {
+  usuarioId: string;
+  fondoId: string;
+  proyectoBaseId: string;
+  centroCostoId: string;
+  beneficiarioId: string;
+  proveedorId: string | null;
+  categoriaGasto: string;
+  medioPago: MedioPagoSolicitud;
+  descripcion: string;
+  valorBruto: number;
+  valorImpuestos: number;
+  valorRetenciones: number;
+  valorDescuentos: number;
+  valorNeto: number;
+}): CrearSolicitudPagoProveedorRepositoryInput {
+  return {
+    numero_solicitud: null,
+    tipo_solicitud: "PAGO_PROVEEDOR",
+    modalidad_nomina: null,
+    periodo_nomina: null,
+    proyecto_base_id: input.proyectoBaseId,
+    fondo_id: input.fondoId,
+    centro_costo_id: input.centroCostoId,
+    beneficiario_id: input.beneficiarioId,
+    proveedor_id: input.proveedorId,
+    categoria_gasto: input.categoriaGasto,
+    categoria_reembolso: null,
+    concepto_nomina: null,
+    tipo_impuesto: null,
+    periodo_impuesto: null,
+    medio_pago: input.medioPago,
+    adjunto_archivo_origen_id: null,
+    descripcion: input.descripcion,
+    valor_bruto: input.valorBruto,
+    valor_impuestos: input.valorImpuestos,
+    valor_retenciones: input.valorRetenciones,
+    valor_descuentos: input.valorDescuentos,
+    valor_neto: input.valorNeto,
+    estado_actual: "BORRADOR",
+    creado_por: input.usuarioId,
+  };
+}
+
 async function obtenerContextoFinancieroSolicitud(input: {
   usuarioAutenticado: UsuarioSesion;
   proyectoBaseId: string;
@@ -759,6 +805,92 @@ async function obtenerContextoFinancieroSolicitud(input: {
       },
       centroCostoReferencia,
     },
+  };
+}
+
+async function obtenerSolicitudEditable(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+): Promise<
+  | {
+      ok: true;
+      solicitud: NonNullable<
+        Awaited<
+          ReturnType<typeof obtenerSolicitudPagoPorIdRepository>
+        >
+      >;
+    }
+  | {
+      ok: false;
+      response: ServiceResponse<never>;
+    }
+> {
+  const id = normalizarTexto(solicitudId);
+
+  if (!id) {
+    return {
+      ok: false,
+      response: {
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            "El identificador de la solicitud es obligatorio.",
+        },
+      },
+    };
+  }
+
+  const solicitud =
+    await obtenerSolicitudPagoPorIdRepository(id);
+
+  if (!solicitud) {
+    return {
+      ok: false,
+      response: {
+        status: 404,
+        body: {
+          ok: false,
+          message: "La solicitud de pago no existe.",
+        },
+      },
+    };
+  }
+
+  const esPropietario =
+    solicitud.creado_por === usuarioAutenticado.id;
+
+  if (!esPropietario && !usuarioEsAdministrador(usuarioAutenticado)) {
+    return {
+      ok: false,
+      response: {
+        status: 403,
+        body: {
+          ok: false,
+          message:
+            "Solo el creador de la solicitud o un Administrador puede modificarla.",
+        },
+      },
+    };
+  }
+
+  if (solicitud.estado_actual !== "BORRADOR") {
+    return {
+      ok: false,
+      response: {
+        status: 409,
+        body: {
+          ok: false,
+          message:
+            "Solo se pueden editar solicitudes en estado BORRADOR.",
+        },
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    solicitud,
   };
 }
 
@@ -1266,32 +1398,28 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
-  const solicitud = await crearSolicitudPagoRepository({
-    numero_solicitud: null,
-    tipo_solicitud: "PAGO_PROVEEDOR",
-    modalidad_nomina: null,
-    periodo_nomina: null,
-    proyecto_base_id: proyectoBaseId,
-    fondo_id: contexto.data.fondo.id,
-    centro_costo_id: centroCostoId,
-    beneficiario_id: beneficiarioId,
-    proveedor_id: normalizarTextoOpcional(beneficiario.proveedor_id),
-    categoria_gasto: categoriaGasto,
-    categoria_reembolso: null,
-    concepto_nomina: null,
-    tipo_impuesto: null,
-    periodo_impuesto: null,
-    medio_pago: medioPago,
-    adjunto_archivo_origen_id: null,
-    descripcion,
-    valor_bruto: valorBruto,
-    valor_impuestos: valorImpuestos,
-    valor_retenciones: valorRetenciones,
-    valor_descuentos: valorDescuentos,
-    valor_neto: valorNeto,
-    estado_actual: "BORRADOR",
-    creado_por: usuarioAutenticado.id,
-  });
+  const repositoryInput =
+    construirSolicitudPagoProveedorRepositoryInput({
+      usuarioId: usuarioAutenticado.id,
+      fondoId: contexto.data.fondo.id,
+      proyectoBaseId,
+      centroCostoId,
+      beneficiarioId,
+      proveedorId: normalizarTextoOpcional(
+        beneficiario.proveedor_id,
+      ),
+      categoriaGasto,
+      medioPago,
+      descripcion,
+      valorBruto,
+      valorImpuestos,
+      valorRetenciones,
+      valorDescuentos,
+      valorNeto,
+    });
+
+  const solicitud =
+    await crearSolicitudPagoRepository(repositoryInput);
 
   return {
     status: 201,
@@ -1300,6 +1428,206 @@ export async function crearSolicitudPagoProveedorService(
       message: "Borrador de solicitud de pago creado correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
+      },
+    },
+  };
+}
+
+export async function actualizarSolicitudPagoProveedorService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  input: CrearSolicitudPagoProveedorInput,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioTienePermiso(usuarioAutenticado, "CREAR_SOLICITUDES")) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para modificar solicitudes.",
+      },
+    };
+  }
+
+  const solicitudEditable = await obtenerSolicitudEditable(
+    usuarioAutenticado,
+    solicitudId,
+  );
+
+  if (!solicitudEditable.ok) {
+    return solicitudEditable.response;
+  }
+
+  if (
+    solicitudEditable.solicitud.tipo_solicitud !==
+    "PAGO_PROVEEDOR"
+  ) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "La solicitud indicada no corresponde a un pago de proveedor.",
+      },
+    };
+  }
+
+  const proyectoBaseId = normalizarTexto(input.proyecto_base_id);
+  const centroCostoId = normalizarTexto(input.centro_costo_id);
+  const beneficiarioId = normalizarTexto(input.beneficiario_id);
+  const categoriaGasto = normalizarTextoDominio(
+    input.categoria_gasto,
+  );
+  const descripcion = normalizarTexto(input.descripcion);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+
+  if (
+    !proyectoBaseId ||
+    !centroCostoId ||
+    !beneficiarioId ||
+    !categoriaGasto ||
+    !descripcion ||
+    !medioPago
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Proyecto base, centro de costo, beneficiario, categoría, medio de pago y concepto de pago son obligatorios.",
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El medio de pago no es válido.",
+      },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(
+    input.valor_bruto,
+    -1,
+  );
+  const valorImpuestos = obtenerNumeroNoNegativo(
+    input.valor_impuestos,
+  );
+  const valorRetenciones = obtenerNumeroNoNegativo(
+    input.valor_retenciones,
+  );
+  const valorDescuentos = obtenerNumeroNoNegativo(
+    input.valor_descuentos,
+  );
+
+  if (
+    valorBruto === null ||
+    valorImpuestos === null ||
+    valorRetenciones === null ||
+    valorDescuentos === null ||
+    valorBruto <= 0
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Los valores deben ser numéricos y el valor de la factura debe ser mayor a cero.",
+      },
+    };
+  }
+
+  const valorNeto =
+    valorBruto -
+    valorImpuestos -
+    valorRetenciones -
+    valorDescuentos;
+
+  if (valorNeto < 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El valor a pagar no puede ser negativo.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiario = await obtenerBeneficiarioActivoRepository(
+    beneficiarioId,
+  );
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "El beneficiario no existe o está inactivo.",
+      },
+    };
+  }
+
+  if (beneficiario.tipo_beneficiario !== "PROVEEDOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR.",
+      },
+    };
+  }
+
+  const repositoryInput =
+    construirSolicitudPagoProveedorRepositoryInput({
+      usuarioId:
+        solicitudEditable.solicitud.creado_por ??
+        usuarioAutenticado.id,
+      fondoId: contexto.data.fondo.id,
+      proyectoBaseId,
+      centroCostoId,
+      beneficiarioId,
+      proveedorId: normalizarTextoOpcional(
+        beneficiario.proveedor_id,
+      ),
+      categoriaGasto,
+      medioPago,
+      descripcion,
+      valorBruto,
+      valorImpuestos,
+      valorRetenciones,
+      valorDescuentos,
+      valorNeto,
+    });
+
+  const solicitudActualizada =
+    await actualizarSolicitudPagoRepository({
+      id: solicitudEditable.solicitud.id,
+      data: repositoryInput,
+    });
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message:
+        "Borrador de solicitud de pago actualizado correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(
+          solicitudActualizada,
+        ),
       },
     },
   };
