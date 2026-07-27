@@ -3,6 +3,11 @@
   gap: 24px;
 }
 
+.formAnchor {
+  min-width: 0;
+  scroll-margin-top: 24px;
+}
+
 .card,
 .empty {
   border: 1px solid #e5e7eb;
@@ -700,18 +705,19 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  gap: 8px;
 }
 
+.editButton,
 .sendButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  min-width: 112px;
   min-height: 36px;
   padding: 8px 11px;
-  border: 1px solid #1d4ed8;
   border-radius: 6px;
-  background: #2563eb;
-  color: #ffffff;
   font: inherit;
   font-size: 12px;
   font-weight: 750;
@@ -720,15 +726,33 @@
   cursor: pointer;
 }
 
+.editButton {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.sendButton {
+  border: 1px solid #1d4ed8;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.editButton:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
 .sendButton:hover:not(:disabled) {
   background: #1d4ed8;
 }
 
+.editButton:focus-visible,
 .sendButton:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
 }
 
+.editButton:disabled,
 .sendButton:disabled {
   opacity: 0.65;
   cursor: not-allowed;
@@ -741,12 +765,18 @@
 .mobileActions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid #e5e7eb;
 }
 
 @media (max-width: 760px) {
+  .mobileActions {
+    flex-direction: column;
+  }
+
+  .mobileActions .editButton,
   .mobileActions .sendButton {
     width: 100%;
   }

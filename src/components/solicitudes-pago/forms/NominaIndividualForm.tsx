@@ -6,8 +6,14 @@ import type {
   CentroCostoSolicitudCatalogo,
   MedioPagoSolicitud,
   ProyectoBaseSolicitudCatalogo,
+  SolicitudPagoListado,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { type FormEvent, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import type {
   CrearSolicitudNominaIndividualPayload,
@@ -36,6 +42,8 @@ type NominaIndividualFormProps = {
     archivos: File[],
   ) => Promise<void>;
   onLimpiarMensajes: () => void;
+  solicitudEnEdicion: SolicitudPagoListado | null;
+  onCancelarEdicion: () => void;
 };
 
 const CONCEPTOS_NOMINA = [
@@ -102,6 +110,8 @@ export default function NominaIndividualForm({
   onProyectoChange,
   onCrear,
   onLimpiarMensajes,
+  solicitudEnEdicion,
+  onCancelarEdicion,
 }: NominaIndividualFormProps) {
   const [form, setForm] = useState<NominaIndividualFormularioState>(
     ESTADO_INICIAL_NOMINA,
@@ -110,48 +120,101 @@ export default function NominaIndividualForm({
   const [busquedaTrabajador, setBusquedaTrabajador] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
 
-  const trabajadoresFiltrados = useMemo(() => {
-    const busqueda = busquedaTrabajador.trim().toLowerCase();
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!solicitudEnEdicion) {
+        setForm(ESTADO_INICIAL_NOMINA);
+        setBusquedaTrabajador("");
+        setArchivos([]);
+        return;
+      }
 
-    if (!busqueda) {
-      return trabajadores;
-    }
+      const trabajador =
+        trabajadores.find(
+          (item) =>
+            item.id === solicitudEnEdicion.beneficiario_id,
+        ) ?? null;
 
-    return trabajadores.filter((trabajador) => {
-      const nombre = trabajador.nombre.toLowerCase();
-      const tipoDocumento =
-        trabajador.tipo_documento?.toLowerCase() ?? "";
-      const numeroDocumento =
-        trabajador.numero_documento?.toLowerCase() ?? "";
-      const etiqueta = obtenerEtiquetaBeneficiario(trabajador).toLowerCase();
+      setForm({
+        proyecto_base_id:
+          solicitudEnEdicion.proyecto_base_id ?? "",
+        centro_costo_id:
+          solicitudEnEdicion.centro_costo_id ?? "",
+        beneficiario_id:
+          solicitudEnEdicion.beneficiario_id ?? "",
+        periodo_nomina:
+          solicitudEnEdicion.periodo_nomina ?? PERIODO_ACTUAL,
+        concepto_nomina:
+          solicitudEnEdicion.concepto_nomina ?? "",
+        medio_pago:
+          solicitudEnEdicion.medio_pago ?? "",
+        descripcion:
+          solicitudEnEdicion.descripcion ?? "",
+        valor_bruto: formatearValorEntrada(
+          String(solicitudEnEdicion.valor_bruto ?? 0),
+        ),
+        valor_retenciones: formatearValorEntrada(
+          String(solicitudEnEdicion.valor_retenciones ?? 0),
+        ),
+        valor_descuentos: formatearValorEntrada(
+          String(solicitudEnEdicion.valor_descuentos ?? 0),
+        ),
+      });
 
-      return (
-        nombre.includes(busqueda) ||
-        tipoDocumento.includes(busqueda) ||
-        numeroDocumento.includes(busqueda) ||
-        etiqueta.includes(busqueda)
+      setBusquedaTrabajador(
+        trabajador
+          ? obtenerEtiquetaBeneficiario(trabajador)
+          : "",
       );
-    });
-  }, [busquedaTrabajador, trabajadores]);
+      setArchivos([]);
+    }, 0);
 
-  const valores = useMemo(() => {
-    const valorBruto = convertirNumero(form.valor_bruto);
-    const valorRetenciones = convertirNumero(form.valor_retenciones);
-    const valorDescuentos = convertirNumero(form.valor_descuentos);
+    return () => window.clearTimeout(timeoutId);
+  }, [solicitudEnEdicion, trabajadores]);
 
-    return {
-      valorBruto,
-      valorRetenciones,
-      valorDescuentos,
-      valorNeto: valorBruto - valorRetenciones - valorDescuentos,
-    };
-  }, [
-    form.valor_bruto,
-    form.valor_descuentos,
-    form.valor_retenciones,
-  ]);
+const trabajadoresFiltrados = useMemo(() => {
+const busqueda = busquedaTrabajador.trim().toLowerCase();
 
-  function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
+  if (!busqueda) {
+    return trabajadores;
+  }
+
+  return trabajadores.filter((trabajador) => {
+    const nombre = trabajador.nombre.toLowerCase();
+    const tipoDocumento =
+      trabajador.tipo_documento?.toLowerCase() ?? "";
+    const numeroDocumento =
+      trabajador.numero_documento?.toLowerCase() ?? "";
+    const etiqueta =
+      obtenerEtiquetaBeneficiario(trabajador).toLowerCase();
+
+    return (
+      nombre.includes(busqueda) ||
+      tipoDocumento.includes(busqueda) ||
+      numeroDocumento.includes(busqueda) ||
+      etiqueta.includes(busqueda)
+    );
+  });
+}, [busquedaTrabajador, trabajadores]);
+
+const valores = useMemo(() => {
+const valorBruto = convertirNumero(form.valor_bruto);
+const valorRetenciones = convertirNumero(form.valor_retenciones);
+const valorDescuentos = convertirNumero(form.valor_descuentos);
+
+return {
+  valorBruto,
+  valorRetenciones,
+  valorDescuentos,
+  valorNeto: valorBruto - valorRetenciones - valorDescuentos,
+};
+}, [
+form.valor_bruto,
+form.valor_descuentos,
+form.valor_retenciones,
+]);
+
+function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
     campo: K,
     valor: NominaIndividualFormularioState[K],
   ) {
@@ -351,11 +414,15 @@ export default function NominaIndividualForm({
       <form className={styles.form} onSubmit={manejarEnvioSeguro}>
         <div className={styles.formHeader}>
           <h2 className={styles.formTitle}>
-            Crear solicitud de nómina individual
+            {solicitudEnEdicion
+              ? "Editar solicitud de nómina individual"
+              : "Crear solicitud de nómina individual"}
           </h2>
 
           <p className={styles.formDescription}>
-            Registra una solicitud en estado borrador para un trabajador.
+            {solicitudEnEdicion
+              ? "Modifica la información del borrador de nómina individual."
+              : "Registra una solicitud en estado borrador para un trabajador."}
           </p>
         </div>
 
@@ -670,15 +737,40 @@ export default function NominaIndividualForm({
                 }),
               );
             }}
-            disabled={guardando}
+            disabled={guardando || Boolean(solicitudEnEdicion)}
             titulo="Soportes de la nómina"
-            ayuda="Adjunta contratos, cuentas de cobro, desprendibles, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+            ayuda={
+              solicitudEnEdicion
+                ? "Los adjuntos no pueden modificarse desde esta edición. Guarda primero los cambios del borrador."
+                : "Adjunta contratos, cuentas de cobro, desprendibles, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+            }
         />
 
         <div className={styles.actions}>
-          <button className={styles.button} type="submit" disabled={guardando}>
-            {guardando ? "Creando..." : "Crear solicitud"}
+          <button
+            className={styles.button}
+            type="submit"
+            disabled={guardando}
+          >
+            {guardando
+              ? solicitudEnEdicion
+                ? "Guardando..."
+                : "Creando..."
+              : solicitudEnEdicion
+                ? "Guardar cambios"
+                : "Crear solicitud"}
           </button>
+
+          {solicitudEnEdicion ? (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={onCancelarEdicion}
+              disabled={guardando}
+            >
+              Cancelar edición
+            </button>
+          ) : null}
         </div>
       </form>
     </section>

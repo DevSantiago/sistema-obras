@@ -314,12 +314,18 @@ export type CrearSolicitudPagoRepositoryInput =
   | CrearSolicitudPagoImpuestoRepositoryInput
   | CrearSolicitudReembolsoRepositoryInput;
 
+export type ActualizarSolicitudPagoRepositoryInput = {
+  id: string;
+  data: CrearSolicitudPagoRepositoryInput;
+};
+
 export type BuscarDuplicadoNominaIndividualInput = {
   proyecto_base_id: string;
   centro_costo_id: string;
   beneficiario_id: string;
   concepto_nomina: string;
   periodo_nomina: string;
+  excluir_solicitud_id?: string;
 };
 
 export type SolicitudPagoListFilters = {

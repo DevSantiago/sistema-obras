@@ -10,7 +10,7 @@ import type {
   SolicitudesPagoResponseData,
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NominaGrupalForm from "./forms/NominaGrupalForm";
 import NominaIndividualForm from "./forms/NominaIndividualForm";
 import PagoImpuestoForm from "./forms/PagoImpuestoForm";
@@ -175,6 +175,30 @@ export default function SolicitudesPagoManager({
   const [enviandoSolicitudId, setEnviandoSolicitudId] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState("");
   const [mensajeError, setMensajeError] = useState("");
+  const [solicitudEnEdicion, setSolicitudEnEdicion] =
+    useState<SolicitudPagoListado | null>(null);
+  const formularioRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!solicitudEnEdicion) {
+      return;
+    }
+
+    let segundoFrame = 0;
+    const primerFrame = window.requestAnimationFrame(() => {
+      segundoFrame = window.requestAnimationFrame(() => {
+        formularioRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(primerFrame);
+      window.cancelAnimationFrame(segundoFrame);
+    };
+  }, [solicitudEnEdicion]);
 
   const opcionesTipoSolicitud = useMemo<OpcionTipoSolicitud[]>(() => {
     const puedeCrearNomina = usuarioPuedeCrearNomina(usuario);
@@ -351,6 +375,48 @@ export default function SolicitudesPagoManager({
 
   function cambiarTipoSolicitud(tipo: TipoSolicitudFormulario) {
     setTipoSeleccionado(tipo);
+    setSolicitudEnEdicion(null);
+    setProyectoBaseSeleccionadoId("");
+    limpiarMensajes();
+  }
+
+  function editarSolicitud(solicitud: SolicitudPagoListado) {
+    switch (solicitud.tipo_solicitud) {
+      case "PAGO_PROVEEDOR":
+        setTipoSeleccionado("PAGO_PROVEEDOR");
+        break;
+
+      case "PAGO_NOMINA":
+        setTipoSeleccionado(
+          solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
+            ? "NOMINA_GRUPAL"
+            : "NOMINA_INDIVIDUAL",
+        );
+        break;
+
+      case "REEMBOLSO":
+        setTipoSeleccionado("REEMBOLSO");
+        break;
+
+      case "PAGO_IMPUESTO":
+        setTipoSeleccionado("PAGO_IMPUESTO");
+        break;
+
+      default:
+        setMensajeError(
+          "Por ahora este tipo de solicitud todavía no admite edición desde el formulario.",
+        );
+        setMensajeExito("");
+        return;
+    }
+
+    setSolicitudEnEdicion(solicitud);
+    setProyectoBaseSeleccionadoId(solicitud.proyecto_base_id);
+    limpiarMensajes();
+  }
+
+  function cancelarEdicion() {
+    setSolicitudEnEdicion(null);
     setProyectoBaseSeleccionadoId("");
     limpiarMensajes();
   }
@@ -407,30 +473,214 @@ export default function SolicitudesPagoManager({
     }
   }
 
-  async function crearSolicitudProveedor(
-    payload: CrearSolicitudProveedorPayload,
+  async function guardarSolicitudProveedor(
+    payload:
+      | CrearSolicitudProveedorPayload
+      | CrearSolicitudPagoImpuestoPayload,
     archivos: File[] = [],
   ): Promise<void> {
-    await crearSolicitud(payload, archivos);
+    if (!solicitudEnEdicion) {
+      await crearSolicitud(payload, archivos);
+      return;
+    }
+
+    if (archivos.length > 0) {
+      throw new Error(
+        "Los adjuntos nuevos todavía no pueden agregarse durante la edición. Guarde primero los cambios sin seleccionar archivos.",
+      );
+    }
+
+    setGuardando(true);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetchJson<SolicitudesPagoResponseData>(
+        `/api/v1/solicitudes-pago/${solicitudEnEdicion.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const solicitudActualizada = response.data?.solicitud;
+
+      if (solicitudActualizada) {
+        setSolicitudes((actuales) =>
+          actuales.map((solicitud) =>
+            solicitud.id === solicitudActualizada.id
+              ? solicitudActualizada
+              : solicitud,
+          ),
+        );
+      } else {
+        await cargarSolicitudes();
+      }
+
+      setSolicitudEnEdicion(null);
+      setProyectoBaseSeleccionadoId("");
+      setMensajeExito(
+        response.message ?? "Solicitud actualizada correctamente.",
+      );
+    } catch (error) {
+      const mensaje =
+        error instanceof Error
+          ? error.message
+          : "No fue posible actualizar la solicitud de pago.";
+
+      setMensajeError(mensaje);
+      throw new Error(mensaje);
+    } finally {
+      setGuardando(false);
+    }
   }
 
-  async function crearSolicitudNominaIndividual(
+  async function guardarSolicitudNominaIndividual(
     payload: CrearSolicitudNominaIndividualPayload,
     archivos: File[] = [],
   ): Promise<void> {
-    await crearSolicitud(payload, archivos);
+    if (!solicitudEnEdicion) {
+      await crearSolicitud(payload, archivos);
+      return;
+    }
+
+    if (archivos.length > 0) {
+      throw new Error(
+        "Los adjuntos nuevos todavía no pueden agregarse durante la edición. Guarde primero los cambios sin seleccionar archivos.",
+      );
+    }
+
+    setGuardando(true);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetchJson<SolicitudesPagoResponseData>(
+        `/api/v1/solicitudes-pago/${solicitudEnEdicion.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const solicitudActualizada = response.data?.solicitud;
+
+      if (solicitudActualizada) {
+        setSolicitudes((actuales) =>
+          actuales.map((solicitud) =>
+            solicitud.id === solicitudActualizada.id
+              ? solicitudActualizada
+              : solicitud,
+          ),
+        );
+      } else {
+        await cargarSolicitudes();
+      }
+
+      setSolicitudEnEdicion(null);
+      setProyectoBaseSeleccionadoId("");
+      setMensajeExito(
+        response.message ??
+          "Solicitud de nómina individual actualizada correctamente.",
+      );
+    } catch (error) {
+      const mensaje =
+        error instanceof Error
+          ? error.message
+          : "No fue posible actualizar la solicitud de nómina individual.";
+
+      setMensajeError(mensaje);
+      throw new Error(mensaje);
+    } finally {
+      setGuardando(false);
+    }
   }
 
   async function crearSolicitudPagoImpuesto(
     payload: CrearSolicitudPagoImpuestoPayload,
     archivos: File[] = [],
   ): Promise<void> {
-    await crearSolicitud(payload, archivos);
+    if (!solicitudEnEdicion) {
+      await crearSolicitud(payload, archivos);
+      return;
+    }
+
+    await guardarSolicitudProveedor(payload, archivos);
   }
 
   async function crearSolicitudReembolso(
     formData: FormData,
   ): Promise<void> {
+    if (solicitudEnEdicion) {
+      setGuardando(true);
+      setMensajeError("");
+      setMensajeExito("");
+
+      try {
+        const response = await fetchJson<SolicitudesPagoResponseData>(
+          `/api/v1/solicitudes-pago/${solicitudEnEdicion.id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tipo_solicitud: "REEMBOLSO",
+              proyecto_base_id: formData.get("proyecto_base_id"),
+              centro_costo_id: formData.get("centro_costo_id"),
+              beneficiario_id: formData.get("beneficiario_id"),
+              categoria_reembolso: formData.get("categoria_reembolso"),
+              medio_pago: formData.get("medio_pago"),
+              descripcion: formData.get("descripcion"),
+              valor_bruto: formData.get("valor_bruto"),
+              valor_impuestos: formData.get("valor_impuestos"),
+              valor_retenciones: formData.get("valor_retenciones"),
+              valor_descuentos: formData.get("valor_descuentos"),
+            }),
+          },
+        );
+
+        const solicitudActualizada = response.data?.solicitud;
+
+        if (solicitudActualizada) {
+          setSolicitudes((actuales) =>
+            actuales.map((solicitud) =>
+              solicitud.id === solicitudActualizada.id
+                ? solicitudActualizada
+                : solicitud,
+            ),
+          );
+        } else {
+          await cargarSolicitudes();
+        }
+
+        setSolicitudEnEdicion(null);
+        setProyectoBaseSeleccionadoId("");
+        setMensajeExito(
+          response.message ??
+            "Solicitud de reembolso actualizada correctamente.",
+        );
+      } catch (error) {
+        const mensaje =
+          error instanceof Error
+            ? error.message
+            : "No fue posible actualizar la solicitud de reembolso.";
+
+        setMensajeError(mensaje);
+        throw new Error(mensaje);
+      } finally {
+        setGuardando(false);
+      }
+
+      return;
+    }
+
     setGuardando(true);
     setMensajeError("");
     setMensajeExito("");
@@ -474,6 +724,7 @@ export default function SolicitudesPagoManager({
     setMensajeError("");
     setMensajeExito(mensaje);
     setProyectoBaseSeleccionadoId("");
+    setSolicitudEnEdicion(null);
 
     await cargarSolicitudes();
   }
@@ -532,8 +783,10 @@ export default function SolicitudesPagoManager({
             mensajeExito={mensajeExito}
             mensajeError={mensajeError}
             onProyectoChange={setProyectoBaseSeleccionadoId}
-            onCrear={crearSolicitudProveedor}
+            onCrear={guardarSolicitudProveedor}
             onLimpiarMensajes={limpiarMensajes}
+            solicitudEnEdicion={solicitudEnEdicion}
+            onCancelarEdicion={cancelarEdicion}
           />
         );
 
@@ -548,8 +801,10 @@ export default function SolicitudesPagoManager({
             mensajeExito={mensajeExito}
             mensajeError={mensajeError}
             onProyectoChange={setProyectoBaseSeleccionadoId}
-            onCrear={crearSolicitudNominaIndividual}
+            onCrear={guardarSolicitudNominaIndividual}
             onLimpiarMensajes={limpiarMensajes}
+            solicitudEnEdicion={solicitudEnEdicion}
+            onCancelarEdicion={cancelarEdicion}
           />
         );
 
@@ -564,6 +819,8 @@ export default function SolicitudesPagoManager({
             onProyectoChange={setProyectoBaseSeleccionadoId}
             onCreada={manejarNominaGrupalCreada}
             onLimpiarMensajes={limpiarMensajes}
+            solicitudEnEdicion={solicitudEnEdicion}
+            onCancelarEdicion={cancelarEdicion}
           />
         );
 
@@ -580,6 +837,8 @@ export default function SolicitudesPagoManager({
             onProyectoChange={setProyectoBaseSeleccionadoId}
             onCrear={crearSolicitudPagoImpuesto}
             onLimpiarMensajes={limpiarMensajes}
+            solicitudEnEdicion={solicitudEnEdicion}
+            onCancelarEdicion={cancelarEdicion}
           />
         );
 
@@ -596,6 +855,8 @@ export default function SolicitudesPagoManager({
             onProyectoChange={setProyectoBaseSeleccionadoId}
             onCrear={crearSolicitudReembolso}
             onLimpiarMensajes={limpiarMensajes}
+            solicitudEnEdicion={solicitudEnEdicion}
+            onCancelarEdicion={cancelarEdicion}
           />
         );
 
@@ -612,7 +873,13 @@ export default function SolicitudesPagoManager({
         onChange={cambiarTipoSolicitud}
       />
 
-      {renderizarFormulario()}
+      <div
+        id="formulario-solicitud"
+        ref={formularioRef}
+        className={styles.formAnchor}
+      >
+        {renderizarFormulario()}
+      </div>
 
       <SolicitudesPagoList
         solicitudes={solicitudes}
@@ -620,6 +887,7 @@ export default function SolicitudesPagoManager({
         cargando={cargandoSolicitudes}
         enviandoSolicitudId={enviandoSolicitudId}
         onEnviar={enviarSolicitud}
+        onEditar={editarSolicitud}
         onActualizar={cargarSolicitudes}
       />
     </div>

@@ -133,7 +133,7 @@ export type CrearDetalleNominaGrupalRepositoryInput = {
 };
 
 export type CrearSolicitudNominaGrupalRepositoryInput = {
-  numero_solicitud: string;
+  numero_solicitud: string | null;
   proyecto_base_id: string;
   fondo_id: string;
   centro_costo_id: string;
@@ -173,8 +173,14 @@ export type DuplicadoNominaGrupalRepositoryInput = {
   proyecto_base_id: string;
   centro_costo_id: string;
   periodo_nomina: string;
+  excluir_solicitud_id?: string;
   combinaciones: ClaveDuplicadoNominaGrupal[];
 };
+
+export type ActualizarSolicitudNominaGrupalRepositoryInput =
+  CrearSolicitudNominaGrupalRepositoryInput & {
+    solicitud_id: string;
+  };
 
 export type DuplicadoNominaGrupalRepositoryResult = {
   solicitud_pago_id: string;
@@ -198,6 +204,9 @@ export type ValidarNominaGrupalResponse = ServiceResponse<{
 }>;
 
 export type CrearNominaGrupalResponse =
+  ServiceResponse<SolicitudNominaGrupalCreada>;
+
+export type ActualizarNominaGrupalResponse =
   ServiceResponse<SolicitudNominaGrupalCreada>;
 
 export const COLUMNAS_OBLIGATORIAS_NOMINA_GRUPAL = [

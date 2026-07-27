@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
 import type {
+  ActualizarSolicitudPagoRepositoryInput,
   BuscarDuplicadoNominaIndividualInput,
   CrearSolicitudPagoRepositoryInput,
   SolicitudPagoListFilters,
@@ -171,6 +172,13 @@ export async function buscarDuplicadoNominaIndividualRepository(
       estado_actual: {
         not: "ANULADA",
       },
+      ...(input.excluir_solicitud_id
+        ? {
+            id: {
+              not: input.excluir_solicitud_id,
+            },
+          }
+        : {}),
     },
     select: {
       id: true,
@@ -384,6 +392,41 @@ export async function obtenerSolicitudPagoPorIdRepository(id: string) {
   return prisma.solicitudes_pago.findUnique({
     where: {
       id,
+    },
+    include: solicitudPagoInclude,
+  });
+}
+
+export async function actualizarSolicitudPagoRepository(
+  input: ActualizarSolicitudPagoRepositoryInput,
+) {
+  return prisma.solicitudes_pago.update({
+    where: {
+      id: input.id,
+    },
+    data: {
+      tipo_solicitud: input.data.tipo_solicitud,
+      modalidad_nomina: input.data.modalidad_nomina,
+      periodo_nomina: input.data.periodo_nomina,
+      proyecto_base_id: input.data.proyecto_base_id,
+      fondo_id: input.data.fondo_id,
+      centro_costo_id: input.data.centro_costo_id,
+      beneficiario_id: input.data.beneficiario_id,
+      proveedor_id: input.data.proveedor_id,
+      categoria_gasto: input.data.categoria_gasto,
+      categoria_reembolso: input.data.categoria_reembolso,
+      concepto_nomina: input.data.concepto_nomina,
+      tipo_impuesto: input.data.tipo_impuesto,
+      periodo_impuesto: input.data.periodo_impuesto,
+      medio_pago: input.data.medio_pago,
+      adjunto_archivo_origen_id:
+        input.data.adjunto_archivo_origen_id,
+      descripcion: input.data.descripcion,
+      valor_bruto: input.data.valor_bruto,
+      valor_impuestos: input.data.valor_impuestos,
+      valor_retenciones: input.data.valor_retenciones,
+      valor_descuentos: input.data.valor_descuentos,
+      valor_neto: input.data.valor_neto,
     },
     include: solicitudPagoInclude,
   });

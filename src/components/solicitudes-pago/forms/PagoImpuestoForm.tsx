@@ -7,9 +7,10 @@ import {
   CentroCostoSolicitudCatalogo,
   MedioPagoSolicitud,
   ProyectoBaseSolicitudCatalogo,
+  SolicitudPagoListado,
   TipoImpuestoSolicitud,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import type {
   CrearSolicitudPagoImpuestoPayload,
@@ -38,6 +39,8 @@ type PagoImpuestoFormProps = {
     archivos: File[],
   ) => Promise<void>;
   onLimpiarMensajes: () => void;
+  solicitudEnEdicion: SolicitudPagoListado | null;
+  onCancelarEdicion: () => void;
 };
 
 function obtenerPeriodoActualColombia(): string {
@@ -90,11 +93,53 @@ export default function PagoImpuestoForm({
   onProyectoChange,
   onCrear,
   onLimpiarMensajes,
+  solicitudEnEdicion,
+  onCancelarEdicion,
 }: PagoImpuestoFormProps) {
   const [form, setForm] = useState<PagoImpuestoFormularioState>(
     ESTADO_INICIAL,
   );
   const [busquedaEntidad, setBusquedaEntidad] = useState("");
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (!solicitudEnEdicion) {
+        setForm(ESTADO_INICIAL);
+        setBusquedaEntidad("");
+        return;
+      }
+
+      const entidadSeleccionada =
+        entidadesRecaudadoras.find(
+          (entidad) =>
+            entidad.id === solicitudEnEdicion.beneficiario_id,
+        ) ?? null;
+
+      setForm({
+        proyecto_base_id: solicitudEnEdicion.proyecto_base_id,
+        centro_costo_id: solicitudEnEdicion.centro_costo_id,
+        beneficiario_id: solicitudEnEdicion.beneficiario_id ?? "",
+        tipo_impuesto: solicitudEnEdicion.tipo_impuesto ?? "",
+        periodo_impuesto:
+          solicitudEnEdicion.periodo_impuesto ?? PERIODO_ACTUAL,
+        medio_pago: solicitudEnEdicion.medio_pago ?? "",
+        descripcion: solicitudEnEdicion.descripcion,
+        valor_bruto: formatearValorEntrada(
+          String(solicitudEnEdicion.valor_bruto),
+        ),
+        archivos: [],
+      });
+
+      setBusquedaEntidad(
+        entidadSeleccionada
+          ? obtenerEtiquetaBeneficiario(entidadSeleccionada)
+          : "",
+      );
+      onProyectoChange(solicitudEnEdicion.proyecto_base_id);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [entidadesRecaudadoras, onProyectoChange, solicitudEnEdicion]);
 
   const entidadesFiltradas = useMemo(() => {
     const busqueda = busquedaEntidad.trim().toLowerCase();
@@ -528,18 +573,35 @@ export default function PagoImpuestoForm({
               }),
             );
           }}
-          disabled={guardando}
+          disabled={guardando || Boolean(solicitudEnEdicion)}
           titulo="Soportes del impuesto"
           ayuda="Adjunta declaraciones, recibos oficiales, formularios tributarios u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
         />
 
         <div className={styles.actions}>
+          {solicitudEnEdicion ? (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={onCancelarEdicion}
+              disabled={guardando}
+            >
+              Cancelar edición
+            </button>
+          ) : null}
+
           <button
             className={styles.button}
             type="submit"
             disabled={guardando || cargandoCatalogos}
           >
-            {guardando ? "Creando solicitud..." : "Crear solicitud"}
+            {guardando
+              ? solicitudEnEdicion
+                ? "Guardando cambios..."
+                : "Creando solicitud..."
+              : solicitudEnEdicion
+                ? "Guardar cambios"
+                : "Crear solicitud"}
           </button>
         </div>
       </form>

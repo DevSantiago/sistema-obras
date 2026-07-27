@@ -1,5 +1,4 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
-import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import {
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerCentroCostoActivoRepository,
@@ -15,6 +14,7 @@ import type {
   TipoSolicitudPago,
 } from "../solicitudes-pago.types";
 import {
+  actualizarSolicitudNominaGrupalRepository,
   buscarDuplicadosNominaGrupalRepository,
   crearSolicitudNominaGrupalRepository,
   obtenerAdjuntoNominaGrupalPorIdRepository,
@@ -23,6 +23,7 @@ import {
 } from "./nomina-grupal.repository";
 import type {
   BeneficiarioNominaGrupalRepositoryResult,
+  ActualizarNominaGrupalResponse,
   CrearBeneficiarioNominaGrupalRepositoryInput,
   CrearDetalleNominaGrupalRepositoryInput,
   CrearNominaGrupalInput,
@@ -585,6 +586,7 @@ async function ejecutarValidacionCompleta(input: {
   proyectoBaseId: string;
   centroCostoId: string;
   periodoNomina: string;
+  excluirSolicitudId?: string;
   filas: FilaNominaGrupalNormalizada[];
 }): Promise<ResultadoValidacionNominaGrupal> {
   const resultadoInicial = await validarFilasNominaGrupal(input.filas);
@@ -609,6 +611,7 @@ async function ejecutarValidacionCompleta(input: {
       proyecto_base_id: input.proyectoBaseId,
       centro_costo_id: input.centroCostoId,
       periodo_nomina: input.periodoNomina,
+      excluir_solicitud_id: input.excluirSolicitudId,
       combinaciones,
     });
 
@@ -737,6 +740,7 @@ function validarEntradaBasica(input: CrearNominaGrupalInput):
 export async function validarNominaGrupalService(
   usuarioAutenticado: UsuarioSesion,
   input: CrearNominaGrupalInput,
+  solicitudId?: string,
 ): Promise<ValidarNominaGrupalResponse> {
   if (!usuarioPuedeCrearNominaGrupal(usuarioAutenticado)) {
     return {
@@ -747,6 +751,49 @@ export async function validarNominaGrupalService(
           "Solo un Director autorizado o un Administrador puede validar solicitudes de nómina grupal.",
       },
     };
+  }
+
+  if (solicitudId) {
+    const solicitudActual =
+      await obtenerNominaGrupalPorSolicitudIdRepository(solicitudId);
+
+    if (!solicitudActual) {
+      return {
+        status: 404,
+        body: {
+          ok: false,
+          message: "La solicitud de nómina grupal no existe.",
+        },
+      };
+    }
+
+    const esAdministrador =
+      usuarioAutenticado.roles.includes("ADMINISTRADOR");
+
+    if (
+      solicitudActual.creado_por !== usuarioAutenticado.id &&
+      !esAdministrador
+    ) {
+      return {
+        status: 403,
+        body: {
+          ok: false,
+          message:
+            "Solo el creador o un Administrador puede modificar este borrador.",
+        },
+      };
+    }
+
+    if (solicitudActual.estado_actual !== "BORRADOR") {
+      return {
+        status: 409,
+        body: {
+          ok: false,
+          message:
+            "Solo se pueden modificar solicitudes de nómina grupal en estado BORRADOR.",
+        },
+      };
+    }
   }
 
   const entrada = validarEntradaBasica(input);
@@ -794,6 +841,7 @@ export async function validarNominaGrupalService(
     proyectoBaseId: entrada.data.proyectoBaseId,
     centroCostoId: entrada.data.centroCostoId,
     periodoNomina: entrada.data.periodoNomina,
+    excluirSolicitudId: solicitudId,
     filas: entrada.data.filas,
   });
 
@@ -955,14 +1003,6 @@ export async function crearNominaGrupalService(
     };
   }
 
-  const secuencia = await generarNumeroSolicitudPagoService({
-    proyecto_base_id: entrada.data.proyectoBaseId,
-    centro_costo_id: entrada.data.centroCostoId,
-    proyecto_referencia: contexto.data.proyectoBase.nombre,
-    centro_costo_referencia:
-      contexto.data.centroCostoReferencia,
-  });
-
   const beneficiariosFaltantes = Array.from(
     new Map(
       validacion.filas
@@ -1019,7 +1059,7 @@ export async function crearNominaGrupalService(
 
   const resultadoCreacion =
     await crearSolicitudNominaGrupalRepository({
-      numero_solicitud: secuencia.referencia,
+      numero_solicitud: null,
       proyecto_base_id: entrada.data.proyectoBaseId,
       fondo_id: contexto.data.fondo.id,
       centro_costo_id: entrada.data.centroCostoId,
@@ -1055,6 +1095,247 @@ export async function crearNominaGrupalService(
         },
         beneficiarios_creados:
           resultadoCreacion.beneficiarios_creados,
+      },
+    },
+  };
+}
+
+export async function actualizarNominaGrupalService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  input: CrearNominaGrupalInput,
+): Promise<ActualizarNominaGrupalResponse> {
+  if (!usuarioPuedeCrearNominaGrupal(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo un Director autorizado o un Administrador puede modificar solicitudes de nómina grupal.",
+      },
+    };
+  }
+
+  const solicitudActual =
+    await obtenerNominaGrupalPorSolicitudIdRepository(solicitudId);
+
+  if (!solicitudActual) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "La solicitud de nómina grupal no existe.",
+      },
+    };
+  }
+
+  const esAdministrador =
+    usuarioAutenticado.roles.includes("ADMINISTRADOR");
+
+  if (
+    solicitudActual.creado_por !== usuarioAutenticado.id &&
+    !esAdministrador
+  ) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo el creador o un Administrador puede modificar este borrador.",
+      },
+    };
+  }
+
+  if (solicitudActual.estado_actual !== "BORRADOR") {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "Solo se pueden modificar solicitudes de nómina grupal en estado BORRADOR.",
+      },
+    };
+  }
+
+  const entrada = validarEntradaBasica(input);
+
+  if (!entrada.ok) {
+    return entrada.response;
+  }
+
+  const contexto = await obtenerContextoFinancieroNominaGrupal({
+    usuarioAutenticado,
+    proyectoBaseId: entrada.data.proyectoBaseId,
+    centroCostoId: entrada.data.centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const adjunto =
+    await obtenerAdjuntoNominaGrupalPorIdRepository(
+      entrada.data.adjuntoArchivoOrigenId,
+    );
+
+  if (!adjunto) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "El nuevo archivo Excel de origen no existe.",
+      },
+    };
+  }
+
+  if (adjunto.subido_por !== usuarioAutenticado.id) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "El nuevo archivo Excel no pertenece al usuario autenticado.",
+      },
+    };
+  }
+
+  if (adjunto.solicitud_pago_id) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "El nuevo archivo Excel ya está asociado a otra solicitud.",
+      },
+    };
+  }
+
+  const validacion = await ejecutarValidacionCompleta({
+    proyectoBaseId: entrada.data.proyectoBaseId,
+    centroCostoId: entrada.data.centroCostoId,
+    periodoNomina: entrada.data.periodoNomina,
+    excluirSolicitudId: solicitudId,
+    filas: entrada.data.filas,
+  });
+
+  if (validacion.resumen.filas_invalidas > 0) {
+    return {
+      status: 422,
+      body: {
+        ok: false,
+        message:
+          "La solicitud no puede actualizarse porque existen filas inválidas.",
+      },
+    };
+  }
+
+  if (
+    validacion.resumen.filas_pendientes_beneficiario > 0 &&
+    !entrada.data.crearBeneficiariosFaltantes
+  ) {
+    return {
+      status: 422,
+      body: {
+        ok: false,
+        message:
+          "Existen trabajadores pendientes. Confirme la creación de beneficiarios faltantes para continuar.",
+      },
+    };
+  }
+
+  const beneficiariosFaltantes = Array.from(
+    new Map(
+      validacion.filas
+        .filter(
+          (fila) =>
+            fila.estado_validacion === "PENDIENTE_BENEFICIARIO",
+        )
+        .map((fila) => [
+          construirClaveDocumento(fila),
+          {
+            tipo_documento: fila.tipo_documento,
+            numero_documento: fila.numero_documento,
+            nombre: fila.nombre_trabajador,
+            medio_pago_preferido: fila.medio_pago as MedioPagoSolicitud,
+            banco: fila.banco,
+            tipo_cuenta_bancaria: fila.tipo_cuenta_bancaria,
+            numero_cuenta_bancaria:
+              fila.numero_cuenta_bancaria,
+          } satisfies CrearBeneficiarioNominaGrupalRepositoryInput,
+        ]),
+    ).values(),
+  );
+
+  const detalles: CrearDetalleNominaGrupalRepositoryInput[] =
+    validacion.filas.map((fila) => {
+      if (
+        !fila.medio_pago ||
+        fila.estado_validacion === "INVALIDO"
+      ) {
+        throw new Error(
+          `La fila ${fila.numero_fila} no está lista para persistirse.`,
+        );
+      }
+
+      return {
+        numero_fila: fila.numero_fila,
+        beneficiario_id: fila.beneficiario_id,
+        tipo_documento: fila.tipo_documento,
+        numero_documento: fila.numero_documento,
+        nombre_trabajador: fila.nombre_trabajador,
+        concepto_nomina: fila.concepto_nomina,
+        medio_pago: fila.medio_pago,
+        banco: fila.banco,
+        tipo_cuenta_bancaria: fila.tipo_cuenta_bancaria,
+        numero_cuenta_bancaria:
+          fila.numero_cuenta_bancaria,
+        valor_bruto: fila.valor_bruto,
+        valor_retenciones: fila.valor_retenciones,
+        valor_descuentos: fila.valor_descuentos,
+        valor_neto: fila.valor_neto,
+        estado_validacion: "VALIDO",
+        errores_validacion: null,
+      };
+    });
+
+  const resultado =
+    await actualizarSolicitudNominaGrupalRepository({
+      solicitud_id: solicitudId,
+      numero_solicitud: solicitudActual.numero_solicitud,
+      proyecto_base_id: entrada.data.proyectoBaseId,
+      fondo_id: contexto.data.fondo.id,
+      centro_costo_id: entrada.data.centroCostoId,
+      periodo_nomina: entrada.data.periodoNomina,
+      descripcion: entrada.data.descripcion,
+      adjunto_archivo_origen_id:
+        entrada.data.adjuntoArchivoOrigenId,
+      valor_bruto: validacion.resumen.valor_bruto_total,
+      valor_retenciones:
+        validacion.resumen.valor_retenciones_total,
+      valor_descuentos:
+        validacion.resumen.valor_descuentos_total,
+      valor_neto: validacion.resumen.valor_neto_total,
+      creado_por: usuarioAutenticado.id,
+      beneficiarios_faltantes: beneficiariosFaltantes,
+      detalles,
+    });
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message:
+        "Solicitud de nómina grupal actualizada correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(
+          resultado.solicitud as SolicitudNominaGrupalRepositoryResult,
+        ),
+        resumen: {
+          ...validacion.resumen,
+          filas_validas: validacion.resumen.total_filas,
+          filas_pendientes_beneficiario: 0,
+        },
+        beneficiarios_creados: resultado.beneficiarios_creados,
       },
     },
   };

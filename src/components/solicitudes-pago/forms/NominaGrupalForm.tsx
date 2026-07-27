@@ -3,11 +3,13 @@
 import type {
   CentroCostoSolicitudCatalogo,
   ProyectoBaseSolicitudCatalogo,
+  SolicitudPagoListado,
   SolicitudesPagoApiResponse,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import {
   type ChangeEvent,
   type FormEvent,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -29,6 +31,8 @@ type NominaGrupalFormProps = {
   onProyectoChange: (proyectoBaseId: string) => void;
   onCreada: (mensaje: string) => Promise<void> | void;
   onLimpiarMensajes: () => void;
+  solicitudEnEdicion: SolicitudPagoListado | null;
+  onCancelarEdicion: () => void;
 };
 
 const ESTADO_INICIAL: NominaGrupalFormularioState = {
@@ -112,6 +116,8 @@ export default function NominaGrupalForm({
   onProyectoChange,
   onCreada,
   onLimpiarMensajes,
+  solicitudEnEdicion,
+  onCancelarEdicion,
 }: NominaGrupalFormProps) {
   const archivoInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -132,6 +138,34 @@ export default function NominaGrupalForm({
   const filasValidadas = resultadoValidacion?.validacion.filas ?? [];
 
   const formularioBloqueado = validando || creando;
+  const esEdicion = Boolean(solicitudEnEdicion);
+
+  useEffect(() => {
+    if (!solicitudEnEdicion) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFormulario({
+        proyecto_base_id: solicitudEnEdicion.proyecto_base_id,
+        centro_costo_id: solicitudEnEdicion.centro_costo_id,
+        periodo_nomina: solicitudEnEdicion.periodo_nomina ?? "",
+        descripcion: solicitudEnEdicion.descripcion,
+        archivo: null,
+      });
+      setResultadoValidacion(null);
+      setMensajeValidacion("");
+      setCrearBeneficiariosFaltantes(false);
+      setErrorLocal("");
+      onProyectoChange(solicitudEnEdicion.proyecto_base_id);
+
+      if (archivoInputRef.current) {
+        archivoInputRef.current.value = "";
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [solicitudEnEdicion, onProyectoChange]);
 
   const puedeValidar = useMemo(() => {
     return Boolean(
@@ -265,7 +299,9 @@ export default function NominaGrupalForm({
     return validarArchivoSeleccionado(formulario.archivo);
   }
 
-  function construirFormDataBase(accion: "VALIDAR" | "CREAR"): FormData {
+  function construirFormDataBase(
+    accion: "VALIDAR" | "CREAR" | "ACTUALIZAR",
+  ): FormData {
     const formData = new FormData();
 
     formData.append("accion", accion);
@@ -301,6 +337,10 @@ export default function NominaGrupalForm({
       const formData = construirFormDataBase("VALIDAR");
       formData.append("archivo", formulario.archivo);
 
+      if (solicitudEnEdicion) {
+        formData.append("solicitud_id", solicitudEnEdicion.id);
+      }
+
       const response = await fetch(
         "/api/v1/solicitudes-pago/nomina-grupal",
         {
@@ -333,19 +373,23 @@ export default function NominaGrupalForm({
     }
   }
 
-  async function crearSolicitudNominaGrupal() {
+  async function guardarSolicitudNominaGrupal() {
     limpiarErrores();
 
     if (!resultadoValidacion) {
       setErrorLocal(
-        "Debe validar el archivo antes de crear la solicitud de nómina.",
+        `Debe validar el archivo antes de ${
+          esEdicion ? "actualizar" : "crear"
+        } la solicitud de nómina.`,
       );
       return;
     }
 
     if (resultadoValidacion.validacion.resumen.filas_invalidas > 0) {
       setErrorLocal(
-        "No es posible crear la solicitud mientras existan filas inválidas.",
+        `No es posible ${
+          esEdicion ? "actualizar" : "crear"
+        } la solicitud mientras existan filas inválidas.`,
       );
       return;
     }
@@ -364,7 +408,13 @@ export default function NominaGrupalForm({
     setCreando(true);
 
     try {
-      const formData = construirFormDataBase("CREAR");
+      const formData = construirFormDataBase(
+        esEdicion ? "ACTUALIZAR" : "CREAR",
+      );
+
+      if (solicitudEnEdicion) {
+        formData.append("solicitud_id", solicitudEnEdicion.id);
+      }
 
       formData.append(
         "adjunto_archivo_origen_id",
@@ -399,7 +449,9 @@ export default function NominaGrupalForm({
         payload.message ??
         (numeroSolicitud
           ? `La solicitud ${numeroSolicitud} fue creada correctamente.`
-          : "La solicitud de nómina grupal fue creada correctamente.");
+          : `La solicitud de nómina grupal fue ${
+              esEdicion ? "actualizada" : "creada"
+            } correctamente.`);
 
       setFormulario(ESTADO_INICIAL);
       setResultadoValidacion(null);
@@ -416,7 +468,9 @@ export default function NominaGrupalForm({
       setErrorLocal(
         error instanceof Error
           ? error.message
-          : "No fue posible crear la solicitud de nómina grupal.",
+          : `No fue posible ${
+              esEdicion ? "actualizar" : "crear"
+            } la solicitud de nómina grupal.`,
       );
     } finally {
       setCreando(false);
@@ -424,12 +478,22 @@ export default function NominaGrupalForm({
   }
 
   function reiniciarFormulario() {
-    setFormulario(ESTADO_INICIAL);
+    const formularioInicial = solicitudEnEdicion
+      ? {
+          proyecto_base_id: solicitudEnEdicion.proyecto_base_id,
+          centro_costo_id: solicitudEnEdicion.centro_costo_id,
+          periodo_nomina: solicitudEnEdicion.periodo_nomina ?? "",
+          descripcion: solicitudEnEdicion.descripcion,
+          archivo: null,
+        }
+      : ESTADO_INICIAL;
+
+    setFormulario(formularioInicial);
     setResultadoValidacion(null);
     setMensajeValidacion("");
     setCrearBeneficiariosFaltantes(false);
     setErrorLocal("");
-    onProyectoChange("");
+    onProyectoChange(formularioInicial.proyecto_base_id);
     onLimpiarMensajes();
 
     if (archivoInputRef.current) {
@@ -441,12 +505,14 @@ export default function NominaGrupalForm({
     <section className={styles.card}>
       <form className={styles.form} onSubmit={validarNomina}>
         <header className={styles.formHeader}>
-          <h2 className={styles.formTitle}>Crear nómina grupal</h2>
+          <h2 className={styles.formTitle}>
+            {esEdicion ? "Editar nómina grupal" : "Crear nómina grupal"}
+          </h2>
 
           <p className={styles.formDescription}>
-            Seleccione el proyecto, el centro de costo y el periodo. Después
-            cargue el archivo Excel para validar los trabajadores y valores
-            antes de crear la solicitud.
+            {esEdicion
+              ? "Actualice los datos generales y cargue el Excel completo corregido. El archivo reemplazará la nómina anterior después de validar nuevamente todas sus filas."
+              : "Seleccione el proyecto, el centro de costo y el periodo. Después cargue el archivo Excel para validar los trabajadores y valores antes de crear la solicitud."}
           </p>
         </header>
 
@@ -537,6 +603,9 @@ export default function NominaGrupalForm({
 
             <span className={styles.muted}>
               Formatos permitidos: .xlsx y .xlsm. Tamaño máximo: 10 MB.
+              {esEdicion
+                ? " Debe cargar el archivo completo que reemplazará la nómina actual."
+                : ""}
             </span>
           </label>
         </div>
@@ -580,8 +649,19 @@ export default function NominaGrupalForm({
             onClick={reiniciarFormulario}
             disabled={formularioBloqueado}
           >
-            Limpiar
+            {esEdicion ? "Restablecer" : "Limpiar"}
           </button>
+
+          {esEdicion ? (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={onCancelarEdicion}
+              disabled={formularioBloqueado}
+            >
+              Cancelar edición
+            </button>
+          ) : null}
 
           <button
             className={styles.button}
@@ -764,7 +844,8 @@ export default function NominaGrupalForm({
             {resumen.filas_invalidas > 0 ? (
               <p className={styles.error}>
                 Corrija las filas inválidas en el archivo Excel y vuelva a
-                cargarlo antes de crear la solicitud.
+                cargarlo antes de {esEdicion ? "actualizar" : "crear"} la
+                solicitud.
               </p>
             ) : null}
 
@@ -781,12 +862,16 @@ export default function NominaGrupalForm({
               <button
                 className={styles.button}
                 type="button"
-                onClick={crearSolicitudNominaGrupal}
+                onClick={guardarSolicitudNominaGrupal}
                 disabled={!puedeCrear}
               >
                 {creando
-                  ? "Creando solicitud..."
-                  : "Crear solicitud de nómina"}
+                  ? esEdicion
+                    ? "Actualizando solicitud..."
+                    : "Creando solicitud..."
+                  : esEdicion
+                    ? "Actualizar solicitud"
+                    : "Crear solicitud de nómina"}
               </button>
             </div>
           </div>

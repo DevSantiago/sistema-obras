@@ -164,7 +164,7 @@ export type NominaGrupalValidacionResponseData = {
 export type NominaGrupalCreacionResponseData = {
   solicitud?: {
     id: string;
-    numero_solicitud: string;
+    numero_solicitud: string | null;
   };
   resumen?: ResumenValidacionNominaGrupal;
   beneficiarios_creados?: unknown[];

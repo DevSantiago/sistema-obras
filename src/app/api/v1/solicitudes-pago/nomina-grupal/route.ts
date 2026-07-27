@@ -6,8 +6,11 @@ import { leerExcelNominaGrupal } from "@/modules/solicitudes-pago/nomina-grupal/
 import {
   crearAdjuntoNominaGrupalRepository,
   eliminarAdjuntoNominaGrupalRepository,
+  obtenerAdjuntoNominaGrupalPorIdRepository,
+  obtenerNominaGrupalPorSolicitudIdRepository,
 } from "@/modules/solicitudes-pago/nomina-grupal/nomina-grupal.repository";
 import {
+  actualizarNominaGrupalService,
   crearNominaGrupalService,
   validarNominaGrupalService,
 } from "@/modules/solicitudes-pago/nomina-grupal/nomina-grupal.service";
@@ -38,7 +41,7 @@ const TIPOS_MIME_PERMITIDOS = new Set([
   "application/octet-stream",
 ]);
 
-type AccionNominaGrupal = "VALIDAR" | "CREAR";
+type AccionNominaGrupal = "VALIDAR" | "CREAR" | "ACTUALIZAR";
 
 async function obtenerUsuarioSesionDesdeCookie() {
   const cookieStore = await cookies();
@@ -61,7 +64,11 @@ function normalizarAccion(
 ): AccionNominaGrupal | null {
   const accion = valor.trim().toUpperCase();
 
-  if (accion === "VALIDAR" || accion === "CREAR") {
+  if (
+    accion === "VALIDAR" ||
+    accion === "CREAR" ||
+    accion === "ACTUALIZAR"
+  ) {
     return accion;
   }
 
@@ -275,7 +282,7 @@ export async function POST(request: Request) {
         {
           ok: false,
           message:
-            "La acción debe ser VALIDAR o CREAR.",
+            "La acción debe ser VALIDAR, CREAR o ACTUALIZAR.",
         },
         {
           status: 400,
@@ -341,6 +348,10 @@ export async function POST(request: Request) {
           await validarNominaGrupalService(
             usuario,
             input,
+            obtenerTextoFormulario(
+              formData,
+              "solicitud_id",
+            ) || undefined,
           );
 
         if (!resultado.body.ok) {
@@ -435,11 +446,102 @@ export async function POST(request: Request) {
       adjuntoArchivoOrigenId,
     );
 
-    const resultado =
-      await crearNominaGrupalService(
-        usuario,
-        input,
+    if (accion === "ACTUALIZAR") {
+      const solicitudId = obtenerTextoFormulario(
+        formData,
+        "solicitud_id",
       );
+
+      if (!solicitudId) {
+        return Response.json(
+          {
+            ok: false,
+            message:
+              "El identificador de la solicitud es obligatorio.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      const solicitudAnterior =
+        await obtenerNominaGrupalPorSolicitudIdRepository(
+          solicitudId,
+        );
+      const adjuntoNuevo =
+        await obtenerAdjuntoNominaGrupalPorIdRepository(
+          adjuntoArchivoOrigenId,
+        );
+
+      let resultado;
+
+      try {
+        resultado =
+          await actualizarNominaGrupalService(
+            usuario,
+            solicitudId,
+            input,
+          );
+      } catch (error) {
+        if (
+          adjuntoNuevo &&
+          !adjuntoNuevo.solicitud_pago_id
+        ) {
+          await eliminarAdjuntoTemporal({
+            adjuntoId: adjuntoArchivoOrigenId,
+            rutaAbsoluta: path.join(
+              DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
+              path.basename(adjuntoNuevo.ruta_archivo),
+            ),
+          });
+        }
+
+        throw error;
+      }
+
+      if (!resultado.body.ok) {
+        if (
+          adjuntoNuevo &&
+          !adjuntoNuevo.solicitud_pago_id
+        ) {
+          await eliminarAdjuntoTemporal({
+            adjuntoId: adjuntoArchivoOrigenId,
+            rutaAbsoluta: path.join(
+              DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
+              path.basename(adjuntoNuevo.ruta_archivo),
+            ),
+          });
+        }
+
+        return Response.json(resultado.body, {
+          status: resultado.status,
+        });
+      }
+
+      const rutaArchivoAnterior =
+        solicitudAnterior?.archivo_origen?.ruta_archivo;
+
+      if (
+        rutaArchivoAnterior &&
+        solicitudAnterior.adjunto_archivo_origen_id !==
+          adjuntoArchivoOrigenId
+      ) {
+        await unlink(
+          path.join(
+            DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
+            path.basename(rutaArchivoAnterior),
+          ),
+        ).catch(() => undefined);
+      }
+
+      return Response.json(resultado.body, {
+        status: resultado.status,
+      });
+    }
+
+    const resultado =
+      await crearNominaGrupalService(usuario, input);
 
     return Response.json(resultado.body, {
       status: resultado.status,

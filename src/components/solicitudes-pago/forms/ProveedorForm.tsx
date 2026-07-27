@@ -2,13 +2,14 @@
 import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
 import type { CrearSolicitudProveedorPayload } from "@/components/solicitudes-pago/solicitudes-pago.types";
 import type {
+  SolicitudPagoListado,
   BeneficiarioSolicitudCatalogo,
   CentroCostoSolicitudCatalogo,
   MedioPagoSolicitud,
   ProyectoBaseSolicitudCatalogo,
   SolicitudPagoFormularioState,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
   buscarBeneficiarioPorEtiqueta,
@@ -39,6 +40,8 @@ type ProveedorFormProps = {
     archivos: File[],
   ) => Promise<void>;
   onLimpiarMensajes: () => void;
+  solicitudEnEdicion: SolicitudPagoListado | null;
+  onCancelarEdicion: () => void;
 };
 
 export default function ProveedorForm({
@@ -52,6 +55,8 @@ export default function ProveedorForm({
   onProyectoChange,
   onCrear,
   onLimpiarMensajes,
+  solicitudEnEdicion,
+  onCancelarEdicion,
 }: ProveedorFormProps) {
   const [form, setForm] = useState<SolicitudPagoFormularioState>(
     ESTADO_INICIAL_FORMULARIO,
@@ -59,6 +64,45 @@ export default function ProveedorForm({
 
   const [busquedaBeneficiario, setBusquedaBeneficiario] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
+  useEffect(() => {
+    if (
+      !solicitudEnEdicion ||
+      solicitudEnEdicion.tipo_solicitud !== "PAGO_PROVEEDOR"
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setForm({
+        proyecto_base_id: solicitudEnEdicion.proyecto_base_id,
+        centro_costo_id: solicitudEnEdicion.centro_costo_id,
+        beneficiario_id: solicitudEnEdicion.beneficiario_id ?? "",
+        categoria_gasto: solicitudEnEdicion.categoria_gasto ?? "",
+        medio_pago: solicitudEnEdicion.medio_pago ?? "",
+        descripcion: solicitudEnEdicion.descripcion,
+        valor_bruto: String(solicitudEnEdicion.valor_bruto),
+        valor_impuestos: String(solicitudEnEdicion.valor_impuestos),
+        valor_retenciones: String(solicitudEnEdicion.valor_retenciones),
+        valor_descuentos: String(solicitudEnEdicion.valor_descuentos),
+      });
+
+      const beneficiarioSeleccionado = beneficiarios.find(
+        (beneficiario) =>
+          beneficiario.id === solicitudEnEdicion.beneficiario_id,
+      );
+
+      setBusquedaBeneficiario(
+        beneficiarioSeleccionado
+          ? obtenerEtiquetaBeneficiario(beneficiarioSeleccionado)
+          : "",
+      );
+
+      onProyectoChange(solicitudEnEdicion.proyecto_base_id);
+      setArchivos([]);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [solicitudEnEdicion, beneficiarios, onProyectoChange]);
 
   const beneficiariosFiltrados = useMemo(() => {
     const busqueda = busquedaBeneficiario.trim().toLowerCase();
@@ -250,6 +294,14 @@ export default function ProveedorForm({
     onProyectoChange("");
   }
 
+  function cancelarEdicion() {
+    setForm(ESTADO_INICIAL_FORMULARIO);
+    setBusquedaBeneficiario("");
+    setArchivos([]);
+    onProyectoChange("");
+    onCancelarEdicion();
+  }
+
   async function manejarEnvioSeguro(event: FormEvent<HTMLFormElement>) {
     try {
       await manejarEnvio(event);
@@ -269,12 +321,15 @@ export default function ProveedorForm({
       <form className={styles.form} onSubmit={manejarEnvioSeguro}>
         <div className={styles.formHeader}>
           <h2 className={styles.formTitle}>
-            Crear solicitud de pago a proveedor
+            {solicitudEnEdicion
+              ? "Editar solicitud de pago a proveedor"
+              : "Crear solicitud de pago a proveedor"}
           </h2>
 
           <p className={styles.formDescription}>
-            Registra una solicitud en estado borrador para un beneficiario tipo
-            proveedor.
+            {solicitudEnEdicion
+              ? "Actualiza la información de la solicitud en estado borrador."
+              : "Registra una solicitud en estado borrador para un beneficiario tipo proveedor."}
           </p>
         </div>
 
@@ -573,14 +628,35 @@ export default function ProveedorForm({
                 }),
               );
             }}
-            disabled={guardando}
+            disabled={guardando || solicitudEnEdicion !== null}
             titulo="Soportes de la solicitud"
-            ayuda="Adjunta facturas, cuentas de cobro, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+            ayuda={
+              solicitudEnEdicion
+                ? "Los adjuntos existentes se conservan. La modificación de adjuntos durante la edición se implementará en un flujo independiente."
+                : "Adjunta facturas, cuentas de cobro, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+            }
           />
 
         <div className={styles.actions}>
+          {solicitudEnEdicion ? (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={cancelarEdicion}
+              disabled={guardando}
+            >
+              Cancelar edición
+            </button>
+          ) : null}
+
           <button className={styles.button} type="submit" disabled={guardando}>
-            {guardando ? "Creando..." : "Crear solicitud"}
+            {guardando
+              ? solicitudEnEdicion
+                ? "Guardando..."
+                : "Creando..."
+              : solicitudEnEdicion
+                ? "Guardar cambios"
+                : "Crear solicitud"}
           </button>
         </div>
       </form>
