@@ -9,8 +9,14 @@ import {
   type CentroCostoSolicitudCatalogo,
   type MedioPagoSolicitud,
   type ProyectoBaseSolicitudCatalogo,
+  type SolicitudPagoListado,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { type FormEvent, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
   buscarBeneficiarioPorEtiqueta,
@@ -47,6 +53,8 @@ type ReembolsoFormProps = {
   onProyectoChange: (proyectoBaseId: string) => void;
   onCrear: (formData: FormData) => Promise<void>;
   onLimpiarMensajes: () => void;
+  solicitudEnEdicion: SolicitudPagoListado | null;
+  onCancelarEdicion: () => void;
 };
 
 function convertirValorMoneda(valor: string): number {
@@ -70,12 +78,63 @@ export default function ReembolsoForm({
   onProyectoChange,
   onCrear,
   onLimpiarMensajes,
+  solicitudEnEdicion,
+  onCancelarEdicion
 }: ReembolsoFormProps) {
-  const [form, setForm] =
-    useState<ReembolsoFormularioState>(ESTADO_INICIAL);
-  const [busquedaBeneficiario, setBusquedaBeneficiario] = useState("");
+const [form, setForm] =
+  useState<ReembolsoFormularioState>(ESTADO_INICIAL);
+const [busquedaBeneficiario, setBusquedaBeneficiario] = useState("");
 
-  const trabajadoresFiltrados = useMemo(() => {
+useEffect(() => {
+  const timeoutId = window.setTimeout(() => {
+    if (!solicitudEnEdicion) {
+      setForm(ESTADO_INICIAL);
+      setBusquedaBeneficiario("");
+      return;
+    }
+
+    const trabajadorSeleccionado =
+      trabajadores.find(
+        (trabajador) =>
+          trabajador.id === solicitudEnEdicion.beneficiario_id,
+      ) ?? null;
+
+    setForm({
+      proyecto_base_id: solicitudEnEdicion.proyecto_base_id ?? "",
+      centro_costo_id: solicitudEnEdicion.centro_costo_id ?? "",
+      beneficiario_id: solicitudEnEdicion.beneficiario_id ?? "",
+      categoria_reembolso:
+        solicitudEnEdicion.categoria_reembolso ?? "",
+      medio_pago: solicitudEnEdicion.medio_pago ?? "",
+      descripcion: solicitudEnEdicion.descripcion ?? "",
+      valor_bruto: formatearValorEntrada(
+        String(solicitudEnEdicion.valor_bruto ?? 0),
+      ),
+      valor_impuestos: formatearValorEntrada(
+        String(solicitudEnEdicion.valor_impuestos ?? 0),
+      ),
+      valor_retenciones: formatearValorEntrada(
+        String(solicitudEnEdicion.valor_retenciones ?? 0),
+      ),
+      valor_descuentos: formatearValorEntrada(
+        String(solicitudEnEdicion.valor_descuentos ?? 0),
+      ),
+      archivos: [],
+    });
+
+    setBusquedaBeneficiario(
+      trabajadorSeleccionado
+        ? obtenerEtiquetaBeneficiario(trabajadorSeleccionado)
+        : "",
+    );
+
+    onProyectoChange(solicitudEnEdicion.proyecto_base_id);
+  }, 0);
+
+  return () => window.clearTimeout(timeoutId);
+}, [solicitudEnEdicion, trabajadores, onProyectoChange]);
+
+const trabajadoresFiltrados = useMemo(() => {
     const busqueda = busquedaBeneficiario.trim().toLowerCase();
 
     if (!busqueda) {
@@ -205,7 +264,7 @@ export default function ReembolsoForm({
       camposFaltantes.push("descripción del gasto");
     }
 
-    if (form.archivos.length === 0) {
+    if (!solicitudEnEdicion && form.archivos.length === 0) {
       camposFaltantes.push("al menos un soporte");
     }
 
@@ -298,12 +357,15 @@ export default function ReembolsoForm({
       <form className={styles.form} onSubmit={manejarEnvioSeguro}>
         <div className={styles.formHeader}>
           <h2 className={styles.formTitle}>
-            Crear solicitud de reembolso
+            {solicitudEnEdicion
+              ? "Editar solicitud de reembolso"
+              : "Crear solicitud de reembolso"}
           </h2>
 
           <p className={styles.formDescription}>
-            Registra el reintegro de gastos asumidos por un trabajador y
-            adjunta los soportes correspondientes.
+            {solicitudEnEdicion
+              ? "Modifica la información de la solicitud antes de enviarla nuevamente para aprobación."
+              : "Registra el reintegro de gastos asumidos por un trabajador y adjunta los soportes correspondientes."}
           </p>
         </div>
 
@@ -579,13 +641,30 @@ export default function ReembolsoForm({
           archivos={form.archivos}
           onChange={(archivos) => actualizarCampo("archivos", archivos)}
           onError={informarErrorFormulario}
-          disabled={guardando}
-          required
+          disabled={guardando || Boolean(solicitudEnEdicion)}
+          required={!solicitudEnEdicion}
         />
 
         <div className={styles.actions}>
+          {solicitudEnEdicion ? (
+            <button
+              type="button"
+              className={styles.buttonSecondary}
+              onClick={onCancelarEdicion}
+              disabled={guardando}
+            >
+              Cancelar edición
+            </button>
+          ) : null}
+
           <button className={styles.button} type="submit" disabled={guardando}>
-            {guardando ? "Creando..." : "Crear solicitud"}
+            {guardando
+              ? solicitudEnEdicion
+                ? "Guardando..."
+                : "Creando..."
+              : solicitudEnEdicion
+                ? "Guardar cambios"
+                : "Crear solicitud"}
           </button>
         </div>
       </form>

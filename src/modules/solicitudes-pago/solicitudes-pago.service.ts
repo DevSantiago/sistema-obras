@@ -1839,6 +1839,256 @@ export async function crearSolicitudNominaIndividualService(
   };
 }
 
+export async function actualizarSolicitudNominaIndividualService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  input: CrearSolicitudNominaIndividualInput,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioPuedeCrearNominaIndividual(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo un Director autorizado o un Administrador puede modificar solicitudes de nómina individual.",
+      },
+    };
+  }
+
+  const solicitudEditable = await obtenerSolicitudEditable(
+    usuarioAutenticado,
+    solicitudId,
+  );
+
+  if (!solicitudEditable.ok) {
+    return solicitudEditable.response;
+  }
+
+  if (
+    solicitudEditable.solicitud.tipo_solicitud !== "PAGO_NOMINA" ||
+    solicitudEditable.solicitud.modalidad_nomina !== "INDIVIDUAL"
+  ) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "La solicitud indicada no corresponde a una nómina individual.",
+      },
+    };
+  }
+
+  const proyectoBaseId = normalizarTexto(input.proyecto_base_id);
+  const centroCostoId = normalizarTexto(input.centro_costo_id);
+  const beneficiarioId = normalizarTexto(input.beneficiario_id);
+  const conceptoNomina = normalizarTextoDominio(
+    input.concepto_nomina,
+  );
+  const periodoNomina = normalizarTexto(input.periodo_nomina);
+  const descripcion = normalizarTexto(input.descripcion);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+  const modalidadNomina = normalizarModalidadNomina(
+    input.modalidad_nomina ?? "INDIVIDUAL",
+  );
+
+  if (
+    !proyectoBaseId ||
+    !centroCostoId ||
+    !beneficiarioId ||
+    !conceptoNomina ||
+    !periodoNomina ||
+    !descripcion ||
+    !medioPago
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Proyecto base, centro de costo, trabajador, concepto de nómina, periodo, medio de pago y descripción son obligatorios.",
+      },
+    };
+  }
+
+  if (modalidadNomina !== "INDIVIDUAL") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "La modalidad debe ser INDIVIDUAL para esta operación.",
+      },
+    };
+  }
+
+  const errorPeriodo = validarPeriodoNomina(periodoNomina);
+
+  if (errorPeriodo) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: errorPeriodo,
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El medio de pago no es válido.",
+      },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(
+    input.valor_bruto,
+    -1,
+  );
+  const valorRetenciones = obtenerNumeroNoNegativo(
+    input.valor_retenciones,
+  );
+  const valorDescuentos = obtenerNumeroNoNegativo(
+    input.valor_descuentos,
+  );
+
+  if (
+    valorBruto === null ||
+    valorRetenciones === null ||
+    valorDescuentos === null ||
+    valorBruto <= 0
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Los valores deben ser numéricos y el valor bruto debe ser mayor a cero.",
+      },
+    };
+  }
+
+  const valorNeto =
+    valorBruto - valorRetenciones - valorDescuentos;
+
+  if (valorNeto < 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El valor neto de la nómina no puede ser negativo.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiario = await obtenerBeneficiarioActivoRepository(
+    beneficiarioId,
+  );
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "El trabajador no existe o está inactivo.",
+      },
+    };
+  }
+
+  if (beneficiario.tipo_beneficiario !== "TRABAJADOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Para una nómina individual, el beneficiario debe ser tipo TRABAJADOR.",
+      },
+    };
+  }
+
+  const duplicado =
+    await buscarDuplicadoNominaIndividualRepository({
+      proyecto_base_id: proyectoBaseId,
+      centro_costo_id: centroCostoId,
+      beneficiario_id: beneficiarioId,
+      concepto_nomina: conceptoNomina,
+      periodo_nomina: periodoNomina,
+      excluir_solicitud_id:
+        solicitudEditable.solicitud.id,
+    });
+
+  if (duplicado) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message: `Ya existe la solicitud ${duplicado.numero_solicitud} para este trabajador, concepto y periodo.`,
+      },
+    };
+  }
+
+  const solicitudActualizada =
+    await actualizarSolicitudPagoRepository({
+      id: solicitudEditable.solicitud.id,
+      data: {
+        numero_solicitud:
+          solicitudEditable.solicitud.numero_solicitud,
+        tipo_solicitud: "PAGO_NOMINA",
+        modalidad_nomina: "INDIVIDUAL",
+        periodo_nomina: periodoNomina,
+        proyecto_base_id: proyectoBaseId,
+        fondo_id: contexto.data.fondo.id,
+        centro_costo_id: centroCostoId,
+        beneficiario_id: beneficiarioId,
+        proveedor_id: null,
+        categoria_gasto: null,
+        categoria_reembolso: null,
+        concepto_nomina: conceptoNomina,
+        tipo_impuesto: null,
+        periodo_impuesto: null,
+        medio_pago: medioPago,
+        adjunto_archivo_origen_id: null,
+        descripcion,
+        valor_bruto: valorBruto,
+        valor_impuestos: 0,
+        valor_retenciones: valorRetenciones,
+        valor_descuentos: valorDescuentos,
+        valor_neto: valorNeto,
+        estado_actual: "BORRADOR",
+        creado_por:
+          solicitudEditable.solicitud.creado_por ??
+          usuarioAutenticado.id,
+      },
+    });
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message:
+        "Borrador de solicitud de nómina individual actualizado correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(
+          solicitudActualizada,
+        ),
+      },
+    },
+  };
+}
+
 export async function crearSolicitudPagoImpuestoService(
   usuarioAutenticado: UsuarioSesion,
   input: CrearSolicitudPagoImpuestoInput,
@@ -1986,6 +2236,207 @@ export async function crearSolicitudPagoImpuestoService(
         "Borrador de solicitud de pago de impuesto creado correctamente.",
       data: {
         solicitud: convertirSolicitudPago(solicitud),
+      },
+    },
+  };
+}
+
+export async function actualizarSolicitudPagoImpuestoService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  input: CrearSolicitudPagoImpuestoInput,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioPuedeCrearSolicitudImpuesto(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo un Aprobador nivel 1, Director, Auxiliar contable o Administrador puede modificar solicitudes de pago de impuestos.",
+      },
+    };
+  }
+
+  const solicitudEditable = await obtenerSolicitudEditable(
+    usuarioAutenticado,
+    solicitudId,
+  );
+
+  if (!solicitudEditable.ok) {
+    return solicitudEditable.response;
+  }
+
+  if (
+    solicitudEditable.solicitud.tipo_solicitud !==
+    "PAGO_IMPUESTO"
+  ) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "La solicitud indicada no corresponde a un pago de impuesto.",
+      },
+    };
+  }
+
+  const proyectoBaseId = normalizarTexto(
+    input.proyecto_base_id,
+  );
+  const centroCostoId = normalizarTexto(
+    input.centro_costo_id,
+  );
+  const beneficiarioId = normalizarTexto(
+    input.beneficiario_id,
+  );
+  const tipoImpuesto = normalizarTipoImpuesto(
+    input.tipo_impuesto,
+  );
+  const periodoImpuesto = normalizarTexto(
+    input.periodo_impuesto,
+  );
+  const descripcion = normalizarTexto(input.descripcion);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+
+  if (
+    !proyectoBaseId ||
+    !centroCostoId ||
+    !beneficiarioId ||
+    !tipoImpuesto ||
+    !periodoImpuesto ||
+    !descripcion ||
+    !medioPago
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Proyecto base, centro de costo, entidad beneficiaria, tipo de impuesto, periodo, medio de pago y descripción son obligatorios.",
+      },
+    };
+  }
+
+  if (!TIPOS_IMPUESTO_SOLICITUD.includes(tipoImpuesto)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El tipo de impuesto no es válido.",
+      },
+    };
+  }
+
+  const errorPeriodo = validarPeriodoImpuesto(
+    periodoImpuesto,
+  );
+
+  if (errorPeriodo) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: errorPeriodo,
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El medio de pago no es válido.",
+      },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(
+    input.valor_bruto,
+    -1,
+  );
+
+  if (valorBruto === null || valorBruto <= 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El valor del impuesto debe ser numérico y mayor a cero.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiario =
+    await obtenerBeneficiarioActivoRepository(
+      beneficiarioId,
+    );
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message:
+          "La entidad beneficiaria no existe o está inactiva.",
+      },
+    };
+  }
+
+  const solicitudActualizada =
+    await actualizarSolicitudPagoRepository({
+      id: solicitudEditable.solicitud.id,
+      data: {
+        numero_solicitud:
+          solicitudEditable.solicitud.numero_solicitud,
+        tipo_solicitud: "PAGO_IMPUESTO",
+        modalidad_nomina: null,
+        periodo_nomina: null,
+        proyecto_base_id: proyectoBaseId,
+        fondo_id: contexto.data.fondo.id,
+        centro_costo_id: centroCostoId,
+        beneficiario_id: beneficiarioId,
+        proveedor_id: null,
+        categoria_gasto: null,
+        categoria_reembolso: null,
+        concepto_nomina: null,
+        tipo_impuesto: tipoImpuesto,
+        periodo_impuesto: periodoImpuesto,
+        medio_pago: medioPago,
+        adjunto_archivo_origen_id: null,
+        descripcion,
+        valor_bruto: valorBruto,
+        valor_impuestos: 0,
+        valor_retenciones: 0,
+        valor_descuentos: 0,
+        valor_neto: valorBruto,
+        estado_actual: "BORRADOR",
+        creado_por:
+          solicitudEditable.solicitud.creado_por ??
+          usuarioAutenticado.id,
+      },
+    });
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message:
+        "Borrador de solicitud de pago de impuesto actualizado correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(
+          solicitudActualizada,
+        ),
       },
     },
   };
@@ -2183,6 +2634,242 @@ export async function crearSolicitudReembolsoService(
   };
 }
 
+export async function actualizarSolicitudReembolsoService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  input: CrearSolicitudReembolsoInput,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioPuedeCrearReembolso(usuarioAutenticado)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "Solo un Solicitante, Director, Auxiliar contable, Aprobador nivel 1 o Administrador puede modificar solicitudes de reembolso.",
+      },
+    };
+  }
+
+  const solicitudEditable = await obtenerSolicitudEditable(
+    usuarioAutenticado,
+    solicitudId,
+  );
+
+  if (!solicitudEditable.ok) {
+    return solicitudEditable.response;
+  }
+
+  if (
+    solicitudEditable.solicitud.tipo_solicitud !==
+    "REEMBOLSO"
+  ) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message:
+          "La solicitud indicada no corresponde a un reembolso.",
+      },
+    };
+  }
+
+  const proyectoBaseId = normalizarTexto(
+    input.proyecto_base_id,
+  );
+  const centroCostoId = normalizarTexto(
+    input.centro_costo_id,
+  );
+  const beneficiarioId = normalizarTexto(
+    input.beneficiario_id,
+  );
+  const categoriaReembolso =
+    normalizarCategoriaReembolso(
+      input.categoria_reembolso,
+    );
+  const descripcion = normalizarTexto(input.descripcion);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+
+  if (
+    !proyectoBaseId ||
+    !centroCostoId ||
+    !beneficiarioId ||
+    !categoriaReembolso ||
+    !descripcion ||
+    !medioPago
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Proyecto base, centro de costo, beneficiario, categoría de reembolso, medio de pago y descripción son obligatorios.",
+      },
+    };
+  }
+
+  if (!CATEGORIAS_REEMBOLSO.includes(categoriaReembolso)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "La categoría de reembolso no es válida.",
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El medio de pago no es válido.",
+      },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(
+    input.valor_bruto,
+    -1,
+  );
+  const valorImpuestos = obtenerNumeroNoNegativo(
+    input.valor_impuestos,
+    0,
+  );
+  const valorRetenciones = obtenerNumeroNoNegativo(
+    input.valor_retenciones,
+    0,
+  );
+  const valorDescuentos = obtenerNumeroNoNegativo(
+    input.valor_descuentos,
+    0,
+  );
+
+  if (valorBruto === null || valorBruto <= 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El valor bruto del reembolso debe ser numérico y mayor a cero.",
+      },
+    };
+  }
+
+  if (
+    valorImpuestos === null ||
+    valorRetenciones === null ||
+    valorDescuentos === null
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Impuestos, retenciones y descuentos deben ser valores numéricos no negativos.",
+      },
+    };
+  }
+
+  const valorNeto =
+    valorBruto - valorRetenciones - valorDescuentos;
+
+  if (valorNeto < 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El valor neto del reembolso no puede ser negativo.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId,
+    centroCostoId,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiario =
+    await obtenerBeneficiarioActivoRepository(
+      beneficiarioId,
+    );
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message:
+          "El beneficiario del reembolso no existe o está inactivo.",
+      },
+    };
+  }
+
+  if (beneficiario.tipo_beneficiario !== "TRABAJADOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El beneficiario del reembolso debe ser de tipo TRABAJADOR.",
+      },
+    };
+  }
+
+  const solicitudActualizada =
+    await actualizarSolicitudPagoRepository({
+      id: solicitudEditable.solicitud.id,
+      data: {
+        numero_solicitud:
+          solicitudEditable.solicitud.numero_solicitud,
+        tipo_solicitud: "REEMBOLSO",
+        modalidad_nomina: null,
+        periodo_nomina: null,
+        proyecto_base_id: proyectoBaseId,
+        fondo_id: contexto.data.fondo.id,
+        centro_costo_id: centroCostoId,
+        beneficiario_id: beneficiarioId,
+        proveedor_id: null,
+        categoria_gasto: null,
+        categoria_reembolso: categoriaReembolso,
+        concepto_nomina: null,
+        tipo_impuesto: null,
+        periodo_impuesto: null,
+        medio_pago: medioPago,
+        adjunto_archivo_origen_id: null,
+        descripcion,
+        valor_bruto: valorBruto,
+        valor_impuestos: valorImpuestos,
+        valor_retenciones: valorRetenciones,
+        valor_descuentos: valorDescuentos,
+        valor_neto: valorNeto,
+        estado_actual: "BORRADOR",
+        creado_por:
+          solicitudEditable.solicitud.creado_por ??
+          usuarioAutenticado.id,
+      },
+    });
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message:
+        "Borrador de solicitud de reembolso actualizado correctamente.",
+      data: {
+        solicitud: convertirSolicitudPago(
+          solicitudActualizada,
+        ),
+      },
+    },
+  };
+}
 
 export async function registrarAdjuntosSolicitudPagoService(
   input: RegistrarAdjuntosSolicitudPagoInput,

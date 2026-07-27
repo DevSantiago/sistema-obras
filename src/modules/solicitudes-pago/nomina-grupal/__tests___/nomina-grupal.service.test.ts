@@ -1,5 +1,4 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
-import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import {
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerCentroCostoActivoRepository,
@@ -11,6 +10,7 @@ import {
   crearSolicitudNominaGrupalRepository,
   obtenerAdjuntoNominaGrupalPorIdRepository,
   obtenerBeneficiariosNominaPorDocumentosRepository,
+  obtenerNominaGrupalPorSolicitudIdRepository,
 } from "../nomina-grupal.repository";
 import {
   crearNominaGrupalService,
@@ -21,10 +21,6 @@ import type {
   FilaNominaGrupalNormalizada,
 } from "../nomina-grupal.types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/modules/secuencias/secuencias.service", () => ({
-  generarNumeroSolicitudPagoService: vi.fn(),
-}));
 
 vi.mock("../../solicitudes-pago.repository", () => ({
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
@@ -38,6 +34,7 @@ vi.mock("../nomina-grupal.repository", () => ({
   crearSolicitudNominaGrupalRepository: vi.fn(),
   obtenerAdjuntoNominaGrupalPorIdRepository: vi.fn(),
   obtenerBeneficiariosNominaPorDocumentosRepository: vi.fn(),
+  obtenerNominaGrupalPorSolicitudIdRepository: vi.fn(),
 }));
 
 const fechaMock = new Date("2026-07-13T10:00:00.000Z");
@@ -531,6 +528,28 @@ describe("nomina-grupal.service - validación de filas", () => {
       ]),
     );
   });
+
+  it("debe excluir el mismo borrador al validar un Excel de reemplazo", async () => {
+    configurarContextoValido();
+    vi.mocked(
+      obtenerNominaGrupalPorSolicitudIdRepository,
+    ).mockResolvedValue(solicitudCreadaMock() as never);
+
+    const resultado = await validarNominaGrupalService(
+      usuarioDirector,
+      inputBase,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(
+      buscarDuplicadosNominaGrupalRepository,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        excluir_solicitud_id: "solicitud-1",
+      }),
+    );
+  });
 });
 
 describe("nomina-grupal.service - creación", () => {
@@ -547,17 +566,11 @@ describe("nomina-grupal.service - creación", () => {
 
     expect(resultado.status).toBe(422);
     expect(resultado.body.ok).toBe(false);
-    expect(generarNumeroSolicitudPagoService).not.toHaveBeenCalled();
     expect(crearSolicitudNominaGrupalRepository).not.toHaveBeenCalled();
   });
 
   it("debe crear la nómina grupal con totales y detalles correctos", async () => {
     configurarContextoValido();
-
-    vi.mocked(generarNumeroSolicitudPagoService).mockResolvedValue({
-      referencia: "SOL-PRO-OBRA-HUMAPO-2026-000010",
-      consecutivo: 10,
-    } as never);
 
     vi.mocked(crearSolicitudNominaGrupalRepository).mockResolvedValue({
       solicitud: solicitudCreadaMock(),
@@ -572,15 +585,8 @@ describe("nomina-grupal.service - creación", () => {
     expect(resultado.status).toBe(201);
     expect(resultado.body.ok).toBe(true);
 
-    expect(generarNumeroSolicitudPagoService).toHaveBeenCalledWith({
-      proyecto_base_id: "proyecto-1",
-      centro_costo_id: "centro-1",
-      proyecto_referencia: "HUMAPO",
-      centro_costo_referencia: "PRO-OBRA",
-    });
-
     expect(crearSolicitudNominaGrupalRepository).toHaveBeenCalledWith({
-      numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000010",
+      numero_solicitud: null,
       proyecto_base_id: "proyecto-1",
       fondo_id: "fondo-1",
       centro_costo_id: "centro-1",
@@ -624,10 +630,6 @@ describe("nomina-grupal.service - creación", () => {
     vi.mocked(
       obtenerBeneficiariosNominaPorDocumentosRepository,
     ).mockResolvedValue([]);
-    vi.mocked(generarNumeroSolicitudPagoService).mockResolvedValue({
-      referencia: "SOL-PRO-OBRA-HUMAPO-2026-000011",
-      consecutivo: 11,
-    } as never);
     vi.mocked(crearSolicitudNominaGrupalRepository).mockResolvedValue({
       solicitud: solicitudCreadaMock(),
       beneficiarios_creados: [

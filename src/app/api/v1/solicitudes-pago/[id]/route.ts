@@ -1,7 +1,10 @@
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import { 
-  obtenerSolicitudPagoPorIdService,
+import {
+  actualizarSolicitudNominaIndividualService,
+  actualizarSolicitudPagoImpuestoService,
   actualizarSolicitudPagoProveedorService,
+  actualizarSolicitudReembolsoService,
+  obtenerSolicitudPagoPorIdService,
 } from "@/modules/solicitudes-pago/solicitudes-pago.service";
 import { cookies } from "next/headers";
 
@@ -87,12 +90,50 @@ export async function PATCH(
 
     const body = await request.json();
 
-    const resultado =
-      await actualizarSolicitudPagoProveedorService(
-        resultadoAutenticacion.body.data.usuario,
-        id,
-        body,
-      );
+    const tipoSolicitud =
+      typeof body?.tipo_solicitud === "string"
+        ? body.tipo_solicitud.trim().toUpperCase()
+        : "";
+
+    const modalidadNomina =
+      typeof body?.modalidad_nomina === "string"
+        ? body.modalidad_nomina.trim().toUpperCase()
+        : "";
+
+    let resultado;
+
+    if (
+      tipoSolicitud === "PAGO_NOMINA" &&
+      modalidadNomina === "INDIVIDUAL"
+    ) {
+      resultado =
+        await actualizarSolicitudNominaIndividualService(
+          resultadoAutenticacion.body.data.usuario,
+          id,
+          body,
+        );
+    } else if (tipoSolicitud === "PAGO_IMPUESTO") {
+      resultado =
+        await actualizarSolicitudPagoImpuestoService(
+          resultadoAutenticacion.body.data.usuario,
+          id,
+          body,
+        );
+    } else if (tipoSolicitud === "REEMBOLSO") {
+      resultado =
+        await actualizarSolicitudReembolsoService(
+          resultadoAutenticacion.body.data.usuario,
+          id,
+          body,
+        );
+    } else {
+      resultado =
+        await actualizarSolicitudPagoProveedorService(
+          resultadoAutenticacion.body.data.usuario,
+          id,
+          body,
+        );
+    }
 
     return Response.json(resultado.body, {
       status: resultado.status,

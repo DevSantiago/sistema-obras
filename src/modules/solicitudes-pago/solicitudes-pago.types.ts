@@ -325,6 +325,7 @@ export type BuscarDuplicadoNominaIndividualInput = {
   beneficiario_id: string;
   concepto_nomina: string;
   periodo_nomina: string;
+  excluir_solicitud_id?: string;
 };
 
 export type SolicitudPagoListFilters = {

@@ -72,32 +72,36 @@ export default function ProveedorForm({
       return;
     }
 
-    setForm({
-      proyecto_base_id: solicitudEnEdicion.proyecto_base_id,
-      centro_costo_id: solicitudEnEdicion.centro_costo_id,
-      beneficiario_id: solicitudEnEdicion.beneficiario_id ?? "",
-      categoria_gasto: solicitudEnEdicion.categoria_gasto ?? "",
-      medio_pago: solicitudEnEdicion.medio_pago ?? "",
-      descripcion: solicitudEnEdicion.descripcion,
-      valor_bruto: String(solicitudEnEdicion.valor_bruto),
-      valor_impuestos: String(solicitudEnEdicion.valor_impuestos),
-      valor_retenciones: String(solicitudEnEdicion.valor_retenciones),
-      valor_descuentos: String(solicitudEnEdicion.valor_descuentos),
-    });
+    const timeoutId = window.setTimeout(() => {
+      setForm({
+        proyecto_base_id: solicitudEnEdicion.proyecto_base_id,
+        centro_costo_id: solicitudEnEdicion.centro_costo_id,
+        beneficiario_id: solicitudEnEdicion.beneficiario_id ?? "",
+        categoria_gasto: solicitudEnEdicion.categoria_gasto ?? "",
+        medio_pago: solicitudEnEdicion.medio_pago ?? "",
+        descripcion: solicitudEnEdicion.descripcion,
+        valor_bruto: String(solicitudEnEdicion.valor_bruto),
+        valor_impuestos: String(solicitudEnEdicion.valor_impuestos),
+        valor_retenciones: String(solicitudEnEdicion.valor_retenciones),
+        valor_descuentos: String(solicitudEnEdicion.valor_descuentos),
+      });
 
-    const beneficiarioSeleccionado = beneficiarios.find(
-      (beneficiario) =>
-        beneficiario.id === solicitudEnEdicion.beneficiario_id,
-    );
+      const beneficiarioSeleccionado = beneficiarios.find(
+        (beneficiario) =>
+          beneficiario.id === solicitudEnEdicion.beneficiario_id,
+      );
 
-    setBusquedaBeneficiario(
-      beneficiarioSeleccionado
-        ? obtenerEtiquetaBeneficiario(beneficiarioSeleccionado)
-        : "",
-    );
+      setBusquedaBeneficiario(
+        beneficiarioSeleccionado
+          ? obtenerEtiquetaBeneficiario(beneficiarioSeleccionado)
+          : "",
+      );
 
-    onProyectoChange(solicitudEnEdicion.proyecto_base_id);
-    setArchivos([]);
+      onProyectoChange(solicitudEnEdicion.proyecto_base_id);
+      setArchivos([]);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [solicitudEnEdicion, beneficiarios, onProyectoChange]);
 
   const beneficiariosFiltrados = useMemo(() => {

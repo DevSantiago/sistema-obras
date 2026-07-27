@@ -172,6 +172,13 @@ export async function buscarDuplicadoNominaIndividualRepository(
       estado_actual: {
         not: "ANULADA",
       },
+      ...(input.excluir_solicitud_id
+        ? {
+            id: {
+              not: input.excluir_solicitud_id,
+            },
+          }
+        : {}),
     },
     select: {
       id: true,

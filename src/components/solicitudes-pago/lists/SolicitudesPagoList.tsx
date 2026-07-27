@@ -220,7 +220,7 @@ export default function SolicitudesPagoList({
                         <div className={styles.rowActions}>
                           {usuarioPuedeEditarSolicitud(solicitud, usuario) ? (
                             <button
-                              className={styles.secondaryButton}
+                              className={styles.editButton}
                               type="button"
                               onClick={() => onEditar(solicitud)}
                               disabled={enviandoSolicitudId !== null}
@@ -339,7 +339,7 @@ export default function SolicitudesPagoList({
                     <div className={styles.mobileActions}>
                       {puedeEditar ? (
                         <button
-                          className={styles.secondaryButton}
+                          className={styles.editButton}
                           type="button"
                           onClick={() => onEditar(solicitud)}
                           disabled={enviandoSolicitudId !== null}

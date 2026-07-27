@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type {
   BeneficiarioCreadoNominaGrupal,
   BeneficiarioNominaGrupalRepositoryResult,
+  ActualizarSolicitudNominaGrupalRepositoryInput,
   CrearAdjuntoNominaGrupalRepositoryInput,
   CrearSolicitudNominaGrupalRepositoryInput,
   DuplicadoNominaGrupalRepositoryInput,
@@ -248,6 +249,9 @@ export async function buscarDuplicadosNominaGrupalRepository(
           estado_actual: {
             not: "ANULADA",
           },
+          ...(input.excluir_solicitud_id
+            ? { id: { not: input.excluir_solicitud_id } }
+            : {}),
           ...(condicionesIndividuales.length > 0
             ? {
                 OR: condicionesIndividuales,
@@ -283,6 +287,9 @@ export async function buscarDuplicadosNominaGrupalRepository(
             estado_actual: {
               not: "ANULADA",
             },
+            ...(input.excluir_solicitud_id
+              ? { id: { not: input.excluir_solicitud_id } }
+              : {}),
           },
         },
         select: {
@@ -554,6 +561,244 @@ export async function crearSolicitudNominaGrupalRepository(
         where: { id: data.adjunto_archivo_origen_id },
         data: { solicitud_pago_id: solicitud.id },
       });
+
+      return {
+        solicitud,
+        beneficiarios_creados: beneficiariosCreados,
+      };
+    },
+    {
+      isolationLevel:
+        Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
+}
+
+export async function actualizarSolicitudNominaGrupalRepository(
+  data: ActualizarSolicitudNominaGrupalRepositoryInput,
+) {
+  return prisma.$transaction(
+    async (tx) => {
+      const solicitudActual = await tx.solicitudes_pago.findUnique({
+        where: { id: data.solicitud_id },
+        select: {
+          id: true,
+          adjunto_archivo_origen_id: true,
+          estado_actual: true,
+        },
+      });
+
+      if (!solicitudActual) {
+        throw new Error("La solicitud de nómina grupal no existe.");
+      }
+
+      if (solicitudActual.estado_actual !== "BORRADOR") {
+        throw new Error(
+          "Solo se pueden modificar solicitudes de nómina grupal en estado BORRADOR.",
+        );
+      }
+
+      const adjuntoNuevo = await tx.adjuntos.findUnique({
+        where: { id: data.adjunto_archivo_origen_id },
+        select: { id: true, solicitud_pago_id: true, subido_por: true },
+      });
+
+      if (!adjuntoNuevo) {
+        throw new Error("El nuevo archivo de origen de la nómina no existe.");
+      }
+
+      if (adjuntoNuevo.subido_por !== data.creado_por) {
+        throw new Error(
+          "El nuevo archivo de origen no pertenece al usuario autenticado.",
+        );
+      }
+
+      if (adjuntoNuevo.solicitud_pago_id) {
+        throw new Error(
+          "El nuevo archivo de origen ya está asociado a otra solicitud.",
+        );
+      }
+
+      const beneficiariosCreados: BeneficiarioCreadoNominaGrupal[] = [];
+
+      for (const beneficiarioInput of data.beneficiarios_faltantes) {
+        const existente = await tx.beneficiarios_pago.findFirst({
+          where: {
+            tipo_documento: {
+              equals: beneficiarioInput.tipo_documento,
+              mode: "insensitive",
+            },
+            numero_documento: {
+              equals: beneficiarioInput.numero_documento,
+              mode: "insensitive",
+            },
+          },
+          select: {
+            id: true,
+            tipo_beneficiario: true,
+            activo: true,
+          },
+        });
+
+        if (existente) {
+          if (
+            existente.tipo_beneficiario !== "TRABAJADOR" ||
+            !existente.activo
+          ) {
+            throw new Error(
+              `El beneficiario ${beneficiarioInput.tipo_documento} ${beneficiarioInput.numero_documento} no está disponible como trabajador activo.`,
+            );
+          }
+
+          continue;
+        }
+
+        const creado = await tx.beneficiarios_pago.create({
+          data: {
+            tipo_beneficiario: "TRABAJADOR",
+            nombre: beneficiarioInput.nombre,
+            tipo_documento: beneficiarioInput.tipo_documento,
+            numero_documento: beneficiarioInput.numero_documento,
+            medio_pago_preferido:
+              beneficiarioInput.medio_pago_preferido,
+            banco: beneficiarioInput.banco,
+            tipo_cuenta_bancaria:
+              beneficiarioInput.tipo_cuenta_bancaria,
+            numero_cuenta_bancaria:
+              beneficiarioInput.numero_cuenta_bancaria,
+            notas:
+              "Creado automáticamente desde edición de nómina grupal.",
+          },
+          select: {
+            id: true,
+            tipo_documento: true,
+            numero_documento: true,
+            nombre: true,
+          },
+        });
+
+        beneficiariosCreados.push(creado);
+      }
+
+      const documentos = data.detalles.map((detalle) => ({
+        tipo_documento: detalle.tipo_documento,
+        numero_documento: detalle.numero_documento,
+      }));
+
+      const beneficiarios = await tx.beneficiarios_pago.findMany({
+        where: {
+          OR: documentos.map((documento) => ({
+            tipo_documento: {
+              equals: documento.tipo_documento,
+              mode: "insensitive",
+            },
+            numero_documento: {
+              equals: documento.numero_documento,
+              mode: "insensitive",
+            },
+            tipo_beneficiario: "TRABAJADOR",
+            activo: true,
+          })),
+        },
+        select: {
+          id: true,
+          tipo_documento: true,
+          numero_documento: true,
+        },
+      });
+
+      const beneficiariosPorDocumento = new Map(
+        beneficiarios
+          .filter(
+            (beneficiario) =>
+              beneficiario.tipo_documento &&
+              beneficiario.numero_documento,
+          )
+          .map((beneficiario) => [
+            construirClaveDocumento(
+              beneficiario.tipo_documento!,
+              beneficiario.numero_documento!,
+            ),
+            beneficiario.id,
+          ]),
+      );
+
+      const detalles = data.detalles.map((detalle) => {
+        const beneficiarioId =
+          detalle.beneficiario_id ??
+          beneficiariosPorDocumento.get(
+            construirClaveDocumento(
+              detalle.tipo_documento,
+              detalle.numero_documento,
+            ),
+          );
+
+        if (!beneficiarioId) {
+          throw new Error(
+            `No fue posible asociar el trabajador de la fila ${detalle.numero_fila}.`,
+          );
+        }
+
+        return {
+          ...detalle,
+          beneficiario_id: beneficiarioId,
+        };
+      });
+
+      const solicitud = await tx.solicitudes_pago.update({
+        where: { id: data.solicitud_id },
+        data: {
+          proyecto_base_id: data.proyecto_base_id,
+          fondo_id: data.fondo_id,
+          centro_costo_id: data.centro_costo_id,
+          periodo_nomina: data.periodo_nomina,
+          descripcion: data.descripcion,
+          adjunto_archivo_origen_id: data.adjunto_archivo_origen_id,
+          valor_bruto: data.valor_bruto,
+          valor_retenciones: data.valor_retenciones,
+          valor_descuentos: data.valor_descuentos,
+          valor_neto: data.valor_neto,
+          detalles_nomina: {
+            deleteMany: {},
+            create: detalles.map((detalle) => ({
+              numero_fila: detalle.numero_fila,
+              beneficiario_id: detalle.beneficiario_id,
+              tipo_documento: detalle.tipo_documento,
+              numero_documento: detalle.numero_documento,
+              nombre_trabajador: detalle.nombre_trabajador,
+              concepto_nomina: detalle.concepto_nomina,
+              medio_pago: detalle.medio_pago,
+              banco: detalle.banco,
+              tipo_cuenta_bancaria: detalle.tipo_cuenta_bancaria,
+              numero_cuenta_bancaria:
+                detalle.numero_cuenta_bancaria,
+              valor_bruto: detalle.valor_bruto,
+              valor_retenciones: detalle.valor_retenciones,
+              valor_descuentos: detalle.valor_descuentos,
+              valor_neto: detalle.valor_neto,
+              estado_validacion: "VALIDO",
+            })),
+          },
+        },
+        include: solicitudNominaGrupalInclude,
+      });
+
+      await tx.adjuntos.update({
+        where: { id: data.adjunto_archivo_origen_id },
+        data: { solicitud_pago_id: solicitud.id },
+      });
+
+      if (
+        solicitudActual.adjunto_archivo_origen_id &&
+        solicitudActual.adjunto_archivo_origen_id !==
+          data.adjunto_archivo_origen_id
+      ) {
+        await tx.adjuntos.delete({
+          where: {
+            id: solicitudActual.adjunto_archivo_origen_id,
+          },
+        });
+      }
 
       return {
         solicitud,
