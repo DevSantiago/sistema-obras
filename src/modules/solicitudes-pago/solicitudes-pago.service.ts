@@ -27,6 +27,7 @@ import {
   aprobarSolicitudesNivel2Repository,
   SolicitudesPagoCambioConcurrenteError,
   RegistroPagosError,
+  registrarOperacionEfectivoRepository,
   registrarTransferenciasRepository,
 } from "./solicitudes-pago.repository";
 import type {
@@ -57,6 +58,8 @@ import type {
   AprobarSolicitudesNivel2Data,
   RegistrarTransferenciaLoteInput,
   RegistrarTransferenciasData,
+  RegistrarOperacionEfectivoInput,
+  RegistrarOperacionEfectivoData,
 } from "./solicitudes-pago.types";
 
 const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
@@ -69,6 +72,29 @@ const MODALIDADES_NOMINA_VALIDAS: ModalidadNomina[] = [
   "INDIVIDUAL",
   "AGRUPADA_EXCEL",
 ];
+
+function obtenerMetadatosAdjunto(archivo: ArchivoGuardado) {
+  return {
+    nombre_archivo: archivo.nombre_archivo,
+    ruta_archivo: archivo.ruta_archivo,
+    nombre_bucket: archivo.nombre_bucket,
+    tipo_mime: archivo.tipo_mime,
+    tamano_archivo: archivo.tamano_archivo,
+  };
+}
+
+function obtenerFechaActualBogota(fecha: Date): string {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(fecha);
+  const obtenerParte = (tipo: Intl.DateTimeFormatPartTypes) =>
+    partes.find((parte) => parte.type === tipo)?.value ?? "";
+
+  return `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
+}
 
 const TIPOS_SOLICITUD_VALIDOS: TipoSolicitudPago[] = [
   "PAGO_PROVEEDOR",
@@ -1107,6 +1133,7 @@ export async function registrarTransferenciasService(
   }
 
   const fechaActual = new Date();
+  const fechaActualBogota = obtenerFechaActualBogota(fechaActual);
 
   for (const pago of pagos) {
     if (
@@ -1138,7 +1165,8 @@ export async function registrarTransferenciasService(
 
     if (
       Number.isNaN(fechaPago.getTime()) ||
-      fechaPago.getTime() > fechaActual.getTime()
+      fechaPago.toISOString().slice(0, 10) !== pago.fecha_pago ||
+      pago.fecha_pago > fechaActualBogota
     ) {
       return {
         status: 400,
@@ -1205,7 +1233,7 @@ export async function registrarTransferenciasService(
         fecha_pago: new Date(`${pago.fecha_pago}T12:00:00.000Z`),
         numero_comprobante: pago.numero_comprobante.trim(),
         observacion: pago.observacion?.trim() || null,
-        soporte: archivosGuardados[indice],
+        soporte: obtenerMetadatosAdjunto(archivosGuardados[indice]),
       })),
       usuarioId: usuarioAutenticado.id,
       fechaRegistro: fechaActual,
@@ -1222,6 +1250,186 @@ export async function registrarTransferenciasService(
         data: {
           solicitudes: resultado.solicitudes.map(convertirSolicitudPago),
           resumen_proyectos: resultado.resumen_proyectos,
+        },
+      },
+    };
+  } catch (error) {
+    await Promise.allSettled(
+      archivosGuardados.map((archivo) =>
+        storageService.eliminarArchivo(archivo.ruta_archivo),
+      ),
+    );
+
+    if (error instanceof RegistroPagosError) {
+      return {
+        status: 409,
+        body: {
+          ok: false,
+          message: error.message,
+        },
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function registrarOperacionEfectivoService(
+  usuarioAutenticado: UsuarioSesion,
+  operacion: RegistrarOperacionEfectivoInput,
+): Promise<ServiceResponse<RegistrarOperacionEfectivoData>> {
+  const puedeRegistrar =
+    usuarioAutenticado.roles.includes("ADMINISTRADOR") ||
+    (usuarioAutenticado.roles.includes("PAGOS") &&
+      usuarioAutenticado.permisos.includes("MARCAR_COMO_PAGADO"));
+
+  if (!puedeRegistrar) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para registrar pagos.",
+      },
+    };
+  }
+
+  if (operacion.detalles.length === 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Debe seleccionar al menos una solicitud.",
+      },
+    };
+  }
+
+  const ids = operacion.detalles.map((detalle) =>
+    detalle.solicitud_id.trim(),
+  );
+
+  if (ids.some((id) => !id) || new Set(ids).size !== ids.length) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Cada solicitud debe ser válida y no puede repetirse en el retiro.",
+      },
+    };
+  }
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(operacion.fecha_retiro) ||
+    !Number.isFinite(operacion.valor_retirado) ||
+    operacion.valor_retirado <= 0
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "La fecha y un valor retirado mayor que cero son obligatorios.",
+      },
+    };
+  }
+
+  const fechaActual = new Date();
+  const fechaActualBogota = obtenerFechaActualBogota(fechaActual);
+  const fechaRetiro = new Date(
+    `${operacion.fecha_retiro}T12:00:00.000Z`,
+  );
+
+  if (
+    Number.isNaN(fechaRetiro.getTime()) ||
+    fechaRetiro.toISOString().slice(0, 10) !==
+      operacion.fecha_retiro ||
+    operacion.fecha_retiro > fechaActualBogota
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "La fecha del retiro debe ser válida y no puede estar en el futuro.",
+      },
+    };
+  }
+
+  const archivos = [
+    operacion.soporte_retiro,
+    ...operacion.detalles.map((detalle) => detalle.soporte),
+  ];
+  const tiposSoportePermitidos = [
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+  ];
+
+  if (
+    archivos.some(
+      (archivo) =>
+        archivo.size <= 0 ||
+        archivo.size > 10 * 1024 * 1024 ||
+        (archivo.type &&
+          !tiposSoportePermitidos.includes(archivo.type)),
+    )
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "Cada soporte debe ser PDF, PNG, JPG o JPEG, tener contenido y pesar máximo 10 MB.",
+      },
+    };
+  }
+
+  const archivosGuardados: ArchivoGuardado[] = [];
+
+  try {
+    for (const archivo of archivos) {
+      archivosGuardados.push(
+        await storageService.guardarArchivo({
+          contenido: Buffer.from(await archivo.arrayBuffer()),
+          nombre_original: archivo.name,
+          tipo_mime: archivo.type || null,
+          carpeta: "solicitudes-pago/operaciones-efectivo",
+        }),
+      );
+    }
+
+    const resultado = await registrarOperacionEfectivoRepository({
+      operacion: {
+        fecha_retiro: fechaRetiro,
+        valor_retirado: operacion.valor_retirado,
+        observacion: operacion.observacion?.trim() || null,
+        reintegrar_sobrante: operacion.reintegrar_sobrante,
+        soporte_retiro: obtenerMetadatosAdjunto(archivosGuardados[0]),
+        detalles: operacion.detalles.map((detalle, indice) => ({
+          solicitud_id: detalle.solicitud_id.trim(),
+          numero_comprobante:
+            detalle.numero_comprobante?.trim() || null,
+          observacion: detalle.observacion?.trim() || null,
+          soporte: obtenerMetadatosAdjunto(
+            archivosGuardados[indice + 1],
+          ),
+        })),
+      },
+      usuarioId: usuarioAutenticado.id,
+      fechaRegistro: fechaActual,
+    });
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message:
+          operacion.detalles.length === 1
+            ? "Retiro y pago registrados correctamente."
+            : `Retiro y ${operacion.detalles.length} pagos registrados correctamente.`,
+        data: {
+          operacion: resultado.operacion,
+          solicitudes: resultado.solicitudes.map(convertirSolicitudPago),
         },
       },
     };

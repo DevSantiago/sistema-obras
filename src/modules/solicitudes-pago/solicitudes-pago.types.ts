@@ -464,6 +464,60 @@ export type RegistrarTransferenciasData = {
   resumen_proyectos: ResumenProyectoPago[];
 };
 
+export type RegistrarDetalleOperacionEfectivoInput = {
+  solicitud_id: string;
+  numero_comprobante?: string | null;
+  observacion?: string | null;
+  soporte: File;
+};
+
+export type RegistrarOperacionEfectivoInput = {
+  fecha_retiro: string;
+  valor_retirado: number;
+  observacion?: string | null;
+  reintegrar_sobrante: boolean;
+  soporte_retiro: File;
+  detalles: RegistrarDetalleOperacionEfectivoInput[];
+};
+
+export type ArchivoOperacionEfectivoRepository = {
+  nombre_archivo: string;
+  ruta_archivo: string;
+  nombre_bucket: string;
+  tipo_mime: string | null;
+  tamano_archivo: bigint;
+};
+
+export type RegistrarOperacionEfectivoRepositoryInput = {
+  fecha_retiro: Date;
+  valor_retirado: number;
+  observacion: string | null;
+  reintegrar_sobrante: boolean;
+  soporte_retiro: ArchivoOperacionEfectivoRepository;
+  detalles: Array<{
+    solicitud_id: string;
+    numero_comprobante: string | null;
+    observacion: string | null;
+    soporte: ArchivoOperacionEfectivoRepository;
+  }>;
+};
+
+export type RegistrarOperacionEfectivoData = {
+  operacion: {
+    id: string;
+    proyecto_base_id: string;
+    proyecto_nombre: string;
+    valor_requerido: number;
+    valor_retirado: number;
+    valor_pagado: number;
+    valor_sobrante: number;
+    sobrante_reintegrado: boolean;
+    saldo_anterior: number;
+    saldo_nuevo: number;
+  };
+  solicitudes: SolicitudPagoListado[];
+};
+
 export type UsuarioSesionSolicitudesPago = {
   id: string;
   nombre: string;

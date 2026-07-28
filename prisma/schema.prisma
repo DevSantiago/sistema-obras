@@ -37,12 +37,13 @@ model usuarios {
 
   beneficiarios_asociados beneficiarios_pago[] @relation("BeneficiarioUsuarioAsociado")
 
-  solicitudes_creadas     solicitudes_pago[]  @relation("SolicitudesCreadasPor")
-  solicitudes_aprobadas1  solicitudes_pago[]  @relation("SolicitudesAprobadas1Por")
-  solicitudes_aprobadas2  solicitudes_pago[]  @relation("SolicitudesAprobadas2Por")
-  solicitudes_pagadas     solicitudes_pago[]  @relation("SolicitudesPagadasPor")
-  pagos_registrados       pagos[]             @relation("PagosRegistradosPor")
-  movimientos_registrados movimientos_fondo[] @relation("MovimientosRegistradosPor")
+  solicitudes_creadas              solicitudes_pago[]     @relation("SolicitudesCreadasPor")
+  solicitudes_aprobadas1           solicitudes_pago[]     @relation("SolicitudesAprobadas1Por")
+  solicitudes_aprobadas2           solicitudes_pago[]     @relation("SolicitudesAprobadas2Por")
+  solicitudes_pagadas              solicitudes_pago[]     @relation("SolicitudesPagadasPor")
+  pagos_registrados                pagos[]                @relation("PagosRegistradosPor")
+  movimientos_registrados          movimientos_fondo[]    @relation("MovimientosRegistradosPor")
+  operaciones_efectivo_registradas operaciones_efectivo[] @relation("OperacionesEfectivoRegistradasPor")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
@@ -128,8 +129,9 @@ model proyectos_base {
   accesos                 accesos_usuario_proyecto[]
   secuencias_documentales secuencias_documentales[]
 
-  solicitudes_pago solicitudes_pago[]
-  movimientos      movimientos_fondo[]
+  solicitudes_pago     solicitudes_pago[]
+  movimientos          movimientos_fondo[]
+  operaciones_efectivo operaciones_efectivo[]
 
   @@index([nombre])
   @@index([estado_proyecto])
@@ -187,8 +189,9 @@ model fondos {
   proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
   creador       usuarios?      @relation("FondosCreadoPor", fields: [creado_por], references: [id])
 
-  solicitudes_pago  solicitudes_pago[]
-  movimientosFondos movimientos_fondo[]
+  solicitudes_pago    solicitudes_pago[]
+  movimientosFondos   movimientos_fondo[]
+  operacionesEfectivo operaciones_efectivo[]
 
   @@index([activo])
 }
@@ -351,11 +354,12 @@ model solicitudes_pago {
   aprobador2 usuarios? @relation("SolicitudesAprobadas2Por", fields: [aprobado_2_por], references: [id])
   pagador    usuarios? @relation("SolicitudesPagadasPor", fields: [pagado_por], references: [id])
 
-  adjuntos          adjuntos[]                  @relation("AdjuntosSolicitudPago")
-  archivo_origen    adjuntos?                   @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
-  detalles_nomina   detalles_nomina_solicitud[]
-  pagos             pagos?
-  movimientosFondos movimientos_fondo[]
+  adjuntos                 adjuntos[]                   @relation("AdjuntosSolicitudPago")
+  archivo_origen           adjuntos?                    @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
+  detalles_nomina          detalles_nomina_solicitud[]
+  pagos                    pagos?
+  movimientosFondos        movimientos_fondo[]
+  detalleOperacionEfectivo detalles_operacion_efectivo?
 
   @@index([numero_solicitud])
   @@index([proyecto_base_id])
@@ -393,10 +397,12 @@ model adjuntos {
   texto_ocr         String?
   json_ocr          Json?
 
-  solicitud_pago             solicitudes_pago?  @relation("AdjuntosSolicitudPago", fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
-  solicitudes_archivo_origen solicitudes_pago[] @relation("SolicitudPagoArchivoOrigen")
-  usuario_subio              usuarios?          @relation("AdjuntosSubidosPor", fields: [subido_por], references: [id])
+  solicitud_pago             solicitudes_pago?             @relation("AdjuntosSolicitudPago", fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  solicitudes_archivo_origen solicitudes_pago[]            @relation("SolicitudPagoArchivoOrigen")
+  usuario_subio              usuarios?                     @relation("AdjuntosSubidosPor", fields: [subido_por], references: [id])
   soporte_pago               pagos?
+  soportes_retiro            operaciones_efectivo[]        @relation("SoporteRetiroOperacion")
+  soportes_detalle_efectivo  detalles_operacion_efectivo[] @relation("SoporteDetalleOperacion")
 
   @@index([solicitud_pago_id])
   @@index([subido_por])
@@ -427,34 +433,84 @@ model pagos {
   @@index([registrado_por])
 }
 
-model movimientos_fondo {
-  id                 String   @id @default(uuid())
-  fondo_id           String
-  proyecto_base_id   String
-  centro_costo_id    String?
-  solicitud_pago_id  String?
-  pago_id            String?  @unique
-  tipo_movimiento    String
-  direccion          String
-  valor              Decimal  @db.Decimal(14, 2)
-  saldo_anterior     Decimal  @db.Decimal(14, 2)
-  saldo_nuevo        Decimal  @db.Decimal(14, 2)
-  referencia_sistema String?  @db.VarChar(150)
-  descripcion        String?
-  registrado_por     String?
-  registrado_en      DateTime @default(now())
+model operaciones_efectivo {
+  id                   String   @id @default(uuid())
+  proyecto_base_id     String
+  fondo_id             String
+  adjunto_retiro_id    String   @unique
+  fecha_retiro         DateTime
+  valor_requerido      Decimal  @db.Decimal(14, 2)
+  valor_retirado       Decimal  @db.Decimal(14, 2)
+  valor_pagado         Decimal  @db.Decimal(14, 2)
+  valor_sobrante       Decimal  @db.Decimal(14, 2)
+  sobrante_reintegrado Boolean  @default(false)
+  observacion          String?
+  registrado_por       String
+  registrado_en        DateTime @default(now())
 
-  fondo          fondos            @relation(fields: [fondo_id], references: [id])
-  proyecto_base  proyectos_base    @relation(fields: [proyecto_base_id], references: [id])
-  centro_costo   centros_costo?    @relation(fields: [centro_costo_id], references: [id])
-  solicitud_pago solicitudes_pago? @relation(fields: [solicitud_pago_id], references: [id])
-  pago           pagos?            @relation(fields: [pago_id], references: [id])
-  registrador    usuarios?         @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
+  proyecto_base  proyectos_base                @relation(fields: [proyecto_base_id], references: [id])
+  fondo          fondos                        @relation(fields: [fondo_id], references: [id])
+  soporte_retiro adjuntos                      @relation("SoporteRetiroOperacion", fields: [adjunto_retiro_id], references: [id])
+  registrador    usuarios                      @relation("OperacionesEfectivoRegistradasPor", fields: [registrado_por], references: [id])
+  detalles       detalles_operacion_efectivo[]
+  movimientos    movimientos_fondo[]
+
+  @@index([proyecto_base_id])
+  @@index([fondo_id])
+  @@index([fecha_retiro])
+  @@index([registrado_por])
+}
+
+model detalles_operacion_efectivo {
+  id                    String   @id @default(uuid())
+  operacion_efectivo_id String
+  solicitud_pago_id     String   @unique
+  adjunto_soporte_id    String   @unique
+  medio_pago            String
+  valor_pagado          Decimal  @db.Decimal(14, 2)
+  numero_comprobante    String?  @db.VarChar(150)
+  observacion           String?
+  creado_en             DateTime @default(now())
+
+  operacion_efectivo operaciones_efectivo @relation(fields: [operacion_efectivo_id], references: [id])
+  solicitud_pago     solicitudes_pago     @relation(fields: [solicitud_pago_id], references: [id])
+  soporte            adjuntos             @relation("SoporteDetalleOperacion", fields: [adjunto_soporte_id], references: [id])
+
+  @@index([operacion_efectivo_id])
+  @@index([medio_pago])
+}
+
+model movimientos_fondo {
+  id                    String   @id @default(uuid())
+  fondo_id              String
+  proyecto_base_id      String
+  centro_costo_id       String?
+  solicitud_pago_id     String?
+  pago_id               String?  @unique
+  operacion_efectivo_id String?
+  tipo_movimiento       String
+  direccion             String
+  valor                 Decimal  @db.Decimal(14, 2)
+  saldo_anterior        Decimal  @db.Decimal(14, 2)
+  saldo_nuevo           Decimal  @db.Decimal(14, 2)
+  referencia_sistema    String?  @db.VarChar(150)
+  descripcion           String?
+  registrado_por        String?
+  registrado_en         DateTime @default(now())
+
+  fondo              fondos                @relation(fields: [fondo_id], references: [id])
+  proyecto_base      proyectos_base        @relation(fields: [proyecto_base_id], references: [id])
+  centro_costo       centros_costo?        @relation(fields: [centro_costo_id], references: [id])
+  solicitud_pago     solicitudes_pago?     @relation(fields: [solicitud_pago_id], references: [id])
+  pago               pagos?                @relation(fields: [pago_id], references: [id])
+  operacion_efectivo operaciones_efectivo? @relation(fields: [operacion_efectivo_id], references: [id])
+  registrador        usuarios?             @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
 
   @@index([fondo_id])
   @@index([proyecto_base_id])
   @@index([centro_costo_id])
   @@index([solicitud_pago_id])
+  @@index([operacion_efectivo_id])
   @@index([tipo_movimiento])
   @@index([direccion])
   @@index([registrado_en])

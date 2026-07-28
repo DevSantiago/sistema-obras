@@ -2,7 +2,7 @@ import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
 import { storageService } from "@/modules/storage/storage.service";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   actualizarSolicitudPagoRepository,
   aprobarSolicitudesNivel1Repository,
@@ -14,6 +14,7 @@ import {
   obtenerSolicitudesPagoPorIdsRepository,
   enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
+  registrarOperacionEfectivoRepository,
   registrarTransferenciasRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerBeneficiarioActivoRepository,
@@ -35,6 +36,7 @@ import {
   enviarSolicitudPagoService,
   listarBandejaPagosService,
   listarSolicitudesPagoService,
+  registrarOperacionEfectivoService,
   registrarTransferenciasService,
   registrarAdjuntosSolicitudPagoService,
 } from "../solicitudes-pago.service";
@@ -66,6 +68,7 @@ vi.mock("../solicitudes-pago.repository", () => ({
   actualizarSolicitudPagoRepository: vi.fn(),
   enviarSolicitudPagoRepository: vi.fn(),
   listarSolicitudesPagoRepository: vi.fn(),
+  registrarOperacionEfectivoRepository: vi.fn(),
   registrarTransferenciasRepository: vi.fn(),
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
   obtenerBeneficiarioActivoRepository: vi.fn(),
@@ -843,6 +846,10 @@ describe("solicitudes-pago.service - registrarTransferenciasService", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("debe exigir al menos una transferencia", async () => {
     const resultado = await registrarTransferenciasService(
       usuarioPagos,
@@ -863,6 +870,8 @@ describe("solicitudes-pago.service - registrarTransferenciasService", () => {
   });
 
   it("debe guardar cada soporte y registrar el lote", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-28T02:00:00.000Z"));
     vi.mocked(storageService.guardarArchivo).mockResolvedValue({
       nombre_archivo: "soporte.pdf",
       ruta_archivo: "soportes/soporte.pdf",
@@ -908,6 +917,103 @@ describe("solicitudes-pago.service - registrarTransferenciasService", () => {
             numero_comprobante: "TRX-001",
           }),
         ],
+      }),
+    );
+  });
+});
+
+describe("solicitudes-pago.service - registrarOperacionEfectivoService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const crearOperacion = () => ({
+    fecha_retiro: "2026-07-27",
+    valor_retirado: 80000,
+    observacion: "Retiro de caja",
+    reintegrar_sobrante: true,
+    soporte_retiro: new File(["retiro"], "retiro.pdf", {
+      type: "application/pdf",
+    }),
+    detalles: [
+      {
+        solicitud_id: "solicitud-1",
+        numero_comprobante: "CON-001",
+        observacion: "Consignación",
+        soporte: new File(["pago"], "pago.pdf", {
+          type: "application/pdf",
+        }),
+      },
+    ],
+  });
+
+  it("debe rechazar usuarios ajenos al módulo de pagos", async () => {
+    const resultado = await registrarOperacionEfectivoService(
+      usuarioSolicitante,
+      crearOperacion(),
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(registrarOperacionEfectivoRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe guardar el soporte general y cada soporte de pago", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-28T02:00:00.000Z"));
+    vi.mocked(storageService.guardarArchivo).mockResolvedValue({
+      nombre_archivo: "soporte.pdf",
+      ruta_archivo: "operaciones/soporte.pdf",
+      ruta_absoluta: "/storage/operaciones/soporte.pdf",
+      nombre_bucket: "LOCAL",
+      tipo_mime: "application/pdf",
+      tamano_archivo: BigInt(10),
+    });
+    vi.mocked(registrarOperacionEfectivoRepository).mockResolvedValue({
+      operacion: {
+        id: "operacion-1",
+        proyecto_base_id: "proyecto-1",
+        proyecto_nombre: "HUMAPO",
+        valor_requerido: 76000,
+        valor_retirado: 80000,
+        valor_pagado: 76000,
+        valor_sobrante: 4000,
+        sobrante_reintegrado: true,
+        saldo_anterior: 100000,
+        saldo_nuevo: 24000,
+      },
+      solicitudes: [solicitudProveedorBorrador],
+    } as never);
+
+    const resultado = await registrarOperacionEfectivoService(
+      usuarioPagos,
+      crearOperacion(),
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(storageService.guardarArchivo).toHaveBeenCalledTimes(2);
+    expect(registrarOperacionEfectivoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuarioId: "pagos-1",
+        operacion: expect.objectContaining({
+          valor_retirado: 80000,
+          reintegrar_sobrante: true,
+          detalles: [
+            expect.objectContaining({
+              solicitud_id: "solicitud-1",
+              numero_comprobante: "CON-001",
+              soporte: expect.not.objectContaining({
+                ruta_absoluta: expect.anything(),
+              }),
+            }),
+          ],
+          soporte_retiro: expect.not.objectContaining({
+            ruta_absoluta: expect.anything(),
+          }),
+        }),
       }),
     );
   });

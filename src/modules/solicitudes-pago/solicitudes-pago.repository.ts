@@ -5,6 +5,7 @@ import type {
   ActualizarSolicitudPagoRepositoryInput,
   BuscarDuplicadoNominaIndividualInput,
   CrearSolicitudPagoRepositoryInput,
+  RegistrarOperacionEfectivoRepositoryInput,
   RegistrarTransferenciaRepositoryInput,
   SolicitudPagoListFilters,
   VisibilidadSolicitudesPago,
@@ -861,6 +862,265 @@ export async function registrarTransferenciasRepository(input: {
       return {
         solicitudes: actualizadas,
         resumen_proyectos: Array.from(resumenPorProyecto.values()),
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
+}
+
+export async function registrarOperacionEfectivoRepository(input: {
+  operacion: RegistrarOperacionEfectivoRepositoryInput;
+  usuarioId: string;
+  fechaRegistro: Date;
+}) {
+  return prisma.$transaction(
+    async (tx) => {
+      const ids = input.operacion.detalles.map(
+        (detalle) => detalle.solicitud_id,
+      );
+      const solicitudes = await tx.solicitudes_pago.findMany({
+        where: { id: { in: ids } },
+        include: solicitudPagoInclude,
+      });
+
+      if (solicitudes.length !== ids.length) {
+        throw new RegistroPagosError(
+          "Una o más solicitudes seleccionadas no existen.",
+        );
+      }
+
+      const porId = new Map(
+        solicitudes.map((solicitud) => [solicitud.id, solicitud]),
+      );
+      const detallesOrdenados = [...input.operacion.detalles].sort((a, b) =>
+        a.solicitud_id.localeCompare(b.solicitud_id),
+      );
+      const primeraSolicitud = porId.get(detallesOrdenados[0].solicitud_id)!;
+      let valorRequerido = 0;
+
+      for (const detalle of detallesOrdenados) {
+        const solicitud = porId.get(detalle.solicitud_id)!;
+        const numero = solicitud.numero_solicitud ?? solicitud.id;
+
+        if (solicitud.estado_actual !== "PROGRAMADA_PAGO") {
+          throw new RegistroPagosError(
+            `La solicitud ${numero} ya no está programada para pago.`,
+          );
+        }
+
+        if (
+          solicitud.medio_pago !== "CONSIGNACION" &&
+          solicitud.medio_pago !== "EFECTIVO"
+        ) {
+          throw new RegistroPagosError(
+            `La solicitud ${numero} no se paga mediante retiro de efectivo.`,
+          );
+        }
+
+        if (
+          solicitud.proyecto_base_id !==
+            primeraSolicitud.proyecto_base_id ||
+          solicitud.fondo_id !== primeraSolicitud.fondo_id
+        ) {
+          throw new RegistroPagosError(
+            "Todas las solicitudes del retiro deben pertenecer al mismo proyecto y fondo.",
+          );
+        }
+
+        if (
+          solicitud.medio_pago === "CONSIGNACION" &&
+          !detalle.numero_comprobante
+        ) {
+          throw new RegistroPagosError(
+            `La consignación de la solicitud ${numero} requiere referencia.`,
+          );
+        }
+
+        valorRequerido += solicitud.valor_neto.toNumber();
+      }
+
+      if (input.operacion.valor_retirado < valorRequerido) {
+        throw new RegistroPagosError(
+          "El valor retirado no alcanza para cubrir las solicitudes seleccionadas.",
+        );
+      }
+
+      const fondoActualizado = await tx.fondos.updateMany({
+        where: {
+          id: primeraSolicitud.fondo_id,
+          proyecto_base_id: primeraSolicitud.proyecto_base_id,
+          activo: true,
+          saldo_actual: { gte: input.operacion.valor_retirado },
+        },
+        data: {
+          saldo_actual: {
+            decrement: input.operacion.valor_retirado,
+          },
+        },
+      });
+
+      if (fondoActualizado.count !== 1) {
+        throw new RegistroPagosError(
+          `El proyecto ${primeraSolicitud.proyecto_base.nombre} no tiene saldo suficiente para registrar el retiro.`,
+        );
+      }
+
+      const fondoDespuesRetiro = await tx.fondos.findUniqueOrThrow({
+        where: { id: primeraSolicitud.fondo_id },
+        select: { saldo_actual: true },
+      });
+      const saldoDespuesRetiro =
+        fondoDespuesRetiro.saldo_actual.toNumber();
+      const saldoAnterior =
+        saldoDespuesRetiro + input.operacion.valor_retirado;
+      const valorSobrante =
+        input.operacion.valor_retirado - valorRequerido;
+
+      const soporteRetiro = await tx.adjuntos.create({
+        data: {
+          ...input.operacion.soporte_retiro,
+          subido_por: input.usuarioId,
+          estado_ocr: "NO_PROCESADO",
+        },
+      });
+      const operacion = await tx.operaciones_efectivo.create({
+        data: {
+          proyecto_base_id: primeraSolicitud.proyecto_base_id,
+          fondo_id: primeraSolicitud.fondo_id,
+          adjunto_retiro_id: soporteRetiro.id,
+          fecha_retiro: input.operacion.fecha_retiro,
+          valor_requerido: valorRequerido,
+          valor_retirado: input.operacion.valor_retirado,
+          valor_pagado: valorRequerido,
+          valor_sobrante: valorSobrante,
+          sobrante_reintegrado:
+            input.operacion.reintegrar_sobrante && valorSobrante > 0,
+          observacion: input.operacion.observacion,
+          registrado_por: input.usuarioId,
+          registrado_en: input.fechaRegistro,
+        },
+      });
+
+      await tx.movimientos_fondo.create({
+        data: {
+          fondo_id: primeraSolicitud.fondo_id,
+          proyecto_base_id: primeraSolicitud.proyecto_base_id,
+          operacion_efectivo_id: operacion.id,
+          tipo_movimiento: "EGRESO_RETIRO_EFECTIVO",
+          direccion: "EGRESO",
+          valor: input.operacion.valor_retirado,
+          saldo_anterior: saldoAnterior,
+          saldo_nuevo: saldoDespuesRetiro,
+          descripcion:
+            input.operacion.observacion ??
+            `Retiro para pagar ${detallesOrdenados.length} solicitud(es).`,
+          registrado_por: input.usuarioId,
+          registrado_en: input.fechaRegistro,
+        },
+      });
+
+      const actualizadas = [];
+
+      for (const detalle of detallesOrdenados) {
+        const solicitud = porId.get(detalle.solicitud_id)!;
+        const numero = solicitud.numero_solicitud ?? solicitud.id;
+        const valorPagado = solicitud.valor_neto.toNumber();
+        const cambioEstado = await tx.solicitudes_pago.updateMany({
+          where: {
+            id: solicitud.id,
+            estado_actual: "PROGRAMADA_PAGO",
+            medio_pago: { in: ["CONSIGNACION", "EFECTIVO"] },
+            detalleOperacionEfectivo: null,
+          },
+          data: {
+            estado_actual: "PAGADA",
+            valor_pagado: valorPagado,
+            valor_reservado: null,
+            pagado_por: input.usuarioId,
+            pagado_en: input.operacion.fecha_retiro,
+            actualizado_en: input.fechaRegistro,
+          },
+        });
+
+        if (cambioEstado.count !== 1) {
+          throw new RegistroPagosError(
+            `La solicitud ${numero} cambió durante el registro del pago.`,
+          );
+        }
+
+        const soporte = await tx.adjuntos.create({
+          data: {
+            solicitud_pago_id: solicitud.id,
+            ...detalle.soporte,
+            subido_por: input.usuarioId,
+            estado_ocr: "NO_PROCESADO",
+          },
+        });
+
+        await tx.detalles_operacion_efectivo.create({
+          data: {
+            operacion_efectivo_id: operacion.id,
+            solicitud_pago_id: solicitud.id,
+            adjunto_soporte_id: soporte.id,
+            medio_pago: solicitud.medio_pago!,
+            valor_pagado: valorPagado,
+            numero_comprobante: detalle.numero_comprobante,
+            observacion: detalle.observacion,
+          },
+        });
+
+        actualizadas.push(
+          await tx.solicitudes_pago.findUniqueOrThrow({
+            where: { id: solicitud.id },
+            include: solicitudPagoInclude,
+          }),
+        );
+      }
+
+      let saldoFinal = saldoDespuesRetiro;
+
+      if (input.operacion.reintegrar_sobrante && valorSobrante > 0) {
+        const fondoReintegrado = await tx.fondos.update({
+          where: { id: primeraSolicitud.fondo_id },
+          data: { saldo_actual: { increment: valorSobrante } },
+          select: { saldo_actual: true },
+        });
+        saldoFinal = fondoReintegrado.saldo_actual.toNumber();
+
+        await tx.movimientos_fondo.create({
+          data: {
+            fondo_id: primeraSolicitud.fondo_id,
+            proyecto_base_id: primeraSolicitud.proyecto_base_id,
+            operacion_efectivo_id: operacion.id,
+            tipo_movimiento: "INGRESO_REINTEGRO_EFECTIVO",
+            direccion: "INGRESO",
+            valor: valorSobrante,
+            saldo_anterior: saldoDespuesRetiro,
+            saldo_nuevo: saldoFinal,
+            descripcion: "Reintegro del sobrante del retiro.",
+            registrado_por: input.usuarioId,
+            registrado_en: input.fechaRegistro,
+          },
+        });
+      }
+
+      return {
+        operacion: {
+          id: operacion.id,
+          proyecto_base_id: primeraSolicitud.proyecto_base_id,
+          proyecto_nombre: primeraSolicitud.proyecto_base.nombre,
+          valor_requerido: valorRequerido,
+          valor_retirado: input.operacion.valor_retirado,
+          valor_pagado: valorRequerido,
+          valor_sobrante: valorSobrante,
+          sobrante_reintegrado:
+            input.operacion.reintegrar_sobrante && valorSobrante > 0,
+          saldo_anterior: saldoAnterior,
+          saldo_nuevo: saldoFinal,
+        },
+        solicitudes: actualizadas,
       };
     },
     {
