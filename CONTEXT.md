@@ -265,7 +265,7 @@ Nunca asumir comportamientos no documentados.
 
 Si una regla de negocio no está clara, detener el desarrollo y solicitar aclaración en lugar de inferir un comportamiento.
 
----
+---ler
 
 # Cómo tomar decisiones
 

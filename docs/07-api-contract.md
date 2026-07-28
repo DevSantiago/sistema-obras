@@ -1,6 +1,6 @@
 # 07. Contrato de API
 
-> **Última actualización:** 18 Julio de 2026
+> **Última actualización:** 28 Julio de 2026
 
 ---
 
@@ -108,7 +108,13 @@ Actualmente la API expone los siguientes recursos:
 /api/v1/beneficiarios
 /api/v1/proyectos-base
 /api/v1/solicitudes-pago
+/api/v1/fondos
 ```
+
+El registro financiero de HU-1002 es un servicio interno y no expone un
+endpoint independiente. Los endpoints que registran pagos y operaciones de
+efectivo lo invocan dentro de su propia transacción para actualizar el fondo y
+crear el movimiento de forma atómica.
 
 ---
 
@@ -133,6 +139,7 @@ Actualmente la API expone los siguientes recursos:
 | POST | `/api/v1/proyectos-base` |
 | GET | `/api/v1/proyectos-base/{id}` |
 | PATCH | `/api/v1/proyectos-base/{id}/centros-costo/{centroCostoId}/estado` |
+| GET | `/api/v1/fondos` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
