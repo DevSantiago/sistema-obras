@@ -75,9 +75,12 @@ const MENU_ITEMS: MenuItem[] = [
     visibleParaPermisos: ["CONSULTAR_FONDOS"],
   },
   {
-    label: "Anticipos",
-    href: "/anticipos",
-    visibleParaPermisos: ["REGISTRAR_ANTICIPOS"],
+    label: "Financiación",
+    href: "/financiacion",
+    visibleParaPermisos: [
+      "REGISTRAR_ANTICIPOS",
+      "REGISTRAR_PRESTAMOS",
+    ],
   },
 ];
 

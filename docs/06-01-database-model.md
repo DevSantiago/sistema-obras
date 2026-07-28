@@ -143,6 +143,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 | detalles_operacion_efectivo | ✅ |
 | movimientos_fondo | ✅ |
 | anticipos | ✅ |
+| prestamos_proyecto | ✅ |
 
 ---
 

@@ -45,6 +45,7 @@ model usuarios {
   movimientos_registrados          movimientos_fondo[]    @relation("MovimientosRegistradosPor")
   operaciones_efectivo_registradas operaciones_efectivo[] @relation("OperacionesEfectivoRegistradasPor")
   anticipos_registrados             anticipos[]            @relation("AnticiposRegistradosPor")
+  prestamos_registrados             prestamos_proyecto[]   @relation("PrestamosRegistradosPor")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
@@ -134,6 +135,8 @@ model proyectos_base {
   movimientos          movimientos_fondo[]
   operaciones_efectivo operaciones_efectivo[]
   anticipos            anticipos[]
+  prestamos_destino    prestamos_proyecto[] @relation("PrestamoProyectoDestino")
+  prestamos_origen     prestamos_proyecto[] @relation("PrestamoProyectoOrigen")
 
   @@index([nombre])
   @@index([estado_proyecto])
@@ -195,6 +198,8 @@ model fondos {
   movimientosFondos   movimientos_fondo[]
   operacionesEfectivo operaciones_efectivo[]
   anticipos           anticipos[]
+  prestamos_destino   prestamos_proyecto[] @relation("PrestamoFondoDestino")
+  prestamos_origen    prestamos_proyecto[] @relation("PrestamoFondoOrigen")
 
   @@index([activo])
 }
@@ -274,6 +279,8 @@ model beneficiarios_pago {
   solicitudes_pago solicitudes_pago[]
 
   detalles_nomina detalles_nomina_solicitud[]
+  anticipos       anticipos[]
+  prestamos       prestamos_proyecto[]
 
   @@unique([tipo_documento, numero_documento], map: "beneficiarios_pago_tipo_documento_numero_documento_key")
   @@index([tipo_beneficiario])
@@ -407,6 +414,7 @@ model adjuntos {
   soportes_retiro            operaciones_efectivo[]        @relation("SoporteRetiroOperacion")
   soportes_detalle_efectivo  detalles_operacion_efectivo[] @relation("SoporteDetalleOperacion")
   soportes_anticipo          anticipos[]                    @relation("SoporteAnticipo")
+  soportes_prestamo          prestamos_proyecto[]           @relation("SoportePrestamo")
 
   @@index([solicitud_pago_id])
   @@index([subido_por])
@@ -493,6 +501,7 @@ model movimientos_fondo {
   pago_id               String?  @unique
   operacion_efectivo_id String?
   anticipo_id           String?  @unique
+  prestamo_proyecto_id  String?
   tipo_movimiento       String
   direccion             String
   valor                 Decimal  @db.Decimal(14, 2)
@@ -510,6 +519,7 @@ model movimientos_fondo {
   pago               pagos?                @relation(fields: [pago_id], references: [id])
   operacion_efectivo operaciones_efectivo? @relation(fields: [operacion_efectivo_id], references: [id])
   anticipo           anticipos?            @relation(fields: [anticipo_id], references: [id])
+  prestamo_proyecto  prestamos_proyecto?   @relation(fields: [prestamo_proyecto_id], references: [id])
   registrador        usuarios?             @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
 
   @@index([fondo_id])
@@ -517,6 +527,7 @@ model movimientos_fondo {
   @@index([centro_costo_id])
   @@index([solicitud_pago_id])
   @@index([operacion_efectivo_id])
+  @@index([prestamo_proyecto_id])
   @@index([tipo_movimiento])
   @@index([direccion])
   @@index([registrado_en])
@@ -526,6 +537,7 @@ model anticipos {
   id                       String   @id @default(uuid())
   proyecto_base_id         String
   fondo_id                 String
+  entidad_id               String?
   adjunto_soporte_id       String   @unique
   referencia_sistema       String   @unique @db.VarChar(150)
   entidad_nombre           String   @db.VarChar(200)
@@ -539,14 +551,56 @@ model anticipos {
 
   proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
   fondo         fondos         @relation(fields: [fondo_id], references: [id])
+  entidad       beneficiarios_pago? @relation(fields: [entidad_id], references: [id])
   soporte       adjuntos       @relation("SoporteAnticipo", fields: [adjunto_soporte_id], references: [id])
   registrador   usuarios       @relation("AnticiposRegistradosPor", fields: [registrado_por], references: [id])
   movimiento    movimientos_fondo?
 
   @@index([proyecto_base_id])
   @@index([fondo_id])
+  @@index([entidad_id])
   @@index([fecha_anticipo])
   @@index([entidad_numero_documento])
+  @@index([registrado_por])
+}
+
+model prestamos_proyecto {
+  id                        String   @id @default(uuid())
+  tipo_prestamo             String
+  proyecto_destino_id       String
+  fondo_destino_id          String
+  proyecto_origen_id        String?
+  fondo_origen_id           String?
+  acreedor_id               String?
+  adjunto_soporte_id        String   @unique
+  referencia_sistema        String   @unique @db.VarChar(150)
+  acreedor_nombre           String?  @db.VarChar(200)
+  acreedor_tipo_documento   String?  @db.VarChar(30)
+  acreedor_numero_documento String?  @db.VarChar(50)
+  valor_original            Decimal  @db.Decimal(14, 2)
+  saldo_pendiente           Decimal  @db.Decimal(14, 2)
+  fecha_prestamo            DateTime
+  estado                    String   @default("ACTIVO") @db.VarChar(30)
+  observacion               String?
+  registrado_por            String
+  registrado_en             DateTime @default(now())
+
+  proyecto_destino proyectos_base       @relation("PrestamoProyectoDestino", fields: [proyecto_destino_id], references: [id])
+  fondo_destino    fondos               @relation("PrestamoFondoDestino", fields: [fondo_destino_id], references: [id])
+  proyecto_origen  proyectos_base?      @relation("PrestamoProyectoOrigen", fields: [proyecto_origen_id], references: [id])
+  fondo_origen     fondos?              @relation("PrestamoFondoOrigen", fields: [fondo_origen_id], references: [id])
+  acreedor         beneficiarios_pago? @relation(fields: [acreedor_id], references: [id])
+  soporte          adjuntos             @relation("SoportePrestamo", fields: [adjunto_soporte_id], references: [id])
+  registrador      usuarios             @relation("PrestamosRegistradosPor", fields: [registrado_por], references: [id])
+  movimientos      movimientos_fondo[]
+
+  @@index([proyecto_destino_id])
+  @@index([fondo_destino_id])
+  @@index([proyecto_origen_id])
+  @@index([fondo_origen_id])
+  @@index([acreedor_id])
+  @@index([fecha_prestamo])
+  @@index([estado])
   @@index([registrado_por])
 }
 

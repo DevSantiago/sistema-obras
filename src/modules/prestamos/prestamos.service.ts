@@ -1,79 +1,70 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { storageService } from "@/modules/storage/storage.service";
 import {
-  RegistrarAnticipoError,
-  registrarAnticipoRepository,
-} from "./anticipos.repository";
+  RegistrarPrestamoError,
+  registrarPrestamoPersonaRepository,
+} from "./prestamos.repository";
 import type {
-  AnticipoRegistrado,
-  RegistrarAnticipoInput,
-} from "./anticipos.types";
+  PrestamoPersonaRegistrado,
+  RegistrarPrestamoPersonaInput,
+} from "./prestamos.types";
 
-const TIPOS_SOPORTE_PERMITIDOS = [
+const TIPOS_SOPORTE = [
   "application/pdf",
   "image/png",
   "image/jpeg",
 ];
 
-function respuestaError(status: number, message: string) {
-  return {
-    status,
-    body: {
-      ok: false,
-      message,
-    },
-  };
+function error(status: number, message: string) {
+  return { status, body: { ok: false, message } };
 }
 
-export async function registrarAnticipoService(
+export async function registrarPrestamoPersonaService(
   usuario: UsuarioSesion,
-  input: RegistrarAnticipoInput,
+  input: RegistrarPrestamoPersonaInput,
 ): Promise<{
   status: number;
   body: {
     ok: boolean;
     message: string;
-    data?: AnticipoRegistrado;
+    data?: PrestamoPersonaRegistrado;
   };
 }> {
   if (
     !usuario.roles.some((rol) =>
       ["ADMINISTRADOR", "AUXILIAR_CONTABLE"].includes(rol),
     ) ||
-    !usuario.permisos.includes("REGISTRAR_ANTICIPOS")
+    !usuario.permisos.includes("REGISTRAR_PRESTAMOS")
   ) {
-    return respuestaError(
-      403,
-      "No tiene permisos para registrar anticipos.",
-    );
+    return error(403, "No tiene permisos para registrar préstamos.");
   }
 
-  const valor = Number(input.valor);
-  const fecha = new Date(`${input.fecha_anticipo}T12:00:00.000Z`);
-  const fechaActualBogota = new Intl.DateTimeFormat("en-CA", {
+  const fechaActual = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Bogota",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+  const valor = Number(input.valor);
+  const fecha = new Date(`${input.fecha_prestamo}T12:00:00.000Z`);
 
   if (
     !input.proyecto_base_id.trim() ||
-    !input.entidad_id.trim() ||
+    !input.acreedor_id.trim() ||
     !Number.isFinite(valor) ||
     valor <= 0 ||
     Number.isNaN(fecha.getTime())
   ) {
-    return respuestaError(
+    return error(
       400,
-      "Proyecto, entidad, fecha y valor son obligatorios.",
+      "Proyecto, acreedor, fecha y valor son obligatorios.",
     );
   }
 
-  if (input.fecha_anticipo > fechaActualBogota) {
-    return respuestaError(
+  if (input.fecha_prestamo > fechaActual) {
+    return error(
       400,
-      "La fecha del anticipo no puede ser posterior al día actual.",
+      "La fecha del préstamo no puede ser posterior al día actual.",
     );
   }
 
@@ -81,9 +72,9 @@ export async function registrarAnticipoService(
     input.soporte.size <= 0 ||
     input.soporte.size > 10 * 1024 * 1024 ||
     (input.soporte.type &&
-      !TIPOS_SOPORTE_PERMITIDOS.includes(input.soporte.type))
+      !TIPOS_SOPORTE.includes(input.soporte.type))
   ) {
-    return respuestaError(
+    return error(
       400,
       "El soporte debe ser PDF, PNG, JPG o JPEG y pesar máximo 10 MB.",
     );
@@ -93,15 +84,15 @@ export async function registrarAnticipoService(
     contenido: Buffer.from(await input.soporte.arrayBuffer()),
     nombre_original: input.soporte.name,
     tipo_mime: input.soporte.type || null,
-    carpeta: "anticipos/soportes",
+    carpeta: "prestamos/soportes",
   });
 
   try {
-    const anticipo = await registrarAnticipoRepository({
+    const prestamo = await registrarPrestamoPersonaRepository({
       proyecto_base_id: input.proyecto_base_id.trim(),
-      entidad_id: input.entidad_id.trim(),
+      acreedor_id: input.acreedor_id.trim(),
       valor,
-      fecha_anticipo: fecha,
+      fecha_prestamo: fecha,
       observacion: input.observacion?.trim() || null,
       soporte: archivo,
       usuario_id: usuario.id,
@@ -112,17 +103,17 @@ export async function registrarAnticipoService(
       status: 201,
       body: {
         ok: true,
-        message: "Anticipo registrado correctamente.",
-        data: anticipo,
+        message: "Préstamo registrado correctamente.",
+        data: prestamo,
       },
     };
-  } catch (error) {
+  } catch (causa) {
     await storageService.eliminarArchivo(archivo.ruta_archivo);
 
-    if (error instanceof RegistrarAnticipoError) {
-      return respuestaError(409, error.message);
+    if (causa instanceof RegistrarPrestamoError) {
+      return error(409, causa.message);
     }
 
-    throw error;
+    throw causa;
   }
 }

@@ -110,6 +110,7 @@ Actualmente la API expone los siguientes recursos:
 /api/v1/solicitudes-pago
 /api/v1/fondos
 /api/v1/anticipos
+/api/v1/prestamos
 ```
 
 El registro financiero de HU-1002 es un servicio interno y no expone un
@@ -143,6 +144,7 @@ crear el movimiento de forma atómica.
 | GET | `/api/v1/fondos` |
 | GET | `/api/v1/fondos/movimientos` |
 | POST | `/api/v1/anticipos` |
+| POST | `/api/v1/prestamos` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -154,6 +156,23 @@ crear el movimiento de forma atómica.
 ---
 
 # Fondos y movimientos financieros
+
+## Registrar préstamo de persona a proyecto
+
+```http
+POST /api/v1/prestamos
+Content-Type: multipart/form-data
+```
+
+Requiere `REGISTRAR_PRESTAMOS`. Campos obligatorios:
+`proyecto_base_id`, `acreedor_id`, `valor`, `fecha_prestamo` y `soporte`.
+`observacion` es opcional. El acreedor debe ser un beneficiario activo.
+
+La interfaz consolida anticipos y préstamos en `/financiacion`. Los campos de
+entidad aportante y persona acreedora permiten buscar beneficiarios por nombre
+o identificación.
+
+---
 
 ## Registrar anticipo
 

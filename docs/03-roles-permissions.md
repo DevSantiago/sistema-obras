@@ -211,6 +211,7 @@ Posee acceso completo a todos los módulos y funcionalidades del aplicativo, sin
 - Aprobar solicitudes en cualquier nivel.
 - Registrar pagos.
 - Registrar anticipos.
+- Registrar préstamos de persona a proyecto.
 - Consultar todos los módulos.
 - Administrar beneficiarios.
 - Consultar auditoría.
@@ -332,6 +333,7 @@ Su participación se concentra en los procesos contables y financieros definidos
 - Gestionar beneficiarios según los permisos asignados.
 - Registrar operaciones financieras autorizadas para su rol.
 - Registrar anticipos de entidades al fondo general de un proyecto.
+- Registrar préstamos de persona al fondo general de un proyecto.
 
 ### Restricciones
 
@@ -421,6 +423,7 @@ No puede:
 | Aprobar nivel 2 | ✓ | — | — | ✓ | — | — | — |
 | Registrar pagos | ✓ | — | — | — | — | ✓ | — |
 | Registrar anticipos | ✓ | — | — | — | ✓ | — | — |
+| Registrar préstamos | ✓ | — | — | — | ✓ | — | — |
 | Consultar auditoría | ✓ | Según permisos | Según permisos | Según permisos | Según permisos | Según permisos | — |
 | Administrar configuración del sistema | ✓ | — | — | — | — | — | — |
 

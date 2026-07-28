@@ -102,6 +102,12 @@ const permisosBase = [
     descripcion:
       "Permite registrar anticipos que ingresan al fondo general de un proyecto.",
   },
+  {
+    codigo: "REGISTRAR_PRESTAMOS",
+    nombre: "Registrar préstamos",
+    descripcion:
+      "Permite registrar préstamos que ingresan al fondo general de un proyecto.",
+  },
 ];
 
 const permisosPorRol: Record<string, string[]> = {
@@ -116,6 +122,7 @@ const permisosPorRol: Record<string, string[]> = {
     "CONSULTAR_TODO",
     "CONSULTAR_FONDOS",
     "REGISTRAR_ANTICIPOS",
+    "REGISTRAR_PRESTAMOS",
   ],
   DIRECTOR: [
     "CREAR_SOLICITUDES",
@@ -137,6 +144,7 @@ const permisosPorRol: Record<string, string[]> = {
     "CREAR_SOLICITUDES",
     "CONSULTAR_FONDOS",
     "REGISTRAR_ANTICIPOS",
+    "REGISTRAR_PRESTAMOS",
   ],
   PAGOS: ["MARCAR_COMO_PAGADO", "CONSULTAR_FONDOS"],
   SOLICITANTE: ["CREAR_SOLICITUDES"],

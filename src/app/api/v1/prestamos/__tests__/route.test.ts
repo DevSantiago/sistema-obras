@@ -1,0 +1,65 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { autenticacionMock, servicioMock } = vi.hoisted(() => ({
+  autenticacionMock: vi.fn(),
+  servicioMock: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue({ value: "token" }),
+  }),
+}));
+vi.mock("@/modules/auth/auth.service", () => ({
+  obtenerUsuarioAutenticado: autenticacionMock,
+}));
+vi.mock("@/modules/prestamos/prestamos.service", () => ({
+  registrarPrestamoPersonaService: servicioMock,
+}));
+
+import { POST } from "../route";
+
+describe("POST /api/v1/prestamos", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    autenticacionMock.mockResolvedValue({
+      status: 200,
+      body: { ok: true, data: { usuario: { id: "usuario-1" } } },
+    });
+    servicioMock.mockResolvedValue({
+      status: 201,
+      body: { ok: true, message: "Préstamo registrado." },
+    });
+  });
+
+  it("debe enviar préstamo y soporte al servicio", async () => {
+    const formData = new FormData();
+    formData.set("proyecto_base_id", "proyecto-1");
+    formData.set("acreedor_id", "acreedor-1");
+    formData.set("valor", "800000");
+    formData.set("fecha_prestamo", "2026-07-28");
+    formData.set(
+      "soporte",
+      new File(["x"], "prestamo.pdf", {
+        type: "application/pdf",
+      }),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/v1/prestamos", {
+        method: "POST",
+        body: formData,
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(servicioMock).toHaveBeenCalledWith(
+      { id: "usuario-1" },
+      expect.objectContaining({
+        proyecto_base_id: "proyecto-1",
+        acreedor_id: "acreedor-1",
+        valor: 800000,
+      }),
+    );
+  });
+});
