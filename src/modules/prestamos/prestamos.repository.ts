@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { registrarMovimientoFondoEnTransaccionRepository } from "@/modules/fondos/movimientos-fondo.repository";
 import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
 import type {
+  PrestamoEntreProyectosRegistrado,
   PrestamoPersonaRegistrado,
+  RegistrarPrestamoEntreProyectosRepositoryInput,
   RegistrarPrestamoPersonaRepositoryInput,
 } from "./prestamos.types";
 
@@ -132,6 +134,138 @@ export async function registrarPrestamoPersonaRepository(
         saldo_pendiente: input.valor,
         saldo_anterior_fondo: movimiento.saldo_anterior,
         saldo_nuevo_fondo: movimiento.saldo_nuevo,
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
+}
+
+export async function registrarPrestamoEntreProyectosRepository(
+  input: RegistrarPrestamoEntreProyectosRepositoryInput,
+): Promise<PrestamoEntreProyectosRegistrado> {
+  return prisma.$transaction(
+    async (tx) => {
+      const proyectos = await tx.proyectos_base.findMany({
+        where: {
+          id: {
+            in: [
+              input.proyecto_origen_id,
+              input.proyecto_destino_id,
+            ],
+          },
+          activo: true,
+          fondo: { is: { activo: true } },
+        },
+        select: {
+          id: true,
+          nombre: true,
+          fondo: { select: { id: true } },
+        },
+      });
+      const origen = proyectos.find(
+        (proyecto) => proyecto.id === input.proyecto_origen_id,
+      );
+      const destino = proyectos.find(
+        (proyecto) => proyecto.id === input.proyecto_destino_id,
+      );
+
+      if (!origen?.fondo || !destino?.fondo) {
+        throw new RegistrarPrestamoError(
+          "Los proyectos deben existir, estar activos y tener fondos activos.",
+        );
+      }
+
+      const secuencia = await generarSecuenciaDocumentalRepository(
+        {
+          tipo_secuencia: "PRESTAMO_PROYECTO",
+          proyecto_base_id: destino.id,
+          centro_costo_id: null,
+          proyecto_referencia: destino.nombre,
+          centro_costo_referencia: null,
+          clave_contexto: `PROYECTO:${destino.id}`,
+          prefijo: "PRE",
+          anio: input.fecha_operacion.getUTCFullYear(),
+        },
+        tx,
+      );
+      const soporte = await tx.adjuntos.create({
+        data: {
+          nombre_archivo: input.soporte.nombre_archivo,
+          nombre_bucket: input.soporte.nombre_bucket,
+          ruta_archivo: input.soporte.ruta_archivo,
+          tipo_mime: input.soporte.tipo_mime,
+          tamano_archivo: input.soporte.tamano_archivo,
+          subido_por: input.usuario_id,
+          estado_ocr: "NO_PROCESADO",
+        },
+        select: { id: true },
+      });
+      const prestamo = await tx.prestamos_proyecto.create({
+        data: {
+          tipo_prestamo: "PROYECTO_A_PROYECTO",
+          proyecto_origen_id: origen.id,
+          fondo_origen_id: origen.fondo.id,
+          proyecto_destino_id: destino.id,
+          fondo_destino_id: destino.fondo.id,
+          adjunto_soporte_id: soporte.id,
+          referencia_sistema: secuencia.referencia,
+          valor_original: input.valor,
+          saldo_pendiente: input.valor,
+          fecha_prestamo: input.fecha_operacion,
+          estado: "ACTIVO",
+          observacion: input.observacion,
+          registrado_por: input.usuario_id,
+          registrado_en: input.fecha_operacion,
+        },
+        select: { id: true },
+      });
+      const movimientoOrigen =
+        await registrarMovimientoFondoEnTransaccionRepository(tx, {
+          fondo_id: origen.fondo.id,
+          proyecto_base_id: origen.id,
+          prestamo_proyecto_id: prestamo.id,
+          tipo_movimiento: "EGRESO_PRESTAMO_PROYECTO",
+          direccion: "EGRESO",
+          valor: input.valor,
+          referencia_sistema: secuencia.referencia,
+          descripcion:
+            input.observacion ??
+            `Préstamo enviado al proyecto ${destino.nombre}.`,
+          registrado_por: input.usuario_id,
+          registrado_en: input.fecha_operacion,
+        });
+      const movimientoDestino =
+        await registrarMovimientoFondoEnTransaccionRepository(tx, {
+          fondo_id: destino.fondo.id,
+          proyecto_base_id: destino.id,
+          prestamo_proyecto_id: prestamo.id,
+          tipo_movimiento: "INGRESO_PRESTAMO_PROYECTO",
+          direccion: "INGRESO",
+          valor: input.valor,
+          referencia_sistema: secuencia.referencia,
+          descripcion:
+            input.observacion ??
+            `Préstamo recibido del proyecto ${origen.nombre}.`,
+          registrado_por: input.usuario_id,
+          registrado_en: input.fecha_operacion,
+        });
+
+      return {
+        id: prestamo.id,
+        referencia_sistema: secuencia.referencia,
+        proyecto_origen_id: origen.id,
+        proyecto_origen_nombre: origen.nombre,
+        proyecto_destino_id: destino.id,
+        proyecto_destino_nombre: destino.nombre,
+        valor_original: input.valor,
+        saldo_pendiente: input.valor,
+        saldo_origen_anterior: movimientoOrigen.saldo_anterior,
+        saldo_origen_nuevo: movimientoOrigen.saldo_nuevo,
+        saldo_destino_anterior: movimientoDestino.saldo_anterior,
+        saldo_destino_nuevo: movimientoDestino.saldo_nuevo,
+        fecha_operacion: input.fecha_operacion.toISOString(),
       };
     },
     {

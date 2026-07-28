@@ -34,7 +34,6 @@ function crearRequest(incluirSoporte = true) {
   formData.set("proyecto_base_id", "proyecto-1");
   formData.set("entidad_id", "entidad-1");
   formData.set("valor", "500000");
-  formData.set("fecha_anticipo", "2026-07-28");
 
   if (incluirSoporte) {
     formData.set(
@@ -83,6 +82,9 @@ describe("POST /api/v1/anticipos", () => {
         soporte: expect.any(File),
       }),
     );
+    expect(
+      registrarAnticipoServiceMock.mock.calls[0][1],
+    ).not.toHaveProperty("fecha_anticipo");
   });
 
   it("debe exigir el soporte", async () => {

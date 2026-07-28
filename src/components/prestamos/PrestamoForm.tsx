@@ -9,20 +9,12 @@ import styles from "./PrestamoForm.module.css";
 
 type Proyecto = ConsultarFondosData["proyectos"][number];
 
-const HOY = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/Bogota",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-}).format(new Date());
-
 export default function PrestamoForm() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [acreedores, setAcreedores] = useState<BeneficiarioListado[]>([]);
   const [proyectoId, setProyectoId] = useState("");
   const [acreedorId, setAcreedorId] = useState("");
   const [valor, setValor] = useState("");
-  const [fecha, setFecha] = useState(HOY);
   const [observacion, setObservacion] = useState("");
   const [soporte, setSoporte] = useState<File | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -69,7 +61,6 @@ export default function PrestamoForm() {
     formData.set("proyecto_base_id", proyectoId);
     formData.set("acreedor_id", acreedorId);
     formData.set("valor", valor.replace(/[^\d]/g, ""));
-    formData.set("fecha_prestamo", fecha);
     formData.set("observacion", observacion);
     formData.set("soporte", soporte);
     setGuardando(true);
@@ -99,7 +90,6 @@ export default function PrestamoForm() {
         setProyectoId("");
         setAcreedorId("");
         setValor("");
-        setFecha(HOY);
         setObservacion("");
         setSoporte(null);
       }
@@ -136,11 +126,10 @@ export default function PrestamoForm() {
           <input inputMode="numeric" placeholder="0" required type="text" value={valor}
             onChange={(e) => setValor(formatearValorEntrada(e.target.value))} />
         </label>
-        <label>
-          <span>Fecha del préstamo *</span>
-          <input max={HOY} required type="date" value={fecha}
-            onChange={(e) => setFecha(e.target.value)} />
-        </label>
+        <div className={styles.systemDate}>
+          <span>Fecha de la operación</span>
+          <p>El sistema la asignará al registrar el préstamo.</p>
+        </div>
         <label className={styles.fullWidth}>
           <span>Soporte *</span>
           <input accept=".pdf,.png,.jpg,.jpeg" required type="file"

@@ -48,6 +48,28 @@
   grid-column: 1 / -1;
 }
 
+.systemDate {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 7px;
+  background: #eff6ff;
+}
+
+.systemDate span {
+  color: #1e3a8a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.systemDate p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
