@@ -316,6 +316,21 @@
   resize: vertical;
 }
 
+.checkField {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.checkField input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
 .modalActions {
   display: flex;
   justify-content: flex-end;

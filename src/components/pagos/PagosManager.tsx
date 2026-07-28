@@ -22,7 +22,14 @@ type DatosTransferencia = {
   soporte: File | null;
 };
 
+type DatosPagoRetiro = {
+  numero_comprobante: string;
+  observacion: string;
+  soporte: File | null;
+};
+
 type VistaOperacion = "TODOS" | "TRANSFERENCIAS" | "RETIRO";
+type TipoSeleccion = "TRANSFERENCIAS" | "RETIRO" | null;
 
 const FILTROS_INICIALES: FiltrosPagos = {
   busqueda: "",
@@ -44,6 +51,16 @@ const FORMATEADOR_FECHA = new Intl.DateTimeFormat("es-CO", {
 
 function formatearFecha(valor: string | Date | null | undefined): string {
   return valor ? FORMATEADOR_FECHA.format(new Date(valor)) : "—";
+}
+
+function obtenerFechaLocalActual(): string {
+  const ahora = new Date();
+
+  return [
+    ahora.getFullYear(),
+    String(ahora.getMonth() + 1).padStart(2, "0"),
+    String(ahora.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 function obtenerBeneficiario(solicitud: SolicitudProgramadaPago): string {
@@ -87,6 +104,16 @@ export default function PagosManager() {
   >({});
   const [modalTransferenciasAbierto, setModalTransferenciasAbierto] =
     useState(false);
+  const [modalRetiroAbierto, setModalRetiroAbierto] = useState(false);
+  const [tipoSeleccion, setTipoSeleccion] = useState<TipoSeleccion>(null);
+  const [fechaRetiro, setFechaRetiro] = useState("");
+  const [valorRetirado, setValorRetirado] = useState("");
+  const [soporteRetiro, setSoporteRetiro] = useState<File | null>(null);
+  const [observacionRetiro, setObservacionRetiro] = useState("");
+  const [reintegrarSobrante, setReintegrarSobrante] = useState(false);
+  const [datosPagosRetiro, setDatosPagosRetiro] = useState<
+    Record<string, DatosPagoRetiro>
+  >({});
   const [registrando, setRegistrando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState("");
   const [vistaOperacion, setVistaOperacion] =
@@ -230,6 +257,17 @@ export default function PagosManager() {
     [idsSeleccionados, solicitudes],
   );
 
+  const solicitudesRetiroSeleccionadas = useMemo(
+    () =>
+      solicitudes.filter(
+        (solicitud) =>
+          idsSeleccionados.has(solicitud.id) &&
+          (solicitud.medio_pago === "CONSIGNACION" ||
+            solicitud.medio_pago === "EFECTIVO"),
+      ),
+    [idsSeleccionados, solicitudes],
+  );
+
   const resumenProyectos = useMemo(() => {
     const resumen = new Map<
       string,
@@ -274,8 +312,63 @@ export default function PagosManager() {
       );
     });
 
+  const valorRequeridoRetiro = solicitudesRetiroSeleccionadas.reduce(
+    (total, solicitud) => total + solicitud.valor_neto,
+    0,
+  );
+  const valorRetiradoNumero = Number(valorRetirado);
+  const sobranteRetiro = Number.isFinite(valorRetiradoNumero)
+    ? valorRetiradoNumero - valorRequeridoRetiro
+    : -valorRequeridoRetiro;
+  const solicitudBaseRetiro = solicitudesRetiroSeleccionadas[0];
+  const saldoProyectadoRetiro = solicitudBaseRetiro
+    ? solicitudBaseRetiro.saldo_fondo_actual -
+      valorRetiradoNumero +
+      (reintegrarSobrante && sobranteRetiro > 0 ? sobranteRetiro : 0)
+    : 0;
+  const retiroCompleto =
+    solicitudesRetiroSeleccionadas.length > 0 &&
+    fechaRetiro &&
+    soporteRetiro &&
+    valorRetiradoNumero >= valorRequeridoRetiro &&
+    valorRetiradoNumero <=
+      (solicitudBaseRetiro?.saldo_fondo_actual ?? 0) &&
+    solicitudesRetiroSeleccionadas.every((solicitud) => {
+      const datos = datosPagosRetiro[solicitud.id];
+
+      return Boolean(
+        datos?.soporte &&
+          (solicitud.medio_pago !== "CONSIGNACION" ||
+            datos.numero_comprobante.trim()),
+      );
+    });
+
+  function esSeleccionCompatible(solicitud: SolicitudProgramadaPago) {
+    const tipoSolicitud =
+      solicitud.medio_pago === "TRANSFERENCIA"
+        ? "TRANSFERENCIAS"
+        : "RETIRO";
+
+    if (!tipoSeleccion || tipoSeleccion !== tipoSolicitud) {
+      return !tipoSeleccion;
+    }
+
+    if (tipoSolicitud === "TRANSFERENCIAS") {
+      return true;
+    }
+
+    return solicitudesRetiroSeleccionadas.every(
+      (seleccionada) =>
+        seleccionada.proyecto_base_id === solicitud.proyecto_base_id &&
+        seleccionada.fondo_id === solicitud.fondo_id,
+    );
+  }
+
   function alternarSeleccion(solicitud: SolicitudProgramadaPago) {
-    if (solicitud.medio_pago !== "TRANSFERENCIA") {
+    if (
+      !idsSeleccionados.has(solicitud.id) &&
+      !esSeleccionCompatible(solicitud)
+    ) {
       return;
     }
 
@@ -286,19 +379,29 @@ export default function PagosManager() {
         nuevos.delete(solicitud.id);
       } else {
         nuevos.add(solicitud.id);
+        setTipoSeleccion(
+          solicitud.medio_pago === "TRANSFERENCIA"
+            ? "TRANSFERENCIAS"
+            : "RETIRO",
+        );
+      }
+
+      if (nuevos.size === 0) {
+        setTipoSeleccion(null);
       }
 
       return nuevos;
     });
   }
 
+  function cambiarVista(vista: VistaOperacion) {
+    setVistaOperacion(vista);
+    setIdsSeleccionados(new Set());
+    setTipoSeleccion(null);
+  }
+
   function abrirRegistroTransferencias() {
-    const ahora = new Date();
-    const fechaHoy = [
-      ahora.getFullYear(),
-      String(ahora.getMonth() + 1).padStart(2, "0"),
-      String(ahora.getDate()).padStart(2, "0"),
-    ].join("-");
+    const fechaHoy = obtenerFechaLocalActual();
 
     setDatosTransferencias((actuales) => {
       const nuevos = { ...actuales };
@@ -329,6 +432,129 @@ export default function PagosManager() {
         ...cambios,
       },
     }));
+  }
+
+  function abrirRegistro() {
+    if (tipoSeleccion === "TRANSFERENCIAS") {
+      abrirRegistroTransferencias();
+      return;
+    }
+
+    if (tipoSeleccion !== "RETIRO") {
+      return;
+    }
+
+    const fechaHoy = obtenerFechaLocalActual();
+
+    setFechaRetiro(fechaHoy);
+    setValorRetirado(String(valorRequeridoRetiro));
+    setDatosPagosRetiro((actuales) => {
+      const nuevos = { ...actuales };
+
+      for (const solicitud of solicitudesRetiroSeleccionadas) {
+        nuevos[solicitud.id] ??= {
+          numero_comprobante: "",
+          observacion: "",
+          soporte: null,
+        };
+      }
+
+      return nuevos;
+    });
+    setMensajeError("");
+    setModalRetiroAbierto(true);
+  }
+
+  function actualizarDatosPagoRetiro(
+    solicitudId: string,
+    cambios: Partial<DatosPagoRetiro>,
+  ) {
+    setDatosPagosRetiro((actuales) => ({
+      ...actuales,
+      [solicitudId]: {
+        ...actuales[solicitudId],
+        ...cambios,
+      },
+    }));
+  }
+
+  async function registrarRetiroYPagos() {
+    if (!retiroCompleto || registrando) {
+      return;
+    }
+
+    setRegistrando(true);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const formData = new FormData();
+      formData.append("soporte_retiro", soporteRetiro!);
+      const detalles = solicitudesRetiroSeleccionadas.map(
+        (solicitud, indice) => {
+          const datos = datosPagosRetiro[solicitud.id];
+          const campoArchivo = `soporte_pago_${indice}`;
+
+          formData.append(campoArchivo, datos.soporte!);
+
+          return {
+            solicitud_id: solicitud.id,
+            numero_comprobante: datos.numero_comprobante,
+            observacion: datos.observacion,
+            archivo_campo: campoArchivo,
+          };
+        },
+      );
+
+      formData.append(
+        "operacion",
+        JSON.stringify({
+          fecha_retiro: fechaRetiro,
+          valor_retirado: valorRetiradoNumero,
+          observacion: observacionRetiro,
+          reintegrar_sobrante: reintegrarSobrante,
+          archivo_retiro_campo: "soporte_retiro",
+          detalles,
+        }),
+      );
+
+      const response = await fetch(
+        "/api/v1/solicitudes-pago/registrar-operacion-efectivo",
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        },
+      );
+      const body =
+        (await response.json()) as SolicitudesPagoApiResponse<unknown>;
+
+      if (!response.ok || !body.ok) {
+        throw new Error(
+          body.message ?? "No fue posible registrar el retiro y los pagos.",
+        );
+      }
+
+      setModalRetiroAbierto(false);
+      setIdsSeleccionados(new Set());
+      setTipoSeleccion(null);
+      setDatosPagosRetiro({});
+      setSoporteRetiro(null);
+      setObservacionRetiro("");
+      setReintegrarSobrante(false);
+      setMensajeExito(
+        body.message ?? "Retiro y pagos registrados correctamente.",
+      );
+      await cargarSolicitudes();
+    } catch (error) {
+      setMensajeError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible registrar el retiro y los pagos.",
+      );
+    } finally {
+      setRegistrando(false);
+    }
   }
 
   async function registrarTransferencias() {
@@ -406,7 +632,7 @@ export default function PagosManager() {
         <button
           className={vistaOperacion === "TODOS" ? styles.activeTab : ""}
           type="button"
-          onClick={() => setVistaOperacion("TODOS")}
+          onClick={() => cambiarVista("TODOS")}
         >
           Todos
         </button>
@@ -415,17 +641,16 @@ export default function PagosManager() {
             vistaOperacion === "TRANSFERENCIAS" ? styles.activeTab : ""
           }
           type="button"
-          onClick={() => setVistaOperacion("TRANSFERENCIAS")}
+          onClick={() => cambiarVista("TRANSFERENCIAS")}
         >
           Transferencias directas
         </button>
         <button
-          className={styles.pendingTab}
+          className={vistaOperacion === "RETIRO" ? styles.activeTab : ""}
           type="button"
-          disabled
-          title="Disponible al implementar la HU-0903."
+          onClick={() => cambiarVista("RETIRO")}
         >
-          Retiro y pagos · HU-0903
+          Retiro y pagos
         </button>
       </div>
 
@@ -498,6 +723,7 @@ export default function PagosManager() {
           >
             <option value="">Todos</option>
             <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="CONSIGNACION">Consignación</option>
             <option value="EFECTIVO">Efectivo</option>
           </select>
         </label>
@@ -518,17 +744,17 @@ export default function PagosManager() {
         <button
           className={styles.primaryButton}
           type="button"
-          disabled={transferenciasSeleccionadas.length === 0}
-          onClick={abrirRegistroTransferencias}
+          disabled={idsSeleccionados.size === 0}
+          onClick={abrirRegistro}
         >
-          Procesar pagos seleccionados ({transferenciasSeleccionadas.length})
+          Procesar pagos seleccionados ({idsSeleccionados.size})
         </button>
       </div>
 
       <p className={styles.paymentHint}>
-        Las transferencias directas se registran en este flujo. Las
-        consignaciones y pagos en efectivo se gestionarán mediante una
-        operación agrupada de retiro.
+        La primera solicitud seleccionada define el flujo. Las
+        consignaciones y pagos en efectivo de un mismo proyecto se agrupan
+        en un solo retiro.
       </p>
 
       {cargando ? (
@@ -574,11 +800,17 @@ export default function PagosManager() {
                         type="checkbox"
                         aria-label={`Seleccionar ${solicitud.numero_solicitud}`}
                         checked={idsSeleccionados.has(solicitud.id)}
-                        disabled={solicitud.medio_pago !== "TRANSFERENCIA"}
+                        disabled={
+                          !idsSeleccionados.has(solicitud.id) &&
+                          !esSeleccionCompatible(solicitud)
+                        }
                         title={
-                          solicitud.medio_pago !== "TRANSFERENCIA"
-                            ? "Se gestiona mediante una operación agrupada de retiro."
-                            : "Seleccionar transferencia directa."
+                          esSeleccionCompatible(solicitud) ||
+                          idsSeleccionados.has(solicitud.id)
+                            ? "Seleccionar solicitud."
+                            : tipoSeleccion === "RETIRO"
+                              ? "El retiro solo puede agrupar solicitudes del mismo proyecto y fondo."
+                              : "Finalice o limpie la selección actual para cambiar de flujo."
                         }
                         onClick={(event) => event.stopPropagation()}
                         onChange={() => alternarSeleccion(solicitud)}
@@ -611,7 +843,10 @@ export default function PagosManager() {
                     <input
                       type="checkbox"
                       checked={idsSeleccionados.has(solicitud.id)}
-                      disabled={solicitud.medio_pago !== "TRANSFERENCIA"}
+                      disabled={
+                        !idsSeleccionados.has(solicitud.id) &&
+                        !esSeleccionCompatible(solicitud)
+                      }
                       onChange={() => alternarSeleccion(solicitud)}
                     />{" "}
                     <strong>{solicitud.numero_solicitud ?? "Sin número"}</strong>
@@ -708,6 +943,7 @@ export default function PagosManager() {
                         <input
                           type="date"
                           value={datos.fecha_pago}
+                          max={obtenerFechaLocalActual()}
                           onChange={(event) =>
                             actualizarDatosTransferencia(solicitud.id, {
                               fecha_pago: event.target.value,
@@ -780,6 +1016,210 @@ export default function PagosManager() {
                 {registrando
                   ? "Registrando transferencias..."
                   : `Confirmar ${transferenciasSeleccionadas.length} pago(s)`}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
+
+      {modalRetiroAbierto ? (
+        <div className={styles.modalBackdrop}>
+          <section
+            className={`${styles.modal} ${styles.batchModal}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="registro-retiro-title"
+          >
+            <header className={styles.modalHeader}>
+              <div>
+                <p className={styles.modalEyebrow}>Operación agrupada</p>
+                <h2 id="registro-retiro-title">
+                  Registrar retiro y pagos
+                </h2>
+              </div>
+              <button
+                className={styles.closeButton}
+                type="button"
+                aria-label="Cerrar registro del retiro"
+                disabled={registrando}
+                onClick={() => setModalRetiroAbierto(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className={styles.projectSummaries}>
+              <article
+                className={
+                  saldoProyectadoRetiro < 0 || sobranteRetiro < 0
+                    ? styles.insufficientSummary
+                    : styles.projectSummary
+                }
+              >
+                <strong>
+                  {solicitudBaseRetiro?.proyecto_base?.nombre ?? "Proyecto"}
+                </strong>
+                <dl>
+                  <div><dt>Saldo actual</dt><dd>{FORMATEADOR_MONEDA.format(solicitudBaseRetiro?.saldo_fondo_actual ?? 0)}</dd></div>
+                  <div><dt>Valor de los pagos</dt><dd>{FORMATEADOR_MONEDA.format(valorRequeridoRetiro)}</dd></div>
+                  <div><dt>Valor retirado</dt><dd>{FORMATEADOR_MONEDA.format(Number.isFinite(valorRetiradoNumero) ? valorRetiradoNumero : 0)}</dd></div>
+                  <div><dt>Sobrante</dt><dd>{FORMATEADOR_MONEDA.format(Math.max(0, sobranteRetiro))}</dd></div>
+                  <div><dt>Saldo proyectado</dt><dd>{FORMATEADOR_MONEDA.format(Number.isFinite(saldoProyectadoRetiro) ? saldoProyectadoRetiro : 0)}</dd></div>
+                </dl>
+                {sobranteRetiro < 0 ? (
+                  <p>El retiro no alcanza para cubrir todos los pagos.</p>
+                ) : saldoProyectadoRetiro < 0 ? (
+                  <p>El fondo no tiene saldo suficiente para este retiro.</p>
+                ) : null}
+              </article>
+            </div>
+
+            <div className={styles.paymentForms}>
+              <fieldset disabled={registrando}>
+                <legend>Datos generales del retiro</legend>
+                <div className={styles.paymentGrid}>
+                  <label className={styles.field}>
+                    <span>Fecha del retiro</span>
+                    <input
+                      type="date"
+                      value={fechaRetiro}
+                      max={obtenerFechaLocalActual()}
+                      onChange={(event) => setFechaRetiro(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>Valor retirado</span>
+                    <input
+                      type="number"
+                      min={valorRequeridoRetiro}
+                      step="0.01"
+                      value={valorRetirado}
+                      onChange={(event) => setValorRetirado(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>Soporte del retiro</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(event) =>
+                        setSoporteRetiro(event.target.files?.[0] ?? null)
+                      }
+                      required
+                    />
+                  </label>
+                  <label className={`${styles.field} ${styles.fullWidth}`}>
+                    <span>Observación del retiro</span>
+                    <textarea
+                      value={observacionRetiro}
+                      onChange={(event) =>
+                        setObservacionRetiro(event.target.value)
+                      }
+                      rows={2}
+                    />
+                  </label>
+                  {sobranteRetiro > 0 ? (
+                    <label className={`${styles.checkField} ${styles.fullWidth}`}>
+                      <input
+                        type="checkbox"
+                        checked={reintegrarSobrante}
+                        onChange={(event) =>
+                          setReintegrarSobrante(event.target.checked)
+                        }
+                      />
+                      Reintegrar ahora el sobrante de{" "}
+                      {FORMATEADOR_MONEDA.format(sobranteRetiro)} al fondo
+                    </label>
+                  ) : null}
+                </div>
+              </fieldset>
+
+              {solicitudesRetiroSeleccionadas.map((solicitud) => {
+                const datos = datosPagosRetiro[solicitud.id];
+
+                if (!datos) {
+                  return null;
+                }
+
+                return (
+                  <fieldset key={solicitud.id} disabled={registrando}>
+                    <legend>
+                      {solicitud.numero_solicitud} ·{" "}
+                      {FORMATEADOR_MONEDA.format(solicitud.valor_neto)}
+                    </legend>
+                    <p>
+                      {obtenerBeneficiario(solicitud)} ·{" "}
+                      {solicitud.medio_pago}
+                    </p>
+                    <div className={styles.paymentGrid}>
+                      {solicitud.medio_pago === "CONSIGNACION" ? (
+                        <label className={styles.field}>
+                          <span>Referencia de consignación</span>
+                          <input
+                            value={datos.numero_comprobante}
+                            onChange={(event) =>
+                              actualizarDatosPagoRetiro(solicitud.id, {
+                                numero_comprobante: event.target.value,
+                              })
+                            }
+                            maxLength={150}
+                            required
+                          />
+                        </label>
+                      ) : null}
+                      <label className={styles.field}>
+                        <span>Soporte del pago</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          onChange={(event) =>
+                            actualizarDatosPagoRetiro(solicitud.id, {
+                              soporte: event.target.files?.[0] ?? null,
+                            })
+                          }
+                          required
+                        />
+                      </label>
+                      <label className={`${styles.field} ${styles.fullWidth}`}>
+                        <span>Observación</span>
+                        <textarea
+                          value={datos.observacion}
+                          onChange={(event) =>
+                            actualizarDatosPagoRetiro(solicitud.id, {
+                              observacion: event.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+                );
+              })}
+            </div>
+
+            {mensajeError ? <p className={styles.error}>{mensajeError}</p> : null}
+
+            <footer className={styles.modalActions}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                disabled={registrando}
+                onClick={() => setModalRetiroAbierto(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="button"
+                disabled={!retiroCompleto || registrando}
+                onClick={() => void registrarRetiroYPagos()}
+              >
+                {registrando
+                  ? "Registrando retiro..."
+                  : `Confirmar retiro y ${solicitudesRetiroSeleccionadas.length} pago(s)`}
               </button>
             </footer>
           </section>
