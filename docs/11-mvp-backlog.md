@@ -1532,6 +1532,8 @@ Criterios:
 
 # Épica 14. Préstamos, anticipos y devoluciones
 
+**Prioridad actual: SIGUIENTE ÉPICA — se desarrolla antes de la Épica 11.**
+
 ## Objetivo
 
 Registrar entradas y salidas financieras asociadas a préstamos, anticipos y devoluciones.
@@ -1550,14 +1552,32 @@ Registrar entradas y salidas financieras asociadas a préstamos, anticipos y dev
 
 ### HU-1401. Registrar anticipo
 
+**Estado: COMPLETADA**
+
 Como usuario autorizado, quiero registrar un anticipo, para aumentar el saldo del fondo general del proyecto base.
 
 Criterios:
 
-- Crea registro en `anticipos_centro_costo`.
+- Crea registro en `anticipos`.
+- Se relaciona únicamente con el proyecto base y su fondo general.
+- Registra la entidad aportante, identificación, fecha, valor, soporte y
+  observación opcional.
+- No se imputa a un centro de costo; esa imputación ocurre cuando los recursos
+  se utilicen.
 - Crea movimiento `INGRESO_ANTICIPO`.
 - Actualiza saldo.
-- Registra auditoría.
+- Registra referencia, usuario y fecha para auditoría.
+
+Implementación:
+
+- Endpoint `POST /api/v1/anticipos`.
+- Vista responsive `/anticipos`.
+- Permiso `REGISTRAR_ANTICIPOS` para `ADMINISTRADOR` y
+  `AUXILIAR_CONTABLE`.
+- Consecutivo `ANT` por proyecto y año.
+- Soporte obligatorio PDF, PNG, JPG o JPEG, máximo 10 MB.
+- El anticipo, soporte, movimiento y actualización del fondo se registran en
+  una transacción serializable.
 
 ### HU-1402. Registrar préstamo general de persona a proyecto
 

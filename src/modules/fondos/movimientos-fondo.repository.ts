@@ -99,6 +99,23 @@ async function validarOrigenMovimiento(
       );
     }
   }
+
+  if (input.anticipo_id) {
+    const anticipoValido = await tx.anticipos.count({
+      where: {
+        id: input.anticipo_id,
+        proyecto_base_id: input.proyecto_base_id,
+        fondo_id: input.fondo_id,
+      },
+    });
+
+    if (anticipoValido !== 1) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "El anticipo no corresponde al proyecto o fondo del movimiento.",
+      );
+    }
+  }
 }
 
 async function validarMovimientoDuplicado(
@@ -132,6 +149,20 @@ async function validarMovimientoDuplicado(
       throw new MovimientoFondoError(
         "MOVIMIENTO_DUPLICADO",
         "La operación ya tiene este movimiento financiero registrado.",
+      );
+    }
+  }
+
+  if (input.anticipo_id) {
+    const movimientoAnticipo = await tx.movimientos_fondo.findUnique({
+      where: { anticipo_id: input.anticipo_id },
+      select: { id: true },
+    });
+
+    if (movimientoAnticipo) {
+      throw new MovimientoFondoError(
+        "MOVIMIENTO_DUPLICADO",
+        "El anticipo ya tiene un movimiento financiero registrado.",
       );
     }
   }
@@ -212,6 +243,7 @@ export async function registrarMovimientoFondoEnTransaccionRepository(
       solicitud_pago_id: input.solicitud_pago_id,
       pago_id: input.pago_id,
       operacion_efectivo_id: input.operacion_efectivo_id,
+      anticipo_id: input.anticipo_id,
       tipo_movimiento: input.tipo_movimiento.trim(),
       direccion: input.direccion,
       valor: input.valor,

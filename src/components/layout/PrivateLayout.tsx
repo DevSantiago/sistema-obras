@@ -74,6 +74,11 @@ const MENU_ITEMS: MenuItem[] = [
     href: "/fondos",
     visibleParaPermisos: ["CONSULTAR_FONDOS"],
   },
+  {
+    label: "Anticipos",
+    href: "/anticipos",
+    visibleParaPermisos: ["REGISTRAR_ANTICIPOS"],
+  },
 ];
 
 function usuarioTieneAlgunoDeLosRoles(

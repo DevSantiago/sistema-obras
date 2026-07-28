@@ -142,6 +142,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 | operaciones_efectivo | ✅ |
 | detalles_operacion_efectivo | ✅ |
 | movimientos_fondo | ✅ |
+| anticipos | ✅ |
 
 ---
 
@@ -154,7 +155,6 @@ Las siguientes capacidades forman parte de la evolución prevista del sistema y 
 - detalle de impuestos y retenciones;
 - programación de pagos;
 - préstamos;
-- anticipos;
 - ampliaciones del proceso OCR.
 
 ---
