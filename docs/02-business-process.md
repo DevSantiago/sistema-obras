@@ -1167,7 +1167,33 @@ el movimiento financiero correspondiente.
 
 ---
 
-## 11.3 Auditoría financiera
+## 11.3 Registro transaccional de movimientos
+
+Los procesos que afecten el saldo deben utilizar el servicio financiero común.
+Este servicio recibe el fondo, el proyecto, el tipo, la dirección, el valor y
+las relaciones de origen que correspondan.
+
+Antes de afectar el saldo, el sistema valida:
+
+- que el fondo esté activo y pertenezca al proyecto;
+- que el centro de costo pertenezca al proyecto, cuando aplique;
+- que la solicitud, el pago o la operación de efectivo correspondan al fondo y
+  al proyecto informados;
+- que el egreso no supere el saldo disponible;
+- que el origen no haya generado previamente el mismo movimiento.
+
+La actualización del fondo y la creación de `movimientos_fondo` se ejecutan en
+una única transacción serializable. El registro conserva el saldo anterior y
+el saldo nuevo. Si alguna validación o escritura falla, no se aplica ninguna
+parte de la operación.
+
+El servicio no constituye una operación manual ni expone un endpoint propio.
+Es invocado por el proceso funcional que origina el movimiento, como el
+registro de una transferencia directa, un retiro de efectivo o un reintegro.
+
+---
+
+## 11.4 Auditoría financiera
 
 Todo movimiento deberá registrar, como mínimo:
 

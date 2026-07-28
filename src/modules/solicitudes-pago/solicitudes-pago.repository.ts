@@ -1,5 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  MovimientoFondoError,
+  registrarMovimientoFondoEnTransaccionRepository,
+} from "@/modules/fondos/movimientos-fondo.repository";
+import type { RegistrarMovimientoFondoInput } from "@/modules/fondos/movimientos-fondo.types";
 import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
 import type {
   ActualizarSolicitudPagoRepositoryInput,
@@ -68,6 +73,29 @@ export class RegistroPagosError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "RegistroPagosError";
+  }
+}
+
+async function registrarMovimientoPago(
+  tx: Prisma.TransactionClient,
+  input: RegistrarMovimientoFondoInput,
+  mensajeSaldoInsuficiente: string,
+) {
+  try {
+    return await registrarMovimientoFondoEnTransaccionRepository(
+      tx,
+      input,
+    );
+  } catch (error) {
+    if (error instanceof MovimientoFondoError) {
+      throw new RegistroPagosError(
+        error.codigo === "SALDO_INSUFICIENTE"
+          ? mensajeSaldoInsuficiente
+          : error.message,
+      );
+    }
+
+    throw error;
   }
 }
 
@@ -745,29 +773,6 @@ export async function registrarTransferenciasRepository(input: {
           );
         }
 
-        const fondoActualizado = await tx.fondos.updateMany({
-          where: {
-            id: solicitud.fondo_id,
-            proyecto_base_id: solicitud.proyecto_base_id,
-            activo: true,
-            saldo_actual: { gte: valor },
-          },
-          data: { saldo_actual: { decrement: valor } },
-        });
-
-        if (fondoActualizado.count !== 1) {
-          throw new RegistroPagosError(
-            `El proyecto ${solicitud.proyecto_base.nombre} no tiene saldo suficiente para registrar el lote.`,
-          );
-        }
-
-        const fondo = await tx.fondos.findUniqueOrThrow({
-          where: { id: solicitud.fondo_id },
-          select: { saldo_actual: true },
-        });
-        const saldoNuevo = fondo.saldo_actual.toNumber();
-        const saldoAnterior = saldoNuevo + valor;
-
         const cambioEstado = await tx.solicitudes_pago.updateMany({
           where: {
             id: solicitud.id,
@@ -813,8 +818,9 @@ export async function registrarTransferenciasRepository(input: {
           },
         });
 
-        await tx.movimientos_fondo.create({
-          data: {
+        const movimiento = await registrarMovimientoPago(
+          tx,
+          {
             fondo_id: solicitud.fondo_id,
             proyecto_base_id: solicitud.proyecto_base_id,
             centro_costo_id: solicitud.centro_costo_id,
@@ -823,8 +829,6 @@ export async function registrarTransferenciasRepository(input: {
             tipo_movimiento: "EGRESO_SOLICITUD_PAGO",
             direccion: "EGRESO",
             valor,
-            saldo_anterior: saldoAnterior,
-            saldo_nuevo: saldoNuevo,
             referencia_sistema: pagoInput.numero_comprobante,
             descripcion:
               pagoInput.observacion ??
@@ -832,7 +836,8 @@ export async function registrarTransferenciasRepository(input: {
             registrado_por: input.usuarioId,
             registrado_en: input.fechaRegistro,
           },
-        });
+          `El proyecto ${solicitud.proyecto_base.nombre} no tiene saldo suficiente para registrar el lote.`,
+        );
 
         const resumen = resumenPorProyecto.get(
           solicitud.proyecto_base_id,
@@ -840,14 +845,14 @@ export async function registrarTransferenciasRepository(input: {
 
         if (resumen) {
           resumen.total_pagado += valor;
-          resumen.saldo_nuevo = saldoNuevo;
+          resumen.saldo_nuevo = movimiento.saldo_nuevo;
         } else {
           resumenPorProyecto.set(solicitud.proyecto_base_id, {
             proyecto_base_id: solicitud.proyecto_base_id,
             proyecto_nombre: solicitud.proyecto_base.nombre,
-            saldo_anterior: saldoAnterior,
+            saldo_anterior: movimiento.saldo_anterior,
             total_pagado: valor,
-            saldo_nuevo: saldoNuevo,
+            saldo_nuevo: movimiento.saldo_nuevo,
           });
         }
 
@@ -947,34 +952,6 @@ export async function registrarOperacionEfectivoRepository(input: {
         );
       }
 
-      const fondoActualizado = await tx.fondos.updateMany({
-        where: {
-          id: primeraSolicitud.fondo_id,
-          proyecto_base_id: primeraSolicitud.proyecto_base_id,
-          activo: true,
-          saldo_actual: { gte: input.operacion.valor_retirado },
-        },
-        data: {
-          saldo_actual: {
-            decrement: input.operacion.valor_retirado,
-          },
-        },
-      });
-
-      if (fondoActualizado.count !== 1) {
-        throw new RegistroPagosError(
-          `El proyecto ${primeraSolicitud.proyecto_base.nombre} no tiene saldo suficiente para registrar el retiro.`,
-        );
-      }
-
-      const fondoDespuesRetiro = await tx.fondos.findUniqueOrThrow({
-        where: { id: primeraSolicitud.fondo_id },
-        select: { saldo_actual: true },
-      });
-      const saldoDespuesRetiro =
-        fondoDespuesRetiro.saldo_actual.toNumber();
-      const saldoAnterior =
-        saldoDespuesRetiro + input.operacion.valor_retirado;
       const valorSobrante =
         input.operacion.valor_retirado - valorRequerido;
 
@@ -1003,23 +980,23 @@ export async function registrarOperacionEfectivoRepository(input: {
         },
       });
 
-      await tx.movimientos_fondo.create({
-        data: {
+      const movimientoRetiro = await registrarMovimientoPago(
+        tx,
+        {
           fondo_id: primeraSolicitud.fondo_id,
           proyecto_base_id: primeraSolicitud.proyecto_base_id,
           operacion_efectivo_id: operacion.id,
           tipo_movimiento: "EGRESO_RETIRO_EFECTIVO",
           direccion: "EGRESO",
           valor: input.operacion.valor_retirado,
-          saldo_anterior: saldoAnterior,
-          saldo_nuevo: saldoDespuesRetiro,
           descripcion:
             input.operacion.observacion ??
             `Retiro para pagar ${detallesOrdenados.length} solicitud(es).`,
           registrado_por: input.usuarioId,
           registrado_en: input.fechaRegistro,
         },
-      });
+        `El proyecto ${primeraSolicitud.proyecto_base.nombre} no tiene saldo suficiente para registrar el retiro.`,
+      );
 
       const actualizadas = [];
 
@@ -1079,31 +1056,25 @@ export async function registrarOperacionEfectivoRepository(input: {
         );
       }
 
-      let saldoFinal = saldoDespuesRetiro;
+      let saldoFinal = movimientoRetiro.saldo_nuevo;
 
       if (input.operacion.reintegrar_sobrante && valorSobrante > 0) {
-        const fondoReintegrado = await tx.fondos.update({
-          where: { id: primeraSolicitud.fondo_id },
-          data: { saldo_actual: { increment: valorSobrante } },
-          select: { saldo_actual: true },
-        });
-        saldoFinal = fondoReintegrado.saldo_actual.toNumber();
-
-        await tx.movimientos_fondo.create({
-          data: {
+        const movimientoReintegro = await registrarMovimientoPago(
+          tx,
+          {
             fondo_id: primeraSolicitud.fondo_id,
             proyecto_base_id: primeraSolicitud.proyecto_base_id,
             operacion_efectivo_id: operacion.id,
             tipo_movimiento: "INGRESO_REINTEGRO_EFECTIVO",
             direccion: "INGRESO",
             valor: valorSobrante,
-            saldo_anterior: saldoDespuesRetiro,
-            saldo_nuevo: saldoFinal,
             descripcion: "Reintegro del sobrante del retiro.",
             registrado_por: input.usuarioId,
             registrado_en: input.fechaRegistro,
           },
-        });
+          "",
+        );
+        saldoFinal = movimientoReintegro.saldo_nuevo;
       }
 
       return {
@@ -1117,7 +1088,7 @@ export async function registrarOperacionEfectivoRepository(input: {
           valor_sobrante: valorSobrante,
           sobrante_reintegrado:
             input.operacion.reintegrar_sobrante && valorSobrante > 0,
-          saldo_anterior: saldoAnterior,
+          saldo_anterior: movimientoRetiro.saldo_anterior,
           saldo_nuevo: saldoFinal,
         },
         solicitudes: actualizadas,

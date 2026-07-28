@@ -1246,6 +1246,8 @@ Implementación:
 
 ### HU-1002. Registrar movimiento financiero
 
+**Estado: COMPLETADA**
+
 Como sistema, quiero registrar movimientos financieros, para actualizar el fondo general y conservar trazabilidad de imputación.
 
 Criterios:
@@ -1260,6 +1262,21 @@ Criterios:
 - Relaciona centro de costo cuando aplique.
 - Actualiza saldo del fondo general.
 - Ejecuta actualización en transacción.
+
+Implementación:
+
+- Servicio financiero reutilizable en el módulo `fondos`.
+- Valida que el fondo esté activo y pertenezca al proyecto.
+- Valida la correspondencia del centro de costo y de las entidades origen.
+- Impide egresos superiores al saldo disponible mediante una actualización
+  atómica.
+- Impide duplicar movimientos por pago y por tipo de operación de efectivo.
+- Registra el saldo anterior, el saldo nuevo y la actualización del fondo en
+  la misma transacción serializable.
+- Integrado en transferencias directas, retiros de efectivo y reintegros
+  inmediatos.
+- No expone un endpoint independiente: el movimiento se origina desde la
+  operación funcional que afecta el saldo.
 
 ### HU-1003. Consultar movimientos por centro de costo, línea y fase
 

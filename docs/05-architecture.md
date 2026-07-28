@@ -1,6 +1,6 @@
 # 05. Arquitectura
 
-> Última actualización funcional: 18 de julio de 2026.
+> Última actualización funcional: 28 de julio de 2026.
 
 Este documento describe la arquitectura de software utilizada para el Sistema de Gestión de Solicitudes de Pago.
 
@@ -120,12 +120,15 @@ src/
 └── types/
 ```
 
-En el estado actual, el backend de bandeja y registro de pagos forma parte
-del módulo `solicitudes-pago`, manteniendo el patrón
-`route → service → repository`. La interfaz se encuentra en
-`src/components/pagos`. La Épica 10 podrá incorporar el módulo financiero
-cuando se implemente su consulta especializada, sin duplicar la lógica
-transaccional ya existente.
+El backend de bandeja y registro de pagos forma parte del módulo
+`solicitudes-pago`, manteniendo el patrón `route → service → repository`. La
+interfaz se encuentra en `src/components/pagos`.
+
+El módulo `fondos` concentra la consulta financiera y el registro común de
+movimientos. Los servicios de otros módulos reutilizan su operación de
+repositorio dentro de la transacción funcional en curso. De esta forma, la
+actualización de `fondos.saldo_actual` y la creación de
+`movimientos_fondo` son atómicas, sin abrir transacciones independientes.
 
 Cada módulo implementa, como mínimo:
 
