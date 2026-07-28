@@ -69,6 +69,11 @@ const MENU_ITEMS: MenuItem[] = [
     href: "/pagos",
     visibleParaRoles: ["ADMINISTRADOR", "TESORERIA", "PAGOS"],
   },
+  {
+    label: "Fondos",
+    href: "/fondos",
+    visibleParaPermisos: ["CONSULTAR_FONDOS"],
+  },
 ];
 
 function usuarioTieneAlgunoDeLosRoles(
