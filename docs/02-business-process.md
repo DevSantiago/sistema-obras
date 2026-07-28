@@ -1193,7 +1193,23 @@ registro de una transferencia directa, un retiro de efectivo o un reintegro.
 
 ---
 
-## 11.4 Auditoría financiera
+## 11.4 Consulta de movimientos
+
+Los usuarios autorizados pueden consultar el historial financiero aplicando
+filtros por proyecto base, centro de costo, línea de negocio, fase, dirección
+y tipo de movimiento.
+
+La consulta muestra el valor, el saldo anterior y el saldo nuevo de cada
+registro. Los movimientos sin centro de costo corresponden a afectaciones
+generales del fondo y solo son visibles para los roles con visibilidad
+financiera total.
+
+Los usuarios limitados por accesos de proyecto únicamente pueden consultar
+movimientos que estén imputados a centros de costo de sus líneas autorizadas.
+
+---
+
+## 11.5 Auditoría financiera
 
 Todo movimiento deberá registrar, como mínimo:
 
@@ -1321,7 +1337,29 @@ parte de la evolución prevista en la Épica 11.
 
 ---
 
-## 12.4 Estados del sobrante
+## 12.4 Alcance pendiente de operaciones de efectivo
+
+HU-0903 y la Épica 10 ya cubren el registro del retiro, los pagos asociados,
+los soportes iniciales, la afectación financiera, el reintegro inmediato y la
+consulta del movimiento general.
+
+La Épica 11 queda limitada a:
+
+- consulta del detalle operativo del retiro y sus solicitudes;
+- seguimiento del sobrante pendiente;
+- reingresos posteriores, parciales y con soporte;
+- estados propios de la operación;
+- consulta y exportación de pendientes;
+- ajustes o anulaciones mediante movimientos compensatorios.
+
+La consulta del movimiento financiero no sustituye el detalle operativo. Un
+movimiento `EGRESO_RETIRO_EFECTIVO` puede servir como acceso a la operación,
+pero los pagos individuales, los soportes y el saldo pendiente pertenecen al
+módulo de operaciones de efectivo.
+
+---
+
+## 12.5 Estados del sobrante
 
 ```text
 SIN_SOBRANTE

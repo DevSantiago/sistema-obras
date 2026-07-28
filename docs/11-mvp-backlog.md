@@ -1280,6 +1280,8 @@ Implementación:
 
 ### HU-1003. Consultar movimientos por centro de costo, línea y fase
 
+**Estado: COMPLETADA**
+
 Como usuario financiero, quiero ver movimientos por centro de costo, línea y fase, para analizar gasto en licitación, obra e interventoría.
 
 Criterios:
@@ -1292,38 +1294,63 @@ Criterios:
 - Filtra por tipo de movimiento.
 - Muestra saldo anterior y saldo nuevo.
 
+Implementación:
+
+- Endpoint `GET /api/v1/fondos/movimientos`.
+- Reutiliza el permiso `CONSULTAR_FONDOS`.
+- Filtros por proyecto, centro de costo, línea, fase, dirección y tipo.
+- Los roles financieros consultan todos los movimientos.
+- Los usuarios con acceso restringido consultan únicamente movimientos
+  imputados a sus proyectos y líneas autorizadas.
+- Vista integrada en `/fondos`, con tabla para escritorio y tarjetas para
+  dispositivos móviles.
+- Muestra fecha, origen, valor, saldo anterior y saldo nuevo.
+
 ---
 
 # Épica 11. Operaciones de efectivo
 
 ## Objetivo
 
-Extender el retiro agrupado implementado en HU-0903 con seguimiento,
-reingresos posteriores, estados y anulaciones.
+Completar el seguimiento operativo del retiro agrupado implementado en
+HU-0903, sin duplicar el registro de pagos ni la gestión financiera
+desarrollada en la Épica 10.
 
-## Base ya implementada en HU-0903
+## Base ya implementada
 
 - Agrupación de solicitudes en `EFECTIVO` o `CONSIGNACION`.
 - Restricción al mismo proyecto base y fondo.
 - Registro de `operaciones_efectivo` y
   `detalles_operacion_efectivo`.
 - Soporte general del retiro y soporte individual de cada pago.
-- Movimiento `EGRESO_RETIRO_EFECTIVO`.
-- Reintegro inmediato opcional mediante
-  `INGRESO_REINTEGRO_EFECTIVO`.
 - Cambio transaccional de solicitudes a `PAGADA`, sin duplicar el egreso.
+- Movimiento `EGRESO_RETIRO_EFECTIVO` y actualización del fondo mediante el
+  servicio financiero común de HU-1002.
+- Reintegro inmediato opcional mediante
+  `INGRESO_REINTEGRO_EFECTIVO`, también integrado con HU-1002.
+- Consulta del movimiento general del retiro, sus saldos anterior y nuevo y
+  sus filtros financieros mediante HU-1003.
+
+La consulta financiera de HU-1003 muestra la afectación general del fondo,
+pero no reemplaza el detalle operativo del retiro, sus solicitudes, soportes
+y sobrante pendiente.
 
 ## Criterios de aceptación de la épica
 
+- Permite consultar el detalle operativo desde el movimiento general del
+  retiro o desde el módulo de operaciones de efectivo.
 - Permite uno o varios reingresos asociados al retiro.
 - Controla el saldo pendiente de reintegro.
 - Incorpora estados y transiciones propios para el seguimiento de la operación.
 - Permite ajustes y anulaciones con trazabilidad.
-- Si un proyecto no tiene saldo suficiente, exige registrar previamente el préstamo correspondiente.
+- Si un proyecto no tiene saldo suficiente, exige registrar previamente el
+  préstamo correspondiente cuando la Épica 14 esté disponible.
 
 ## Historias
 
 ### HU-1101. Consultar y dar seguimiento a retiros
+
+**Estado: PENDIENTE**
 
 Como usuario de Pagos, quiero consultar las operaciones de efectivo
 registradas, para hacer seguimiento a sus pagos y sobrantes.
@@ -1335,25 +1362,35 @@ Criterios:
 - Muestra valores requerido, retirado, pagado, sobrante y reintegrado.
 - Permite filtrar por proyecto, fondo y fecha.
 - Identifica operaciones con sobrante pendiente.
+- Permite abrir el detalle desde un movimiento
+  `EGRESO_RETIRO_EFECTIVO`.
+- No vuelve a calcular ni registrar la afectación financiera realizada por
+  HU-1002.
 
-### HU-1102. Cargar soporte de operación de efectivo
+### HU-1102. Cargar soporte de reingreso posterior
 
-Como usuario de Pagos, quiero cargar soporte de retiro, pago y reingreso, para trazabilidad.
+**Estado: PENDIENTE**
+
+Como usuario de Pagos, quiero cargar el soporte de cada reingreso posterior,
+para completar la trazabilidad de la operación de efectivo.
 
 Criterios:
 
-- Permite soporte de retiro.
-- Permite soporte de pago.
+- Reutiliza los soportes de retiro y pago ya implementados en HU-0903.
 - Permite agregar soporte de reingreso posterior.
-- Relaciona con `operaciones_efectivo`.
-
+- Relaciona el soporte con el registro de reingreso y con
+  `operaciones_efectivo`.
+- No permite registrar un reingreso posterior sin soporte.
 
 ### HU-1103. Registrar reingreso de sobrante
+
+**Estado: PENDIENTE**
 
 Como usuario autorizado, quiero registrar un reingreso contra el retiro, para devolver el sobrante al fondo correspondiente.
 
 Criterios:
 
+- Extiende el reintegro inmediato ya disponible, sin duplicarlo.
 - Solo si existe sobrante pendiente.
 - Se asocia a `operacion_efectivo_id`, no a una solicitud individual.
 - Permite reingresos parciales.
@@ -1365,6 +1402,8 @@ Criterios:
 
 ### HU-1104. Consultar pendientes de reingreso
 
+**Estado: PENDIENTE**
+
 Como usuario financiero, quiero consultar retiros con sobrante pendiente, para hacer seguimiento.
 
 Criterios:
@@ -1374,6 +1413,22 @@ Criterios:
 - Muestra distribución por fondo, proyecto y centro.
 - Muestra valor requerido, retirado, reingresado y pendiente.
 - Permite exportar.
+
+### HU-1105. Ajustar o anular una operación de efectivo
+
+**Estado: PENDIENTE**
+
+Como usuario autorizado, quiero ajustar o anular una operación de efectivo,
+para corregir errores sin eliminar su trazabilidad.
+
+Criterios:
+
+- No elimina ni modifica movimientos financieros históricos.
+- Exige motivo y registra usuario, fecha y observación.
+- Genera movimientos compensatorios cuando exista afectación del saldo.
+- Actualiza el estado de la operación.
+- Impide duplicar una anulación.
+- Conserva las solicitudes, pagos y soportes relacionados para consulta.
 
 ---
 

@@ -140,6 +140,7 @@ crear el movimiento de forma atómica.
 | GET | `/api/v1/proyectos-base/{id}` |
 | PATCH | `/api/v1/proyectos-base/{id}/centros-costo/{centroCostoId}/estado` |
 | GET | `/api/v1/fondos` |
+| GET | `/api/v1/fondos/movimientos` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -147,6 +148,66 @@ crear el movimiento de forma atómica.
 | GET | `/api/v1/solicitudes-pago/{id}/archivo` |
 | POST | `/api/v1/solicitudes-pago/nomina-grupal` |
 | POST | `/api/v1/solicitudes-pago/reembolsos` |
+
+---
+
+# Fondos y movimientos financieros
+
+## Consultar movimientos
+
+```http
+GET /api/v1/fondos/movimientos
+```
+
+Requiere el permiso `CONSULTAR_FONDOS`.
+
+Parámetros de consulta opcionales:
+
+| Parámetro | Descripción |
+|-----------|-------------|
+| `proyecto_base_id` | Proyecto base relacionado. |
+| `centro_costo_id` | Centro de costo imputado. |
+| `linea_negocio` | Línea de negocio del centro de costo. |
+| `fase_centro_costo` | Fase del centro de costo. |
+| `direccion` | `INGRESO` o `EGRESO`. |
+| `tipo_movimiento` | Tipo funcional del movimiento. |
+
+Respuesta:
+
+```json
+{
+  "ok": true,
+  "message": "Movimientos financieros consultados correctamente.",
+  "data": {
+    "movimientos": [
+      {
+        "id": "uuid",
+        "proyecto_base_id": "uuid",
+        "proyecto_nombre": "Proyecto base",
+        "centro_costo_id": "uuid",
+        "centro_costo_codigo": "OBR-EJE",
+        "centro_costo_nombre": "Obra en ejecución",
+        "linea_negocio": "OBRA",
+        "fase_centro_costo": "EJECUCION",
+        "tipo_movimiento": "EGRESO_SOLICITUD_PAGO",
+        "direccion": "EGRESO",
+        "valor": 100000,
+        "saldo_anterior": 800000,
+        "saldo_nuevo": 700000,
+        "referencia_sistema": "TR-001",
+        "descripcion": "Transferencia",
+        "registrado_en": "2026-07-28T14:00:00.000Z"
+      }
+    ],
+    "tipos_movimiento": [
+      "EGRESO_SOLICITUD_PAGO"
+    ]
+  }
+}
+```
+
+Los usuarios con acceso restringido únicamente reciben movimientos imputados
+a centros de costo pertenecientes a sus proyectos y líneas autorizadas.
 
 ---
 

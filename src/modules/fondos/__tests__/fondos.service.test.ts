@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
-import { consultarFondosRepository } from "../fondos.repository";
-import { consultarFondosService } from "../fondos.service";
+import {
+  consultarFondosRepository,
+  consultarMovimientosFondoRepository,
+} from "../fondos.repository";
+import {
+  consultarFondosService,
+  consultarMovimientosFondoService,
+} from "../fondos.service";
 
 vi.mock("../fondos.repository", () => ({
   consultarFondosRepository: vi.fn(),
+  consultarMovimientosFondoRepository: vi.fn(),
 }));
 
 const usuarioAdministrador: UsuarioSesion = {
@@ -111,5 +118,102 @@ describe("fondos.service - consultarFondosService", () => {
         ],
       }),
     );
+  });
+});
+
+describe("fondos.service - consultarMovimientosFondoService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe rechazar usuarios sin permiso", async () => {
+    const resultado = await consultarMovimientosFondoService(
+      {
+        ...usuarioDirector,
+        permisos: [],
+      },
+      {},
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(
+      consultarMovimientosFondoRepository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar una dirección inválida", async () => {
+    const resultado = await consultarMovimientosFondoService(
+      usuarioAdministrador,
+      {
+        direccion: "SALIDA" as never,
+      },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(
+      consultarMovimientosFondoRepository,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("debe respetar accesos y mapear saldos del movimiento", async () => {
+    vi.mocked(
+      consultarMovimientosFondoRepository,
+    ).mockResolvedValue([
+      {
+        id: "movimiento-1",
+        tipo_movimiento: "EGRESO_SOLICITUD_PAGO",
+        direccion: "EGRESO",
+        valor: { toNumber: () => 100000 },
+        saldo_anterior: { toNumber: () => 800000 },
+        saldo_nuevo: { toNumber: () => 700000 },
+        referencia_sistema: "TR-001",
+        descripcion: "Transferencia",
+        registrado_en: new Date("2026-07-28T14:00:00.000Z"),
+        proyecto_base: {
+          id: "proyecto-1",
+          nombre: "Proyecto Uno",
+        },
+        centro_costo: {
+          id: "centro-1",
+          codigo: "OBRA-1",
+          nombre: "Obra",
+          linea_negocio: "OBRA",
+          fase_centro_costo: "EJECUCION",
+        },
+      },
+    ] as never);
+
+    const filtros = {
+      proyecto_base_id: "proyecto-1",
+      linea_negocio: "OBRA",
+      direccion: "EGRESO" as const,
+    };
+    const resultado = await consultarMovimientosFondoService(
+      usuarioDirector,
+      filtros,
+    );
+
+    expect(
+      consultarMovimientosFondoRepository,
+    ).toHaveBeenCalledWith(
+      {
+        tipo: "ACCESOS",
+        usuario_id: "director-1",
+      },
+      filtros,
+    );
+    expect(resultado.body.data).toEqual({
+      movimientos: [
+        expect.objectContaining({
+          id: "movimiento-1",
+          valor: 100000,
+          saldo_anterior: 800000,
+          saldo_nuevo: 700000,
+          linea_negocio: "OBRA",
+          registrado_en: "2026-07-28T14:00:00.000Z",
+        }),
+      ],
+      tipos_movimiento: ["EGRESO_SOLICITUD_PAGO"],
+    });
   });
 });
