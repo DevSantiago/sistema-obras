@@ -30,6 +30,7 @@ import {
   actualizarSolicitudPagoProveedorService,
   crearSolicitudReembolsoService,
   enviarSolicitudPagoService,
+  listarBandejaPagosService,
   listarSolicitudesPagoService,
   registrarAdjuntosSolicitudPagoService,
 } from "../solicitudes-pago.service";
@@ -772,6 +773,53 @@ describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
       "No tiene permisos para consultar solicitudes.",
     );
 
+    expect(listarSolicitudesPagoRepository).not.toHaveBeenCalled();
+  });
+});
+
+describe("solicitudes-pago.service - listarBandejaPagosService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(listarSolicitudesPagoRepository).mockResolvedValue([]);
+  });
+
+  it("debe consultar únicamente solicitudes programadas para pago", async () => {
+    const resultado = await listarBandejaPagosService(usuarioPagos, {
+      medio_pago: "TRANSFERENCIA",
+      proyecto_base_id: "proyecto-1",
+    });
+
+    expect(resultado.status).toBe(200);
+    expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
+      filters: expect.objectContaining({
+        estado_actual: "PROGRAMADA_PAGO",
+        medio_pago: "TRANSFERENCIA",
+        proyecto_base_id: "proyecto-1",
+      }),
+      visibilidad: {
+        consultar_todas: true,
+        usuario_id: "pagos-1",
+        incluir_propias: false,
+        estados_flujo: [],
+      },
+    });
+  });
+
+  it("debe permitir al administrador consultar la bandeja de pagos", async () => {
+    const resultado =
+      await listarBandejaPagosService(usuarioAdministrador);
+
+    expect(resultado.status).toBe(200);
+  });
+
+  it("debe rechazar usuarios ajenos al módulo de pagos", async () => {
+    const resultado =
+      await listarBandejaPagosService(usuarioSolicitante);
+
+    expect(resultado.status).toBe(403);
+    expect(resultado.body.message).toBe(
+      "No tiene permisos para consultar la bandeja de pagos.",
+    );
     expect(listarSolicitudesPagoRepository).not.toHaveBeenCalled();
   });
 });
