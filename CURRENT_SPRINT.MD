@@ -25,10 +25,10 @@ La Épica 14 se prioriza antes de la Épica 11 sin cambiar su numeración.
 
 Implementar completamente:
 
-- HU-1401
-- HU-1402
-- HU-1403
-- HU-1404
+- HU-1401 — completada
+- HU-1402 — completada
+- HU-1403 — completada
+- HU-1404 — pendiente
 
 Incluyendo:
 
@@ -42,12 +42,12 @@ Incluyendo:
 
 ## Orden obligatorio
 
-1. Implementar HU-1401.
-2. Ejecutar pruebas.
-3. Actualizar documentación.
-4. Ejecutar `npm run build`.
-5. Cerrar la rama y hacer merge a `dev`.
-6. Repetir el ciclo para HU-1402, HU-1403 y HU-1404.
+1. HU-1401, HU-1402 y HU-1403 completadas, probadas y fusionadas a `dev`.
+2. Implementar HU-1404.
+3. Ejecutar pruebas.
+4. Actualizar documentación.
+5. Ejecutar `npm run build`.
+6. Cerrar la rama y hacer merge a `dev`.
 7. Detener el desarrollo.
 
 ---

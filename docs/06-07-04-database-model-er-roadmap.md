@@ -112,10 +112,15 @@ nuevo. Permanecen proyectados los modelos especializados para ajustes,
 devoluciones y otros orígenes financieros de las épicas
 posteriores.
 
-`prestamos_proyecto` implementa el préstamo de persona a proyecto y queda
-preparado para préstamos entre proyectos. Conserva el valor original, el
-saldo pendiente, el soporte, el acreedor y los proyectos origen o destino
-según el tipo.
+`prestamos_proyecto` implementa los tipos `PERSONA_A_PROYECTO` y
+`PROYECTO_A_PROYECTO`. Conserva el valor original, el saldo pendiente, el
+soporte, el acreedor cuando aplica y los proyectos origen o destino según el
+tipo.
+
+El préstamo de persona crea `INGRESO_PRESTAMO_PERSONA`. El préstamo entre
+proyectos crea `EGRESO_PRESTAMO_PROYECTO` en el fondo origen e
+`INGRESO_PRESTAMO_PROYECTO` en el fondo destino, vinculados al mismo préstamo
+y referencia. La devolución y su modelo especializado permanecen pendientes.
 
 ---
 
@@ -136,6 +141,10 @@ Objetivos:
 
 El anticipo no se imputa directamente a un centro de costo. La imputación
 ocurre mediante las solicitudes y pagos posteriores.
+
+La fecha y hora de anticipos y préstamos son asignadas por el sistema al
+registrar la operación; no forman parte de los datos seleccionables por el
+usuario.
 
 ---
 

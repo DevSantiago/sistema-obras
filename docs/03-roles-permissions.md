@@ -211,7 +211,7 @@ Posee acceso completo a todos los módulos y funcionalidades del aplicativo, sin
 - Aprobar solicitudes en cualquier nivel.
 - Registrar pagos.
 - Registrar anticipos.
-- Registrar préstamos de persona a proyecto.
+- Registrar préstamos de persona a proyecto y entre proyectos.
 - Consultar todos los módulos.
 - Administrar beneficiarios.
 - Consultar auditoría.
@@ -334,6 +334,7 @@ Su participación se concentra en los procesos contables y financieros definidos
 - Registrar operaciones financieras autorizadas para su rol.
 - Registrar anticipos de entidades al fondo general de un proyecto.
 - Registrar préstamos de persona al fondo general de un proyecto.
+- Registrar préstamos entre proyectos base.
 
 ### Restricciones
 

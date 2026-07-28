@@ -28,11 +28,14 @@ Su responsabilidad consiste en controlar el flujo documental y financiero previo
 
 # Filosofía del sistema
 
-Toda operación financiera nace desde una solicitud.
+Las solicitudes son el eje central del ciclo de pagos.
 
-Las solicitudes son el eje central del sistema.
-
-Los módulos posteriores (pagos, movimientos, préstamos, efectivo, impuestos, cargos financieros, auditoría, etc.) existen únicamente para complementar el ciclo de vida de una solicitud o registrar impactos financieros derivados de ella.
+Los pagos, retiros y consignaciones nacen de solicitudes previamente
+aprobadas. Los anticipos y préstamos son operaciones financieras
+independientes que permiten financiar el fondo general de un proyecto base;
+no se asocian directamente a una solicitud ni a un centro de costo. La
+imputación por centro ocurre posteriormente, cuando esos recursos se utilizan
+en pagos.
 
 ---
 

@@ -1344,7 +1344,8 @@ y sobrante pendiente.
 - Incorpora estados y transiciones propios para el seguimiento de la operación.
 - Permite ajustes y anulaciones con trazabilidad.
 - Si un proyecto no tiene saldo suficiente, exige registrar previamente el
-  préstamo correspondiente cuando la Épica 14 esté disponible.
+  préstamo correspondiente mediante las operaciones implementadas en las
+  HU-1402 y HU-1403.
 
 ## Historias
 

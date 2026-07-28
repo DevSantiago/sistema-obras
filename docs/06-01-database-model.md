@@ -155,7 +155,7 @@ Las siguientes capacidades forman parte de la evolución prevista del sistema y 
 - comentarios;
 - detalle de impuestos y retenciones;
 - programación de pagos;
-- préstamos;
+- devoluciones de préstamos;
 - ampliaciones del proceso OCR.
 
 ---

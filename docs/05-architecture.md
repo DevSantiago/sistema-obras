@@ -135,6 +135,12 @@ independientes bajo `/api/v1/fondos`. La autorización y el alcance de
 visibilidad se resuelven en la capa de servicio, mientras que los filtros por
 proyecto, centro, línea, fase, dirección y tipo se aplican en el repositorio.
 
+Los módulos `anticipos` y `prestamos` mantienen el patrón
+`route → service → repository` y reutilizan el registrador transaccional del
+módulo `fondos`. Los préstamos entre proyectos generan el egreso del fondo
+origen y el ingreso del fondo destino dentro de una única transacción
+serializable.
+
 Cada módulo implementa, como mínimo:
 
 - rutas de la API;
@@ -162,6 +168,7 @@ Los principales componentes del MVP son:
 - Pagos.
 - Gestión financiera.
 - Operaciones de efectivo.
+- Anticipos.
 - Préstamos.
 - Auditoría.
 - Almacenamiento de archivos.
