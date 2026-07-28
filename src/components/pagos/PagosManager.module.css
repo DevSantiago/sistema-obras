@@ -3,6 +3,39 @@
   gap: 18px;
 }
 
+.operationTabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.operationTabs button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4b5563;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.operationTabs .activeTab {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.operationTabs .pendingTab {
+  border-style: dashed;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
 .filters {
   display: grid;
   grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(160px, 1fr)) auto;
@@ -46,11 +79,44 @@
   cursor: pointer;
 }
 
+.primaryButton {
+  min-height: 42px;
+  padding: 9px 14px;
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .summary {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   color: #374151;
+}
+
+.summary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.paymentHint {
+  margin: -6px 0 0;
+  padding: 12px 14px;
+  border-left: 4px solid #60a5fa;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .tableWrapper {
@@ -98,10 +164,16 @@
 }
 
 .empty,
-.error {
+.error,
+.success {
   margin: 0;
   padding: 18px;
   border-radius: 8px;
+}
+
+.success {
+  background: #f0fdf4;
+  color: #166534;
 }
 
 .empty {
@@ -116,6 +188,18 @@
 
 .cards {
   display: none;
+}
+
+.detailButton {
+  width: 100%;
+  margin-top: 14px;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .modalBackdrop {
@@ -135,6 +219,109 @@
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 24px 60px rgba(17, 24, 39, 0.3);
+}
+
+.batchModal {
+  width: min(960px, 100%);
+}
+
+.projectSummaries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  padding: 18px 22px;
+  background: #f9fafb;
+}
+
+.projectSummary,
+.insufficientSummary {
+  padding: 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.insufficientSummary {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.projectSummary dl,
+.insufficientSummary dl {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+}
+
+.projectSummary dl div,
+.insufficientSummary dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.projectSummary dt,
+.insufficientSummary dt {
+  color: #6b7280;
+}
+
+.projectSummary dd,
+.insufficientSummary dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.insufficientSummary p {
+  margin: 10px 0 0;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+.paymentForms {
+  display: grid;
+  gap: 14px;
+  padding: 20px 22px;
+}
+
+.paymentForms fieldset {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.paymentForms legend {
+  padding: 0 6px;
+  color: #111827;
+  font-weight: 800;
+}
+
+.paymentForms fieldset > p {
+  margin: 0 0 14px;
+  color: #6b7280;
+}
+
+.paymentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.paymentGrid textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font: inherit;
+  resize: vertical;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .modalHeader {
@@ -253,6 +440,11 @@
     width: 100%;
   }
 
+  .summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .tableWrapper {
     display: none;
   }
@@ -317,7 +509,8 @@
   }
 
   .modalGrid,
-  .values {
+  .values,
+  .paymentGrid {
     grid-template-columns: 1fr;
     padding: 18px;
   }
@@ -325,5 +518,14 @@
   .fullWidth,
   .netValue {
     grid-column: auto;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions .primaryButton,
+  .modalActions .secondaryButton {
+    width: 100%;
   }
 }

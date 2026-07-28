@@ -1,6 +1,7 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { generarNumeroSolicitudPagoService } from "@/modules/secuencias/secuencias.service";
 import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
+import { storageService } from "@/modules/storage/storage.service";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   actualizarSolicitudPagoRepository,
@@ -13,10 +14,12 @@ import {
   obtenerSolicitudesPagoPorIdsRepository,
   enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
+  registrarTransferenciasRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerBeneficiarioActivoRepository,
   obtenerCentroCostoActivoRepository,
   obtenerFondoActivoPorProyectoRepository,
+  obtenerFondosPorIdsRepository,
   obtenerProyectoBaseActivoRepository,
   obtenerSolicitudPagoPorIdRepository,
   SolicitudesPagoCambioConcurrenteError,
@@ -32,6 +35,7 @@ import {
   enviarSolicitudPagoService,
   listarBandejaPagosService,
   listarSolicitudesPagoService,
+  registrarTransferenciasService,
   registrarAdjuntosSolicitudPagoService,
 } from "../solicitudes-pago.service";
 
@@ -41,6 +45,13 @@ vi.mock("@/modules/secuencias/secuencias.service", () => ({
 
 vi.mock("@/modules/adjuntos/adjuntos.service", () => ({
   crearAdjuntosSolicitudPagoService: vi.fn(),
+}));
+
+vi.mock("@/modules/storage/storage.service", () => ({
+  storageService: {
+    guardarArchivo: vi.fn(),
+    eliminarArchivo: vi.fn(),
+  },
 }));
 
 vi.mock("../solicitudes-pago.repository", () => ({
@@ -55,10 +66,12 @@ vi.mock("../solicitudes-pago.repository", () => ({
   actualizarSolicitudPagoRepository: vi.fn(),
   enviarSolicitudPagoRepository: vi.fn(),
   listarSolicitudesPagoRepository: vi.fn(),
+  registrarTransferenciasRepository: vi.fn(),
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
   obtenerBeneficiarioActivoRepository: vi.fn(),
   obtenerCentroCostoActivoRepository: vi.fn(),
   obtenerFondoActivoPorProyectoRepository: vi.fn(),
+  obtenerFondosPorIdsRepository: vi.fn(),
   obtenerProyectoBaseActivoRepository: vi.fn(),
   obtenerSolicitudPagoPorIdRepository: vi.fn(),
   eliminarSolicitudPagoRepository: vi.fn(),
@@ -781,6 +794,7 @@ describe("solicitudes-pago.service - listarBandejaPagosService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(listarSolicitudesPagoRepository).mockResolvedValue([]);
+    vi.mocked(obtenerFondosPorIdsRepository).mockResolvedValue([]);
   });
 
   it("debe consultar únicamente solicitudes programadas para pago", async () => {
@@ -821,6 +835,81 @@ describe("solicitudes-pago.service - listarBandejaPagosService", () => {
       "No tiene permisos para consultar la bandeja de pagos.",
     );
     expect(listarSolicitudesPagoRepository).not.toHaveBeenCalled();
+  });
+});
+
+describe("solicitudes-pago.service - registrarTransferenciasService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe exigir al menos una transferencia", async () => {
+    const resultado = await registrarTransferenciasService(
+      usuarioPagos,
+      [],
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(registrarTransferenciasRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar usuarios ajenos al módulo de pagos", async () => {
+    const resultado = await registrarTransferenciasService(
+      usuarioSolicitante,
+      [],
+    );
+
+    expect(resultado.status).toBe(403);
+  });
+
+  it("debe guardar cada soporte y registrar el lote", async () => {
+    vi.mocked(storageService.guardarArchivo).mockResolvedValue({
+      nombre_archivo: "soporte.pdf",
+      ruta_archivo: "soportes/soporte.pdf",
+      nombre_bucket: "LOCAL",
+      tipo_mime: "application/pdf",
+      tamano_archivo: BigInt(10),
+    });
+    vi.mocked(registrarTransferenciasRepository).mockResolvedValue({
+      solicitudes: [solicitudProveedorBorrador],
+      resumen_proyectos: [
+        {
+          proyecto_base_id: "proyecto-1",
+          proyecto_nombre: "HUMAPO",
+          saldo_anterior: 100000,
+          total_pagado: 76000,
+          saldo_nuevo: 24000,
+        },
+      ],
+    } as never);
+
+    const resultado = await registrarTransferenciasService(
+      usuarioPagos,
+      [
+        {
+          solicitud_id: "solicitud-1",
+          fecha_pago: "2026-07-27",
+          numero_comprobante: "TRX-001",
+          observacion: "Transferencia",
+          soporte: new File(["contenido"], "soporte.pdf", {
+            type: "application/pdf",
+          }),
+        },
+      ],
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(registrarTransferenciasRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuarioId: "pagos-1",
+        pagos: [
+          expect.objectContaining({
+            solicitud_id: "solicitud-1",
+            numero_comprobante: "TRX-001",
+          }),
+        ],
+      }),
+    );
   });
 });
 

@@ -377,6 +377,7 @@ export type SolicitudPagoListado = {
   estado_actual: EstadoSolicitudPago;
   creado_por: string | null;
   enviado_en: string | Date | null;
+  aprobado_2_en?: string | Date | null;
   creado_en: string | Date;
   actualizado_en: string | Date;
   proyecto_base?: {
@@ -415,6 +416,7 @@ export type SolicitudProgramadaPago = Omit<
   SolicitudPagoListado,
   "beneficiario"
 > & {
+  saldo_fondo_actual: number;
   beneficiario?: {
     id: string;
     nombre: string;
@@ -425,6 +427,41 @@ export type SolicitudProgramadaPago = Omit<
     tipo_cuenta_bancaria: string | null;
     numero_cuenta_bancaria: string | null;
   } | null;
+};
+
+export type RegistrarTransferenciaLoteInput = {
+  solicitud_id: string;
+  fecha_pago: string;
+  numero_comprobante: string;
+  observacion?: string | null;
+  soporte: File;
+};
+
+export type RegistrarTransferenciaRepositoryInput = {
+  solicitud_id: string;
+  fecha_pago: Date;
+  numero_comprobante: string;
+  observacion: string | null;
+  soporte: {
+    nombre_archivo: string;
+    ruta_archivo: string;
+    nombre_bucket: string;
+    tipo_mime: string | null;
+    tamano_archivo: bigint;
+  };
+};
+
+export type ResumenProyectoPago = {
+  proyecto_base_id: string;
+  proyecto_nombre: string;
+  saldo_anterior: number;
+  total_pagado: number;
+  saldo_nuevo: number;
+};
+
+export type RegistrarTransferenciasData = {
+  solicitudes: SolicitudPagoListado[];
+  resumen_proyectos: ResumenProyectoPago[];
 };
 
 export type UsuarioSesionSolicitudesPago = {
