@@ -116,9 +116,7 @@ posteriores.
 
 ## Anticipos
 
-Permitirá administrar anticipos asociados a proyectos y solicitudes.
-
-Posibles entidades:
+Implementado mediante:
 
 ```text
 anticipos
@@ -126,9 +124,13 @@ anticipos
 
 Objetivos:
 
-- control del saldo disponible;
-- amortización;
-- aplicación sobre solicitudes de pago.
+- registrar la entidad aportante y el soporte;
+- asociar el ingreso al proyecto base y al fondo general;
+- crear `INGRESO_ANTICIPO`;
+- actualizar el saldo de forma transaccional.
+
+El anticipo no se imputa directamente a un centro de costo. La imputación
+ocurre mediante las solicitudes y pagos posteriores.
 
 ---
 

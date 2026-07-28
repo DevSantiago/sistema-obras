@@ -109,6 +109,7 @@ Actualmente la API expone los siguientes recursos:
 /api/v1/proyectos-base
 /api/v1/solicitudes-pago
 /api/v1/fondos
+/api/v1/anticipos
 ```
 
 El registro financiero de HU-1002 es un servicio interno y no expone un
@@ -141,6 +142,7 @@ crear el movimiento de forma atómica.
 | PATCH | `/api/v1/proyectos-base/{id}/centros-costo/{centroCostoId}/estado` |
 | GET | `/api/v1/fondos` |
 | GET | `/api/v1/fondos/movimientos` |
+| POST | `/api/v1/anticipos` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -152,6 +154,31 @@ crear el movimiento de forma atómica.
 ---
 
 # Fondos y movimientos financieros
+
+## Registrar anticipo
+
+```http
+POST /api/v1/anticipos
+Content-Type: multipart/form-data
+```
+
+Requiere `REGISTRAR_ANTICIPOS`. Campos:
+
+| Campo | Requerido |
+|-------|-----------|
+| `proyecto_base_id` | Sí |
+| `entidad_nombre` | Sí |
+| `entidad_tipo_documento` | Sí |
+| `entidad_numero_documento` | Sí |
+| `valor` | Sí |
+| `fecha_anticipo` | Sí |
+| `soporte` | Sí |
+| `observacion` | No |
+
+La fecha no puede ser futura. El soporte admite PDF, PNG, JPG o JPEG, máximo
+10 MB.
+
+---
 
 ## Consultar movimientos
 

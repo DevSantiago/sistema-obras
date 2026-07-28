@@ -1373,7 +1373,25 @@ SOBRANTE_AJUSTADO
 
 ---
 
-# 13. Préstamos entre proyectos
+# 13. Préstamos y anticipos
+
+## 13.1 Anticipos
+
+Un anticipo corresponde a recursos entregados por una entidad, como una
+alcaldía o gobernación, al fondo general de un proyecto base.
+
+El anticipo:
+
+- se relaciona con el proyecto y su fondo general;
+- no se relaciona con un centro de costo;
+- identifica la entidad aportante;
+- exige fecha, valor, referencia y soporte;
+- genera `INGRESO_ANTICIPO`;
+- incrementa el saldo del fondo en la misma transacción.
+
+La imputación por centro de costo ocurre posteriormente, cuando se registran
+los pagos que utilizan los recursos. Solo `ADMINISTRADOR` y
+`AUXILIAR_CONTABLE` pueden registrar anticipos.
 
 El sistema permitirá registrar préstamos para cubrir temporalmente faltantes de recursos.
 
@@ -1381,7 +1399,7 @@ Los préstamos constituyen movimientos financieros independientes de las solicit
 
 ---
 
-## 13.1 Tipos de préstamo
+## 13.2 Tipos de préstamo
 
 ```text
 PROYECTO_A_PROYECTO
@@ -1391,7 +1409,7 @@ PERSONA_A_PROYECTO
 
 ---
 
-## 13.2 Préstamo entre proyectos
+## 13.3 Préstamo entre proyectos
 
 Cuando un proyecto no disponga de saldo suficiente para realizar un pago, otro proyecto podrá transferir temporalmente recursos.
 
@@ -1404,7 +1422,7 @@ Ambos movimientos deberán quedar vinculados mediante un mismo identificador de 
 
 ---
 
-## 13.3 Préstamo de persona a proyecto
+## 13.4 Préstamo de persona a proyecto
 
 Una persona podrá entregar recursos al proyecto para cubrir una necesidad operativa.
 
@@ -1418,7 +1436,7 @@ El sistema registrará:
 
 ---
 
-## 13.4 Devolución del préstamo
+## 13.5 Devolución del préstamo
 
 Cuando el proyecto devuelva el dinero prestado se registrará un nuevo movimiento financiero.
 
@@ -1428,7 +1446,7 @@ Genera un nuevo registro de egreso que disminuye el saldo pendiente del préstam
 
 ---
 
-## 13.5 Validaciones
+## 13.6 Validaciones
 
 Antes de registrar un pago, el sistema verificará la disponibilidad de recursos.
 

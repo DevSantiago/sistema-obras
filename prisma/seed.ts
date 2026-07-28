@@ -96,6 +96,12 @@ const permisosBase = [
     descripcion:
       "Permite consultar saldos y gasto acumulado de los fondos generales.",
   },
+  {
+    codigo: "REGISTRAR_ANTICIPOS",
+    nombre: "Registrar anticipos",
+    descripcion:
+      "Permite registrar anticipos que ingresan al fondo general de un proyecto.",
+  },
 ];
 
 const permisosPorRol: Record<string, string[]> = {
@@ -109,6 +115,7 @@ const permisosPorRol: Record<string, string[]> = {
     "MARCAR_COMO_PAGADO",
     "CONSULTAR_TODO",
     "CONSULTAR_FONDOS",
+    "REGISTRAR_ANTICIPOS",
   ],
   DIRECTOR: [
     "CREAR_SOLICITUDES",
@@ -126,7 +133,11 @@ const permisosPorRol: Record<string, string[]> = {
     "CONSULTAR_TODO",
   ],
   APROBADOR_2: ["APROBAR_NIVEL_2", "CONSULTAR_TODO"],
-  AUXILIAR_CONTABLE: ["CREAR_SOLICITUDES", "CONSULTAR_FONDOS"],
+  AUXILIAR_CONTABLE: [
+    "CREAR_SOLICITUDES",
+    "CONSULTAR_FONDOS",
+    "REGISTRAR_ANTICIPOS",
+  ],
   PAGOS: ["MARCAR_COMO_PAGADO", "CONSULTAR_FONDOS"],
   SOLICITANTE: ["CREAR_SOLICITUDES"],
 };

@@ -44,6 +44,7 @@ model usuarios {
   pagos_registrados                pagos[]                @relation("PagosRegistradosPor")
   movimientos_registrados          movimientos_fondo[]    @relation("MovimientosRegistradosPor")
   operaciones_efectivo_registradas operaciones_efectivo[] @relation("OperacionesEfectivoRegistradasPor")
+  anticipos_registrados             anticipos[]            @relation("AnticiposRegistradosPor")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
@@ -132,6 +133,7 @@ model proyectos_base {
   solicitudes_pago     solicitudes_pago[]
   movimientos          movimientos_fondo[]
   operaciones_efectivo operaciones_efectivo[]
+  anticipos            anticipos[]
 
   @@index([nombre])
   @@index([estado_proyecto])
@@ -192,6 +194,7 @@ model fondos {
   solicitudes_pago    solicitudes_pago[]
   movimientosFondos   movimientos_fondo[]
   operacionesEfectivo operaciones_efectivo[]
+  anticipos           anticipos[]
 
   @@index([activo])
 }
@@ -403,6 +406,7 @@ model adjuntos {
   soporte_pago               pagos?
   soportes_retiro            operaciones_efectivo[]        @relation("SoporteRetiroOperacion")
   soportes_detalle_efectivo  detalles_operacion_efectivo[] @relation("SoporteDetalleOperacion")
+  soportes_anticipo          anticipos[]                    @relation("SoporteAnticipo")
 
   @@index([solicitud_pago_id])
   @@index([subido_por])
@@ -488,6 +492,7 @@ model movimientos_fondo {
   solicitud_pago_id     String?
   pago_id               String?  @unique
   operacion_efectivo_id String?
+  anticipo_id           String?  @unique
   tipo_movimiento       String
   direccion             String
   valor                 Decimal  @db.Decimal(14, 2)
@@ -504,6 +509,7 @@ model movimientos_fondo {
   solicitud_pago     solicitudes_pago?     @relation(fields: [solicitud_pago_id], references: [id])
   pago               pagos?                @relation(fields: [pago_id], references: [id])
   operacion_efectivo operaciones_efectivo? @relation(fields: [operacion_efectivo_id], references: [id])
+  anticipo           anticipos?            @relation(fields: [anticipo_id], references: [id])
   registrador        usuarios?             @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
 
   @@index([fondo_id])
@@ -514,6 +520,34 @@ model movimientos_fondo {
   @@index([tipo_movimiento])
   @@index([direccion])
   @@index([registrado_en])
+}
+
+model anticipos {
+  id                       String   @id @default(uuid())
+  proyecto_base_id         String
+  fondo_id                 String
+  adjunto_soporte_id       String   @unique
+  referencia_sistema       String   @unique @db.VarChar(150)
+  entidad_nombre           String   @db.VarChar(200)
+  entidad_tipo_documento   String   @db.VarChar(30)
+  entidad_numero_documento String   @db.VarChar(50)
+  valor                    Decimal  @db.Decimal(14, 2)
+  fecha_anticipo           DateTime
+  observacion              String?
+  registrado_por           String
+  registrado_en            DateTime @default(now())
+
+  proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
+  fondo         fondos         @relation(fields: [fondo_id], references: [id])
+  soporte       adjuntos       @relation("SoporteAnticipo", fields: [adjunto_soporte_id], references: [id])
+  registrador   usuarios       @relation("AnticiposRegistradosPor", fields: [registrado_por], references: [id])
+  movimiento    movimientos_fondo?
+
+  @@index([proyecto_base_id])
+  @@index([fondo_id])
+  @@index([fecha_anticipo])
+  @@index([entidad_numero_documento])
+  @@index([registrado_por])
 }
 
 model detalles_nomina_solicitud {

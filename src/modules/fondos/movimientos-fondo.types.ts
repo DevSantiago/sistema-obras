@@ -7,6 +7,7 @@ export type RegistrarMovimientoFondoInput = {
   solicitud_pago_id?: string | null;
   pago_id?: string | null;
   operacion_efectivo_id?: string | null;
+  anticipo_id?: string | null;
   tipo_movimiento: string;
   direccion: DireccionMovimientoFondo;
   valor: number;
@@ -21,4 +22,3 @@ export type MovimientoFondoRegistrado = {
   saldo_anterior: number;
   saldo_nuevo: number;
 };
-
