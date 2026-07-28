@@ -37,10 +37,12 @@ model usuarios {
 
   beneficiarios_asociados beneficiarios_pago[] @relation("BeneficiarioUsuarioAsociado")
 
-  solicitudes_creadas    solicitudes_pago[] @relation("SolicitudesCreadasPor")
-  solicitudes_aprobadas1 solicitudes_pago[] @relation("SolicitudesAprobadas1Por")
-  solicitudes_aprobadas2 solicitudes_pago[] @relation("SolicitudesAprobadas2Por")
-  solicitudes_pagadas    solicitudes_pago[] @relation("SolicitudesPagadasPor")
+  solicitudes_creadas     solicitudes_pago[]  @relation("SolicitudesCreadasPor")
+  solicitudes_aprobadas1  solicitudes_pago[]  @relation("SolicitudesAprobadas1Por")
+  solicitudes_aprobadas2  solicitudes_pago[]  @relation("SolicitudesAprobadas2Por")
+  solicitudes_pagadas     solicitudes_pago[]  @relation("SolicitudesPagadasPor")
+  pagos_registrados       pagos[]             @relation("PagosRegistradosPor")
+  movimientos_registrados movimientos_fondo[] @relation("MovimientosRegistradosPor")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
@@ -127,6 +129,7 @@ model proyectos_base {
   secuencias_documentales secuencias_documentales[]
 
   solicitudes_pago solicitudes_pago[]
+  movimientos      movimientos_fondo[]
 
   @@index([nombre])
   @@index([estado_proyecto])
@@ -158,7 +161,8 @@ model centros_costo {
   usuario_inicio_ejecucion usuarios?                 @relation("CentrosCostoInicioEjecucionPor", fields: [inicio_ejecucion_por], references: [id])
   secuencias_documentales  secuencias_documentales[]
 
-  solicitudes_pago solicitudes_pago[]
+  solicitudes_pago  solicitudes_pago[]
+  movimientosFondos movimientos_fondo[]
 
   @@unique([proyecto_base_id, linea_negocio, fase_centro_costo])
   @@index([proyecto_base_id])
@@ -183,7 +187,8 @@ model fondos {
   proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
   creador       usuarios?      @relation("FondosCreadoPor", fields: [creado_por], references: [id])
 
-  solicitudes_pago solicitudes_pago[]
+  solicitudes_pago  solicitudes_pago[]
+  movimientosFondos movimientos_fondo[]
 
   @@index([activo])
 }
@@ -297,7 +302,7 @@ model secuencias_documentales {
 
 model solicitudes_pago {
   id                        String    @id @default(uuid())
-  numero_solicitud String? @unique @db.VarChar(100)
+  numero_solicitud          String?   @unique @db.VarChar(100)
   tipo_solicitud            String    @default("PAGO_PROVEEDOR")
   modalidad_nomina          String?
   periodo_nomina            String?   @db.VarChar(7)
@@ -346,9 +351,11 @@ model solicitudes_pago {
   aprobador2 usuarios? @relation("SolicitudesAprobadas2Por", fields: [aprobado_2_por], references: [id])
   pagador    usuarios? @relation("SolicitudesPagadasPor", fields: [pagado_por], references: [id])
 
-  adjuntos        adjuntos[]                  @relation("AdjuntosSolicitudPago")
-  archivo_origen  adjuntos?                   @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
-  detalles_nomina detalles_nomina_solicitud[]
+  adjuntos          adjuntos[]                  @relation("AdjuntosSolicitudPago")
+  archivo_origen    adjuntos?                   @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
+  detalles_nomina   detalles_nomina_solicitud[]
+  pagos             pagos?
+  movimientosFondos movimientos_fondo[]
 
   @@index([numero_solicitud])
   @@index([proyecto_base_id])
@@ -389,11 +396,68 @@ model adjuntos {
   solicitud_pago             solicitudes_pago?  @relation("AdjuntosSolicitudPago", fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
   solicitudes_archivo_origen solicitudes_pago[] @relation("SolicitudPagoArchivoOrigen")
   usuario_subio              usuarios?          @relation("AdjuntosSubidosPor", fields: [subido_por], references: [id])
+  soporte_pago               pagos?
 
   @@index([solicitud_pago_id])
   @@index([subido_por])
   @@index([estado_ocr])
   @@index([subido_en])
+}
+
+model pagos {
+  id                 String   @id @default(uuid())
+  solicitud_pago_id  String   @unique
+  adjunto_soporte_id String   @unique
+  fecha_pago         DateTime
+  medio_pago         String
+  numero_comprobante String   @db.VarChar(150)
+  observacion        String?
+  valor_pagado       Decimal  @db.Decimal(14, 2)
+  registrado_por     String
+  registrado_en      DateTime @default(now())
+
+  solicitud_pago solicitudes_pago   @relation(fields: [solicitud_pago_id], references: [id])
+  soporte        adjuntos           @relation(fields: [adjunto_soporte_id], references: [id])
+  registrador    usuarios           @relation("PagosRegistradosPor", fields: [registrado_por], references: [id])
+  movimiento     movimientos_fondo?
+
+  @@index([fecha_pago])
+  @@index([medio_pago])
+  @@index([numero_comprobante])
+  @@index([registrado_por])
+}
+
+model movimientos_fondo {
+  id                 String   @id @default(uuid())
+  fondo_id           String
+  proyecto_base_id   String
+  centro_costo_id    String?
+  solicitud_pago_id  String?
+  pago_id            String?  @unique
+  tipo_movimiento    String
+  direccion          String
+  valor              Decimal  @db.Decimal(14, 2)
+  saldo_anterior     Decimal  @db.Decimal(14, 2)
+  saldo_nuevo        Decimal  @db.Decimal(14, 2)
+  referencia_sistema String?  @db.VarChar(150)
+  descripcion        String?
+  registrado_por     String?
+  registrado_en      DateTime @default(now())
+
+  fondo          fondos            @relation(fields: [fondo_id], references: [id])
+  proyecto_base  proyectos_base    @relation(fields: [proyecto_base_id], references: [id])
+  centro_costo   centros_costo?    @relation(fields: [centro_costo_id], references: [id])
+  solicitud_pago solicitudes_pago? @relation(fields: [solicitud_pago_id], references: [id])
+  pago           pagos?            @relation(fields: [pago_id], references: [id])
+  registrador    usuarios?         @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
+
+  @@index([fondo_id])
+  @@index([proyecto_base_id])
+  @@index([centro_costo_id])
+  @@index([solicitud_pago_id])
+  @@index([tipo_movimiento])
+  @@index([direccion])
+  @@index([registrado_en])
 }
 
 model detalles_nomina_solicitud {

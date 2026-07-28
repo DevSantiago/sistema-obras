@@ -5,6 +5,7 @@ import type {
   ActualizarSolicitudPagoRepositoryInput,
   BuscarDuplicadoNominaIndividualInput,
   CrearSolicitudPagoRepositoryInput,
+  RegistrarTransferenciaRepositoryInput,
   SolicitudPagoListFilters,
   VisibilidadSolicitudesPago,
 } from "./solicitudes-pago.types";
@@ -59,6 +60,13 @@ export class SolicitudesPagoCambioConcurrenteError extends Error {
     );
 
     this.name = "SolicitudesPagoCambioConcurrenteError";
+  }
+}
+
+export class RegistroPagosError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RegistroPagosError";
   }
 }
 
@@ -673,4 +681,190 @@ export async function eliminarSolicitudPagoRepository(
       id: solicitudPagoId,
     },
   });
+}
+
+export async function registrarTransferenciasRepository(input: {
+  pagos: RegistrarTransferenciaRepositoryInput[];
+  usuarioId: string;
+  fechaRegistro: Date;
+}) {
+  return prisma.$transaction(
+    async (tx) => {
+      const ids = input.pagos.map((pago) => pago.solicitud_id);
+      const solicitudes = await tx.solicitudes_pago.findMany({
+        where: { id: { in: ids } },
+        include: solicitudPagoInclude,
+      });
+
+      if (solicitudes.length !== ids.length) {
+        throw new RegistroPagosError(
+          "Una o más solicitudes seleccionadas no existen.",
+        );
+      }
+
+      const porId = new Map(
+        solicitudes.map((solicitud) => [solicitud.id, solicitud]),
+      );
+      const resumenPorProyecto = new Map<
+        string,
+        {
+          proyecto_base_id: string;
+          proyecto_nombre: string;
+          saldo_anterior: number;
+          total_pagado: number;
+          saldo_nuevo: number;
+        }
+      >();
+      const actualizadas = [];
+
+      const pagosOrdenados = [...input.pagos].sort((a, b) => {
+        const solicitudA = porId.get(a.solicitud_id)!;
+        const solicitudB = porId.get(b.solicitud_id)!;
+
+        return (
+          solicitudA.fondo_id.localeCompare(solicitudB.fondo_id) ||
+          solicitudA.id.localeCompare(solicitudB.id)
+        );
+      });
+
+      for (const pagoInput of pagosOrdenados) {
+        const solicitud = porId.get(pagoInput.solicitud_id)!;
+        const numero = solicitud.numero_solicitud ?? solicitud.id;
+        const valor = solicitud.valor_neto.toNumber();
+
+        if (solicitud.estado_actual !== "PROGRAMADA_PAGO") {
+          throw new RegistroPagosError(
+            `La solicitud ${numero} ya no está programada para pago.`,
+          );
+        }
+
+        if (solicitud.medio_pago !== "TRANSFERENCIA") {
+          throw new RegistroPagosError(
+            `La solicitud ${numero} no tiene medio de pago TRANSFERENCIA.`,
+          );
+        }
+
+        const fondoActualizado = await tx.fondos.updateMany({
+          where: {
+            id: solicitud.fondo_id,
+            proyecto_base_id: solicitud.proyecto_base_id,
+            activo: true,
+            saldo_actual: { gte: valor },
+          },
+          data: { saldo_actual: { decrement: valor } },
+        });
+
+        if (fondoActualizado.count !== 1) {
+          throw new RegistroPagosError(
+            `El proyecto ${solicitud.proyecto_base.nombre} no tiene saldo suficiente para registrar el lote.`,
+          );
+        }
+
+        const fondo = await tx.fondos.findUniqueOrThrow({
+          where: { id: solicitud.fondo_id },
+          select: { saldo_actual: true },
+        });
+        const saldoNuevo = fondo.saldo_actual.toNumber();
+        const saldoAnterior = saldoNuevo + valor;
+
+        const cambioEstado = await tx.solicitudes_pago.updateMany({
+          where: {
+            id: solicitud.id,
+            estado_actual: "PROGRAMADA_PAGO",
+            medio_pago: "TRANSFERENCIA",
+            pagos: null,
+          },
+          data: {
+            estado_actual: "PAGADA",
+            valor_pagado: valor,
+            valor_reservado: null,
+            pagado_por: input.usuarioId,
+            pagado_en: pagoInput.fecha_pago,
+            actualizado_en: input.fechaRegistro,
+          },
+        });
+
+        if (cambioEstado.count !== 1) {
+          throw new RegistroPagosError(
+            `La solicitud ${numero} cambió durante el registro del pago.`,
+          );
+        }
+
+        const soporte = await tx.adjuntos.create({
+          data: {
+            solicitud_pago_id: solicitud.id,
+            ...pagoInput.soporte,
+            subido_por: input.usuarioId,
+            estado_ocr: "NO_PROCESADO",
+          },
+        });
+        const pago = await tx.pagos.create({
+          data: {
+            solicitud_pago_id: solicitud.id,
+            adjunto_soporte_id: soporte.id,
+            fecha_pago: pagoInput.fecha_pago,
+            medio_pago: "TRANSFERENCIA",
+            numero_comprobante: pagoInput.numero_comprobante,
+            observacion: pagoInput.observacion,
+            valor_pagado: valor,
+            registrado_por: input.usuarioId,
+            registrado_en: input.fechaRegistro,
+          },
+        });
+
+        await tx.movimientos_fondo.create({
+          data: {
+            fondo_id: solicitud.fondo_id,
+            proyecto_base_id: solicitud.proyecto_base_id,
+            centro_costo_id: solicitud.centro_costo_id,
+            solicitud_pago_id: solicitud.id,
+            pago_id: pago.id,
+            tipo_movimiento: "EGRESO_SOLICITUD_PAGO",
+            direccion: "EGRESO",
+            valor,
+            saldo_anterior: saldoAnterior,
+            saldo_nuevo: saldoNuevo,
+            referencia_sistema: pagoInput.numero_comprobante,
+            descripcion:
+              pagoInput.observacion ??
+              `Pago de la solicitud ${numero}.`,
+            registrado_por: input.usuarioId,
+            registrado_en: input.fechaRegistro,
+          },
+        });
+
+        const resumen = resumenPorProyecto.get(
+          solicitud.proyecto_base_id,
+        );
+
+        if (resumen) {
+          resumen.total_pagado += valor;
+          resumen.saldo_nuevo = saldoNuevo;
+        } else {
+          resumenPorProyecto.set(solicitud.proyecto_base_id, {
+            proyecto_base_id: solicitud.proyecto_base_id,
+            proyecto_nombre: solicitud.proyecto_base.nombre,
+            saldo_anterior: saldoAnterior,
+            total_pagado: valor,
+            saldo_nuevo: saldoNuevo,
+          });
+        }
+
+        actualizadas.push(
+          await tx.solicitudes_pago.findUniqueOrThrow({
+            where: { id: solicitud.id },
+            include: solicitudPagoInclude,
+          }),
+        );
+      }
+
+      return {
+        solicitudes: actualizadas,
+        resumen_proyectos: Array.from(resumenPorProyecto.values()),
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
 }

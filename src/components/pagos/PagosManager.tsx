@@ -15,6 +15,15 @@ type FiltrosPagos = {
   medio_pago: MedioPagoSolicitud | "";
 };
 
+type DatosTransferencia = {
+  fecha_pago: string;
+  numero_comprobante: string;
+  observacion: string;
+  soporte: File | null;
+};
+
+type VistaOperacion = "TODOS" | "TRANSFERENCIAS" | "RETIRO";
+
 const FILTROS_INICIALES: FiltrosPagos = {
   busqueda: "",
   proyecto_base_id: "",
@@ -27,6 +36,15 @@ const FORMATEADOR_MONEDA = new Intl.NumberFormat("es-CO", {
   currency: "COP",
   maximumFractionDigits: 0,
 });
+
+const FORMATEADOR_FECHA = new Intl.DateTimeFormat("es-CO", {
+  dateStyle: "medium",
+  timeZone: "America/Bogota",
+});
+
+function formatearFecha(valor: string | Date | null | undefined): string {
+  return valor ? FORMATEADOR_FECHA.format(new Date(valor)) : "—";
+}
 
 function obtenerBeneficiario(solicitud: SolicitudProgramadaPago): string {
   return (
@@ -61,6 +79,18 @@ export default function PagosManager() {
   const [solicitudes, setSolicitudes] = useState<SolicitudProgramadaPago[]>([]);
   const [solicitudSeleccionada, setSolicitudSeleccionada] =
     useState<SolicitudProgramadaPago | null>(null);
+  const [idsSeleccionados, setIdsSeleccionados] = useState<Set<string>>(
+    new Set(),
+  );
+  const [datosTransferencias, setDatosTransferencias] = useState<
+    Record<string, DatosTransferencia>
+  >({});
+  const [modalTransferenciasAbierto, setModalTransferenciasAbierto] =
+    useState(false);
+  const [registrando, setRegistrando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState("");
+  const [vistaOperacion, setVistaOperacion] =
+    useState<VistaOperacion>("TODOS");
   const [filtros, setFiltros] = useState(FILTROS_INICIALES);
   const [cargando, setCargando] = useState(true);
   const [mensajeError, setMensajeError] = useState("");
@@ -175,6 +205,11 @@ export default function PagosManager() {
 
       return (
         coincideBusqueda &&
+        (vistaOperacion === "TODOS" ||
+          (vistaOperacion === "TRANSFERENCIAS"
+            ? solicitud.medio_pago === "TRANSFERENCIA"
+            : solicitud.medio_pago === "CONSIGNACION" ||
+              solicitud.medio_pago === "EFECTIVO")) &&
         (!filtros.proyecto_base_id ||
           solicitud.proyecto_base_id === filtros.proyecto_base_id) &&
         (!filtros.centro_costo_id ||
@@ -183,7 +218,183 @@ export default function PagosManager() {
           solicitud.medio_pago === filtros.medio_pago)
       );
     });
-  }, [filtros, solicitudes]);
+  }, [filtros, solicitudes, vistaOperacion]);
+
+  const transferenciasSeleccionadas = useMemo(
+    () =>
+      solicitudes.filter(
+        (solicitud) =>
+          idsSeleccionados.has(solicitud.id) &&
+          solicitud.medio_pago === "TRANSFERENCIA",
+      ),
+    [idsSeleccionados, solicitudes],
+  );
+
+  const resumenProyectos = useMemo(() => {
+    const resumen = new Map<
+      string,
+      {
+        nombre: string;
+        saldoActual: number;
+        totalSeleccionado: number;
+      }
+    >();
+
+    for (const solicitud of transferenciasSeleccionadas) {
+      const existente = resumen.get(solicitud.proyecto_base_id);
+
+      if (existente) {
+        existente.totalSeleccionado += solicitud.valor_neto;
+      } else {
+        resumen.set(solicitud.proyecto_base_id, {
+          nombre: solicitud.proyecto_base?.nombre ?? "Proyecto",
+          saldoActual: solicitud.saldo_fondo_actual,
+          totalSeleccionado: solicitud.valor_neto,
+        });
+      }
+    }
+
+    return Array.from(resumen.entries()).map(([id, datos]) => ({
+      id,
+      ...datos,
+      saldoProyectado: datos.saldoActual - datos.totalSeleccionado,
+    }));
+  }, [transferenciasSeleccionadas]);
+
+  const loteCompleto =
+    transferenciasSeleccionadas.length > 0 &&
+    resumenProyectos.every((proyecto) => proyecto.saldoProyectado >= 0) &&
+    transferenciasSeleccionadas.every((solicitud) => {
+      const datos = datosTransferencias[solicitud.id];
+
+      return Boolean(
+        datos?.fecha_pago &&
+          datos.numero_comprobante.trim() &&
+          datos.soporte,
+      );
+    });
+
+  function alternarSeleccion(solicitud: SolicitudProgramadaPago) {
+    if (solicitud.medio_pago !== "TRANSFERENCIA") {
+      return;
+    }
+
+    setIdsSeleccionados((actuales) => {
+      const nuevos = new Set(actuales);
+
+      if (nuevos.has(solicitud.id)) {
+        nuevos.delete(solicitud.id);
+      } else {
+        nuevos.add(solicitud.id);
+      }
+
+      return nuevos;
+    });
+  }
+
+  function abrirRegistroTransferencias() {
+    const ahora = new Date();
+    const fechaHoy = [
+      ahora.getFullYear(),
+      String(ahora.getMonth() + 1).padStart(2, "0"),
+      String(ahora.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    setDatosTransferencias((actuales) => {
+      const nuevos = { ...actuales };
+
+      for (const solicitud of transferenciasSeleccionadas) {
+        nuevos[solicitud.id] ??= {
+          fecha_pago: fechaHoy,
+          numero_comprobante: "",
+          observacion: "",
+          soporte: null,
+        };
+      }
+
+      return nuevos;
+    });
+    setMensajeError("");
+    setModalTransferenciasAbierto(true);
+  }
+
+  function actualizarDatosTransferencia(
+    solicitudId: string,
+    cambios: Partial<DatosTransferencia>,
+  ) {
+    setDatosTransferencias((actuales) => ({
+      ...actuales,
+      [solicitudId]: {
+        ...actuales[solicitudId],
+        ...cambios,
+      },
+    }));
+  }
+
+  async function registrarTransferencias() {
+    if (!loteCompleto || registrando) {
+      return;
+    }
+
+    setRegistrando(true);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const formData = new FormData();
+      const manifiesto = transferenciasSeleccionadas.map(
+        (solicitud, indice) => {
+          const datos = datosTransferencias[solicitud.id];
+          const campoArchivo = `soporte_${indice}`;
+
+          formData.append(campoArchivo, datos.soporte!);
+
+          return {
+            solicitud_id: solicitud.id,
+            fecha_pago: datos.fecha_pago,
+            numero_comprobante: datos.numero_comprobante,
+            observacion: datos.observacion,
+            archivo_campo: campoArchivo,
+          };
+        },
+      );
+
+      formData.append("pagos", JSON.stringify(manifiesto));
+
+      const response = await fetch(
+        "/api/v1/solicitudes-pago/registrar-pagos",
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        },
+      );
+      const body =
+        (await response.json()) as SolicitudesPagoApiResponse<unknown>;
+
+      if (!response.ok || !body.ok) {
+        throw new Error(
+          body.message ?? "No fue posible registrar las transferencias.",
+        );
+      }
+
+      setModalTransferenciasAbierto(false);
+      setIdsSeleccionados(new Set());
+      setDatosTransferencias({});
+      setMensajeExito(
+        body.message ?? "Transferencias registradas correctamente.",
+      );
+      await cargarSolicitudes();
+    } catch (error) {
+      setMensajeError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible registrar las transferencias.",
+      );
+    } finally {
+      setRegistrando(false);
+    }
+  }
 
   function limpiarFiltros() {
     setFiltros(FILTROS_INICIALES);
@@ -191,6 +402,33 @@ export default function PagosManager() {
 
   return (
     <section className={styles.container}>
+      <div className={styles.operationTabs} aria-label="Tipo de operación">
+        <button
+          className={vistaOperacion === "TODOS" ? styles.activeTab : ""}
+          type="button"
+          onClick={() => setVistaOperacion("TODOS")}
+        >
+          Todos
+        </button>
+        <button
+          className={
+            vistaOperacion === "TRANSFERENCIAS" ? styles.activeTab : ""
+          }
+          type="button"
+          onClick={() => setVistaOperacion("TRANSFERENCIAS")}
+        >
+          Transferencias directas
+        </button>
+        <button
+          className={styles.pendingTab}
+          type="button"
+          disabled
+          title="Disponible al implementar la HU-0903."
+        >
+          Retiro y pagos · HU-0903
+        </button>
+      </div>
+
       <div className={styles.filters}>
         <label className={styles.field}>
           <span>Buscar</span>
@@ -270,11 +508,28 @@ export default function PagosManager() {
       </div>
 
       {mensajeError ? <p className={styles.error}>{mensajeError}</p> : null}
+      {mensajeExito ? <p className={styles.success}>{mensajeExito}</p> : null}
 
       <div className={styles.summary}>
-        <strong>Solicitudes programadas</strong>
-        <span>{solicitudesFiltradas.length} resultado(s)</span>
+        <div>
+          <strong>Solicitudes programadas</strong>
+          <span>{solicitudesFiltradas.length} resultado(s)</span>
+        </div>
+        <button
+          className={styles.primaryButton}
+          type="button"
+          disabled={transferenciasSeleccionadas.length === 0}
+          onClick={abrirRegistroTransferencias}
+        >
+          Procesar pagos seleccionados ({transferenciasSeleccionadas.length})
+        </button>
       </div>
+
+      <p className={styles.paymentHint}>
+        Las transferencias directas se registran en este flujo. Las
+        consignaciones y pagos en efectivo se gestionarán mediante una
+        operación agrupada de retiro.
+      </p>
 
       {cargando ? (
         <p className={styles.empty}>Cargando bandeja de pagos...</p>
@@ -288,12 +543,14 @@ export default function PagosManager() {
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <th>Seleccionar</th>
                   <th>Número</th>
                   <th>Beneficiario</th>
                   <th>Proyecto base</th>
                   <th>Centro de costo</th>
                   <th>Tipo</th>
                   <th>Medio de pago</th>
+                  <th>Fecha de aprobación</th>
                   <th>Valor neto</th>
                 </tr>
               </thead>
@@ -312,12 +569,28 @@ export default function PagosManager() {
                       }
                     }}
                   >
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Seleccionar ${solicitud.numero_solicitud}`}
+                        checked={idsSeleccionados.has(solicitud.id)}
+                        disabled={solicitud.medio_pago !== "TRANSFERENCIA"}
+                        title={
+                          solicitud.medio_pago !== "TRANSFERENCIA"
+                            ? "Se gestiona mediante una operación agrupada de retiro."
+                            : "Seleccionar transferencia directa."
+                        }
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() => alternarSeleccion(solicitud)}
+                      />
+                    </td>
                     <td><strong>{solicitud.numero_solicitud ?? "—"}</strong></td>
                     <td>{obtenerBeneficiario(solicitud)}</td>
                     <td>{solicitud.proyecto_base?.nombre ?? "—"}</td>
                     <td>{solicitud.centro_costo?.nombre ?? "—"}</td>
                     <td>{obtenerTipo(solicitud)}</td>
                     <td>{solicitud.medio_pago ?? "—"}</td>
+                    <td>{formatearFecha(solicitud.aprobado_2_en)}</td>
                     <td className={styles.money}>
                       {FORMATEADOR_MONEDA.format(solicitud.valor_neto)}
                     </td>
@@ -329,27 +602,189 @@ export default function PagosManager() {
 
           <div className={styles.cards}>
             {solicitudesFiltradas.map((solicitud) => (
-              <button
+              <article
                 className={styles.card}
                 key={solicitud.id}
-                type="button"
-                onClick={() => setSolicitudSeleccionada(solicitud)}
               >
                 <div className={styles.cardHeader}>
-                  <strong>{solicitud.numero_solicitud ?? "Sin número"}</strong>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={idsSeleccionados.has(solicitud.id)}
+                      disabled={solicitud.medio_pago !== "TRANSFERENCIA"}
+                      onChange={() => alternarSeleccion(solicitud)}
+                    />{" "}
+                    <strong>{solicitud.numero_solicitud ?? "Sin número"}</strong>
+                  </label>
                   <span>{solicitud.medio_pago ?? "—"}</span>
                 </div>
                 <dl>
                   <div><dt>Beneficiario</dt><dd>{obtenerBeneficiario(solicitud)}</dd></div>
                   <div><dt>Proyecto</dt><dd>{solicitud.proyecto_base?.nombre ?? "—"}</dd></div>
                   <div><dt>Centro de costo</dt><dd>{solicitud.centro_costo?.nombre ?? "—"}</dd></div>
+                  <div><dt>Fecha de aprobación</dt><dd>{formatearFecha(solicitud.aprobado_2_en)}</dd></div>
                   <div><dt>Valor neto</dt><dd>{FORMATEADOR_MONEDA.format(solicitud.valor_neto)}</dd></div>
                 </dl>
-              </button>
+                <button
+                  className={styles.detailButton}
+                  type="button"
+                  onClick={() => setSolicitudSeleccionada(solicitud)}
+                >
+                  Ver detalle
+                </button>
+              </article>
             ))}
           </div>
         </>
       )}
+
+      {modalTransferenciasAbierto ? (
+        <div className={styles.modalBackdrop}>
+          <section
+            className={`${styles.modal} ${styles.batchModal}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="registro-transferencias-title"
+          >
+            <header className={styles.modalHeader}>
+              <div>
+                <p className={styles.modalEyebrow}>Registro grupal</p>
+                <h2 id="registro-transferencias-title">
+                  Confirmar transferencias
+                </h2>
+              </div>
+              <button
+                className={styles.closeButton}
+                type="button"
+                aria-label="Cerrar registro de transferencias"
+                disabled={registrando}
+                onClick={() => setModalTransferenciasAbierto(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className={styles.projectSummaries}>
+              {resumenProyectos.map((proyecto) => (
+                <article
+                  key={proyecto.id}
+                  className={
+                    proyecto.saldoProyectado < 0
+                      ? styles.insufficientSummary
+                      : styles.projectSummary
+                  }
+                >
+                  <strong>{proyecto.nombre}</strong>
+                  <dl>
+                    <div><dt>Saldo actual</dt><dd>{FORMATEADOR_MONEDA.format(proyecto.saldoActual)}</dd></div>
+                    <div><dt>Total del lote</dt><dd>{FORMATEADOR_MONEDA.format(proyecto.totalSeleccionado)}</dd></div>
+                    <div><dt>Saldo proyectado</dt><dd>{FORMATEADOR_MONEDA.format(proyecto.saldoProyectado)}</dd></div>
+                  </dl>
+                  {proyecto.saldoProyectado < 0 ? (
+                    <p>El fondo no tiene saldo suficiente para este lote.</p>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+
+            <div className={styles.paymentForms}>
+              {transferenciasSeleccionadas.map((solicitud) => {
+                const datos = datosTransferencias[solicitud.id];
+
+                if (!datos) {
+                  return null;
+                }
+
+                return (
+                  <fieldset key={solicitud.id} disabled={registrando}>
+                    <legend>
+                      {solicitud.numero_solicitud} ·{" "}
+                      {FORMATEADOR_MONEDA.format(solicitud.valor_neto)}
+                    </legend>
+                    <p>{obtenerBeneficiario(solicitud)}</p>
+                    <div className={styles.paymentGrid}>
+                      <label className={styles.field}>
+                        <span>Fecha de pago</span>
+                        <input
+                          type="date"
+                          value={datos.fecha_pago}
+                          onChange={(event) =>
+                            actualizarDatosTransferencia(solicitud.id, {
+                              fecha_pago: event.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        <span>Referencia bancaria</span>
+                        <input
+                          value={datos.numero_comprobante}
+                          onChange={(event) =>
+                            actualizarDatosTransferencia(solicitud.id, {
+                              numero_comprobante: event.target.value,
+                            })
+                          }
+                          maxLength={150}
+                          required
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        <span>Soporte de pago</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          onChange={(event) =>
+                            actualizarDatosTransferencia(solicitud.id, {
+                              soporte: event.target.files?.[0] ?? null,
+                            })
+                          }
+                          required
+                        />
+                      </label>
+                      <label className={`${styles.field} ${styles.fullWidth}`}>
+                        <span>Observación</span>
+                        <textarea
+                          value={datos.observacion}
+                          onChange={(event) =>
+                            actualizarDatosTransferencia(solicitud.id, {
+                              observacion: event.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+                );
+              })}
+            </div>
+
+            {mensajeError ? <p className={styles.error}>{mensajeError}</p> : null}
+
+            <footer className={styles.modalActions}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                disabled={registrando}
+                onClick={() => setModalTransferenciasAbierto(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="button"
+                disabled={!loteCompleto || registrando}
+                onClick={() => void registrarTransferencias()}
+              >
+                {registrando
+                  ? "Registrando transferencias..."
+                  : `Confirmar ${transferenciasSeleccionadas.length} pago(s)`}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
 
       {solicitudSeleccionada ? (
         <div
@@ -387,6 +822,7 @@ export default function PagosManager() {
             <div className={styles.modalGrid}>
               <div><span>Tipo de solicitud</span><strong>{obtenerTipo(solicitudSeleccionada)}</strong></div>
               <div><span>Medio de pago</span><strong>{solicitudSeleccionada.medio_pago ?? "—"}</strong></div>
+              <div><span>Fecha de aprobación</span><strong>{formatearFecha(solicitudSeleccionada.aprobado_2_en)}</strong></div>
               <div><span>Beneficiario</span><strong>{obtenerBeneficiario(solicitudSeleccionada)}</strong></div>
               <div><span>Documento</span><strong>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</strong></div>
               <div><span>Banco</span><strong>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</strong></div>

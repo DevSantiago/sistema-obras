@@ -1,5 +1,7 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { crearAdjuntosSolicitudPagoService } from "@/modules/adjuntos/adjuntos.service";
+import { storageService } from "@/modules/storage/storage.service";
+import type { ArchivoGuardado } from "@/modules/storage/storage.types";
 import { obtenerDetalleNominaGrupalService } from "./nomina-grupal/nomina-grupal.service";
 import {
   CATEGORIAS_REEMBOLSO,
@@ -24,6 +26,8 @@ import {
   aprobarSolicitudesNivel1Repository,
   aprobarSolicitudesNivel2Repository,
   SolicitudesPagoCambioConcurrenteError,
+  RegistroPagosError,
+  registrarTransferenciasRepository,
 } from "./solicitudes-pago.repository";
 import type {
   CategoriaReembolso,
@@ -51,6 +55,8 @@ import type {
   AprobarSolicitudesNivel2Input,
   ResumenProyectoAprobacionNivel2,
   AprobarSolicitudesNivel2Data,
+  RegistrarTransferenciaLoteInput,
+  RegistrarTransferenciasData,
 } from "./solicitudes-pago.types";
 
 const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
@@ -126,6 +132,7 @@ type SolicitudPagoRepositoryResult = {
   estado_actual: string;
   creado_por: string | null;
   enviado_en: Date | null;
+  aprobado_2_en: Date | null;
   creado_en: Date;
   actualizado_en: Date;
   proyecto_base?: {
@@ -553,6 +560,7 @@ function convertirSolicitudPago(
     estado_actual: solicitud.estado_actual as EstadoSolicitudPago,
     creado_por: solicitud.creado_por,
     enviado_en: solicitud.enviado_en,
+    aprobado_2_en: solicitud.aprobado_2_en,
     creado_en: solicitud.creado_en,
     actualizado_en: solicitud.actualizado_en,
     proyecto_base: solicitud.proyecto_base,
@@ -1019,6 +1027,12 @@ export async function listarBandejaPagosService(
       .filter((beneficiario) => beneficiario !== null)
       .map((beneficiario) => [beneficiario.id, beneficiario]),
   );
+  const fondos = await obtenerFondosPorIdsRepository(
+    Array.from(new Set(solicitudes.map((solicitud) => solicitud.fondo_id))),
+  );
+  const saldosPorFondo = new Map(
+    fondos.map((fondo) => [fondo.id, fondo.saldo_actual.toNumber()]),
+  );
 
   return {
     status: 200,
@@ -1034,6 +1048,8 @@ export async function listarBandejaPagosService(
 
           return {
             ...solicitudConvertida,
+            saldo_fondo_actual:
+              saldosPorFondo.get(solicitud.fondo_id) ?? 0,
             beneficiario: solicitudConvertida.beneficiario
               ? {
                   ...solicitudConvertida.beneficiario,
@@ -1049,6 +1065,185 @@ export async function listarBandejaPagosService(
       },
     },
   };
+}
+
+export async function registrarTransferenciasService(
+  usuarioAutenticado: UsuarioSesion,
+  pagos: RegistrarTransferenciaLoteInput[],
+): Promise<ServiceResponse<RegistrarTransferenciasData>> {
+  const puedeRegistrar =
+    usuarioAutenticado.roles.includes("ADMINISTRADOR") ||
+    (usuarioAutenticado.roles.includes("PAGOS") &&
+      usuarioAutenticado.permisos.includes("MARCAR_COMO_PAGADO"));
+
+  if (!puedeRegistrar) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para registrar pagos.",
+      },
+    };
+  }
+
+  if (pagos.length === 0) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Debe seleccionar al menos una solicitud.",
+      },
+    };
+  }
+
+  if (new Set(pagos.map((pago) => pago.solicitud_id)).size !== pagos.length) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Una solicitud no puede repetirse en el mismo lote.",
+      },
+    };
+  }
+
+  const fechaActual = new Date();
+
+  for (const pago of pagos) {
+    if (
+      !pago.solicitud_id.trim() ||
+      !pago.fecha_pago.trim() ||
+      !pago.numero_comprobante.trim()
+    ) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            "La solicitud, fecha de pago y referencia son obligatorias para cada transferencia.",
+        },
+      };
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(pago.fecha_pago)) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message: "Cada fecha de pago debe tener formato YYYY-MM-DD.",
+        },
+      };
+    }
+
+    const fechaPago = new Date(`${pago.fecha_pago}T12:00:00.000Z`);
+
+    if (
+      Number.isNaN(fechaPago.getTime()) ||
+      fechaPago.getTime() > fechaActual.getTime()
+    ) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            "La fecha de pago debe ser válida y no puede estar en el futuro.",
+        },
+      };
+    }
+
+    if (
+      pago.soporte.size <= 0 ||
+      pago.soporte.size > 10 * 1024 * 1024
+    ) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            "Cada soporte debe tener contenido y un tamaño máximo de 10 MB.",
+        },
+      };
+    }
+
+    const tiposSoportePermitidos = [
+      "application/pdf",
+      "image/png",
+      "image/jpeg",
+    ];
+
+    if (
+      pago.soporte.type &&
+      !tiposSoportePermitidos.includes(pago.soporte.type)
+    ) {
+      return {
+        status: 400,
+        body: {
+          ok: false,
+          message:
+            "Los soportes deben estar en formato PDF, PNG, JPG o JPEG.",
+        },
+      };
+    }
+  }
+
+  const archivosGuardados: ArchivoGuardado[] = [];
+
+  try {
+    for (const pago of pagos) {
+      const archivo = await storageService.guardarArchivo({
+        contenido: Buffer.from(await pago.soporte.arrayBuffer()),
+        nombre_original: pago.soporte.name,
+        tipo_mime: pago.soporte.type || null,
+        carpeta: "solicitudes-pago/soportes-transferencia",
+      });
+
+      archivosGuardados.push(archivo);
+    }
+
+    const resultado = await registrarTransferenciasRepository({
+      pagos: pagos.map((pago, indice) => ({
+        solicitud_id: pago.solicitud_id.trim(),
+        fecha_pago: new Date(`${pago.fecha_pago}T12:00:00.000Z`),
+        numero_comprobante: pago.numero_comprobante.trim(),
+        observacion: pago.observacion?.trim() || null,
+        soporte: archivosGuardados[indice],
+      })),
+      usuarioId: usuarioAutenticado.id,
+      fechaRegistro: fechaActual,
+    });
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message:
+          pagos.length === 1
+            ? "Transferencia registrada correctamente."
+            : `${pagos.length} transferencias registradas correctamente.`,
+        data: {
+          solicitudes: resultado.solicitudes.map(convertirSolicitudPago),
+          resumen_proyectos: resultado.resumen_proyectos,
+        },
+      },
+    };
+  } catch (error) {
+    await Promise.allSettled(
+      archivosGuardados.map((archivo) =>
+        storageService.eliminarArchivo(archivo.ruta_archivo),
+      ),
+    );
+
+    if (error instanceof RegistroPagosError) {
+      return {
+        status: 409,
+        body: {
+          ok: false,
+          message: error.message,
+        },
+      };
+    }
+
+    throw error;
+  }
 }
 
 export async function consultarAprobacionesNivel1Service(
