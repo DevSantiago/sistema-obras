@@ -49,31 +49,16 @@ export async function registrarAnticipoService(
   }
 
   const valor = Number(input.valor);
-  const fecha = new Date(`${input.fecha_anticipo}T12:00:00.000Z`);
-  const fechaActualBogota = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
 
   if (
     !input.proyecto_base_id.trim() ||
     !input.entidad_id.trim() ||
     !Number.isFinite(valor) ||
-    valor <= 0 ||
-    Number.isNaN(fecha.getTime())
+    valor <= 0
   ) {
     return respuestaError(
       400,
-      "Proyecto, entidad, fecha y valor son obligatorios.",
-    );
-  }
-
-  if (input.fecha_anticipo > fechaActualBogota) {
-    return respuestaError(
-      400,
-      "La fecha del anticipo no puede ser posterior al día actual.",
+      "Proyecto, entidad y valor son obligatorios.",
     );
   }
 
@@ -97,15 +82,16 @@ export async function registrarAnticipoService(
   });
 
   try {
+    const fechaOperacion = new Date();
     const anticipo = await registrarAnticipoRepository({
       proyecto_base_id: input.proyecto_base_id.trim(),
       entidad_id: input.entidad_id.trim(),
       valor,
-      fecha_anticipo: fecha,
+      fecha_anticipo: fechaOperacion,
       observacion: input.observacion?.trim() || null,
       soporte: archivo,
       usuario_id: usuario.id,
-      registrado_en: new Date(),
+      registrado_en: fechaOperacion,
     });
 
     return {

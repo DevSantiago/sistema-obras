@@ -1385,13 +1385,16 @@ El anticipo:
 - se relaciona con el proyecto y su fondo general;
 - no se relaciona con un centro de costo;
 - identifica la entidad aportante;
-- exige fecha, valor, referencia y soporte;
+- exige valor, referencia y soporte;
 - genera `INGRESO_ANTICIPO`;
 - incrementa el saldo del fondo en la misma transacción.
 
 La imputación por centro de costo ocurre posteriormente, cuando se registran
 los pagos que utilizan los recursos. Solo `ADMINISTRADOR` y
 `AUXILIAR_CONTABLE` pueden registrar anticipos.
+
+La fecha y hora del anticipo corresponden al momento en que el sistema
+registra la operación. El usuario no puede seleccionarlas ni modificarlas.
 
 El sistema permitirá registrar préstamos para cubrir temporalmente faltantes de recursos.
 
@@ -1420,6 +1423,11 @@ El préstamo genera simultáneamente:
 
 Ambos movimientos deberán quedar vinculados mediante un mismo identificador de operación.
 
+La fecha y hora del préstamo corresponden al momento en que el sistema
+registra la operación. El usuario no puede seleccionar ni modificar esta
+fecha. El préstamo, el egreso del fondo origen, el ingreso del fondo destino y
+la actualización de ambos saldos se realizan en una única transacción.
+
 ---
 
 ## 13.4 Préstamo de persona a proyecto
@@ -1433,6 +1441,9 @@ El sistema registrará:
 - valor;
 - soporte;
 - saldo pendiente de devolución.
+
+La fecha y hora del préstamo corresponden al momento en que el sistema
+registra la operación. El usuario no puede seleccionarlas ni modificarlas.
 
 El catálogo de `beneficiarios_pago` funciona como registro maestro de
 terceros del MVP. Anticipos y préstamos conservan la relación con el tercero y

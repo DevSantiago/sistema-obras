@@ -9,20 +9,12 @@ import styles from "./AnticipoForm.module.css";
 
 type Proyecto = ConsultarFondosData["proyectos"][number];
 
-const HOY_BOGOTA = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/Bogota",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-}).format(new Date());
-
 export default function AnticipoForm() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [entidades, setEntidades] = useState<BeneficiarioListado[]>([]);
   const [proyectoId, setProyectoId] = useState("");
   const [entidadId, setEntidadId] = useState("");
   const [valor, setValor] = useState("");
-  const [fecha, setFecha] = useState(HOY_BOGOTA);
   const [observacion, setObservacion] = useState("");
   const [soporte, setSoporte] = useState<File | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -73,7 +65,6 @@ export default function AnticipoForm() {
     formData.set("proyecto_base_id", proyectoId);
     formData.set("entidad_id", entidadId);
     formData.set("valor", valor.replace(/[^\d]/g, ""));
-    formData.set("fecha_anticipo", fecha);
     formData.set("observacion", observacion);
     formData.set("soporte", soporte);
     setCargando(true);
@@ -107,7 +98,6 @@ export default function AnticipoForm() {
         setObservacion("");
         setSoporte(null);
         formulario.reset();
-        setFecha(HOY_BOGOTA);
         setProyectoId("");
       }
     } catch {
@@ -159,16 +149,10 @@ export default function AnticipoForm() {
             placeholder="0"
           />
         </label>
-        <label>
-          <span>Fecha del anticipo *</span>
-          <input
-            max={HOY_BOGOTA}
-            required
-            type="date"
-            value={fecha}
-            onChange={(event) => setFecha(event.target.value)}
-          />
-        </label>
+        <div className={styles.systemDate}>
+          <span>Fecha de la operación</span>
+          <p>El sistema la asignará al registrar el anticipo.</p>
+        </div>
         <label className={styles.fullWidth}>
           <span>Soporte *</span>
           <input

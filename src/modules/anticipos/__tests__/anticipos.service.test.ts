@@ -30,18 +30,10 @@ const usuario: UsuarioSesion = {
 };
 
 function crearInput() {
-  const fechaHoy = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-
   return {
     proyecto_base_id: "proyecto-1",
     entidad_id: "entidad-1",
     valor: 500000,
-    fecha_anticipo: fechaHoy,
     observacion: "Anticipo inicial",
     soporte: new File(["soporte"], "soporte.pdf", {
       type: "application/pdf",
@@ -82,17 +74,7 @@ describe("anticipos.service - registrarAnticipoService", () => {
     expect(storageService.guardarArchivo).not.toHaveBeenCalled();
   });
 
-  it("debe rechazar fechas futuras", async () => {
-    const resultado = await registrarAnticipoService(usuario, {
-      ...crearInput(),
-      fecha_anticipo: "2999-01-01",
-    });
-
-    expect(resultado.status).toBe(400);
-    expect(storageService.guardarArchivo).not.toHaveBeenCalled();
-  });
-
-  it("debe guardar el soporte y registrar el anticipo", async () => {
+  it("debe guardar el soporte y registrar el anticipo con fecha del sistema", async () => {
     const resultado = await registrarAnticipoService(
       usuario,
       crearInput(),
@@ -110,7 +92,14 @@ describe("anticipos.service - registrarAnticipoService", () => {
         entidad_id: "entidad-1",
         valor: 500000,
         usuario_id: "usuario-1",
+        fecha_anticipo: expect.any(Date),
+        registrado_en: expect.any(Date),
       }),
+    );
+    const inputRepositorio = vi.mocked(registrarAnticipoRepository)
+      .mock.calls[0][0];
+    expect(inputRepositorio.fecha_anticipo).toBe(
+      inputRepositorio.registrado_en,
     );
   });
 

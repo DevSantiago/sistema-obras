@@ -4,14 +4,13 @@ export type RegistrarAnticipoInput = {
   proyecto_base_id: string;
   entidad_id: string;
   valor: number;
-  fecha_anticipo: string;
   observacion?: string | null;
   soporte: File;
 };
 
 export type RegistrarAnticipoRepositoryInput = Omit<
   RegistrarAnticipoInput,
-  "fecha_anticipo" | "soporte"
+  "soporte"
 > & {
   fecha_anticipo: Date;
   soporte: ArchivoGuardado;

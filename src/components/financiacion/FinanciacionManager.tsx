@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AnticipoForm from "@/components/anticipos/AnticipoForm";
-import PrestamoForm from "@/components/prestamos/PrestamoForm";
+import PrestamosManager from "@/components/prestamos/PrestamosManager";
 import styles from "./FinanciacionManager.module.css";
 
 export default function FinanciacionManager() {
@@ -32,7 +32,7 @@ export default function FinanciacionManager() {
           Préstamos
         </button>
       </div>
-      {vista === "ANTICIPOS" ? <AnticipoForm /> : <PrestamoForm />}
+      {vista === "ANTICIPOS" ? <AnticipoForm /> : <PrestamosManager />}
     </section>
   );
 }

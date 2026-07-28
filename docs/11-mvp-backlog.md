@@ -1580,6 +1580,8 @@ Implementación:
 - Soporte obligatorio PDF, PNG, JPG o JPEG, máximo 10 MB.
 - El anticipo, soporte, movimiento y actualización del fondo se registran en
   una transacción serializable.
+- La fecha y hora se toman del sistema al registrar; el usuario no puede
+  seleccionarlas.
 
 ### HU-1402. Registrar préstamo general de persona a proyecto
 
@@ -1609,8 +1611,12 @@ Implementación:
 - Inicializa `saldo_pendiente` con el valor total del préstamo.
 - Anticipos y préstamos buscan el tercero por nombre o documento desde un
   único módulo de financiación.
+- La fecha y hora se toman del sistema al registrar; el usuario no puede
+  seleccionarlas.
 
 ### HU-1403. Registrar préstamo entre proyectos
+
+**Estado: COMPLETADA**
 
 Como usuario autorizado, quiero registrar préstamo entre proyectos base, para controlar traslado temporal de recursos.
 
@@ -1621,6 +1627,19 @@ Criterios:
 - Crea ingreso en proyecto/fondo destino.
 - Actualiza saldos de ambos fondos.
 - Registra auditoría.
+
+Implementación:
+
+- Endpoint `POST /api/v1/prestamos/entre-proyectos`.
+- Vista responsive `/financiacion`, pestañas Préstamos y Entre proyectos.
+- Permiso `REGISTRAR_PRESTAMOS` para `ADMINISTRADOR` y
+  `AUXILIAR_CONTABLE`.
+- Exige proyectos origen y destino diferentes, valor positivo y soporte.
+- No permite seleccionar fecha; usa la fecha y hora del sistema al registrar.
+- Crea `EGRESO_PRESTAMO_PROYECTO` e `INGRESO_PRESTAMO_PROYECTO` con la misma
+  referencia.
+- Inicializa el saldo pendiente y actualiza ambos fondos en una transacción
+  serializable. El egreso exige saldo suficiente en el fondo origen.
 
 ### HU-1404. Registrar devolución de préstamo
 

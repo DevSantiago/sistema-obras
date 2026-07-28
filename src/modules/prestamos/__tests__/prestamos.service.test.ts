@@ -3,9 +3,13 @@ import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import { storageService } from "@/modules/storage/storage.service";
 import {
   RegistrarPrestamoError,
+  registrarPrestamoEntreProyectosRepository,
   registrarPrestamoPersonaRepository,
 } from "../prestamos.repository";
-import { registrarPrestamoPersonaService } from "../prestamos.service";
+import {
+  registrarPrestamoEntreProyectosService,
+  registrarPrestamoPersonaService,
+} from "../prestamos.service";
 
 vi.mock("@/modules/storage/storage.service", () => ({
   storageService: {
@@ -16,6 +20,7 @@ vi.mock("@/modules/storage/storage.service", () => ({
 
 vi.mock("../prestamos.repository", () => ({
   RegistrarPrestamoError: class extends Error {},
+  registrarPrestamoEntreProyectosRepository: vi.fn(),
   registrarPrestamoPersonaRepository: vi.fn(),
 }));
 
@@ -34,13 +39,19 @@ function crearInput() {
     proyecto_base_id: "proyecto-1",
     acreedor_id: "acreedor-1",
     valor: 800000,
-    fecha_prestamo: new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Bogota",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date()),
     observacion: "Capital de trabajo",
+    soporte: new File(["soporte"], "prestamo.pdf", {
+      type: "application/pdf",
+    }),
+  };
+}
+
+function crearInputEntreProyectos() {
+  return {
+    proyecto_origen_id: "proyecto-origen",
+    proyecto_destino_id: "proyecto-destino",
+    valor: 300000,
+    observacion: "Traslado temporal",
     soporte: new File(["soporte"], "prestamo.pdf", {
       type: "application/pdf",
     }),
@@ -71,6 +82,23 @@ describe("prestamos.service", () => {
       saldo_anterior_fondo: 100000,
       saldo_nuevo_fondo: 900000,
     });
+    vi.mocked(
+      registrarPrestamoEntreProyectosRepository,
+    ).mockResolvedValue({
+      id: "prestamo-2",
+      referencia_sistema: "PRE-DESTINO-2026-000001",
+      proyecto_origen_id: "proyecto-origen",
+      proyecto_origen_nombre: "Proyecto origen",
+      proyecto_destino_id: "proyecto-destino",
+      proyecto_destino_nombre: "Proyecto destino",
+      valor_original: 300000,
+      saldo_pendiente: 300000,
+      saldo_origen_anterior: 800000,
+      saldo_origen_nuevo: 500000,
+      saldo_destino_anterior: 100000,
+      saldo_destino_nuevo: 400000,
+      fecha_operacion: "2026-07-28T15:00:00.000Z",
+    });
   });
 
   it("debe exigir permiso", async () => {
@@ -83,7 +111,7 @@ describe("prestamos.service", () => {
     expect(storageService.guardarArchivo).not.toHaveBeenCalled();
   });
 
-  it("debe registrar el préstamo y saldo pendiente", async () => {
+  it("debe registrar el préstamo con fecha del sistema y saldo pendiente", async () => {
     const resultado = await registrarPrestamoPersonaService(
       usuario,
       crearInput(),
@@ -95,7 +123,15 @@ describe("prestamos.service", () => {
         proyecto_base_id: "proyecto-1",
         acreedor_id: "acreedor-1",
         valor: 800000,
+        fecha_prestamo: expect.any(Date),
+        registrado_en: expect.any(Date),
       }),
+    );
+    const inputRepositorio = vi.mocked(
+      registrarPrestamoPersonaRepository,
+    ).mock.calls[0][0];
+    expect(inputRepositorio.fecha_prestamo).toBe(
+      inputRepositorio.registrado_en,
     );
     expect(resultado.body.data?.saldo_pendiente).toBe(800000);
   });
@@ -116,5 +152,41 @@ describe("prestamos.service", () => {
     expect(storageService.eliminarArchivo).toHaveBeenCalledWith(
       "storage/prestamos/prestamo.pdf",
     );
+  });
+
+  it("debe registrar el préstamo entre proyectos con la fecha del sistema", async () => {
+    const resultado = await registrarPrestamoEntreProyectosService(
+      usuario,
+      crearInputEntreProyectos(),
+    );
+
+    expect(resultado.status).toBe(201);
+    expect(
+      registrarPrestamoEntreProyectosRepository,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        proyecto_origen_id: "proyecto-origen",
+        proyecto_destino_id: "proyecto-destino",
+        valor: 300000,
+        fecha_operacion: expect.any(Date),
+      }),
+    );
+    expect(resultado.body.data?.saldo_pendiente).toBe(300000);
+  });
+
+  it("debe impedir un préstamo hacia el mismo proyecto", async () => {
+    const resultado = await registrarPrestamoEntreProyectosService(
+      usuario,
+      {
+        ...crearInputEntreProyectos(),
+        proyecto_destino_id: "proyecto-origen",
+      },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(
+      registrarPrestamoEntreProyectosRepository,
+    ).not.toHaveBeenCalled();
+    expect(storageService.guardarArchivo).not.toHaveBeenCalled();
   });
 });

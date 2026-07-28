@@ -37,19 +37,20 @@ describe("POST /api/v1/prestamos", () => {
     formData.set("proyecto_base_id", "proyecto-1");
     formData.set("acreedor_id", "acreedor-1");
     formData.set("valor", "800000");
-    formData.set("fecha_prestamo", "2026-07-28");
     formData.set(
       "soporte",
       new File(["x"], "prestamo.pdf", {
         type: "application/pdf",
       }),
     );
-
     const response = await POST(
       new Request("http://localhost/api/v1/prestamos", {
         method: "POST",
         body: formData,
       }),
+    );
+    expect(servicioMock.mock.calls[0][1]).not.toHaveProperty(
+      "fecha_prestamo",
     );
 
     expect(response.status).toBe(201);

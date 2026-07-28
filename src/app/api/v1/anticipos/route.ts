@@ -54,9 +54,6 @@ export async function POST(request: Request) {
         ),
         entidad_id: String(formData.get("entidad_id") ?? ""),
         valor: Number(formData.get("valor") ?? 0),
-        fecha_anticipo: String(
-          formData.get("fecha_anticipo") ?? "",
-        ),
         observacion: String(formData.get("observacion") ?? ""),
         soporte,
       },

@@ -111,6 +111,7 @@ Actualmente la API expone los siguientes recursos:
 /api/v1/fondos
 /api/v1/anticipos
 /api/v1/prestamos
+/api/v1/prestamos/entre-proyectos
 ```
 
 El registro financiero de HU-1002 es un servicio interno y no expone un
@@ -145,6 +146,7 @@ crear el movimiento de forma atómica.
 | GET | `/api/v1/fondos/movimientos` |
 | POST | `/api/v1/anticipos` |
 | POST | `/api/v1/prestamos` |
+| POST | `/api/v1/prestamos/entre-proyectos` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -165,12 +167,33 @@ Content-Type: multipart/form-data
 ```
 
 Requiere `REGISTRAR_PRESTAMOS`. Campos obligatorios:
-`proyecto_base_id`, `acreedor_id`, `valor`, `fecha_prestamo` y `soporte`.
+`proyecto_base_id`, `acreedor_id`, `valor` y `soporte`.
 `observacion` es opcional. El acreedor debe ser un beneficiario activo.
+El contrato no recibe fecha: el sistema toma la fecha y hora de la operación.
 
 La interfaz consolida anticipos y préstamos en `/financiacion`. Los campos de
 entidad aportante y persona acreedora permiten buscar beneficiarios por nombre
 o identificación.
+
+---
+
+## Registrar préstamo entre proyectos
+
+```http
+POST /api/v1/prestamos/entre-proyectos
+Content-Type: multipart/form-data
+```
+
+Requiere `REGISTRAR_PRESTAMOS`. Campos obligatorios:
+`proyecto_origen_id`, `proyecto_destino_id`, `valor` y `soporte`.
+`observacion` es opcional. Los proyectos deben ser diferentes, estar activos y
+tener fondos activos. El contrato no recibe fecha: el sistema toma la fecha y
+hora de la operación.
+
+El registro crea un `EGRESO_PRESTAMO_PROYECTO` en el fondo origen y un
+`INGRESO_PRESTAMO_PROYECTO` en el fondo destino. Ambos movimientos comparten
+la referencia del préstamo y se confirman junto con los nuevos saldos en una
+transacción serializable.
 
 ---
 
@@ -186,16 +209,13 @@ Requiere `REGISTRAR_ANTICIPOS`. Campos:
 | Campo | Requerido |
 |-------|-----------|
 | `proyecto_base_id` | Sí |
-| `entidad_nombre` | Sí |
-| `entidad_tipo_documento` | Sí |
-| `entidad_numero_documento` | Sí |
+| `entidad_id` | Sí |
 | `valor` | Sí |
-| `fecha_anticipo` | Sí |
 | `soporte` | Sí |
 | `observacion` | No |
 
-La fecha no puede ser futura. El soporte admite PDF, PNG, JPG o JPEG, máximo
-10 MB.
+El contrato no recibe fecha: el sistema toma la fecha y hora de la operación.
+El soporte admite PDF, PNG, JPG o JPEG, máximo 10 MB.
 
 ---
 

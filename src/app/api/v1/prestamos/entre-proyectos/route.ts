@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import { registrarPrestamoPersonaService } from "@/modules/prestamos/prestamos.service";
+import { registrarPrestamoEntreProyectosService } from "@/modules/prestamos/prestamos.service";
 
 export async function POST(request: Request) {
   try {
@@ -39,13 +39,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const resultado = await registrarPrestamoPersonaService(
+    const resultado = await registrarPrestamoEntreProyectosService(
       autenticacion.body.data.usuario,
       {
-        proyecto_base_id: String(
-          formData.get("proyecto_base_id") ?? "",
+        proyecto_origen_id: String(
+          formData.get("proyecto_origen_id") ?? "",
         ),
-        acreedor_id: String(formData.get("acreedor_id") ?? ""),
+        proyecto_destino_id: String(
+          formData.get("proyecto_destino_id") ?? "",
+        ),
         valor: Number(formData.get("valor") ?? 0),
         observacion: String(formData.get("observacion") ?? ""),
         soporte,
@@ -56,10 +58,13 @@ export async function POST(request: Request) {
       status: resultado.status,
     });
   } catch (error) {
-    console.error("Error registrando préstamo:", error);
+    console.error("Error registrando préstamo entre proyectos:", error);
 
     return Response.json(
-      { ok: false, message: "No fue posible registrar el préstamo." },
+      {
+        ok: false,
+        message: "No fue posible registrar el préstamo entre proyectos.",
+      },
       { status: 500 },
     );
   }

@@ -4,14 +4,13 @@ export type RegistrarPrestamoPersonaInput = {
   proyecto_base_id: string;
   acreedor_id: string;
   valor: number;
-  fecha_prestamo: string;
   observacion?: string | null;
   soporte: File;
 };
 
 export type RegistrarPrestamoPersonaRepositoryInput = Omit<
   RegistrarPrestamoPersonaInput,
-  "fecha_prestamo" | "soporte"
+  "soporte"
 > & {
   fecha_prestamo: Date;
   soporte: ArchivoGuardado;
@@ -30,4 +29,37 @@ export type PrestamoPersonaRegistrado = {
   saldo_pendiente: number;
   saldo_anterior_fondo: number;
   saldo_nuevo_fondo: number;
+};
+
+export type RegistrarPrestamoEntreProyectosInput = {
+  proyecto_origen_id: string;
+  proyecto_destino_id: string;
+  valor: number;
+  observacion?: string | null;
+  soporte: File;
+};
+
+export type RegistrarPrestamoEntreProyectosRepositoryInput = Omit<
+  RegistrarPrestamoEntreProyectosInput,
+  "soporte"
+> & {
+  soporte: ArchivoGuardado;
+  usuario_id: string;
+  fecha_operacion: Date;
+};
+
+export type PrestamoEntreProyectosRegistrado = {
+  id: string;
+  referencia_sistema: string;
+  proyecto_origen_id: string;
+  proyecto_origen_nombre: string;
+  proyecto_destino_id: string;
+  proyecto_destino_nombre: string;
+  valor_original: number;
+  saldo_pendiente: number;
+  saldo_origen_anterior: number;
+  saldo_origen_nuevo: number;
+  saldo_destino_anterior: number;
+  saldo_destino_nuevo: number;
+  fecha_operacion: string;
 };
