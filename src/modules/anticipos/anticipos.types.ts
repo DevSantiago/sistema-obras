@@ -2,9 +2,7 @@ import type { ArchivoGuardado } from "@/modules/storage/storage.types";
 
 export type RegistrarAnticipoInput = {
   proyecto_base_id: string;
-  entidad_nombre: string;
-  entidad_tipo_documento: string;
-  entidad_numero_documento: string;
+  entidad_id: string;
   valor: number;
   fecha_anticipo: string;
   observacion?: string | null;

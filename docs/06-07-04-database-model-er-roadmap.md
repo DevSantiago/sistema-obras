@@ -109,8 +109,13 @@ Objetivos:
 
 `movimientos_fondo` ya registra ingresos y egresos con saldo anterior y
 nuevo. Permanecen proyectados los modelos especializados para ajustes,
-devoluciones, préstamos y otros orígenes financieros de las épicas
+devoluciones y otros orígenes financieros de las épicas
 posteriores.
+
+`prestamos_proyecto` implementa el préstamo de persona a proyecto y queda
+preparado para préstamos entre proyectos. Conserva el valor original, el
+saldo pendiente, el soporte, el acreedor y los proyectos origen o destino
+según el tipo.
 
 ---
 

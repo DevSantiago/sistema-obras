@@ -32,9 +32,7 @@ const usuario = {
 function crearRequest(incluirSoporte = true) {
   const formData = new FormData();
   formData.set("proyecto_base_id", "proyecto-1");
-  formData.set("entidad_nombre", "Gobernación");
-  formData.set("entidad_tipo_documento", "NIT");
-  formData.set("entidad_numero_documento", "900123456");
+  formData.set("entidad_id", "entidad-1");
   formData.set("valor", "500000");
   formData.set("fecha_anticipo", "2026-07-28");
 
@@ -80,7 +78,7 @@ describe("POST /api/v1/anticipos", () => {
       usuario,
       expect.objectContaining({
         proyecto_base_id: "proyecto-1",
-        entidad_nombre: "Gobernación",
+        entidad_id: "entidad-1",
         valor: 500000,
         soporte: expect.any(File),
       }),

@@ -3,52 +3,37 @@ import { prisma } from "@/lib/prisma";
 import { registrarMovimientoFondoEnTransaccionRepository } from "@/modules/fondos/movimientos-fondo.repository";
 import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
 import type {
-  AnticipoRegistrado,
-  RegistrarAnticipoRepositoryInput,
-} from "./anticipos.types";
+  PrestamoPersonaRegistrado,
+  RegistrarPrestamoPersonaRepositoryInput,
+} from "./prestamos.types";
 
-export class RegistrarAnticipoError extends Error {
+export class RegistrarPrestamoError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "RegistrarAnticipoError";
+    this.name = "RegistrarPrestamoError";
   }
 }
 
-export async function registrarAnticipoRepository(
-  input: RegistrarAnticipoRepositoryInput,
-): Promise<AnticipoRegistrado> {
+export async function registrarPrestamoPersonaRepository(
+  input: RegistrarPrestamoPersonaRepositoryInput,
+): Promise<PrestamoPersonaRegistrado> {
   return prisma.$transaction(
     async (tx) => {
       const proyecto = await tx.proyectos_base.findFirst({
         where: {
           id: input.proyecto_base_id,
           activo: true,
-          fondo: {
-            is: {
-              activo: true,
-            },
-          },
+          fondo: { is: { activo: true } },
         },
         select: {
           id: true,
           nombre: true,
-          fondo: {
-            select: {
-              id: true,
-            },
-          },
+          fondo: { select: { id: true } },
         },
       });
-
-      if (!proyecto?.fondo) {
-        throw new RegistrarAnticipoError(
-          "El proyecto no existe, está inactivo o no tiene un fondo activo.",
-        );
-      }
-
-      const entidad = await tx.beneficiarios_pago.findFirst({
+      const acreedor = await tx.beneficiarios_pago.findFirst({
         where: {
-          id: input.entidad_id,
+          id: input.acreedor_id,
           activo: true,
         },
         select: {
@@ -59,25 +44,31 @@ export async function registrarAnticipoRepository(
         },
       });
 
+      if (!proyecto?.fondo) {
+        throw new RegistrarPrestamoError(
+          "El proyecto no existe, está inactivo o no tiene un fondo activo.",
+        );
+      }
+
       if (
-        !entidad?.tipo_documento ||
-        !entidad.numero_documento
+        !acreedor?.tipo_documento ||
+        !acreedor.numero_documento
       ) {
-        throw new RegistrarAnticipoError(
-          "La entidad no existe, está inactiva o no tiene identificación.",
+        throw new RegistrarPrestamoError(
+          "El acreedor no existe, está inactivo o no tiene identificación.",
         );
       }
 
       const secuencia = await generarSecuenciaDocumentalRepository(
         {
-          tipo_secuencia: "ANTICIPO",
+          tipo_secuencia: "PRESTAMO_PROYECTO",
           proyecto_base_id: proyecto.id,
           centro_costo_id: null,
           proyecto_referencia: proyecto.nombre,
           centro_costo_referencia: null,
           clave_contexto: `PROYECTO:${proyecto.id}`,
-          prefijo: "ANT",
-          anio: input.fecha_anticipo.getUTCFullYear(),
+          prefijo: "PRE",
+          anio: input.fecha_prestamo.getUTCFullYear(),
         },
         tx,
       );
@@ -91,56 +82,56 @@ export async function registrarAnticipoRepository(
           subido_por: input.usuario_id,
           estado_ocr: "NO_PROCESADO",
         },
-        select: {
-          id: true,
-        },
+        select: { id: true },
       });
-      const anticipo = await tx.anticipos.create({
+      const prestamo = await tx.prestamos_proyecto.create({
         data: {
-          proyecto_base_id: proyecto.id,
-          fondo_id: proyecto.fondo.id,
-          entidad_id: entidad.id,
+          tipo_prestamo: "PERSONA_A_PROYECTO",
+          proyecto_destino_id: proyecto.id,
+          fondo_destino_id: proyecto.fondo.id,
+          acreedor_id: acreedor.id,
           adjunto_soporte_id: soporte.id,
           referencia_sistema: secuencia.referencia,
-          entidad_nombre: entidad.nombre,
-          entidad_tipo_documento: entidad.tipo_documento,
-          entidad_numero_documento: entidad.numero_documento,
-          valor: input.valor,
-          fecha_anticipo: input.fecha_anticipo,
+          acreedor_nombre: acreedor.nombre,
+          acreedor_tipo_documento: acreedor.tipo_documento,
+          acreedor_numero_documento: acreedor.numero_documento,
+          valor_original: input.valor,
+          saldo_pendiente: input.valor,
+          fecha_prestamo: input.fecha_prestamo,
+          estado: "ACTIVO",
           observacion: input.observacion,
           registrado_por: input.usuario_id,
           registrado_en: input.registrado_en,
         },
-        select: {
-          id: true,
-        },
+        select: { id: true },
       });
       const movimiento =
         await registrarMovimientoFondoEnTransaccionRepository(tx, {
           fondo_id: proyecto.fondo.id,
           proyecto_base_id: proyecto.id,
-          anticipo_id: anticipo.id,
-          tipo_movimiento: "INGRESO_ANTICIPO",
+          prestamo_proyecto_id: prestamo.id,
+          tipo_movimiento: "INGRESO_PRESTAMO_PERSONA",
           direccion: "INGRESO",
           valor: input.valor,
           referencia_sistema: secuencia.referencia,
           descripcion:
             input.observacion ??
-            `Anticipo entregado por ${entidad.nombre}.`,
+            `Préstamo entregado por ${acreedor.nombre}.`,
           registrado_por: input.usuario_id,
           registrado_en: input.registrado_en,
         });
 
       return {
-        id: anticipo.id,
+        id: prestamo.id,
         referencia_sistema: secuencia.referencia,
         proyecto_base_id: proyecto.id,
         proyecto_nombre: proyecto.nombre,
-        entidad_nombre: entidad.nombre,
-        valor: input.valor,
-        fecha_anticipo: input.fecha_anticipo.toISOString(),
-        saldo_anterior: movimiento.saldo_anterior,
-        saldo_nuevo: movimiento.saldo_nuevo,
+        acreedor_id: acreedor.id,
+        acreedor_nombre: acreedor.nombre,
+        valor_original: input.valor,
+        saldo_pendiente: input.valor,
+        saldo_anterior_fondo: movimiento.saldo_anterior,
+        saldo_nuevo_fondo: movimiento.saldo_nuevo,
       };
     },
     {

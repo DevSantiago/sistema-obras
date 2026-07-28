@@ -1562,6 +1562,8 @@ Criterios:
 - Se relaciona únicamente con el proyecto base y su fondo general.
 - Registra la entidad aportante, identificación, fecha, valor, soporte y
   observación opcional.
+- Selecciona la entidad desde el catálogo de beneficiarios y conserva una
+  copia histórica de su identificación.
 - No se imputa a un centro de costo; esa imputación ocurre cuando los recursos
   se utilicen.
 - Crea movimiento `INGRESO_ANTICIPO`.
@@ -1571,7 +1573,7 @@ Criterios:
 Implementación:
 
 - Endpoint `POST /api/v1/anticipos`.
-- Vista responsive `/anticipos`.
+- Vista responsive `/financiacion`, pestaña Anticipos.
 - Permiso `REGISTRAR_ANTICIPOS` para `ADMINISTRADOR` y
   `AUXILIAR_CONTABLE`.
 - Consecutivo `ANT` por proyecto y año.
@@ -1580,6 +1582,8 @@ Implementación:
   una transacción serializable.
 
 ### HU-1402. Registrar préstamo general de persona a proyecto
+
+**Estado: COMPLETADA**
 
 Como usuario autorizado, quiero registrar préstamo de una persona a un proyecto base, para controlar financiación externa general.
 
@@ -1591,6 +1595,20 @@ Criterios:
 - Crea movimiento de ingreso.
 - Actualiza saldo pendiente.
 - Permite que las solicitudes posteriores descuenten del mismo fondo general sin dividir el préstamo por línea.
+- Selecciona el acreedor desde beneficiarios para evitar terceros duplicados.
+- Conserva una copia histórica del nombre e identificación del acreedor.
+
+Implementación:
+
+- Endpoint `POST /api/v1/prestamos`.
+- Vista responsive `/financiacion`, pestaña Préstamos.
+- Permiso `REGISTRAR_PRESTAMOS` para `ADMINISTRADOR` y
+  `AUXILIAR_CONTABLE`.
+- Soporte obligatorio y consecutivo `PRE` por proyecto y año.
+- Crea `INGRESO_PRESTAMO_PERSONA` y aumenta el fondo en la misma transacción.
+- Inicializa `saldo_pendiente` con el valor total del préstamo.
+- Anticipos y préstamos buscan el tercero por nombre o documento desde un
+  único módulo de financiación.
 
 ### HU-1403. Registrar préstamo entre proyectos
 

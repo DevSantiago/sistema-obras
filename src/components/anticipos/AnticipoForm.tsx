@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { ConsultarFondosData } from "@/modules/fondos/fondos.types";
+import type { BeneficiarioListado } from "@/modules/beneficiarios/beneficiarios.types";
 import { formatearValorEntrada } from "@/components/solicitudes-pago/solicitudes-pago.utils";
+import TerceroSelector from "@/components/financiacion/TerceroSelector";
 import styles from "./AnticipoForm.module.css";
 
 type Proyecto = ConsultarFondosData["proyectos"][number];
@@ -16,10 +18,9 @@ const HOY_BOGOTA = new Intl.DateTimeFormat("en-CA", {
 
 export default function AnticipoForm() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [entidades, setEntidades] = useState<BeneficiarioListado[]>([]);
   const [proyectoId, setProyectoId] = useState("");
-  const [entidadNombre, setEntidadNombre] = useState("");
-  const [tipoDocumento, setTipoDocumento] = useState("NIT");
-  const [numeroDocumento, setNumeroDocumento] = useState("");
+  const [entidadId, setEntidadId] = useState("");
   const [valor, setValor] = useState("");
   const [fecha, setFecha] = useState(HOY_BOGOTA);
   const [observacion, setObservacion] = useState("");
@@ -43,6 +44,21 @@ export default function AnticipoForm() {
       });
   }, []);
 
+  useEffect(() => {
+    void fetch("/api/v1/beneficiarios?activo=true", {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((response) => response.json())
+      .then((body: { data?: BeneficiarioListado[] }) => {
+        setEntidades(body.data ?? []);
+      })
+      .catch(() => {
+        setMensaje("No fue posible cargar las entidades.");
+        setEsError(true);
+      });
+  }, []);
+
   async function registrar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formulario = event.currentTarget;
@@ -55,9 +71,7 @@ export default function AnticipoForm() {
 
     const formData = new FormData();
     formData.set("proyecto_base_id", proyectoId);
-    formData.set("entidad_nombre", entidadNombre);
-    formData.set("entidad_tipo_documento", tipoDocumento);
-    formData.set("entidad_numero_documento", numeroDocumento);
+    formData.set("entidad_id", entidadId);
     formData.set("valor", valor.replace(/[^\d]/g, ""));
     formData.set("fecha_anticipo", fecha);
     formData.set("observacion", observacion);
@@ -88,14 +102,12 @@ export default function AnticipoForm() {
       );
 
       if (response.ok && body.ok) {
-        setEntidadNombre("");
-        setNumeroDocumento("");
+        setEntidadId("");
         setValor("");
         setObservacion("");
         setSoporte(null);
         formulario.reset();
         setFecha(HOY_BOGOTA);
-        setTipoDocumento("NIT");
         setProyectoId("");
       }
     } catch {
@@ -128,36 +140,12 @@ export default function AnticipoForm() {
             ))}
           </select>
         </label>
-        <label>
-          <span>Entidad que entrega el anticipo *</span>
-          <input
-            required
-            value={entidadNombre}
-            onChange={(event) => setEntidadNombre(event.target.value)}
-            placeholder="Ej. Alcaldía de..."
-          />
-        </label>
-        <label>
-          <span>Tipo de documento *</span>
-          <select
-            required
-            value={tipoDocumento}
-            onChange={(event) => setTipoDocumento(event.target.value)}
-          >
-            <option value="NIT">NIT</option>
-            <option value="CC">Cédula de ciudadanía</option>
-            <option value="CE">Cédula de extranjería</option>
-            <option value="OTRO">Otro</option>
-          </select>
-        </label>
-        <label>
-          <span>Número de documento *</span>
-          <input
-            required
-            value={numeroDocumento}
-            onChange={(event) => setNumeroDocumento(event.target.value)}
-          />
-        </label>
+        <TerceroSelector
+          etiqueta="Entidad que entrega el anticipo"
+          terceros={entidades}
+          value={entidadId}
+          onChange={setEntidadId}
+        />
         <label>
           <span>Valor del anticipo *</span>
           <input

@@ -116,6 +116,31 @@ async function validarOrigenMovimiento(
       );
     }
   }
+
+  if (input.prestamo_proyecto_id) {
+    const prestamoValido = await tx.prestamos_proyecto.count({
+      where: {
+        id: input.prestamo_proyecto_id,
+        OR: [
+          {
+            proyecto_destino_id: input.proyecto_base_id,
+            fondo_destino_id: input.fondo_id,
+          },
+          {
+            proyecto_origen_id: input.proyecto_base_id,
+            fondo_origen_id: input.fondo_id,
+          },
+        ],
+      },
+    });
+
+    if (prestamoValido !== 1) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "El préstamo no corresponde al proyecto o fondo del movimiento.",
+      );
+    }
+  }
 }
 
 async function validarMovimientoDuplicado(
@@ -244,6 +269,7 @@ export async function registrarMovimientoFondoEnTransaccionRepository(
       pago_id: input.pago_id,
       operacion_efectivo_id: input.operacion_efectivo_id,
       anticipo_id: input.anticipo_id,
+      prestamo_proyecto_id: input.prestamo_proyecto_id,
       tipo_movimiento: input.tipo_movimiento.trim(),
       direccion: input.direccion,
       valor: input.valor,

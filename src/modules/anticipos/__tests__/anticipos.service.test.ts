@@ -39,9 +39,7 @@ function crearInput() {
 
   return {
     proyecto_base_id: "proyecto-1",
-    entidad_nombre: "Alcaldía Municipal",
-    entidad_tipo_documento: "NIT",
-    entidad_numero_documento: "900123456",
+    entidad_id: "entidad-1",
     valor: 500000,
     fecha_anticipo: fechaHoy,
     observacion: "Anticipo inicial",
@@ -109,7 +107,7 @@ describe("anticipos.service - registrarAnticipoService", () => {
     expect(registrarAnticipoRepository).toHaveBeenCalledWith(
       expect.objectContaining({
         proyecto_base_id: "proyecto-1",
-        entidad_nombre: "Alcaldía Municipal",
+        entidad_id: "entidad-1",
         valor: 500000,
         usuario_id: "usuario-1",
       }),

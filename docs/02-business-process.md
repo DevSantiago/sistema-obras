@@ -1429,10 +1429,15 @@ Una persona podrá entregar recursos al proyecto para cubrir una necesidad opera
 El sistema registrará:
 
 - ingreso del proyecto;
-- acreedor;
+- acreedor seleccionado desde el catálogo de beneficiarios;
 - valor;
 - soporte;
 - saldo pendiente de devolución.
+
+El catálogo de `beneficiarios_pago` funciona como registro maestro de
+terceros del MVP. Anticipos y préstamos conservan la relación con el tercero y
+una copia histórica de su nombre e identificación, evitando duplicados sin
+perder trazabilidad si el beneficiario se edita posteriormente.
 
 ---
 
