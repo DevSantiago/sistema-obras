@@ -411,6 +411,22 @@ export type SolicitudPagoListado = {
   } | null;
 };
 
+export type SolicitudProgramadaPago = Omit<
+  SolicitudPagoListado,
+  "beneficiario"
+> & {
+  beneficiario?: {
+    id: string;
+    nombre: string;
+    tipo_beneficiario: string;
+    tipo_documento: string | null;
+    numero_documento: string | null;
+    banco: string | null;
+    tipo_cuenta_bancaria: string | null;
+    numero_cuenta_bancaria: string | null;
+  } | null;
+};
+
 export type UsuarioSesionSolicitudesPago = {
   id: string;
   nombre: string;

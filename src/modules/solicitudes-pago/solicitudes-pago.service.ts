@@ -38,6 +38,7 @@ import type {
   ServiceResponse,
   SolicitudPagoListFilters,
   SolicitudPagoListado,
+  SolicitudProgramadaPago,
   ConsultarAprobacionesNivel1Data,
   ProyectoPendienteAprobacionNivel1,
   TipoImpuestoSolicitud,
@@ -946,6 +947,105 @@ export async function listarSolicitudesPagoService(
       message: "Solicitudes consultadas correctamente.",
       data: {
         solicitudes: solicitudes.map(convertirSolicitudPago),
+      },
+    },
+  };
+}
+
+export async function listarBandejaPagosService(
+  usuarioAutenticado: UsuarioSesion,
+  filters: SolicitudPagoListFilters = {},
+): Promise<ServiceResponse<{ solicitudes: SolicitudProgramadaPago[] }>> {
+  const puedeConsultarPagos =
+    usuarioAutenticado.roles.includes("PAGOS") ||
+    usuarioAutenticado.roles.includes("ADMINISTRADOR");
+
+  if (!puedeConsultarPagos) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para consultar la bandeja de pagos.",
+      },
+    };
+  }
+
+  let filtrosNormalizados: SolicitudPagoListFilters;
+
+  try {
+    filtrosNormalizados = normalizarFiltrosListado({
+      ...filters,
+      estado_actual: "PROGRAMADA_PAGO",
+    });
+  } catch (error) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Los filtros de la bandeja de pagos no son válidos.",
+      },
+    };
+  }
+
+  const solicitudes = await listarSolicitudesPagoRepository({
+    filters: filtrosNormalizados,
+    visibilidad: {
+      consultar_todas: true,
+      usuario_id: usuarioAutenticado.id,
+      incluir_propias: false,
+      estados_flujo: [],
+    },
+  });
+
+  const beneficiarioIds = Array.from(
+    new Set(
+      solicitudes
+        .map((solicitud) => solicitud.beneficiario_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+
+  const beneficiarios = await Promise.all(
+    beneficiarioIds.map((beneficiarioId) =>
+      obtenerBeneficiarioActivoRepository(beneficiarioId),
+    ),
+  );
+
+  const beneficiariosPorId = new Map(
+    beneficiarios
+      .filter((beneficiario) => beneficiario !== null)
+      .map((beneficiario) => [beneficiario.id, beneficiario]),
+  );
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Bandeja de pagos consultada correctamente.",
+      data: {
+        solicitudes: solicitudes.map((solicitud) => {
+          const solicitudConvertida = convertirSolicitudPago(solicitud);
+          const beneficiario = solicitud.beneficiario_id
+            ? beneficiariosPorId.get(solicitud.beneficiario_id)
+            : null;
+
+          return {
+            ...solicitudConvertida,
+            beneficiario: solicitudConvertida.beneficiario
+              ? {
+                  ...solicitudConvertida.beneficiario,
+                  banco: beneficiario?.banco ?? null,
+                  tipo_cuenta_bancaria:
+                    beneficiario?.tipo_cuenta_bancaria ?? null,
+                  numero_cuenta_bancaria:
+                    beneficiario?.numero_cuenta_bancaria ?? null,
+                }
+              : null,
+          };
+        }),
       },
     },
   };
