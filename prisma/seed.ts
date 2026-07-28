@@ -90,6 +90,12 @@ const permisosBase = [
     descripcion:
       "Permite consultar información global del sistema sin limitarse a accesos asignados.",
   },
+  {
+    codigo: "CONSULTAR_FONDOS",
+    nombre: "Consultar fondos",
+    descripcion:
+      "Permite consultar saldos y gasto acumulado de los fondos generales.",
+  },
 ];
 
 const permisosPorRol: Record<string, string[]> = {
@@ -102,12 +108,14 @@ const permisosPorRol: Record<string, string[]> = {
     "APROBAR_NIVEL_2",
     "MARCAR_COMO_PAGADO",
     "CONSULTAR_TODO",
+    "CONSULTAR_FONDOS",
   ],
   DIRECTOR: [
     "CREAR_SOLICITUDES",
     "CREAR_PROYECTOS",
     "CREAR_USUARIOS",
     "ASIGNAR_ACCESOS",
+    "CONSULTAR_FONDOS",
   ],
   APROBADOR_1: [
     "CREAR_SOLICITUDES",
@@ -118,8 +126,8 @@ const permisosPorRol: Record<string, string[]> = {
     "CONSULTAR_TODO",
   ],
   APROBADOR_2: ["APROBAR_NIVEL_2", "CONSULTAR_TODO"],
-  AUXILIAR_CONTABLE: ["CREAR_SOLICITUDES"],
-  PAGOS: ["MARCAR_COMO_PAGADO"],
+  AUXILIAR_CONTABLE: ["CREAR_SOLICITUDES", "CONSULTAR_FONDOS"],
+  PAGOS: ["MARCAR_COMO_PAGADO", "CONSULTAR_FONDOS"],
   SOLICITANTE: ["CREAR_SOLICITUDES"],
 };
 
