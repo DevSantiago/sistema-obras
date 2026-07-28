@@ -130,6 +130,11 @@ repositorio dentro de la transacción funcional en curso. De esta forma, la
 actualización de `fondos.saldo_actual` y la creación de
 `movimientos_fondo` son atómicas, sin abrir transacciones independientes.
 
+El mismo módulo expone las consultas de fondos y movimientos mediante rutas
+independientes bajo `/api/v1/fondos`. La autorización y el alcance de
+visibilidad se resuelven en la capa de servicio, mientras que los filtros por
+proyecto, centro, línea, fase, dirección y tipo se aplican en el repositorio.
+
 Cada módulo implementa, como mínimo:
 
 - rutas de la API;

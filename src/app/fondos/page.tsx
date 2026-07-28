@@ -27,7 +27,8 @@ export default async function FondosPage() {
         <h1 className={styles.title}>Fondos generales</h1>
         <p className={styles.description}>
           Consulta el saldo disponible por proyecto y analiza el gasto
-          acumulado por centro de costo, línea de negocio y fase.
+          y los movimientos financieros por centro de costo, línea de
+          negocio y fase.
         </p>
       </header>
 

@@ -4,9 +4,47 @@
   gap: 18px;
 }
 
+.tabs {
+  display: inline-flex;
+  justify-self: start;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #f9fafb;
+}
+
+.tabs button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #4b5563;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabs .activeTab {
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+}
+
 .filters {
   display: grid;
   grid-template-columns: minmax(240px, 1.5fr) repeat(2, minmax(170px, 1fr)) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.movementFilters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
   align-items: end;
   gap: 12px;
   padding: 18px;
@@ -163,7 +201,57 @@
   font-weight: 800;
 }
 
+.movementTable {
+  min-width: 1180px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.movementTable td:first-child {
+  display: table-cell;
+}
+
+.movementTable td:nth-child(2) strong,
+.movementTable td:nth-child(2) span,
+.movementTable td:nth-child(3) strong,
+.movementTable td:nth-child(3) span {
+  display: block;
+}
+
+.movementTable td:nth-child(2) span,
+.movementTable td:nth-child(3) span {
+  max-width: 260px;
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.incomeBadge,
+.expenseBadge {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.incomeBadge {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.expenseBadge {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .centerCards {
+  display: none;
+}
+
+.movementCards {
   display: none;
 }
 
@@ -188,10 +276,15 @@
   .filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .movementFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
-  .filters {
+  .filters,
+  .movementFilters {
     grid-template-columns: 1fr;
     padding: 14px;
   }
@@ -223,6 +316,12 @@
 
   .tableWrapper {
     display: none;
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-self: stretch;
   }
 
   .centerCards {
@@ -261,6 +360,61 @@
   }
 
   .centerCards dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 700;
+  }
+
+  .movementCards {
+    display: grid;
+    gap: 12px;
+  }
+
+  .movementCards article {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .movementCards header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .movementCards header div {
+    display: grid;
+    gap: 4px;
+  }
+
+  .movementCards header div span,
+  .movementCards p,
+  .movementCards dt {
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  .movementCards p {
+    margin: 0;
+  }
+
+  .movementCards dl {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .movementCards dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .movementCards dd {
     margin: 0;
     text-align: right;
     font-weight: 700;

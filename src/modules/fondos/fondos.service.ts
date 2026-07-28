@@ -1,11 +1,31 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
-import { consultarFondosRepository } from "./fondos.repository";
+import {
+  consultarFondosRepository,
+  consultarMovimientosFondoRepository,
+} from "./fondos.repository";
 import type {
+  ConsultarMovimientosFondoData,
   ConsultarFondosData,
+  FiltrosMovimientosFondo,
+  MovimientoFondoConsulta,
   ProyectoFondoGeneral,
   ResumenAgrupadoFondo,
   VisibilidadFondos,
 } from "./fondos.types";
+
+function obtenerVisibilidadFondos(
+  usuario: UsuarioSesion,
+): VisibilidadFondos {
+  const tieneVisibilidadTotal = [
+    "ADMINISTRADOR",
+    "AUXILIAR_CONTABLE",
+    "PAGOS",
+  ].some((rol) => usuario.roles.includes(rol));
+
+  return tieneVisibilidadTotal
+    ? { tipo: "TOTAL" }
+    : { tipo: "ACCESOS", usuario_id: usuario.id };
+}
 
 function agruparGasto(
   centros: ProyectoFondoGeneral["centros_costo"],
@@ -48,14 +68,7 @@ export async function consultarFondosService(
     };
   }
 
-  const tieneVisibilidadTotal = [
-    "ADMINISTRADOR",
-    "AUXILIAR_CONTABLE",
-    "PAGOS",
-  ].some((rol) => usuario.roles.includes(rol));
-  const visibilidad: VisibilidadFondos = tieneVisibilidadTotal
-    ? { tipo: "TOTAL" }
-    : { tipo: "ACCESOS", usuario_id: usuario.id };
+  const visibilidad = obtenerVisibilidadFondos(usuario);
   const proyectos = await consultarFondosRepository(visibilidad);
   const resultado: ProyectoFondoGeneral[] = proyectos
     .filter((proyecto) => proyecto.fondo)
@@ -115,6 +128,89 @@ export async function consultarFondosService(
       message: "Fondos consultados correctamente.",
       data: {
         proyectos: resultado,
+      },
+    },
+  };
+}
+
+export async function consultarMovimientosFondoService(
+  usuario: UsuarioSesion,
+  filtros: FiltrosMovimientosFondo,
+): Promise<{
+  status: number;
+  body: {
+    ok: boolean;
+    message: string;
+    data?: ConsultarMovimientosFondoData;
+  };
+}> {
+  if (!usuario.permisos.includes("CONSULTAR_FONDOS")) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message:
+          "No tiene permisos para consultar los movimientos financieros.",
+      },
+    };
+  }
+
+  if (
+    filtros.direccion &&
+    !["INGRESO", "EGRESO"].includes(filtros.direccion)
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La dirección del movimiento no es válida.",
+      },
+    };
+  }
+
+  const registros = await consultarMovimientosFondoRepository(
+    obtenerVisibilidadFondos(usuario),
+    filtros,
+  );
+  const movimientos: MovimientoFondoConsulta[] = registros.map(
+    (movimiento) => ({
+      id: movimiento.id,
+      proyecto_base_id: movimiento.proyecto_base.id,
+      proyecto_nombre: movimiento.proyecto_base.nombre,
+      centro_costo_id: movimiento.centro_costo?.id ?? null,
+      centro_costo_codigo:
+        movimiento.centro_costo?.codigo ?? null,
+      centro_costo_nombre:
+        movimiento.centro_costo?.nombre ?? null,
+      linea_negocio:
+        movimiento.centro_costo?.linea_negocio ?? null,
+      fase_centro_costo:
+        movimiento.centro_costo?.fase_centro_costo ?? null,
+      tipo_movimiento: movimiento.tipo_movimiento,
+      direccion: movimiento.direccion,
+      valor: movimiento.valor.toNumber(),
+      saldo_anterior: movimiento.saldo_anterior.toNumber(),
+      saldo_nuevo: movimiento.saldo_nuevo.toNumber(),
+      referencia_sistema: movimiento.referencia_sistema,
+      descripcion: movimiento.descripcion,
+      registrado_en: movimiento.registrado_en.toISOString(),
+    }),
+  );
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Movimientos financieros consultados correctamente.",
+      data: {
+        movimientos,
+        tipos_movimiento: Array.from(
+          new Set(
+            movimientos.map(
+              (movimiento) => movimiento.tipo_movimiento,
+            ),
+          ),
+        ).sort(),
       },
     },
   };
