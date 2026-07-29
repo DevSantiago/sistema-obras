@@ -29,7 +29,7 @@ Implementar completamente:
 - HU-1101 — completada
 - HU-1102 — completada
 - HU-1103 — completada
-- HU-1104 — pendiente
+- HU-1104 — completada
 - HU-1105 — pendiente
 
 Incluyendo:
@@ -49,8 +49,9 @@ Incluyendo:
 3. Ejecutar pruebas.
 4. Ejecutar `npm run build`.
 5. Cerrar la rama y hacer merge a `dev`.
-6. Repetir el ciclo para HU-1104 y HU-1105.
-7. Detener el desarrollo.
+6. HU-1104 implementada y documentada.
+7. Repetir el ciclo para HU-1105.
+8. Detener el desarrollo.
 
 ---
 

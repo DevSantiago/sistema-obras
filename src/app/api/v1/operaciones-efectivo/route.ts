@@ -26,6 +26,8 @@ export async function GET(request: Request) {
           parametros.get("fecha_desde")?.trim() || undefined,
         fecha_hasta:
           parametros.get("fecha_hasta")?.trim() || undefined,
+        solo_pendientes:
+          parametros.get("solo_pendientes") === "true",
       },
     );
 

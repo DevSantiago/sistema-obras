@@ -138,7 +138,12 @@ export async function consultarOperacionesEfectivoService(
         soporte: detalle.soporte,
       })),
     };
-  });
+  }).filter(
+    (operacion) =>
+      !filtros.solo_pendientes ||
+      operacion.estado_seguimiento ===
+        "SOBRANTE_PENDIENTE_REINGRESO",
+  );
 
   return {
     status: 200,
