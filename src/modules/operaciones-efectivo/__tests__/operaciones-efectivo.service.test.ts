@@ -170,6 +170,25 @@ describe("operaciones-efectivo.service", () => {
     ).toBe(0);
   });
 
+  it("debe retornar únicamente operaciones con reingreso pendiente", async () => {
+    vi.mocked(
+      consultarOperacionesEfectivoRepository,
+    ).mockResolvedValue([
+      crearOperacion(),
+      crearOperacion(200000),
+    ] as never);
+
+    const resultado = await consultarOperacionesEfectivoService(
+      usuario,
+      { solo_pendientes: true },
+    );
+
+    expect(resultado.body.data?.operaciones).toHaveLength(1);
+    expect(
+      resultado.body.data?.operaciones[0].estado_seguimiento,
+    ).toBe("SOBRANTE_PENDIENTE_REINGRESO");
+  });
+
   it("debe rechazar un rango de fechas invertido", async () => {
     const resultado = await consultarOperacionesEfectivoService(
       usuario,

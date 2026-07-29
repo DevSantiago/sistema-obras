@@ -35,6 +35,7 @@ export default function OperacionesEfectivoManager({
   const [fondoId, setFondoId] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+  const [soloPendientes, setSoloPendientes] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [valorReingreso, setValorReingreso] = useState("");
@@ -56,6 +57,7 @@ export default function OperacionesEfectivoManager({
     if (fondoId) parametros.set("fondo_id", fondoId);
     if (fechaDesde) parametros.set("fecha_desde", fechaDesde);
     if (fechaHasta) parametros.set("fecha_hasta", fechaHasta);
+    if (soloPendientes) parametros.set("solo_pendientes", "true");
 
     try {
       const query = parametros.toString();
@@ -99,6 +101,7 @@ export default function OperacionesEfectivoManager({
     fondoId,
     operacionInicialId,
     proyectoId,
+    soloPendientes,
   ]);
 
   useEffect(() => {
@@ -145,6 +148,73 @@ export default function OperacionesEfectivoManager({
       ),
     [operaciones, proyectoId],
   );
+  const resumen = useMemo(
+    () => ({
+      retiros: operaciones.length,
+      proyectos: new Set(
+        operaciones.map((operacion) => operacion.proyecto_base_id),
+      ).size,
+      fondos: new Set(
+        operaciones.map((operacion) => operacion.fondo_id),
+      ).size,
+      pendiente: operaciones.reduce(
+        (total, operacion) =>
+          total + operacion.valor_pendiente_reintegro,
+        0,
+      ),
+    }),
+    [operaciones],
+  );
+
+  function exportarPendientes() {
+    const encabezados = [
+      "Fecha retiro",
+      "Proyecto",
+      "Fondo",
+      "Solicitud",
+      "Tipo solicitud",
+      "Centro de costo",
+      "Beneficiario",
+      "Valor requerido",
+      "Valor retirado",
+      "Valor pagado solicitud",
+      "Valor reingresado",
+      "Valor pendiente",
+    ];
+    const escapar = (valor: string | number) =>
+      `"${String(valor).replaceAll('"', '""')}"`;
+    const filas = operaciones.flatMap((operacion) =>
+      operacion.detalles.map((detalle) => [
+        new Date(operacion.fecha_retiro).toLocaleDateString("es-CO"),
+        operacion.proyecto_nombre,
+        operacion.fondo_nombre,
+        detalle.numero_solicitud ?? "Sin consecutivo",
+        detalle.tipo_solicitud,
+        `${detalle.centro_costo_codigo} - ${detalle.centro_costo_nombre}`,
+        detalle.beneficiario_nombre ?? "No aplica",
+        operacion.valor_requerido,
+        operacion.valor_retirado,
+        detalle.valor_pagado,
+        operacion.valor_reintegrado,
+        operacion.valor_pendiente_reintegro,
+      ]),
+    );
+    const contenido = [encabezados, ...filas]
+      .map((fila) => fila.map(escapar).join(";"))
+      .join("\n");
+    const enlace = document.createElement("a");
+
+    enlace.href = URL.createObjectURL(
+      new Blob([`\uFEFF${contenido}`], {
+        type: "text/csv;charset=utf-8",
+      }),
+    );
+    enlace.download = `pendientes-reingreso-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
+  }
 
   function claseEstado(estado: string) {
     if (estado === "SOBRANTE_PENDIENTE_REINGRESO") {
@@ -287,6 +357,18 @@ export default function OperacionesEfectivoManager({
             onChange={(event) => setFechaHasta(event.target.value)}
           />
         </label>
+        <label>
+          <span>Estado</span>
+          <select
+            value={soloPendientes ? "pendientes" : "todos"}
+            onChange={(event) =>
+              setSoloPendientes(event.target.value === "pendientes")
+            }
+          >
+            <option value="todos">Todos los retiros</option>
+            <option value="pendientes">Reingreso pendiente</option>
+          </select>
+        </label>
         <button
           type="button"
           onClick={() => {
@@ -294,6 +376,7 @@ export default function OperacionesEfectivoManager({
             setFondoId("");
             setFechaDesde("");
             setFechaHasta("");
+            setSoloPendientes(false);
           }}
         >
           Limpiar filtros
@@ -310,6 +393,15 @@ export default function OperacionesEfectivoManager({
         </p>
       ) : (
         <>
+          <div className={styles.summary}>
+            <div><span>Retiros</span><strong>{resumen.retiros}</strong></div>
+            <div><span>Proyectos</span><strong>{resumen.proyectos}</strong></div>
+            <div><span>Fondos</span><strong>{resumen.fondos}</strong></div>
+            <div><span>Valor pendiente</span><strong>{MONEDA.format(resumen.pendiente)}</strong></div>
+            <button type="button" onClick={exportarPendientes}>
+              Exportar CSV
+            </button>
+          </div>
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
@@ -340,6 +432,7 @@ export default function OperacionesEfectivoManager({
                         {FECHA.format(new Date(operacion.fecha_retiro))}
                       </strong>
                       <span>{operacion.proyecto_nombre}</span>
+                      <span>{operacion.fondo_nombre}</span>
                     </td>
                     <td>{operacion.detalles.length}</td>
                     <td>{MONEDA.format(operacion.valor_retirado)}</td>

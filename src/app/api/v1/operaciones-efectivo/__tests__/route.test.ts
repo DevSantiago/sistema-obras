@@ -42,7 +42,8 @@ describe("GET /api/v1/operaciones-efectivo", () => {
           "?proyecto_base_id=proyecto-1" +
           "&fondo_id=fondo-1" +
           "&fecha_desde=2026-07-01" +
-          "&fecha_hasta=2026-07-31",
+          "&fecha_hasta=2026-07-31" +
+          "&solo_pendientes=true",
       ),
     );
 
@@ -54,6 +55,7 @@ describe("GET /api/v1/operaciones-efectivo", () => {
         fondo_id: "fondo-1",
         fecha_desde: "2026-07-01",
         fecha_hasta: "2026-07-31",
+        solo_pendientes: true,
       },
     );
   });

@@ -173,11 +173,15 @@ GET /api/v1/operaciones-efectivo
 ```
 
 Disponible para `ADMINISTRADOR` y `PAGOS`. Admite los filtros opcionales
-`proyecto_base_id`, `fondo_id`, `fecha_desde` y `fecha_hasta`.
+`proyecto_base_id`, `fondo_id`, `fecha_desde`, `fecha_hasta` y
+`solo_pendientes`. Este último acepta `true` para retornar únicamente
+operaciones en `SOBRANTE_PENDIENTE_REINGRESO`.
 
 Retorna el retiro, sus solicitudes y soportes, así como los valores requerido,
 retirado, pagado, sobrante, reintegrado y pendiente. El seguimiento se deriva
-sin crear nuevos movimientos financieros.
+sin crear nuevos movimientos financieros. La interfaz permite exportar en CSV
+los resultados filtrados, con una fila por solicitud y su proyecto, fondo y
+centro de costo.
 
 Los soportes relacionados se consultan mediante:
 

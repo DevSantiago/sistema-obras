@@ -1358,8 +1358,10 @@ El reintegro inmediato implementado:
 - genera un movimiento financiero;
 - conserva trazabilidad completa.
 
-Los reingresos posteriores, parciales y con soporte independiente forman
-parte de la evolución prevista en la Épica 11.
+Los reingresos posteriores permiten devoluciones parciales sucesivas, cada
+una con soporte independiente, hasta completar el sobrante. Los retiros con
+saldo pendiente pueden filtrarse y exportarse para seguimiento financiero,
+con distribución por proyecto, fondo y centro de costo.
 
 ---
 
@@ -1390,7 +1392,7 @@ módulo de operaciones de efectivo.
 ```text
 SIN_SOBRANTE
 
-SOBRANTE_PENDIENTE_REINTEGRO
+SOBRANTE_PENDIENTE_REINGRESO
 
 SOBRANTE_REINTEGRADO
 

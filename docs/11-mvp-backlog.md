@@ -1439,7 +1439,7 @@ Implementación:
 
 ### HU-1104. Consultar pendientes de reingreso
 
-**Estado: PENDIENTE**
+**Estado: COMPLETADA**
 
 Como usuario financiero, quiero consultar retiros con sobrante pendiente, para hacer seguimiento.
 
@@ -1450,6 +1450,17 @@ Criterios:
 - Muestra distribución por fondo, proyecto y centro.
 - Muestra valor requerido, retirado, reingresado y pendiente.
 - Permite exportar.
+
+Implementación:
+
+- Extiende `GET /api/v1/operaciones-efectivo` con el filtro
+  `solo_pendientes=true`.
+- Conserva los filtros por proyecto, fondo y rango de fechas.
+- Muestra totales de retiros, proyectos, fondos y valor pendiente.
+- Incluye las solicitudes y su centro de costo en el detalle operativo.
+- Exporta en CSV los resultados filtrados, con una fila por solicitud y su
+  distribución por proyecto, fondo y centro de costo.
+- Mantiene la tabla para escritorio y las tarjetas responsive para móvil.
 
 ### HU-1105. Ajustar o anular una operación de efectivo
 

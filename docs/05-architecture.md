@@ -144,7 +144,10 @@ serializable.
 El módulo `operaciones-efectivo` expone la consulta operativa de los retiros
 ya registrados por `solicitudes-pago`. Mantiene el patrón
 `route → service → repository`, calcula el seguimiento a partir de la
-operación y sus movimientos y no genera nuevas afectaciones financieras.
+operación y sus movimientos y no genera nuevas afectaciones financieras
+durante la consulta. La misma consulta admite filtrar únicamente los retiros
+con reingreso pendiente; la exportación CSV se construye en el frontend con
+los resultados ya autorizados y filtrados por el servicio.
 
 Cada módulo implementa, como mínimo:
 
