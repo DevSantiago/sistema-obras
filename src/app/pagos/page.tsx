@@ -3,6 +3,7 @@ import PagosManager from "@/components/pagos/PagosManager";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import styles from "./page.module.css";
 
 export default async function PagosPage() {
@@ -36,6 +37,12 @@ export default async function PagosPage() {
           Consulta las solicitudes programadas para pago y filtra por
           beneficiario, proyecto, centro de costo o medio de pago.
         </p>
+        <nav className={styles.tabs}>
+          <Link className={styles.activeTab} href="/pagos">
+            Bandeja de pagos
+          </Link>
+          <Link href="/pagos/retiros">Retiros</Link>
+        </nav>
       </header>
 
       <PagosManager />

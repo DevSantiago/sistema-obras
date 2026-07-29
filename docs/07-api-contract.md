@@ -113,6 +113,7 @@ Actualmente la API expone los siguientes recursos:
 /api/v1/prestamos
 /api/v1/prestamos/entre-proyectos
 /api/v1/prestamos/devoluciones
+/api/v1/operaciones-efectivo
 ```
 
 El registro financiero de HU-1002 es un servicio interno y no expone un
@@ -150,6 +151,8 @@ crear el movimiento de forma atómica.
 | GET | `/api/v1/prestamos` |
 | POST | `/api/v1/prestamos/entre-proyectos` |
 | POST | `/api/v1/prestamos/devoluciones` |
+| GET | `/api/v1/operaciones-efectivo` |
+| GET | `/api/v1/operaciones-efectivo/{id}/soportes/{adjuntoId}` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -161,6 +164,29 @@ crear el movimiento de forma atómica.
 ---
 
 # Fondos y movimientos financieros
+
+## Consultar operaciones de efectivo
+
+```http
+GET /api/v1/operaciones-efectivo
+```
+
+Disponible para `ADMINISTRADOR` y `PAGOS`. Admite los filtros opcionales
+`proyecto_base_id`, `fondo_id`, `fecha_desde` y `fecha_hasta`.
+
+Retorna el retiro, sus solicitudes y soportes, así como los valores requerido,
+retirado, pagado, sobrante, reintegrado y pendiente. El seguimiento se deriva
+sin crear nuevos movimientos financieros.
+
+Los soportes relacionados se consultan mediante:
+
+```http
+GET /api/v1/operaciones-efectivo/{id}/soportes/{adjuntoId}
+```
+
+El soporte solo se entrega cuando pertenece al retiro o a uno de sus pagos.
+
+---
 
 ## Registrar préstamo de persona a proyecto
 

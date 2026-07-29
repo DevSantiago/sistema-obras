@@ -141,6 +141,11 @@ módulo `fondos`. Los préstamos entre proyectos generan el egreso del fondo
 origen y el ingreso del fondo destino dentro de una única transacción
 serializable.
 
+El módulo `operaciones-efectivo` expone la consulta operativa de los retiros
+ya registrados por `solicitudes-pago`. Mantiene el patrón
+`route → service → repository`, calcula el seguimiento a partir de la
+operación y sus movimientos y no genera nuevas afectaciones financieras.
+
 Cada módulo implementa, como mínimo:
 
 - rutas de la API;

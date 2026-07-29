@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type {
   ConsultarFondosData,
   ConsultarMovimientosFondoData,
@@ -476,6 +477,16 @@ export default function FondosManager() {
                             movimiento.descripcion ??
                             "Sin referencia"}
                         </span>
+                        {movimiento.tipo_movimiento ===
+                          "EGRESO_RETIRO_EFECTIVO" &&
+                        movimiento.operacion_efectivo_id ? (
+                          <Link
+                            className={styles.detailLink}
+                            href={`/pagos/retiros?operacion=${movimiento.operacion_efectivo_id}`}
+                          >
+                            Ver detalle operativo
+                          </Link>
+                        ) : null}
                       </td>
                       <td>
                         <span
@@ -534,6 +545,16 @@ export default function FondosManager() {
                       ? `${movimiento.centro_costo_codigo} · ${movimiento.centro_costo_nombre}`
                       : "Movimiento general del fondo"}
                   </p>
+                  {movimiento.tipo_movimiento ===
+                    "EGRESO_RETIRO_EFECTIVO" &&
+                  movimiento.operacion_efectivo_id ? (
+                    <Link
+                      className={styles.detailLink}
+                      href={`/pagos/retiros?operacion=${movimiento.operacion_efectivo_id}`}
+                    >
+                      Ver detalle operativo
+                    </Link>
+                  ) : null}
                   <dl>
                     <div>
                       <dt>Fecha</dt>
