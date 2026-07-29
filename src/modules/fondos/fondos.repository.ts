@@ -187,6 +187,7 @@ export async function consultarMovimientosFondoRepository(
       saldo_nuevo: true,
       referencia_sistema: true,
       descripcion: true,
+      operacion_efectivo_id: true,
       registrado_en: true,
       proyecto_base: {
         select: {

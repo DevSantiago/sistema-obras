@@ -1351,7 +1351,7 @@ y sobrante pendiente.
 
 ### HU-1101. Consultar y dar seguimiento a retiros
 
-**Estado: PENDIENTE**
+**Estado: COMPLETADA**
 
 Como usuario de Pagos, quiero consultar las operaciones de efectivo
 registradas, para hacer seguimiento a sus pagos y sobrantes.
@@ -1367,6 +1367,21 @@ Criterios:
   `EGRESO_RETIRO_EFECTIVO`.
 - No vuelve a calcular ni registrar la afectación financiera realizada por
   HU-1002.
+
+Implementación:
+
+- Endpoint `GET /api/v1/operaciones-efectivo`.
+- Filtros por proyecto, fondo y rango de fechas.
+- Vista responsive `/pagos/retiros`, integrada al módulo Pagos.
+- Tabla para escritorio, tarjetas para móvil y modal de detalle.
+- Muestra soportes del retiro y de cada solicitud mediante un endpoint
+  autenticado.
+- Calcula valores reintegrado y pendiente desde
+  `INGRESO_REINTEGRO_EFECTIVO`.
+- Identifica operaciones sin sobrante, con reingreso pendiente o totalmente
+  reintegradas.
+- Los movimientos `EGRESO_RETIRO_EFECTIVO` enlazan al detalle operativo.
+- No crea pagos, movimientos ni actualizaciones de saldo.
 
 ### HU-1102. Cargar soporte de reingreso posterior
 

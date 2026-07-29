@@ -193,6 +193,8 @@ export async function consultarMovimientosFondoService(
       saldo_nuevo: movimiento.saldo_nuevo.toNumber(),
       referencia_sistema: movimiento.referencia_sistema,
       descripcion: movimiento.descripcion,
+      operacion_efectivo_id:
+        movimiento.operacion_efectivo_id ?? null,
       registrado_en: movimiento.registrado_en.toISOString(),
     }),
   );

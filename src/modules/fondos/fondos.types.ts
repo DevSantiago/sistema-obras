@@ -59,6 +59,7 @@ export type MovimientoFondoConsulta = {
   saldo_nuevo: number;
   referencia_sistema: string | null;
   descripcion: string | null;
+  operacion_efectivo_id: string | null;
   registrado_en: string;
 };
 

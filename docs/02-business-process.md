@@ -1261,6 +1261,23 @@ Por esta razón, el sistema administrará retiros agrupados.
 
 ## 12.1 Retiro agrupado
 
+Las operaciones registradas pueden consultarse desde el módulo Pagos. El
+detalle conserva el soporte general del retiro, las solicitudes incluidas,
+el soporte individual de cada pago y los valores requerido, retirado, pagado,
+sobrante, reintegrado y pendiente de reintegro.
+
+El estado de seguimiento se deriva de los movimientos ya registrados:
+
+```text
+SIN_SOBRANTE
+SOBRANTE_PENDIENTE_REINGRESO
+SOBRANTE_REINTEGRADO
+```
+
+Esta consulta no vuelve a registrar pagos, movimientos ni actualizaciones de
+saldo. Un movimiento `EGRESO_RETIRO_EFECTIVO` permite abrir directamente el
+detalle operativo de la operación relacionada.
+
 Un retiro agrupado corresponde a una salida de efectivo destinada a cubrir una o varias solicitudes de pago.
 
 Su estructura conceptual es:

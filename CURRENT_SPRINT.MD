@@ -2,8 +2,8 @@
 
 ## Objetivo
 
-Desarrollar el módulo de préstamos, anticipos y devoluciones sobre la base
-financiera completada en las Épicas 9 y 10.
+Completar el seguimiento operativo de los retiros y sobrantes de efectivo
+sobre la base financiera implementada en las Épicas 9, 10 y 14.
 
 ---
 
@@ -11,24 +11,26 @@ financiera completada en las Épicas 9 y 10.
 
 Implementar únicamente:
 
-- Épica 14
+- Épica 11
 
 según lo definido en `11-mvp-backlog.md`.
 
-La Épica 14 se prioriza antes de la Épica 11 sin cambiar su numeración.
+La Épica 11 retoma su prioridad después de finalizar completamente la
+Épica 14.
 
 ---
 
 ## Historias autorizadas
 
-### Épica 14
+### Épica 11
 
 Implementar completamente:
 
-- HU-1401 — completada
-- HU-1402 — completada
-- HU-1403 — completada
-- HU-1404 — completada
+- HU-1101 — completada
+- HU-1102 — pendiente
+- HU-1103 — pendiente
+- HU-1104 — pendiente
+- HU-1105 — pendiente
 
 Incluyendo:
 
@@ -42,12 +44,26 @@ Incluyendo:
 
 ## Orden obligatorio
 
-1. HU-1401, HU-1402 y HU-1403 completadas, probadas y fusionadas a `dev`.
-2. HU-1404 implementada y documentada.
-3. Ejecutar validación funcional.
-4. Ejecutar pruebas y `npm run build`.
+1. HU-1101 implementada y documentada.
+2. Ejecutar validación funcional.
+3. Ejecutar pruebas.
+4. Ejecutar `npm run build`.
 5. Cerrar la rama y hacer merge a `dev`.
+6. Repetir el ciclo para HU-1102, HU-1103, HU-1104 y HU-1105.
 7. Detener el desarrollo.
+
+---
+
+## Base completada
+
+- Épica 9: ejecución y registro de pagos.
+- Épica 10: fondos y movimientos financieros.
+- Épica 14: anticipos, préstamos y devoluciones.
+- Retiro agrupado para solicitudes en `EFECTIVO` o `CONSIGNACION`.
+- Registro transaccional de `operaciones_efectivo` y sus detalles.
+- Movimiento `EGRESO_RETIRO_EFECTIVO`.
+- Reintegro inmediato opcional mediante
+  `INGRESO_REINTEGRO_EFECTIVO`.
 
 ---
 
@@ -55,7 +71,6 @@ Incluyendo:
 
 No implementar:
 
-- Épica 11, pospuesta hasta finalizar la Épica 14
 - Épica 12
 - Épica 13
 - Épica 15
@@ -65,16 +80,24 @@ No implementar:
 
 aunque existan dependencias futuras previstas en la documentación.
 
+No duplicar:
+
+- el registro de pagos implementado en la Épica 9;
+- la actualización de fondos y movimientos de la Épica 10;
+- los préstamos implementados en la Épica 14;
+- el reintegro inmediato ya disponible en las operaciones de efectivo.
+
 ---
 
 ## Criterio de finalización
 
 El trabajo termina cuando:
 
-- la Épica 14 esté completamente terminada;
+- la Épica 11 esté completamente terminada;
+- los retiros, reingresos y sobrantes tengan trazabilidad operativa;
 - la documentación correspondiente esté actualizada;
 - el proyecto compile correctamente (`npm run build`);
-- las pruebas existentes continúen pasando.
+- las pruebas existentes y nuevas continúen pasando.
 
 Una vez cumplido lo anterior, el agente debe detenerse y no continuar con
 nuevas funcionalidades.
