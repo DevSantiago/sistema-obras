@@ -1385,7 +1385,7 @@ Implementación:
 
 ### HU-1102. Cargar soporte de reingreso posterior
 
-**Estado: PENDIENTE**
+**Estado: COMPLETADA**
 
 Como usuario de Pagos, quiero cargar el soporte de cada reingreso posterior,
 para completar la trazabilidad de la operación de efectivo.
@@ -1398,9 +1398,18 @@ Criterios:
   `operaciones_efectivo`.
 - No permite registrar un reingreso posterior sin soporte.
 
+Implementación:
+
+- El soporte es obligatorio en
+  `POST /api/v1/operaciones-efectivo/{id}/reingresos`.
+- Admite PDF, PNG, JPG o JPEG, máximo 10 MB.
+- Relaciona el adjunto con `reingresos_sobrante_efectivo` y con la operación.
+- Permite consultar el soporte desde el historial del retiro.
+- El archivo se elimina si la transacción financiera falla.
+
 ### HU-1103. Registrar reingreso de sobrante
 
-**Estado: PENDIENTE**
+**Estado: COMPLETADA**
 
 Como usuario autorizado, quiero registrar un reingreso contra el retiro, para devolver el sobrante al fondo correspondiente.
 
@@ -1415,6 +1424,18 @@ Criterios:
 - Crea `reingresos_sobrante_efectivo`.
 - Crea movimiento `INGRESO_REINTEGRO_EFECTIVO`.
 - Actualiza saldo y estado del retiro.
+
+Implementación:
+
+- Crea `reingresos_sobrante_efectivo` con referencia `REI`.
+- Permite reingresos parciales sucesivos.
+- Calcula el pendiente desde los movimientos existentes e impide excederlo.
+- Usa la fecha y hora del sistema.
+- Crea `INGRESO_REINTEGRO_EFECTIVO` sobre el fondo del retiro.
+- Actualiza `sobrante_reintegrado` cuando el pendiente llega a cero.
+- Registra reingreso, soporte, movimiento y fondo en una transacción
+  serializable.
+- Integra el formulario y el historial en `/pagos/retiros`.
 
 ### HU-1104. Consultar pendientes de reingreso
 

@@ -1,17 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
+import { storageService } from "@/modules/storage/storage.service";
 import {
   consultarOperacionesEfectivoRepository,
   obtenerArchivoOperacionEfectivoRepository,
+  ReingresoSobranteError,
+  registrarReingresoSobranteRepository,
 } from "../operaciones-efectivo.repository";
 import {
   consultarOperacionesEfectivoService,
   obtenerArchivoOperacionEfectivoService,
+  registrarReingresoSobranteService,
 } from "../operaciones-efectivo.service";
+
+vi.mock("@/modules/storage/storage.service", () => ({
+  storageService: {
+    guardarArchivo: vi.fn(),
+    eliminarArchivo: vi.fn(),
+  },
+}));
 
 vi.mock("../operaciones-efectivo.repository", () => ({
   consultarOperacionesEfectivoRepository: vi.fn(),
   obtenerArchivoOperacionEfectivoRepository: vi.fn(),
+  ReingresoSobranteError: class extends Error {},
+  registrarReingresoSobranteRepository: vi.fn(),
 }));
 
 const usuario: UsuarioSesion = {
@@ -48,6 +61,7 @@ function crearOperacion(valorReintegrado = 0) {
       valorReintegrado > 0
         ? [{ valor: decimal(valorReintegrado) }]
         : [],
+    reingresos: [],
     detalles: [
       {
         id: "detalle-1",
@@ -75,6 +89,27 @@ function crearOperacion(valorReintegrado = 0) {
 describe("operaciones-efectivo.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(storageService.guardarArchivo).mockResolvedValue({
+      nombre_archivo: "reingreso.pdf",
+      nombre_bucket: "LOCAL",
+      ruta_archivo: "storage/reingresos/reingreso.pdf",
+      tipo_mime: "application/pdf",
+      tamano_archivo: BigInt(7),
+    });
+    vi.mocked(
+      registrarReingresoSobranteRepository,
+    ).mockResolvedValue({
+      id: "reingreso-1",
+      referencia_sistema: "REI-PROYECTO-2026-000001",
+      operacion_efectivo_id: "operacion-1",
+      valor: 100000,
+      pendiente_anterior: 200000,
+      pendiente_nuevo: 100000,
+      estado_seguimiento: "SOBRANTE_PENDIENTE_REINGRESO",
+      saldo_fondo_anterior: 500000,
+      saldo_fondo_nuevo: 600000,
+      fecha_operacion: "2026-07-31T15:00:00.000Z",
+    });
   });
 
   it("debe exigir un rol autorizado", async () => {
@@ -159,5 +194,46 @@ describe("operaciones-efectivo.service", () => {
     );
 
     expect(resultado.status).toBe(404);
+  });
+
+  it("debe registrar reingreso con soporte y fecha del sistema", async () => {
+    const resultado = await registrarReingresoSobranteService(usuario, {
+      operacion_efectivo_id: "operacion-1",
+      valor: 100000,
+      observacion: "Reingreso parcial",
+      soporte: new File(["soporte"], "reingreso.pdf", {
+        type: "application/pdf",
+      }),
+    });
+
+    expect(resultado.status).toBe(201);
+    expect(registrarReingresoSobranteRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operacion_efectivo_id: "operacion-1",
+        valor: 100000,
+        fecha_operacion: expect.any(Date),
+      }),
+    );
+  });
+
+  it("debe eliminar el archivo cuando falla el reingreso", async () => {
+    vi.mocked(
+      registrarReingresoSobranteRepository,
+    ).mockRejectedValue(
+      new ReingresoSobranteError("El valor supera el pendiente."),
+    );
+
+    const resultado = await registrarReingresoSobranteService(usuario, {
+      operacion_efectivo_id: "operacion-1",
+      valor: 300000,
+      soporte: new File(["soporte"], "reingreso.pdf", {
+        type: "application/pdf",
+      }),
+    });
+
+    expect(resultado.status).toBe(409);
+    expect(storageService.eliminarArchivo).toHaveBeenCalledWith(
+      "storage/reingresos/reingreso.pdf",
+    );
   });
 });

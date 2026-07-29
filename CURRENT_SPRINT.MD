@@ -27,8 +27,8 @@ La Épica 11 retoma su prioridad después de finalizar completamente la
 Implementar completamente:
 
 - HU-1101 — completada
-- HU-1102 — pendiente
-- HU-1103 — pendiente
+- HU-1102 — completada
+- HU-1103 — completada
 - HU-1104 — pendiente
 - HU-1105 — pendiente
 
@@ -49,7 +49,7 @@ Incluyendo:
 3. Ejecutar pruebas.
 4. Ejecutar `npm run build`.
 5. Cerrar la rama y hacer merge a `dev`.
-6. Repetir el ciclo para HU-1102, HU-1103, HU-1104 y HU-1105.
+6. Repetir el ciclo para HU-1104 y HU-1105.
 7. Detener el desarrollo.
 
 ---

@@ -164,6 +164,30 @@ async function validarOrigenMovimiento(
       );
     }
   }
+
+  if (input.reingreso_sobrante_id) {
+    if (!input.operacion_efectivo_id) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "El movimiento de reingreso requiere la operación de efectivo.",
+      );
+    }
+
+    const reingresoValido =
+      await tx.reingresos_sobrante_efectivo.count({
+        where: {
+          id: input.reingreso_sobrante_id,
+          operacion_efectivo_id: input.operacion_efectivo_id,
+        },
+      });
+
+    if (reingresoValido !== 1) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "El reingreso no corresponde a la operación de efectivo.",
+      );
+    }
+  }
 }
 
 async function validarMovimientoDuplicado(
@@ -184,7 +208,10 @@ async function validarMovimientoDuplicado(
     }
   }
 
-  if (input.operacion_efectivo_id) {
+  if (
+    input.operacion_efectivo_id &&
+    !input.reingreso_sobrante_id
+  ) {
     const movimientoOperacion = await tx.movimientos_fondo.findFirst({
       where: {
         operacion_efectivo_id: input.operacion_efectivo_id,
@@ -229,6 +256,23 @@ async function validarMovimientoDuplicado(
       throw new MovimientoFondoError(
         "MOVIMIENTO_DUPLICADO",
         "La devolución ya tiene este movimiento financiero registrado.",
+      );
+    }
+  }
+
+  if (input.reingreso_sobrante_id) {
+    const movimientoReingreso =
+      await tx.movimientos_fondo.findUnique({
+        where: {
+          reingreso_sobrante_id: input.reingreso_sobrante_id,
+        },
+        select: { id: true },
+      });
+
+    if (movimientoReingreso) {
+      throw new MovimientoFondoError(
+        "MOVIMIENTO_DUPLICADO",
+        "El reingreso ya tiene un movimiento financiero registrado.",
       );
     }
   }
@@ -312,6 +356,7 @@ export async function registrarMovimientoFondoEnTransaccionRepository(
       anticipo_id: input.anticipo_id,
       prestamo_proyecto_id: input.prestamo_proyecto_id,
       devolucion_prestamo_id: input.devolucion_prestamo_id,
+      reingreso_sobrante_id: input.reingreso_sobrante_id,
       tipo_movimiento: input.tipo_movimiento.trim(),
       direccion: input.direccion,
       valor: input.valor,
