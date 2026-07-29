@@ -3,8 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { registrarMovimientoFondoEnTransaccionRepository } from "@/modules/fondos/movimientos-fondo.repository";
 import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
 import type {
+  DevolucionPrestamoRegistrada,
   PrestamoEntreProyectosRegistrado,
+  PrestamoPendiente,
   PrestamoPersonaRegistrado,
+  RegistrarDevolucionPrestamoRepositoryInput,
   RegistrarPrestamoEntreProyectosRepositoryInput,
   RegistrarPrestamoPersonaRepositoryInput,
 } from "./prestamos.types";
@@ -265,6 +268,231 @@ export async function registrarPrestamoEntreProyectosRepository(
         saldo_origen_nuevo: movimientoOrigen.saldo_nuevo,
         saldo_destino_anterior: movimientoDestino.saldo_anterior,
         saldo_destino_nuevo: movimientoDestino.saldo_nuevo,
+        fecha_operacion: input.fecha_operacion.toISOString(),
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
+}
+
+export async function consultarPrestamosPendientesRepository(): Promise<
+  PrestamoPendiente[]
+> {
+  const prestamos = await prisma.prestamos_proyecto.findMany({
+    where: {
+      estado: { in: ["ACTIVO", "PARCIALMENTE_DEVUELTO"] },
+      saldo_pendiente: { gt: 0 },
+    },
+    orderBy: { registrado_en: "desc" },
+    select: {
+      id: true,
+      referencia_sistema: true,
+      tipo_prestamo: true,
+      valor_original: true,
+      saldo_pendiente: true,
+      estado: true,
+      acreedor_nombre: true,
+      proyecto_destino: {
+        select: { id: true, nombre: true },
+      },
+      fondo_destino: {
+        select: { saldo_actual: true },
+      },
+      proyecto_origen: {
+        select: { id: true, nombre: true },
+      },
+    },
+  });
+
+  return prestamos.map((prestamo) => ({
+    id: prestamo.id,
+    referencia_sistema: prestamo.referencia_sistema,
+    tipo_prestamo: prestamo.tipo_prestamo,
+    proyecto_destino_id: prestamo.proyecto_destino.id,
+    proyecto_destino_nombre: prestamo.proyecto_destino.nombre,
+    proyecto_origen_id: prestamo.proyecto_origen?.id ?? null,
+    proyecto_origen_nombre: prestamo.proyecto_origen?.nombre ?? null,
+    acreedor_nombre: prestamo.acreedor_nombre,
+    valor_original: prestamo.valor_original.toNumber(),
+    saldo_pendiente: prestamo.saldo_pendiente.toNumber(),
+    saldo_fondo_destino: prestamo.fondo_destino.saldo_actual.toNumber(),
+    estado: prestamo.estado,
+  }));
+}
+
+export async function registrarDevolucionPrestamoRepository(
+  input: RegistrarDevolucionPrestamoRepositoryInput,
+): Promise<DevolucionPrestamoRegistrada> {
+  return prisma.$transaction(
+    async (tx) => {
+      const prestamo = await tx.prestamos_proyecto.findFirst({
+        where: {
+          id: input.prestamo_proyecto_id,
+          estado: { in: ["ACTIVO", "PARCIALMENTE_DEVUELTO"] },
+          saldo_pendiente: { gt: 0 },
+        },
+        select: {
+          id: true,
+          referencia_sistema: true,
+          tipo_prestamo: true,
+          saldo_pendiente: true,
+          proyecto_destino: { select: { id: true, nombre: true } },
+          fondo_destino: { select: { id: true } },
+          proyecto_origen: { select: { id: true, nombre: true } },
+          fondo_origen: { select: { id: true } },
+          acreedor_nombre: true,
+        },
+      });
+
+      if (!prestamo) {
+        throw new RegistrarPrestamoError(
+          "El préstamo no existe, está saldado o no admite devoluciones.",
+        );
+      }
+
+      const saldoAnterior = prestamo.saldo_pendiente.toNumber();
+
+      if (input.valor > saldoAnterior) {
+        throw new RegistrarPrestamoError(
+          "El valor de la devolución no puede superar el saldo pendiente.",
+        );
+      }
+
+      if (
+        prestamo.tipo_prestamo === "PROYECTO_A_PROYECTO" &&
+        (!prestamo.proyecto_origen || !prestamo.fondo_origen)
+      ) {
+        throw new RegistrarPrestamoError(
+          "El préstamo entre proyectos no tiene un origen válido.",
+        );
+      }
+
+      const secuencia = await generarSecuenciaDocumentalRepository(
+        {
+          tipo_secuencia: "DEVOLUCION_PRESTAMO",
+          proyecto_base_id: prestamo.proyecto_destino.id,
+          centro_costo_id: null,
+          proyecto_referencia: prestamo.proyecto_destino.nombre,
+          centro_costo_referencia: null,
+          clave_contexto: `PROYECTO:${prestamo.proyecto_destino.id}`,
+          prefijo: "DEV",
+          anio: input.fecha_operacion.getUTCFullYear(),
+        },
+        tx,
+      );
+      const soporte = await tx.adjuntos.create({
+        data: {
+          nombre_archivo: input.soporte.nombre_archivo,
+          nombre_bucket: input.soporte.nombre_bucket,
+          ruta_archivo: input.soporte.ruta_archivo,
+          tipo_mime: input.soporte.tipo_mime,
+          tamano_archivo: input.soporte.tamano_archivo,
+          subido_por: input.usuario_id,
+          estado_ocr: "NO_PROCESADO",
+        },
+        select: { id: true },
+      });
+      const saldoNuevo = saldoAnterior - input.valor;
+      const estadoPrestamo =
+        saldoNuevo === 0 ? "SALDADO" : "PARCIALMENTE_DEVUELTO";
+      const devolucion = await tx.devoluciones_prestamo.create({
+        data: {
+          prestamo_proyecto_id: prestamo.id,
+          adjunto_soporte_id: soporte.id,
+          referencia_sistema: secuencia.referencia,
+          valor: input.valor,
+          saldo_anterior: saldoAnterior,
+          saldo_nuevo: saldoNuevo,
+          fecha_devolucion: input.fecha_operacion,
+          observacion: input.observacion,
+          registrado_por: input.usuario_id,
+          registrado_en: input.fecha_operacion,
+        },
+        select: { id: true },
+      });
+      const prestamoActualizado =
+        await tx.prestamos_proyecto.updateMany({
+          where: {
+            id: prestamo.id,
+            estado: { in: ["ACTIVO", "PARCIALMENTE_DEVUELTO"] },
+            saldo_pendiente: saldoAnterior,
+          },
+          data: {
+            saldo_pendiente: saldoNuevo,
+            estado: estadoPrestamo,
+          },
+        });
+
+      if (prestamoActualizado.count !== 1) {
+        throw new RegistrarPrestamoError(
+          "El saldo pendiente del préstamo cambió. Intente nuevamente.",
+        );
+      }
+
+      const movimientoDestino =
+        await registrarMovimientoFondoEnTransaccionRepository(tx, {
+          fondo_id: prestamo.fondo_destino.id,
+          proyecto_base_id: prestamo.proyecto_destino.id,
+          prestamo_proyecto_id: prestamo.id,
+          devolucion_prestamo_id: devolucion.id,
+          tipo_movimiento:
+            prestamo.tipo_prestamo === "PERSONA_A_PROYECTO"
+              ? "EGRESO_DEVOLUCION_PRESTAMO_PERSONA"
+              : "EGRESO_DEVOLUCION_PRESTAMO",
+          direccion: "EGRESO",
+          valor: input.valor,
+          referencia_sistema: secuencia.referencia,
+          descripcion:
+            input.observacion ??
+            (prestamo.tipo_prestamo === "PERSONA_A_PROYECTO"
+              ? `Devolución de préstamo a ${prestamo.acreedor_nombre}.`
+              : `Devolución al proyecto ${prestamo.proyecto_origen?.nombre}.`),
+          registrado_por: input.usuario_id,
+          registrado_en: input.fecha_operacion,
+        });
+
+      let movimientoOrigen = null;
+
+      if (
+        prestamo.tipo_prestamo === "PROYECTO_A_PROYECTO" &&
+        prestamo.proyecto_origen &&
+        prestamo.fondo_origen
+      ) {
+        movimientoOrigen =
+          await registrarMovimientoFondoEnTransaccionRepository(tx, {
+            fondo_id: prestamo.fondo_origen.id,
+            proyecto_base_id: prestamo.proyecto_origen.id,
+            prestamo_proyecto_id: prestamo.id,
+            devolucion_prestamo_id: devolucion.id,
+            tipo_movimiento: "INGRESO_DEVOLUCION_PRESTAMO",
+            direccion: "INGRESO",
+            valor: input.valor,
+            referencia_sistema: secuencia.referencia,
+            descripcion:
+              input.observacion ??
+              `Devolución recibida del proyecto ${prestamo.proyecto_destino.nombre}.`,
+            registrado_por: input.usuario_id,
+            registrado_en: input.fecha_operacion,
+          });
+      }
+
+      return {
+        id: devolucion.id,
+        referencia_sistema: secuencia.referencia,
+        prestamo_proyecto_id: prestamo.id,
+        prestamo_referencia: prestamo.referencia_sistema,
+        tipo_prestamo: prestamo.tipo_prestamo,
+        valor: input.valor,
+        saldo_anterior_prestamo: saldoAnterior,
+        saldo_nuevo_prestamo: saldoNuevo,
+        estado_prestamo: estadoPrestamo,
+        saldo_fondo_destino_anterior: movimientoDestino.saldo_anterior,
+        saldo_fondo_destino_nuevo: movimientoDestino.saldo_nuevo,
+        saldo_fondo_origen_anterior:
+          movimientoOrigen?.saldo_anterior ?? null,
+        saldo_fondo_origen_nuevo: movimientoOrigen?.saldo_nuevo ?? null,
         fecha_operacion: input.fecha_operacion.toISOString(),
       };
     },

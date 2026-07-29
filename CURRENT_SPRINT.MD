@@ -28,7 +28,7 @@ Implementar completamente:
 - HU-1401 — completada
 - HU-1402 — completada
 - HU-1403 — completada
-- HU-1404 — pendiente
+- HU-1404 — completada
 
 Incluyendo:
 
@@ -43,11 +43,10 @@ Incluyendo:
 ## Orden obligatorio
 
 1. HU-1401, HU-1402 y HU-1403 completadas, probadas y fusionadas a `dev`.
-2. Implementar HU-1404.
-3. Ejecutar pruebas.
-4. Actualizar documentación.
-5. Ejecutar `npm run build`.
-6. Cerrar la rama y hacer merge a `dev`.
+2. HU-1404 implementada y documentada.
+3. Ejecutar validación funcional.
+4. Ejecutar pruebas y `npm run build`.
+5. Cerrar la rama y hacer merge a `dev`.
 7. Detener el desarrollo.
 
 ---

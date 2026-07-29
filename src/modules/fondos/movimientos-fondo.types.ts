@@ -9,6 +9,7 @@ export type RegistrarMovimientoFondoInput = {
   operacion_efectivo_id?: string | null;
   anticipo_id?: string | null;
   prestamo_proyecto_id?: string | null;
+  devolucion_prestamo_id?: string | null;
   tipo_movimiento: string;
   direccion: DireccionMovimientoFondo;
   valor: number;

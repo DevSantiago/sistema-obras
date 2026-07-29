@@ -141,6 +141,29 @@ async function validarOrigenMovimiento(
       );
     }
   }
+
+  if (input.devolucion_prestamo_id) {
+    if (!input.prestamo_proyecto_id) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "El movimiento de devolución requiere el préstamo relacionado.",
+      );
+    }
+
+    const devolucionValida = await tx.devoluciones_prestamo.count({
+      where: {
+        id: input.devolucion_prestamo_id,
+        prestamo_proyecto_id: input.prestamo_proyecto_id,
+      },
+    });
+
+    if (devolucionValida !== 1) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "La devolución no corresponde al préstamo del movimiento.",
+      );
+    }
+  }
 }
 
 async function validarMovimientoDuplicado(
@@ -188,6 +211,24 @@ async function validarMovimientoDuplicado(
       throw new MovimientoFondoError(
         "MOVIMIENTO_DUPLICADO",
         "El anticipo ya tiene un movimiento financiero registrado.",
+      );
+    }
+  }
+
+  if (input.devolucion_prestamo_id) {
+    const movimientoDevolucion =
+      await tx.movimientos_fondo.findFirst({
+        where: {
+          devolucion_prestamo_id: input.devolucion_prestamo_id,
+          tipo_movimiento: input.tipo_movimiento,
+        },
+        select: { id: true },
+      });
+
+    if (movimientoDevolucion) {
+      throw new MovimientoFondoError(
+        "MOVIMIENTO_DUPLICADO",
+        "La devolución ya tiene este movimiento financiero registrado.",
       );
     }
   }
@@ -270,6 +311,7 @@ export async function registrarMovimientoFondoEnTransaccionRepository(
       operacion_efectivo_id: input.operacion_efectivo_id,
       anticipo_id: input.anticipo_id,
       prestamo_proyecto_id: input.prestamo_proyecto_id,
+      devolucion_prestamo_id: input.devolucion_prestamo_id,
       tipo_movimiento: input.tipo_movimiento.trim(),
       direccion: input.direccion,
       valor: input.valor,

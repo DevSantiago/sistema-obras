@@ -144,6 +144,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 | movimientos_fondo | ✅ |
 | anticipos | ✅ |
 | prestamos_proyecto | ✅ |
+| devoluciones_prestamo | ✅ |
 
 ---
 
@@ -155,7 +156,6 @@ Las siguientes capacidades forman parte de la evolución prevista del sistema y 
 - comentarios;
 - detalle de impuestos y retenciones;
 - programación de pagos;
-- devoluciones de préstamos;
 - ampliaciones del proceso OCR.
 
 ---

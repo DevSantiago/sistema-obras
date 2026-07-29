@@ -1,39 +1,6 @@
 import { cookies } from "next/headers";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import {
-  consultarPrestamosPendientesService,
-  registrarPrestamoPersonaService,
-} from "@/modules/prestamos/prestamos.service";
-
-export async function GET() {
-  try {
-    const cookieStore = await cookies();
-    const autenticacion = await obtenerUsuarioAutenticado(
-      cookieStore.get("session_token")?.value,
-    );
-
-    if (!autenticacion.body.ok || !autenticacion.body.data) {
-      return Response.json(autenticacion.body, {
-        status: autenticacion.status,
-      });
-    }
-
-    const resultado = await consultarPrestamosPendientesService(
-      autenticacion.body.data.usuario,
-    );
-
-    return Response.json(resultado.body, {
-      status: resultado.status,
-    });
-  } catch (error) {
-    console.error("Error consultando préstamos:", error);
-
-    return Response.json(
-      { ok: false, message: "No fue posible consultar los préstamos." },
-      { status: 500 },
-    );
-  }
-}
+import { registrarDevolucionPrestamoService } from "@/modules/prestamos/prestamos.service";
 
 export async function POST(request: Request) {
   try {
@@ -72,13 +39,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const resultado = await registrarPrestamoPersonaService(
+    const resultado = await registrarDevolucionPrestamoService(
       autenticacion.body.data.usuario,
       {
-        proyecto_base_id: String(
-          formData.get("proyecto_base_id") ?? "",
+        prestamo_proyecto_id: String(
+          formData.get("prestamo_proyecto_id") ?? "",
         ),
-        acreedor_id: String(formData.get("acreedor_id") ?? ""),
         valor: Number(formData.get("valor") ?? 0),
         observacion: String(formData.get("observacion") ?? ""),
         soporte,
@@ -89,10 +55,13 @@ export async function POST(request: Request) {
       status: resultado.status,
     });
   } catch (error) {
-    console.error("Error registrando préstamo:", error);
+    console.error("Error registrando devolución de préstamo:", error);
 
     return Response.json(
-      { ok: false, message: "No fue posible registrar el préstamo." },
+      {
+        ok: false,
+        message: "No fue posible registrar la devolución.",
+      },
       { status: 500 },
     );
   }

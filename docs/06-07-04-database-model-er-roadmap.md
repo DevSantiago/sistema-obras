@@ -120,7 +120,11 @@ tipo.
 El préstamo de persona crea `INGRESO_PRESTAMO_PERSONA`. El préstamo entre
 proyectos crea `EGRESO_PRESTAMO_PROYECTO` en el fondo origen e
 `INGRESO_PRESTAMO_PROYECTO` en el fondo destino, vinculados al mismo préstamo
-y referencia. La devolución y su modelo especializado permanecen pendientes.
+y referencia.
+
+`devoluciones_prestamo` conserva el préstamo, soporte, referencia, valor,
+saldos anterior y nuevo, fecha del sistema y usuario. Sus movimientos se
+relacionan tanto con la devolución como con el préstamo original.
 
 ---
 

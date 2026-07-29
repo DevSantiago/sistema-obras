@@ -1547,6 +1547,10 @@ Cada devolución deberá:
 - actualizar el saldo pendiente.
 
 El valor de una devolución no podrá superar el saldo pendiente del préstamo.
+La fecha y hora corresponden al momento en que el sistema registra la
+operación y no pueden ser seleccionadas por el usuario. El proyecto destino,
+que recibió los recursos, debe disponer de saldo suficiente para realizar el
+egreso.
 
 Cuando el saldo pendiente llegue a cero, el sistema cambiará automáticamente el estado del préstamo a:
 
