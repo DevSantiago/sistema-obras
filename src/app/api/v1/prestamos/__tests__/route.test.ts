@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { autenticacionMock, servicioMock } = vi.hoisted(() => ({
+const { autenticacionMock, consultaMock, servicioMock } = vi.hoisted(() => ({
   autenticacionMock: vi.fn(),
+  consultaMock: vi.fn(),
   servicioMock: vi.fn(),
 }));
 
@@ -14,12 +15,13 @@ vi.mock("@/modules/auth/auth.service", () => ({
   obtenerUsuarioAutenticado: autenticacionMock,
 }));
 vi.mock("@/modules/prestamos/prestamos.service", () => ({
+  consultarPrestamosPendientesService: consultaMock,
   registrarPrestamoPersonaService: servicioMock,
 }));
 
-import { POST } from "../route";
+import { GET, POST } from "../route";
 
-describe("POST /api/v1/prestamos", () => {
+describe("/api/v1/prestamos", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     autenticacionMock.mockResolvedValue({
@@ -30,6 +32,17 @@ describe("POST /api/v1/prestamos", () => {
       status: 201,
       body: { ok: true, message: "Préstamo registrado." },
     });
+    consultaMock.mockResolvedValue({
+      status: 200,
+      body: { ok: true, message: "Préstamos consultados.", data: [] },
+    });
+  });
+
+  it("debe consultar los préstamos pendientes", async () => {
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    expect(consultaMock).toHaveBeenCalledWith({ id: "usuario-1" });
   });
 
   it("debe enviar préstamo y soporte al servicio", async () => {

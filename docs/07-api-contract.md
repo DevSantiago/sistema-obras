@@ -112,6 +112,7 @@ Actualmente la API expone los siguientes recursos:
 /api/v1/anticipos
 /api/v1/prestamos
 /api/v1/prestamos/entre-proyectos
+/api/v1/prestamos/devoluciones
 ```
 
 El registro financiero de HU-1002 es un servicio interno y no expone un
@@ -146,7 +147,9 @@ crear el movimiento de forma atómica.
 | GET | `/api/v1/fondos/movimientos` |
 | POST | `/api/v1/anticipos` |
 | POST | `/api/v1/prestamos` |
+| GET | `/api/v1/prestamos` |
 | POST | `/api/v1/prestamos/entre-proyectos` |
+| POST | `/api/v1/prestamos/devoluciones` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -177,6 +180,18 @@ o identificación.
 
 ---
 
+## Consultar préstamos pendientes
+
+```http
+GET /api/v1/prestamos
+```
+
+Requiere `REGISTRAR_PRESTAMOS`. Retorna préstamos en estado `ACTIVO` o
+`PARCIALMENTE_DEVUELTO` con saldo pendiente, proyecto que debe devolver,
+acreedor o proyecto origen y saldo disponible del fondo destino.
+
+---
+
 ## Registrar préstamo entre proyectos
 
 ```http
@@ -194,6 +209,25 @@ El registro crea un `EGRESO_PRESTAMO_PROYECTO` en el fondo origen y un
 `INGRESO_PRESTAMO_PROYECTO` en el fondo destino. Ambos movimientos comparten
 la referencia del préstamo y se confirman junto con los nuevos saldos en una
 transacción serializable.
+
+---
+
+## Registrar devolución de préstamo
+
+```http
+POST /api/v1/prestamos/devoluciones
+Content-Type: multipart/form-data
+```
+
+Requiere `REGISTRAR_PRESTAMOS`. Campos obligatorios:
+`prestamo_proyecto_id`, `valor` y `soporte`. `observacion` es opcional. El
+contrato no recibe fecha y el valor no puede superar el saldo pendiente.
+
+Para `PERSONA_A_PROYECTO` crea
+`EGRESO_DEVOLUCION_PRESTAMO_PERSONA` en el proyecto. Para
+`PROYECTO_A_PROYECTO` crea `EGRESO_DEVOLUCION_PRESTAMO` en el proyecto
+destino e `INGRESO_DEVOLUCION_PRESTAMO` en el origen. Actualiza el estado a
+`PARCIALMENTE_DEVUELTO` o `SALDADO` dentro de la misma transacción.
 
 ---
 

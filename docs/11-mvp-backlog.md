@@ -1644,6 +1644,8 @@ Implementación:
 
 ### HU-1404. Registrar devolución de préstamo
 
+**Estado: COMPLETADA**
+
 Como usuario autorizado, quiero registrar devolución, para disminuir saldo pendiente.
 
 Criterios:
@@ -1652,6 +1654,22 @@ Criterios:
 - Crea movimiento financiero.
 - Actualiza saldo pendiente.
 - Cambia estado del préstamo si queda pagado.
+
+Implementación:
+
+- Consulta préstamos `ACTIVO` o `PARCIALMENTE_DEVUELTO` mediante
+  `GET /api/v1/prestamos`.
+- Registra devoluciones mediante `POST /api/v1/prestamos/devoluciones`.
+- Vista responsive `/financiacion`, pestañas Préstamos y Devoluciones.
+- Exige valor positivo, soporte y saldo suficiente en el fondo del proyecto
+  que devuelve.
+- Impide devolver más que el saldo pendiente y usa fecha y hora del sistema.
+- Para persona a proyecto crea un egreso; para préstamo entre proyectos crea
+  el egreso del destino y el ingreso del origen con una misma referencia.
+- Conserva saldo anterior y nuevo, soporte, usuario y movimientos relacionados
+  en `devoluciones_prestamo`.
+- Cambia el préstamo a `PARCIALMENTE_DEVUELTO` o `SALDADO` en una transacción
+  serializable.
 
 ---
 

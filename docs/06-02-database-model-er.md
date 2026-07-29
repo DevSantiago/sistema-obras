@@ -148,13 +148,11 @@ Representa las entidades encargadas de la administración de recursos financiero
 Actualmente el modelo implementa:
 
 - fondos.
-
-Las futuras versiones incorporarán:
-
-- movimientos;
-- préstamos;
 - anticipos;
-- operaciones financieras.
+- préstamos;
+- devoluciones de préstamos;
+- movimientos financieros;
+- pagos y operaciones de efectivo.
 
 ---
 
