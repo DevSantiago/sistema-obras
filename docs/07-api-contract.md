@@ -153,6 +153,7 @@ crear el movimiento de forma atómica.
 | POST | `/api/v1/prestamos/devoluciones` |
 | GET | `/api/v1/operaciones-efectivo` |
 | GET | `/api/v1/operaciones-efectivo/{id}/soportes/{adjuntoId}` |
+| POST | `/api/v1/operaciones-efectivo/{id}/reingresos` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -185,6 +186,20 @@ GET /api/v1/operaciones-efectivo/{id}/soportes/{adjuntoId}
 ```
 
 El soporte solo se entrega cuando pertenece al retiro o a uno de sus pagos.
+
+## Registrar reingreso posterior
+
+```http
+POST /api/v1/operaciones-efectivo/{id}/reingresos
+Content-Type: multipart/form-data
+```
+
+Disponible para `ADMINISTRADOR` y `PAGOS`. Campos obligatorios: `valor` y
+`soporte`. `observacion` es opcional. El contrato no recibe fecha.
+
+La operación debe tener sobrante pendiente y el valor no puede superarlo. El
+registro crea `INGRESO_REINTEGRO_EFECTIVO`, actualiza el fondo y el pendiente,
+y conserva el soporte en una transacción serializable.
 
 ---
 

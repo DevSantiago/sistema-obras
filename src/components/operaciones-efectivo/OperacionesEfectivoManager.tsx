@@ -5,6 +5,7 @@ import type {
   ConsultarOperacionesEfectivoData,
   OperacionEfectivoConsulta,
 } from "@/modules/operaciones-efectivo/operaciones-efectivo.types";
+import { formatearValorEntrada } from "@/components/solicitudes-pago/solicitudes-pago.utils";
 import styles from "./OperacionesEfectivoManager.module.css";
 
 const MONEDA = new Intl.NumberFormat("es-CO", {
@@ -36,6 +37,15 @@ export default function OperacionesEfectivoManager({
   const [fechaHasta, setFechaHasta] = useState("");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [valorReingreso, setValorReingreso] = useState("");
+  const [observacionReingreso, setObservacionReingreso] =
+    useState("");
+  const [soporteReingreso, setSoporteReingreso] =
+    useState<File | null>(null);
+  const [registrandoReingreso, setRegistrandoReingreso] =
+    useState(false);
+  const [mensajeReingreso, setMensajeReingreso] = useState("");
+  const [errorReingreso, setErrorReingreso] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -154,6 +164,76 @@ export default function OperacionesEfectivoManager({
     };
 
     return etiquetas[estado] ?? estado;
+  }
+
+  async function registrarReingreso(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!operacionDetalle || !soporteReingreso) {
+      setErrorReingreso(true);
+      setMensajeReingreso("Debe adjuntar el soporte del reingreso.");
+      return;
+    }
+
+    const valorNumerico = Number(
+      valorReingreso.replace(/[^\d]/g, ""),
+    );
+
+    if (
+      valorNumerico <= 0 ||
+      valorNumerico > operacionDetalle.valor_pendiente_reintegro
+    ) {
+      setErrorReingreso(true);
+      setMensajeReingreso(
+        "El valor debe ser mayor que cero y no superar el sobrante pendiente.",
+      );
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("valor", String(valorNumerico));
+    formData.set("observacion", observacionReingreso);
+    formData.set("soporte", soporteReingreso);
+    setRegistrandoReingreso(true);
+    setMensajeReingreso("");
+
+    try {
+      const response = await fetch(
+        `/api/v1/operaciones-efectivo/${operacionDetalle.id}/reingresos`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        },
+      );
+      const body = (await response.json()) as {
+        ok: boolean;
+        message: string;
+        data?: { referencia_sistema: string };
+      };
+
+      setErrorReingreso(!response.ok || !body.ok);
+      setMensajeReingreso(
+        response.ok && body.ok && body.data
+          ? `${body.message} Referencia ${body.data.referencia_sistema}.`
+          : body.message,
+      );
+
+      if (response.ok && body.ok) {
+        setValorReingreso("");
+        setObservacionReingreso("");
+        setSoporteReingreso(null);
+        await cargar();
+        setOperacionDetalle(null);
+      }
+    } catch {
+      setErrorReingreso(true);
+      setMensajeReingreso("No fue posible registrar el reingreso.");
+    } finally {
+      setRegistrandoReingreso(false);
+    }
   }
 
   return (
@@ -400,6 +480,110 @@ export default function OperacionesEfectivoManager({
                 </article>
               ))}
             </div>
+            {operacionDetalle.reingresos.length > 0 ? (
+              <div className={styles.reentryHistory}>
+                <h3>Reingresos registrados</h3>
+                {operacionDetalle.reingresos.map((reingreso) => (
+                  <article key={reingreso.id}>
+                    <div>
+                      <strong>{reingreso.referencia_sistema}</strong>
+                      <span>
+                        {FECHA.format(
+                          new Date(reingreso.fecha_reingreso),
+                        )}{" "}
+                        · {reingreso.registrado_por_nombre}
+                      </span>
+                    </div>
+                    <strong>{MONEDA.format(reingreso.valor)}</strong>
+                    <a
+                      href={`/api/v1/operaciones-efectivo/${operacionDetalle.id}/soportes/${reingreso.soporte.id}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Ver soporte
+                    </a>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            {operacionDetalle.valor_pendiente_reintegro > 0 ? (
+              <form
+                className={styles.reentryForm}
+                onSubmit={registrarReingreso}
+              >
+                <div>
+                  <h3>Registrar reingreso</h3>
+                  <p>
+                    Pendiente:{" "}
+                    <strong>
+                      {MONEDA.format(
+                        operacionDetalle.valor_pendiente_reintegro,
+                      )}
+                    </strong>
+                  </p>
+                </div>
+                <label>
+                  <span>Valor *</span>
+                  <input
+                    inputMode="numeric"
+                    placeholder="0"
+                    required
+                    type="text"
+                    value={valorReingreso}
+                    onChange={(event) =>
+                      setValorReingreso(
+                        formatearValorEntrada(event.target.value),
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Soporte *</span>
+                  <input
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    required
+                    type="file"
+                    onChange={(event) =>
+                      setSoporteReingreso(
+                        event.target.files?.[0] ?? null,
+                      )
+                    }
+                  />
+                </label>
+                <label className={styles.fullWidth}>
+                  <span>Observación</span>
+                  <textarea
+                    rows={2}
+                    value={observacionReingreso}
+                    onChange={(event) =>
+                      setObservacionReingreso(event.target.value)
+                    }
+                  />
+                </label>
+                <div className={styles.systemDate}>
+                  La fecha y hora serán asignadas por el sistema.
+                </div>
+                {mensajeReingreso ? (
+                  <p
+                    className={
+                      errorReingreso
+                        ? styles.formError
+                        : styles.formSuccess
+                    }
+                  >
+                    {mensajeReingreso}
+                  </p>
+                ) : null}
+                <button
+                  disabled={registrandoReingreso}
+                  type="submit"
+                >
+                  {registrandoReingreso
+                    ? "Registrando..."
+                    : "Registrar reingreso"}
+                </button>
+              </form>
+            ) : null}
           </section>
         </div>
       ) : null}

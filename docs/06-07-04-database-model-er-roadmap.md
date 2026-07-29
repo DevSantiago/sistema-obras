@@ -112,6 +112,11 @@ nuevo. Permanecen proyectados los modelos especializados para ajustes,
 devoluciones y otros orígenes financieros de las épicas
 posteriores.
 
+`reingresos_sobrante_efectivo` implementa los reingresos posteriores de un
+retiro. Conserva operación, soporte, referencia, valor, pendiente anterior y
+nuevo, fecha del sistema y usuario. Cada registro posee un único movimiento
+`INGRESO_REINTEGRO_EFECTIVO`.
+
 `prestamos_proyecto` implementa los tipos `PERSONA_A_PROYECTO` y
 `PROYECTO_A_PROYECTO`. Conserva el valor original, el saldo pendiente, el
 soporte, el acreedor cuando aplica y los proyectos origen o destino según el

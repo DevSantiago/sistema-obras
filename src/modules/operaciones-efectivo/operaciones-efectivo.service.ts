@@ -1,14 +1,26 @@
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
+import { MovimientoFondoError } from "@/modules/fondos/movimientos-fondo.repository";
+import { storageService } from "@/modules/storage/storage.service";
 import {
   consultarOperacionesEfectivoRepository,
   obtenerArchivoOperacionEfectivoRepository,
+  ReingresoSobranteError,
+  registrarReingresoSobranteRepository,
 } from "./operaciones-efectivo.repository";
 import type {
   ArchivoOperacionEfectivoDescargable,
   ConsultarOperacionesEfectivoData,
   EstadoSeguimientoOperacionEfectivo,
   FiltrosOperacionesEfectivo,
+  RegistrarReingresoSobranteInput,
+  ReingresoSobranteRegistrado,
 } from "./operaciones-efectivo.types";
+
+const TIPOS_SOPORTE = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+];
 
 function tieneAcceso(usuario: UsuarioSesion) {
   return usuario.roles.some((rol) =>
@@ -97,6 +109,17 @@ export async function consultarOperacionesEfectivoService(
       registrado_por_nombre: operacion.registrador.nombre,
       registrado_en: operacion.registrado_en.toISOString(),
       soporte_retiro: operacion.soporte_retiro,
+      reingresos: operacion.reingresos.map((reingreso) => ({
+        id: reingreso.id,
+        referencia_sistema: reingreso.referencia_sistema,
+        valor: reingreso.valor.toNumber(),
+        pendiente_anterior: reingreso.pendiente_anterior.toNumber(),
+        pendiente_nuevo: reingreso.pendiente_nuevo.toNumber(),
+        fecha_reingreso: reingreso.fecha_reingreso.toISOString(),
+        observacion: reingreso.observacion,
+        registrado_por_nombre: reingreso.registrador.nombre,
+        soporte: reingreso.soporte,
+      })),
       detalles: operacion.detalles.map((detalle) => ({
         id: detalle.id,
         solicitud_pago_id: detalle.solicitud_pago.id,
@@ -125,6 +148,101 @@ export async function consultarOperacionesEfectivoService(
       data: { operaciones },
     },
   };
+}
+
+export async function registrarReingresoSobranteService(
+  usuario: UsuarioSesion,
+  input: RegistrarReingresoSobranteInput,
+): Promise<{
+  status: number;
+  body: {
+    ok: boolean;
+    message: string;
+    data?: ReingresoSobranteRegistrado;
+  };
+}> {
+  if (!tieneAcceso(usuario)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para registrar reingresos.",
+      },
+    };
+  }
+
+  const valor = Number(input.valor);
+
+  if (
+    !input.operacion_efectivo_id.trim() ||
+    !Number.isFinite(valor) ||
+    valor <= 0
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La operación y un valor mayor que cero son obligatorios.",
+      },
+    };
+  }
+
+  if (
+    input.soporte.size <= 0 ||
+    input.soporte.size > 10 * 1024 * 1024 ||
+    (input.soporte.type &&
+      !TIPOS_SOPORTE.includes(input.soporte.type))
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El soporte debe ser PDF, PNG, JPG o JPEG y pesar máximo 10 MB.",
+      },
+    };
+  }
+
+  const archivo = await storageService.guardarArchivo({
+    contenido: Buffer.from(await input.soporte.arrayBuffer()),
+    nombre_original: input.soporte.name,
+    tipo_mime: input.soporte.type || null,
+    carpeta: "operaciones-efectivo/reingresos",
+  });
+
+  try {
+    const reingreso = await registrarReingresoSobranteRepository({
+      operacion_efectivo_id: input.operacion_efectivo_id.trim(),
+      valor,
+      observacion: input.observacion?.trim() || null,
+      soporte: archivo,
+      usuario_id: usuario.id,
+      fecha_operacion: new Date(),
+    });
+
+    return {
+      status: 201,
+      body: {
+        ok: true,
+        message: "Reingreso registrado correctamente.",
+        data: reingreso,
+      },
+    };
+  } catch (causa) {
+    await storageService.eliminarArchivo(archivo.ruta_archivo);
+
+    if (
+      causa instanceof ReingresoSobranteError ||
+      causa instanceof MovimientoFondoError
+    ) {
+      return {
+        status: 409,
+        body: { ok: false, message: causa.message },
+      };
+    }
+
+    throw causa;
+  }
 }
 
 export async function obtenerArchivoOperacionEfectivoService(

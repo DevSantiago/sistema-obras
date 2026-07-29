@@ -50,6 +50,7 @@ export type OperacionEfectivoConsulta = {
   registrado_en: string;
   soporte_retiro: SoporteOperacionEfectivo;
   detalles: DetalleOperacionEfectivoConsulta[];
+  reingresos: ReingresoSobranteConsulta[];
 };
 
 export type ConsultarOperacionesEfectivoData = {
@@ -60,4 +61,51 @@ export type ArchivoOperacionEfectivoDescargable = {
   nombre_archivo: string;
   ruta_archivo: string;
   tipo_mime: string | null;
+};
+
+export type ReingresoSobranteConsulta = {
+  id: string;
+  referencia_sistema: string;
+  valor: number;
+  pendiente_anterior: number;
+  pendiente_nuevo: number;
+  fecha_reingreso: string;
+  observacion: string | null;
+  registrado_por_nombre: string;
+  soporte: SoporteOperacionEfectivo;
+};
+
+export type RegistrarReingresoSobranteInput = {
+  operacion_efectivo_id: string;
+  valor: number;
+  observacion?: string | null;
+  soporte: File;
+};
+
+export type RegistrarReingresoSobranteRepositoryInput = Omit<
+  RegistrarReingresoSobranteInput,
+  "soporte"
+> & {
+  soporte: {
+    nombre_archivo: string;
+    nombre_bucket: string;
+    ruta_archivo: string;
+    tipo_mime: string | null;
+    tamano_archivo: bigint;
+  };
+  usuario_id: string;
+  fecha_operacion: Date;
+};
+
+export type ReingresoSobranteRegistrado = {
+  id: string;
+  referencia_sistema: string;
+  operacion_efectivo_id: string;
+  valor: number;
+  pendiente_anterior: number;
+  pendiente_nuevo: number;
+  estado_seguimiento: EstadoSeguimientoOperacionEfectivo;
+  saldo_fondo_anterior: number;
+  saldo_fondo_nuevo: number;
+  fecha_operacion: string;
 };

@@ -1278,6 +1278,15 @@ Esta consulta no vuelve a registrar pagos, movimientos ni actualizaciones de
 saldo. Un movimiento `EGRESO_RETIRO_EFECTIVO` permite abrir directamente el
 detalle operativo de la operación relacionada.
 
+Un retiro con `SOBRANTE_PENDIENTE_REINGRESO` admite uno o varios reingresos
+posteriores. Cada reingreso exige valor y soporte documental, usa la fecha y
+hora del sistema y no puede superar el pendiente vigente.
+
+El registro crea `INGRESO_REINTEGRO_EFECTIVO`, incrementa el mismo fondo del
+retiro y actualiza el pendiente. El soporte, el registro del reingreso, el
+movimiento y el fondo se confirman en una única transacción serializable. El
+estado pasa a `SOBRANTE_REINTEGRADO` cuando el pendiente llega a cero.
+
 Un retiro agrupado corresponde a una salida de efectivo destinada a cubrir una o varias solicitudes de pago.
 
 Su estructura conceptual es:

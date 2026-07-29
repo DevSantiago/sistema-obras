@@ -22,6 +22,9 @@ function crearTransaccionMock(input?: {
     operaciones_efectivo: {
       count: vi.fn(),
     },
+    reingresos_sobrante_efectivo: {
+      count: vi.fn(),
+    },
     movimientos_fondo: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
@@ -146,5 +149,28 @@ describe("movimientos-fondo.repository", () => {
       codigo: "ORIGEN_INVALIDO",
     });
     expect(tx.fondos.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("debe permitir varios reingresos con movimientos independientes", async () => {
+    const tx = crearTransaccionMock({ saldoNuevo: 1100 });
+    tx.operaciones_efectivo.count.mockResolvedValue(1);
+    tx.reingresos_sobrante_efectivo.count.mockResolvedValue(1);
+    tx.movimientos_fondo.findUnique.mockResolvedValue(null);
+
+    const resultado =
+      await registrarMovimientoFondoEnTransaccionRepository(
+        tx as never,
+        {
+          ...movimientoBase,
+          operacion_efectivo_id: "operacion-1",
+          reingreso_sobrante_id: "reingreso-1",
+          tipo_movimiento: "INGRESO_REINTEGRO_EFECTIVO",
+          direccion: "INGRESO",
+          valor: 100,
+        },
+      );
+
+    expect(resultado.saldo_nuevo).toBe(1100);
+    expect(tx.movimientos_fondo.findFirst).not.toHaveBeenCalled();
   });
 });

@@ -145,6 +145,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 | anticipos | ✅ |
 | prestamos_proyecto | ✅ |
 | devoluciones_prestamo | ✅ |
+| reingresos_sobrante_efectivo | ✅ |
 
 ---
 
