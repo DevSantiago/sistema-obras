@@ -3,16 +3,21 @@ import { MovimientoFondoError } from "@/modules/fondos/movimientos-fondo.reposit
 import { storageService } from "@/modules/storage/storage.service";
 import {
   consultarOperacionesEfectivoRepository,
+  calcularPendienteOperacionEfectivo,
+  CorreccionOperacionEfectivoError,
   obtenerArchivoOperacionEfectivoRepository,
   ReingresoSobranteError,
   registrarReingresoSobranteRepository,
+  registrarCorreccionOperacionEfectivoRepository,
 } from "./operaciones-efectivo.repository";
 import type {
   ArchivoOperacionEfectivoDescargable,
+  CorreccionOperacionEfectivoRegistrada,
   ConsultarOperacionesEfectivoData,
   EstadoSeguimientoOperacionEfectivo,
   FiltrosOperacionesEfectivo,
   RegistrarReingresoSobranteInput,
+  RegistrarCorreccionOperacionEfectivoInput,
   ReingresoSobranteRegistrado,
 } from "./operaciones-efectivo.types";
 
@@ -78,16 +83,28 @@ export async function consultarOperacionesEfectivoService(
       (total, movimiento) => total + movimiento.valor.toNumber(),
       0,
     );
-    const valorPendiente = Math.max(
-      0,
-      valorSobrante - valorReintegrado,
+    const valorPendiente = calcularPendienteOperacionEfectivo(
+      valorSobrante,
+      valorReintegrado,
+      operacion.correcciones
+        .filter((correccion) => correccion.tipo === "AJUSTE")
+        .map((correccion) => ({
+          direccion: correccion.direccion,
+          valor: correccion.valor?.toNumber() ?? 0,
+        })),
     );
     let estado: EstadoSeguimientoOperacionEfectivo =
       "SOBRANTE_PENDIENTE_REINGRESO";
 
-    if (valorSobrante <= 0) {
+    if (operacion.estado === "ANULADA") {
+      estado = "ANULADA";
+    } else if (valorPendiente > 0) {
+      estado = "SOBRANTE_PENDIENTE_REINGRESO";
+    } else if (operacion.estado === "AJUSTADA") {
+      estado = "SOBRANTE_AJUSTADO";
+    } else if (valorSobrante <= 0) {
       estado = "SIN_SOBRANTE";
-    } else if (valorPendiente <= 0) {
+    } else {
       estado = "SOBRANTE_REINTEGRADO";
     }
 
@@ -105,6 +122,8 @@ export async function consultarOperacionesEfectivoService(
       valor_reintegrado: valorReintegrado,
       valor_pendiente_reintegro: valorPendiente,
       estado_seguimiento: estado,
+      estado_operacion:
+        operacion.estado as "ACTIVA" | "AJUSTADA" | "ANULADA",
       observacion: operacion.observacion,
       registrado_por_nombre: operacion.registrador.nombre,
       registrado_en: operacion.registrado_en.toISOString(),
@@ -119,6 +138,22 @@ export async function consultarOperacionesEfectivoService(
         observacion: reingreso.observacion,
         registrado_por_nombre: reingreso.registrador.nombre,
         soporte: reingreso.soporte,
+      })),
+      correcciones: operacion.correcciones.map((correccion) => ({
+        id: correccion.id,
+        referencia_sistema: correccion.referencia_sistema,
+        tipo: correccion.tipo as "AJUSTE" | "ANULACION",
+        direccion:
+          correccion.direccion as "INGRESO" | "EGRESO" | null,
+        valor: correccion.valor?.toNumber() ?? null,
+        pendiente_anterior:
+          correccion.pendiente_anterior?.toNumber() ?? null,
+        pendiente_nuevo:
+          correccion.pendiente_nuevo?.toNumber() ?? null,
+        motivo: correccion.motivo,
+        observacion: correccion.observacion,
+        registrado_por_nombre: correccion.registrador.nombre,
+        registrado_en: correccion.registrado_en.toISOString(),
       })),
       detalles: operacion.detalles.map((detalle) => ({
         id: detalle.id,
@@ -153,6 +188,99 @@ export async function consultarOperacionesEfectivoService(
       data: { operaciones },
     },
   };
+}
+
+export async function registrarCorreccionOperacionEfectivoService(
+  usuario: UsuarioSesion,
+  input: RegistrarCorreccionOperacionEfectivoInput,
+): Promise<{
+  status: number;
+  body: {
+    ok: boolean;
+    message: string;
+    data?: CorreccionOperacionEfectivoRegistrada;
+  };
+}> {
+  if (!tieneAcceso(usuario)) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para corregir operaciones de efectivo.",
+      },
+    };
+  }
+
+  const valor = input.valor == null ? null : Number(input.valor);
+  const motivo = input.motivo.trim();
+
+  if (
+    !input.operacion_efectivo_id.trim() ||
+    !["AJUSTE", "ANULACION"].includes(input.tipo) ||
+    !motivo
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La operación, el tipo y el motivo son obligatorios.",
+      },
+    };
+  }
+
+  if (
+    input.tipo === "AJUSTE" &&
+    (!input.direccion ||
+      !["INGRESO", "EGRESO"].includes(input.direccion) ||
+      valor == null ||
+      !Number.isFinite(valor) ||
+      valor <= 0)
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El ajuste requiere dirección y un valor mayor que cero.",
+      },
+    };
+  }
+
+  try {
+    const correccion =
+      await registrarCorreccionOperacionEfectivoRepository({
+        ...input,
+        motivo,
+        observacion: input.observacion?.trim() || null,
+        valor,
+        usuario_id: usuario.id,
+        fecha_operacion: new Date(),
+      });
+
+    return {
+      status: 201,
+      body: {
+        ok: true,
+        message:
+          input.tipo === "ANULACION"
+            ? "Operación anulada correctamente."
+            : "Ajuste registrado correctamente.",
+        data: correccion,
+      },
+    };
+  } catch (causa) {
+    if (
+      causa instanceof CorreccionOperacionEfectivoError ||
+      causa instanceof MovimientoFondoError
+    ) {
+      return {
+        status: 409,
+        body: { ok: false, message: causa.message },
+      };
+    }
+
+    throw causa;
+  }
 }
 
 export async function registrarReingresoSobranteService(

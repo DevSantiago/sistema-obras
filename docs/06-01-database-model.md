@@ -105,6 +105,8 @@ El modelo se encuentra organizado en los siguientes módulos.
 - pagos;
 - operaciones_efectivo;
 - detalles_operacion_efectivo;
+- reingresos_sobrante_efectivo;
+- correcciones_operacion_efectivo;
 - movimientos_fondo.
 
 ---
@@ -146,6 +148,11 @@ El modelo se encuentra organizado en los siguientes módulos.
 | prestamos_proyecto | ✅ |
 | devoluciones_prestamo | ✅ |
 | reingresos_sobrante_efectivo | ✅ |
+| correcciones_operacion_efectivo | ✅ |
+
+`correcciones_operacion_efectivo` conserva `pendiente_anterior` y
+`pendiente_nuevo` para conciliar los ajustes del valor retirado con los
+reingresos posteriores.
 
 ---
 

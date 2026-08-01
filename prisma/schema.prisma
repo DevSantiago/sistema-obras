@@ -45,6 +45,7 @@ model usuarios {
   movimientos_registrados           movimientos_fondo[]            @relation("MovimientosRegistradosPor")
   operaciones_efectivo_registradas  operaciones_efectivo[]         @relation("OperacionesEfectivoRegistradasPor")
   reingresos_sobrante_registrados   reingresos_sobrante_efectivo[] @relation("ReingresosSobranteRegistradosPor")
+  correcciones_efectivo_registradas correcciones_operacion_efectivo[] @relation("CorreccionesEfectivoRegistradasPor")
   anticipos_registrados             anticipos[]                    @relation("AnticiposRegistradosPor")
   prestamos_registrados             prestamos_proyecto[]           @relation("PrestamosRegistradosPor")
   devoluciones_prestamo_registradas devoluciones_prestamo[]        @relation("DevolucionesPrestamoRegistradasPor")
@@ -460,6 +461,7 @@ model operaciones_efectivo {
   valor_pagado         Decimal  @db.Decimal(14, 2)
   valor_sobrante       Decimal  @db.Decimal(14, 2)
   sobrante_reintegrado Boolean  @default(false)
+  estado               String   @default("ACTIVA")
   observacion          String?
   registrado_por       String
   registrado_en        DateTime @default(now())
@@ -471,11 +473,36 @@ model operaciones_efectivo {
   detalles       detalles_operacion_efectivo[]
   movimientos    movimientos_fondo[]
   reingresos     reingresos_sobrante_efectivo[]
+  correcciones   correcciones_operacion_efectivo[]
 
   @@index([proyecto_base_id])
   @@index([fondo_id])
   @@index([fecha_retiro])
   @@index([registrado_por])
+}
+
+model correcciones_operacion_efectivo {
+  id                    String   @id @default(uuid())
+  operacion_efectivo_id String
+  referencia_sistema    String   @unique @db.VarChar(150)
+  tipo                  String
+  direccion             String?
+  valor                 Decimal? @db.Decimal(14, 2)
+  pendiente_anterior    Decimal? @db.Decimal(14, 2)
+  pendiente_nuevo       Decimal? @db.Decimal(14, 2)
+  motivo                String   @db.VarChar(250)
+  observacion           String?
+  registrado_por        String
+  registrado_en         DateTime @default(now())
+
+  operacion  operaciones_efectivo @relation(fields: [operacion_efectivo_id], references: [id])
+  registrador usuarios             @relation("CorreccionesEfectivoRegistradasPor", fields: [registrado_por], references: [id])
+  movimiento movimientos_fondo?
+
+  @@index([operacion_efectivo_id])
+  @@index([tipo])
+  @@index([registrado_por])
+  @@index([registrado_en])
 }
 
 model detalles_operacion_efectivo {
@@ -532,6 +559,7 @@ model movimientos_fondo {
   prestamo_proyecto_id   String?
   devolucion_prestamo_id String?
   reingreso_sobrante_id  String?  @unique
+  correccion_efectivo_id String?  @unique
   tipo_movimiento        String
   direccion              String
   valor                  Decimal  @db.Decimal(14, 2)
@@ -552,6 +580,7 @@ model movimientos_fondo {
   prestamo_proyecto   prestamos_proyecto?           @relation(fields: [prestamo_proyecto_id], references: [id])
   devolucion_prestamo devoluciones_prestamo?        @relation(fields: [devolucion_prestamo_id], references: [id])
   reingreso_sobrante  reingresos_sobrante_efectivo? @relation(fields: [reingreso_sobrante_id], references: [id])
+  correccion_efectivo correcciones_operacion_efectivo? @relation(fields: [correccion_efectivo_id], references: [id])
   registrador         usuarios?                     @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
 
   @@index([fondo_id])

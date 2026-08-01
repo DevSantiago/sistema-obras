@@ -886,6 +886,10 @@ Permitir que el Aprobador Nivel 2 consulte y apruebe solicitudes previamente apr
 - Validación de permisos.
 - Cambio de estado a `PROGRAMADA_PAGO`.
 - Conservación de la reserva presupuestal.
+- El saldo proyectado responde a la selección múltiple y se calcula como
+  `saldo_actual - total_reservado_seleccionado - reserva_restante`.
+- La interfaz separa estado presupuestal y simulación, y no muestra una
+  proyección hasta que exista al menos una solicitud seleccionada.
 
 ---
 
@@ -1464,7 +1468,7 @@ Implementación:
 
 ### HU-1105. Ajustar o anular una operación de efectivo
 
-**Estado: PENDIENTE**
+**Estado: COMPLETADA**
 
 Como usuario autorizado, quiero ajustar o anular una operación de efectivo,
 para corregir errores sin eliminar su trazabilidad.
@@ -1477,6 +1481,21 @@ Criterios:
 - Actualiza el estado de la operación.
 - Impide duplicar una anulación.
 - Conserva las solicitudes, pagos y soportes relacionados para consulta.
+
+Implementación:
+
+- Agrega el estado `ACTIVA`, `AJUSTADA` o `ANULADA` a la operación.
+- Registra cada acción en `correcciones_operacion_efectivo` con referencia
+  `COR`, motivo, observación, usuario y fecha del sistema.
+- Los ajustes crean un movimiento compensatorio de ingreso o egreso.
+- Los ajustes actualizan el pendiente operativo y conservan sus valores
+  anterior y nuevo para impedir reingresos duplicados.
+- La anulación calcula el efecto neto acumulado y crea la compensación
+  inversa necesaria.
+- Ejecuta corrección, movimiento, cambio de saldo y estado en una transacción
+  serializable.
+- Impide nuevas correcciones y reingresos sobre operaciones anuladas.
+- Muestra el formulario y el historial dentro del detalle del retiro.
 
 ---
 

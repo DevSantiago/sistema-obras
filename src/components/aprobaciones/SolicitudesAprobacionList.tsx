@@ -22,6 +22,15 @@ function formatearMoneda(valor: number): string {
   return FORMATEADOR_MONEDA.format(valor);
 }
 
+export function calcularTotalSolicitudes(
+  solicitudes: SolicitudPagoListado[],
+) {
+  return solicitudes.reduce(
+    (total, solicitud) => total + solicitud.valor_neto,
+    0,
+  );
+}
+
 function obtenerNombreTipoSolicitud(
   solicitud: SolicitudPagoListado,
 ): string {
@@ -69,6 +78,7 @@ export default function SolicitudesAprobacionList({
     solicitudes.every((solicitud) =>
       idsSeleccionados.has(solicitud.id),
     );
+  const totalSolicitudes = calcularTotalSolicitudes(solicitudes);
 
   return (
     <div className={styles.tableWrapper}>
@@ -157,6 +167,16 @@ export default function SolicitudesAprobacionList({
             );
           })}
         </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={6} className={styles.totalLabel}>
+              Total solicitudes ({solicitudes.length})
+            </td>
+            <td className={styles.totalValue}>
+              {formatearMoneda(totalSolicitudes)}
+            </td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );

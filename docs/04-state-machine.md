@@ -206,8 +206,8 @@ Las operaciones de efectivo controlan el ciclo de vida de los retiros de dinero 
 ## 5.1 Comportamiento implementado
 
 En el alcance de HU-0903, el retiro y sus pagos se registran en una única
-transacción. `operaciones_efectivo` todavía no posee un campo de estado
-propio.
+transacción. La operación posee un estado propio para conservar la
+trazabilidad de ajustes y anulaciones.
 
 La confirmación de la operación:
 
@@ -220,17 +220,29 @@ La confirmación de la operación:
 
 ---
 
-## 5.2 Evolución prevista
+## 5.2 Estados implementados
 
 ```text
-SOBRANTE_PENDIENTE_REINGRESO
-SOBRANTE_REINGRESADO
-SOBRANTE_AJUSTADO
-ANULADO
+ACTIVA
+AJUSTADA
+ANULADA
 ```
 
-Estos estados y sus transiciones se implementarán cuando se desarrollen los
-reingresos posteriores, ajustes, seguimiento y anulaciones de la Épica 11.
+```mermaid
+stateDiagram-v2
+    [*] --> ACTIVA
+    ACTIVA --> AJUSTADA : Registrar compensación
+    AJUSTADA --> AJUSTADA : Registrar otra compensación
+    ACTIVA --> ANULADA : Compensar efecto neto
+    AJUSTADA --> ANULADA : Compensar efecto neto
+```
+
+`ANULADA` es terminal. La anulación no cambia las solicitudes `PAGADA`, no
+elimina pagos ni altera movimientos anteriores.
+
+Un ajuste de ingreso que agota el pendiente deja el seguimiento en
+`SOBRANTE_AJUSTADO`. Un ajuste de egreso incrementa el pendiente y conserva
+`SOBRANTE_PENDIENTE_REINGRESO` hasta su devolución.
 
 ---
 

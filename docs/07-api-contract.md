@@ -154,6 +154,7 @@ crear el movimiento de forma atómica.
 | GET | `/api/v1/operaciones-efectivo` |
 | GET | `/api/v1/operaciones-efectivo/{id}/soportes/{adjuntoId}` |
 | POST | `/api/v1/operaciones-efectivo/{id}/reingresos` |
+| POST | `/api/v1/operaciones-efectivo/{id}/correcciones` |
 | GET | `/api/v1/solicitudes-pago` |
 | POST | `/api/v1/solicitudes-pago` |
 | GET | `/api/v1/solicitudes-pago/{id}` |
@@ -204,6 +205,50 @@ Disponible para `ADMINISTRADOR` y `PAGOS`. Campos obligatorios: `valor` y
 La operación debe tener sobrante pendiente y el valor no puede superarlo. El
 registro crea `INGRESO_REINTEGRO_EFECTIVO`, actualiza el fondo y el pendiente,
 y conserva el soporte en una transacción serializable.
+
+---
+
+## Ajustar o anular una operación de efectivo
+
+```http
+POST /api/v1/operaciones-efectivo/{id}/correcciones
+Content-Type: application/json
+```
+
+Disponible para `ADMINISTRADOR` y `PAGOS`.
+
+Para un ajuste:
+
+```json
+{
+  "tipo": "AJUSTE",
+  "direccion": "INGRESO",
+  "valor": 50000,
+  "motivo": "Corrección del valor retirado",
+  "observacion": "Validado con el soporte bancario"
+}
+```
+
+Para una anulación:
+
+```json
+{
+  "tipo": "ANULACION",
+  "motivo": "Operación duplicada",
+  "observacion": "Confirmada por Pagos"
+}
+```
+
+El ajuste exige dirección `INGRESO` o `EGRESO` y valor mayor que cero. La
+dirección corrige el valor retirado: `INGRESO` reduce el pendiente y no puede
+superarlo; `EGRESO` incrementa el pendiente. La respuesta y el historial
+incluyen `pendiente_anterior` y `pendiente_nuevo`.
+
+La
+anulación no recibe valor: el sistema calcula el efecto neto de todos los
+movimientos de la operación y genera la compensación inversa. Ambos exigen
+motivo y asignan usuario y fecha automáticamente. Una operación `ANULADA`
+responde conflicto ante nuevas correcciones.
 
 ---
 
