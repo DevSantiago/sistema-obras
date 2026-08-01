@@ -55,6 +55,32 @@ function formatearMoneda(valor: number): string {
   return FORMATEADOR_MONEDA.format(valor);
 }
 
+export function calcularSaldoProyectadoAprobacion(
+  nivel: NivelAprobacion,
+  saldoActual: number,
+  saldoDisponible: number,
+  valorSeleccionado: number,
+  reservaRestante: number,
+) {
+  return nivel === 1
+    ? saldoDisponible - valorSeleccionado
+    : saldoActual - valorSeleccionado - reservaRestante;
+}
+
+export function calcularReservaRestanteNivel2(
+  reservasExistentes: number,
+  valorSeleccionado: number,
+) {
+  return Math.max(0, reservasExistentes - valorSeleccionado);
+}
+
+export function calcularSaldoTrasPagarSeleccion(
+  saldoActual: number,
+  valorSeleccionado: number,
+) {
+  return saldoActual - valorSeleccionado;
+}
+
 export default function AprobacionesManager({
   usuario,
   nivel,
@@ -395,10 +421,29 @@ const mensajeSinSolicitudes =
                 obtenerValorSeleccionadoProyecto(
                   proyecto,
                 );
+              const cantidadSeleccionadaProyecto =
+                proyecto.solicitudes.filter((solicitud) =>
+                  idsSeleccionados.has(solicitud.id),
+                ).length;
+              const reservaRestante =
+                calcularReservaRestanteNivel2(
+                  proyecto.reservas_existentes,
+                  valorSeleccionado,
+                );
+              const saldoTrasPagarSeleccion =
+                calcularSaldoTrasPagarSeleccion(
+                  proyecto.saldo_actual,
+                  valorSeleccionado,
+                );
 
               const saldoProyectado =
-                proyecto.saldo_disponible -
-                valorSeleccionado;
+                calcularSaldoProyectadoAprobacion(
+                  nivel,
+                  proyecto.saldo_actual,
+                  proyecto.saldo_disponible,
+                  valorSeleccionado,
+                  reservaRestante,
+                );
 
               return (
                 <article
@@ -413,85 +458,111 @@ const mensajeSinSolicitudes =
                     <div
                       className={styles.projectSummary}
                     >
-                      <div className={styles.summaryCard}>
-                        <span
-                          className={styles.summaryLabel}
-                        >
-                          Saldo actual
+                      <section className={styles.summarySection}>
+                        <span className={styles.summarySectionTitle}>
+                          Estado presupuestal
                         </span>
+                        <div className={styles.summaryCards}>
+                          <div className={styles.summaryCard}>
+                            <span className={styles.summaryLabel}>Saldo actual</span>
+                            <strong className={styles.summaryValue}>{formatearMoneda(proyecto.saldo_actual)}</strong>
+                            <small className={styles.summaryDescription}>
+                              Saldo registrado actualmente en el fondo.
+                            </small>
+                          </div>
+                          <div className={styles.summaryCard}>
+                            <span className={styles.summaryLabel}>
+                              {nivel === 1
+                                ? "Reservado para pagos por terminar de aprobar"
+                                : "Total reservado"}
+                            </span>
+                            <strong className={styles.summaryValue}>{formatearMoneda(proyecto.reservas_existentes)}</strong>
+                            <small className={styles.summaryDescription}>
+                              {nivel === 1
+                                ? "Incluye reservas creadas en nivel 1 aún pendientes de pago."
+                                : "Incluye solicitudes de esta bandeja y compromisos que ya avanzaron hacia pago."}
+                            </small>
+                          </div>
+                          <div className={styles.summaryCard}>
+                            <span className={styles.summaryLabel}>
+                              {nivel === 1
+                                ? "Saldo disponible sin comprometer"
+                                : "Saldo libre tras todas las reservas"}
+                            </span>
+                            <strong className={styles.summaryValue}>{formatearMoneda(proyecto.saldo_disponible)}</strong>
+                            <small className={styles.summaryDescription}>
+                              Saldo actual menos todas las reservas vigentes.
+                            </small>
+                          </div>
+                        </div>
+                      </section>
 
-                        <strong
-                          className={styles.summaryValue}
-                        >
-                          {formatearMoneda(
-                            proyecto.saldo_actual,
-                          )}
-                        </strong>
-                      </div>
-
-                      <div className={styles.summaryCard}>
-                        <span
-                          className={styles.summaryLabel}
-                        >
-                          Reservas
+                      <section className={styles.simulationSection}>
+                        <span className={styles.summarySectionTitle}>
+                          Simulación de la selección
                         </span>
-
-                        <strong
-                          className={styles.summaryValue}
-                        >
-                          {formatearMoneda(
-                            proyecto.reservas_existentes,
-                          )}
-                        </strong>
-                      </div>
-
-                      <div className={styles.summaryCard}>
-                        <span
-                          className={styles.summaryLabel}
-                        >
-                          Saldo disponible
-                        </span>
-
-                        <strong
-                          className={styles.summaryValue}
-                        >
-                          {formatearMoneda(
-                            proyecto.saldo_disponible,
-                          )}
-                        </strong>
-                      </div>
-
-                      <div className={styles.summaryCard}>
-                        <span
-                          className={styles.summaryLabel}
-                        >
-                          Valor pendiente
-                        </span>
-
-                        <strong
-                          className={styles.summaryValue}
-                        >
-                          {formatearMoneda(
-                            valorSeleccionado,
-                          )}
-                        </strong>
-                      </div>
-
-                      <div className={styles.summaryCard}>
-                        <span
-                          className={styles.summaryLabel}
-                        >
-                          Saldo proyectado
-                        </span>
-
-                        <strong
-                          className={styles.summaryValue}
-                        >
-                          {formatearMoneda(
-                            saldoProyectado,
-                          )}
-                        </strong>
-                      </div>
+                        <div className={styles.summaryCards}>
+                          <div className={styles.summaryCard}>
+                            <span className={styles.summaryLabel}>
+                              {nivel === 2
+                                ? `Seleccionado ahora (${cantidadSeleccionadaProyecto})`
+                                : "Seleccionado para aprobar"}
+                            </span>
+                            <strong className={styles.summaryValue}>{formatearMoneda(valorSeleccionado)}</strong>
+                            <small className={styles.summaryDescription}>
+                              Suma de las solicitudes marcadas en la lista.
+                            </small>
+                          </div>
+                          {nivel === 2 ? (
+                            <>
+                              <div className={styles.summaryCard}>
+                                <span className={styles.summaryLabel}>
+                                  Saldo real tras pagar la selección
+                                </span>
+                                <strong className={styles.summaryValue}>
+                                  {valorSeleccionado > 0
+                                    ? formatearMoneda(saldoTrasPagarSeleccion)
+                                    : "—"}
+                                </strong>
+                                <small className={styles.summaryDescription}>
+                                  Saldo contable después de ejecutar únicamente los pagos seleccionados.
+                                </small>
+                              </div>
+                              <div className={styles.summaryCard}>
+                                <span className={styles.summaryLabel}>
+                                  Reserva que permanece
+                                </span>
+                                <strong className={styles.summaryValue}>
+                                  {formatearMoneda(reservaRestante)}
+                                </strong>
+                                <small className={styles.summaryDescription}>
+                                  Compromisos que siguen reservados después de esta selección.
+                                </small>
+                              </div>
+                            </>
+                          ) : null}
+                          <div className={styles.projectedCard}>
+                            <span className={styles.summaryLabel}>
+                              {nivel === 1
+                                ? "Disponible si se aprueba"
+                                : "Disponible sin comprometer después del pago"}
+                            </span>
+                            <strong className={styles.projectedValue}>
+                              {valorSeleccionado > 0 ? formatearMoneda(saldoProyectado) : "—"}
+                            </strong>
+                            <small className={styles.summaryDescription}>
+                              {nivel === 1
+                                ? "Considera las reservas vigentes y la selección actual."
+                                : "Saldo libre después del pago y de conservar la reserva restante."}
+                            </small>
+                          </div>
+                        </div>
+                        <p className={styles.simulationHelp}>
+                          {nivel === 1
+                            ? "Incluye los compromisos existentes y la selección actual."
+                            : "Separa el saldo contable tras el pago del dinero que continúa disponible sin comprometer."}
+                        </p>
+                      </section>
                     </div>
                   </div>
 

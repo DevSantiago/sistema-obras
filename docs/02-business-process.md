@@ -1161,6 +1161,32 @@ La aprobación de nivel 1 registra `valor_reservado` para controlar los
 compromisos presupuestales. Esta reserva no descuenta ni modifica
 `fondos.saldo_actual`.
 
+En nivel 1, la selección se resta del saldo disponible para validar los nuevos
+compromisos frente a las reservas existentes. En nivel 2, el saldo proyectado
+representa el saldo real que quedaría al pagar únicamente las solicitudes
+seleccionadas y conservar las demás reservas:
+`saldo_actual - total_reservado_seleccionado - reserva_restante`.
+
+En ambos niveles la interfaz separa el estado presupuestal de la simulación de
+la selección. Sin solicitudes seleccionadas, la proyección se muestra como no
+aplicable (`—`) para evitar confundirla con el saldo actual o disponible.
+Las tarjetas presentan “Saldo actual”, “Reservado para pagos por terminar de
+aprobar” y “Saldo disponible sin comprometer”. Cada valor incluye una
+explicación breve sobre su origen y cálculo; la simulación hace lo mismo para
+la selección y su proyección.
+Las tablas de solicitudes de ambos niveles muestran al pie la cantidad de
+registros y la suma total de sus valores netos.
+
+En nivel 2, la simulación diferencia el valor seleccionado ahora de la reserva
+que permanece comprometida. El estado presupuestal muestra el total reservado
+y el saldo libre después de considerar todas las reservas; la proyección
+muestra por separado el saldo contable después de pagar únicamente la
+selección y el disponible sin comprometer después de conservar la reserva
+restante.
+En ambos niveles, la simulación se presenta debajo del estado presupuestal
+para mantener una lectura secuencial del saldo general hacia el efecto de la
+selección.
+
 El saldo del fondo únicamente refleja el egreso cuando el pago ha sido
 efectivamente realizado. Al pagar, `valor_reservado` se libera y se registra
 el movimiento financiero correspondiente.
@@ -1385,6 +1411,20 @@ movimiento `EGRESO_RETIRO_EFECTIVO` puede servir como acceso a la operación,
 pero los pagos individuales, los soportes y el saldo pendiente pertenecen al
 módulo de operaciones de efectivo.
 
+Los errores operativos se corrigen sin editar ni eliminar el retiro, los
+pagos o sus movimientos originales:
+
+- un ajuste registra un ingreso o egreso compensatorio por el valor indicado;
+- el ajuste corrige el valor retirado: un ingreso reduce el sobrante pendiente
+  y un egreso lo aumenta;
+- el pendiente anterior y el nuevo quedan auditados y limitan los reingresos
+  posteriores para impedir una devolución duplicada;
+- una anulación calcula el efecto financiero neto de todos los movimientos
+  asociados y registra la compensación inversa;
+- motivo, observación, usuario y fecha quedan en
+  `correcciones_operacion_efectivo`;
+- una operación anulada no admite ajustes, anulaciones ni reingresos nuevos.
+
 ---
 
 ## 12.5 Estados del sobrante
@@ -1397,6 +1437,8 @@ SOBRANTE_PENDIENTE_REINGRESO
 SOBRANTE_REINTEGRADO
 
 SOBRANTE_AJUSTADO
+
+ANULADO
 ```
 
 ---

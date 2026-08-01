@@ -108,9 +108,9 @@ Objetivos:
 ## Evolución de movimientos financieros
 
 `movimientos_fondo` ya registra ingresos y egresos con saldo anterior y
-nuevo. Permanecen proyectados los modelos especializados para ajustes,
-devoluciones y otros orígenes financieros de las épicas
-posteriores.
+nuevo. `correcciones_operacion_efectivo` registra los ajustes y anulaciones de
+retiros, enlazando su movimiento compensatorio sin alterar el historial.
+Permanecen proyectados otros orígenes financieros de las épicas posteriores.
 
 `reingresos_sobrante_efectivo` implementa los reingresos posteriores de un
 retiro. Conserva operación, soporte, referencia, valor, pendiente anterior y

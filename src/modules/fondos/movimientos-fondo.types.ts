@@ -11,6 +11,7 @@ export type RegistrarMovimientoFondoInput = {
   prestamo_proyecto_id?: string | null;
   devolucion_prestamo_id?: string | null;
   reingreso_sobrante_id?: string | null;
+  correccion_efectivo_id?: string | null;
   tipo_movimiento: string;
   direccion: DireccionMovimientoFondo;
   valor: number;

@@ -149,6 +149,11 @@ durante la consulta. La misma consulta admite filtrar únicamente los retiros
 con reingreso pendiente; la exportación CSV se construye en el frontend con
 los resultados ya autorizados y filtrados por el servicio.
 
+Los ajustes y anulaciones se registran en
+`correcciones_operacion_efectivo`. El repositorio calcula las compensaciones y
+reutiliza el registrador transaccional de `fondos`, de modo que auditoría,
+movimiento, estado y saldo se confirman o revierten conjuntamente.
+
 Cada módulo implementa, como mínimo:
 
 - rutas de la API;

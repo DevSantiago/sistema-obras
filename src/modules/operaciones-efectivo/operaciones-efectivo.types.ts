@@ -30,7 +30,9 @@ export type DetalleOperacionEfectivoConsulta = {
 export type EstadoSeguimientoOperacionEfectivo =
   | "SIN_SOBRANTE"
   | "SOBRANTE_PENDIENTE_REINGRESO"
-  | "SOBRANTE_REINTEGRADO";
+  | "SOBRANTE_REINTEGRADO"
+  | "SOBRANTE_AJUSTADO"
+  | "ANULADA";
 
 export type OperacionEfectivoConsulta = {
   id: string;
@@ -46,12 +48,14 @@ export type OperacionEfectivoConsulta = {
   valor_reintegrado: number;
   valor_pendiente_reintegro: number;
   estado_seguimiento: EstadoSeguimientoOperacionEfectivo;
+  estado_operacion: "ACTIVA" | "AJUSTADA" | "ANULADA";
   observacion: string | null;
   registrado_por_nombre: string;
   registrado_en: string;
   soporte_retiro: SoporteOperacionEfectivo;
   detalles: DetalleOperacionEfectivoConsulta[];
   reingresos: ReingresoSobranteConsulta[];
+  correcciones: CorreccionOperacionEfectivoConsulta[];
 };
 
 export type ConsultarOperacionesEfectivoData = {
@@ -109,4 +113,49 @@ export type ReingresoSobranteRegistrado = {
   saldo_fondo_anterior: number;
   saldo_fondo_nuevo: number;
   fecha_operacion: string;
+};
+
+export type TipoCorreccionOperacionEfectivo = "AJUSTE" | "ANULACION";
+
+export type CorreccionOperacionEfectivoConsulta = {
+  id: string;
+  referencia_sistema: string;
+  tipo: TipoCorreccionOperacionEfectivo;
+  direccion: "INGRESO" | "EGRESO" | null;
+  valor: number | null;
+  pendiente_anterior: number | null;
+  pendiente_nuevo: number | null;
+  motivo: string;
+  observacion: string | null;
+  registrado_por_nombre: string;
+  registrado_en: string;
+};
+
+export type RegistrarCorreccionOperacionEfectivoInput = {
+  operacion_efectivo_id: string;
+  tipo: TipoCorreccionOperacionEfectivo;
+  direccion?: "INGRESO" | "EGRESO" | null;
+  valor?: number | null;
+  motivo: string;
+  observacion?: string | null;
+};
+
+export type RegistrarCorreccionOperacionEfectivoRepositoryInput =
+  RegistrarCorreccionOperacionEfectivoInput & {
+    usuario_id: string;
+    fecha_operacion: Date;
+  };
+
+export type CorreccionOperacionEfectivoRegistrada = {
+  id: string;
+  referencia_sistema: string;
+  tipo: TipoCorreccionOperacionEfectivo;
+  direccion: "INGRESO" | "EGRESO" | null;
+  valor: number | null;
+  pendiente_anterior: number | null;
+  pendiente_nuevo: number | null;
+  estado_operacion: "AJUSTADA" | "ANULADA";
+  saldo_fondo_anterior: number | null;
+  saldo_fondo_nuevo: number | null;
+  registrado_en: string;
 };

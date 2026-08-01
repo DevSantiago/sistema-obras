@@ -47,6 +47,18 @@ export default function OperacionesEfectivoManager({
     useState(false);
   const [mensajeReingreso, setMensajeReingreso] = useState("");
   const [errorReingreso, setErrorReingreso] = useState(false);
+  const [tipoCorreccion, setTipoCorreccion] =
+    useState<"AJUSTE" | "ANULACION">("AJUSTE");
+  const [direccionCorreccion, setDireccionCorreccion] =
+    useState<"INGRESO" | "EGRESO">("INGRESO");
+  const [valorCorreccion, setValorCorreccion] = useState("");
+  const [motivoCorreccion, setMotivoCorreccion] = useState("");
+  const [observacionCorreccion, setObservacionCorreccion] =
+    useState("");
+  const [registrandoCorreccion, setRegistrandoCorreccion] =
+    useState(false);
+  const [mensajeCorreccion, setMensajeCorreccion] = useState("");
+  const [errorCorreccion, setErrorCorreccion] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -231,6 +243,8 @@ export default function OperacionesEfectivoManager({
       SIN_SOBRANTE: "Sin sobrante",
       SOBRANTE_PENDIENTE_REINGRESO: "Reingreso pendiente",
       SOBRANTE_REINTEGRADO: "Sobrante reintegrado",
+      SOBRANTE_AJUSTADO: "Sobrante ajustado",
+      ANULADA: "Operación anulada",
     };
 
     return etiquetas[estado] ?? estado;
@@ -303,6 +317,92 @@ export default function OperacionesEfectivoManager({
       setMensajeReingreso("No fue posible registrar el reingreso.");
     } finally {
       setRegistrandoReingreso(false);
+    }
+  }
+
+  async function registrarCorreccion(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!operacionDetalle || !motivoCorreccion.trim()) {
+      setErrorCorreccion(true);
+      setMensajeCorreccion("El motivo es obligatorio.");
+      return;
+    }
+
+    const valorNumerico = Number(
+      valorCorreccion.replace(/[^\d]/g, ""),
+    );
+
+    if (
+      tipoCorreccion === "AJUSTE" &&
+      (!Number.isFinite(valorNumerico) || valorNumerico <= 0)
+    ) {
+      setErrorCorreccion(true);
+      setMensajeCorreccion("El valor del ajuste debe ser mayor que cero.");
+      return;
+    }
+
+    if (
+      tipoCorreccion === "ANULACION" &&
+      !window.confirm(
+        "La anulación es definitiva y generará la compensación financiera necesaria. ¿Desea continuar?",
+      )
+    ) {
+      return;
+    }
+
+    setRegistrandoCorreccion(true);
+    setMensajeCorreccion("");
+
+    try {
+      const response = await fetch(
+        `/api/v1/operaciones-efectivo/${operacionDetalle.id}/correcciones`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: tipoCorreccion,
+            direccion:
+              tipoCorreccion === "AJUSTE"
+                ? direccionCorreccion
+                : undefined,
+            valor:
+              tipoCorreccion === "AJUSTE"
+                ? valorNumerico
+                : undefined,
+            motivo: motivoCorreccion,
+            observacion: observacionCorreccion,
+          }),
+        },
+      );
+      const body = (await response.json()) as {
+        ok: boolean;
+        message: string;
+        data?: { referencia_sistema: string };
+      };
+
+      setErrorCorreccion(!response.ok || !body.ok);
+      setMensajeCorreccion(
+        response.ok && body.ok && body.data
+          ? `${body.message} Referencia ${body.data.referencia_sistema}.`
+          : body.message,
+      );
+
+      if (response.ok && body.ok) {
+        setValorCorreccion("");
+        setMotivoCorreccion("");
+        setObservacionCorreccion("");
+        await cargar();
+        setOperacionDetalle(null);
+      }
+    } catch {
+      setErrorCorreccion(true);
+      setMensajeCorreccion("No fue posible corregir la operación.");
+    } finally {
+      setRegistrandoCorreccion(false);
     }
   }
 
@@ -515,6 +615,15 @@ export default function OperacionesEfectivoManager({
                 <h2 id="detalle-retiro-title">
                   {operacionDetalle.proyecto_nombre}
                 </h2>
+                <span
+                  className={claseEstado(
+                    operacionDetalle.estado_operacion === "ANULADA"
+                      ? "SIN_SOBRANTE"
+                      : operacionDetalle.estado_seguimiento,
+                  )}
+                >
+                  Operación {operacionDetalle.estado_operacion.toLowerCase()}
+                </span>
               </div>
               <button
                 aria-label="Cerrar detalle"
@@ -599,7 +708,42 @@ export default function OperacionesEfectivoManager({
                 ))}
               </div>
             ) : null}
-            {operacionDetalle.valor_pendiente_reintegro > 0 ? (
+            {operacionDetalle.correcciones.length > 0 ? (
+              <div className={styles.correctionHistory}>
+                <h3>Correcciones registradas</h3>
+                {operacionDetalle.correcciones.map((correccion) => (
+                  <article key={correccion.id}>
+                    <div>
+                      <strong>{correccion.referencia_sistema}</strong>
+                      <span>
+                        {correccion.tipo === "ANULACION"
+                          ? "Anulación"
+                          : "Ajuste"}{" "}
+                        · {FECHA.format(new Date(correccion.registrado_en))}
+                      </span>
+                      <span>
+                        {correccion.motivo} ·{" "}
+                        {correccion.registrado_por_nombre}
+                      </span>
+                      {correccion.tipo === "AJUSTE" &&
+                      correccion.pendiente_anterior != null &&
+                      correccion.pendiente_nuevo != null ? (
+                        <span>
+                          Pendiente: {MONEDA.format(correccion.pendiente_anterior)} → {MONEDA.format(correccion.pendiente_nuevo)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <strong>
+                      {correccion.valor
+                        ? `${correccion.direccion === "INGRESO" ? "+" : "-"} ${MONEDA.format(correccion.valor)}`
+                        : "Sin compensación"}
+                    </strong>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            {operacionDetalle.valor_pendiente_reintegro > 0 &&
+            operacionDetalle.estado_operacion !== "ANULADA" ? (
               <form
                 className={styles.reentryForm}
                 onSubmit={registrarReingreso}
@@ -674,6 +818,125 @@ export default function OperacionesEfectivoManager({
                   {registrandoReingreso
                     ? "Registrando..."
                     : "Registrar reingreso"}
+                </button>
+              </form>
+            ) : null}
+            {operacionDetalle.estado_operacion !== "ANULADA" ? (
+              <form
+                className={styles.correctionForm}
+                onSubmit={registrarCorreccion}
+              >
+                <div className={styles.correctionIntro}>
+                  <h3>Ajustar o anular operación</h3>
+                  <p>
+                    Corrige el valor retirado sin modificar pagos ni
+                    movimientos anteriores. Toda diferencia queda registrada
+                    como una compensación nueva.
+                  </p>
+                </div>
+                <label>
+                  <span>Acción *</span>
+                  <select
+                    value={tipoCorreccion}
+                    onChange={(event) =>
+                      setTipoCorreccion(
+                        event.target.value as "AJUSTE" | "ANULACION",
+                      )
+                    }
+                  >
+                    <option value="AJUSTE">Registrar ajuste</option>
+                    <option value="ANULACION">Anular operación</option>
+                  </select>
+                </label>
+                {tipoCorreccion === "AJUSTE" ? (
+                  <>
+                    <label>
+                      <span>Tipo de compensación *</span>
+                      <select
+                        value={direccionCorreccion}
+                        onChange={(event) =>
+                          setDireccionCorreccion(
+                            event.target.value as "INGRESO" | "EGRESO",
+                          )
+                        }
+                      >
+                        <option value="INGRESO">Ingreso al fondo</option>
+                        <option value="EGRESO">Egreso del fondo</option>
+                      </select>
+                      <small>
+                        {direccionCorreccion === "INGRESO"
+                          ? "El retiro real fue menor: reduce el saldo pendiente."
+                          : "El retiro real fue mayor: aumenta el saldo pendiente."}
+                      </small>
+                    </label>
+                    <label>
+                      <span>Valor *</span>
+                      <input
+                        inputMode="numeric"
+                        placeholder="0"
+                        type="text"
+                        value={valorCorreccion}
+                        onChange={(event) =>
+                          setValorCorreccion(
+                            formatearValorEntrada(event.target.value),
+                          )
+                        }
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <p className={styles.annulmentNotice}>
+                    El sistema calculará y compensará el efecto financiero
+                    neto. La operación quedará bloqueada definitivamente.
+                  </p>
+                )}
+                <label>
+                  <span>Motivo *</span>
+                  <input
+                    maxLength={250}
+                    required
+                    type="text"
+                    value={motivoCorreccion}
+                    onChange={(event) =>
+                      setMotivoCorreccion(event.target.value)
+                    }
+                  />
+                </label>
+                <label className={styles.fullWidth}>
+                  <span>Observación</span>
+                  <textarea
+                    rows={2}
+                    value={observacionCorreccion}
+                    onChange={(event) =>
+                      setObservacionCorreccion(event.target.value)
+                    }
+                  />
+                </label>
+                {mensajeCorreccion ? (
+                  <p
+                    className={
+                      errorCorreccion
+                        ? styles.formError
+                        : styles.formSuccess
+                    }
+                  >
+                    {mensajeCorreccion}
+                  </p>
+                ) : null}
+                <button
+                  className={
+                    tipoCorreccion === "ANULACION"
+                      ? styles.dangerButton
+                      : undefined
+                  }
+                  disabled={registrandoCorreccion}
+                  type="submit"
+                >
+                  {registrandoCorreccion
+                    ? "Registrando..."
+                    : tipoCorreccion === "ANULACION"
+                      ? "Anular operación"
+                      : "Registrar ajuste"}
                 </button>
               </form>
             ) : null}

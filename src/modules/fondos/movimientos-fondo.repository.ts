@@ -188,6 +188,30 @@ async function validarOrigenMovimiento(
       );
     }
   }
+
+  if (input.correccion_efectivo_id) {
+    if (!input.operacion_efectivo_id) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "El movimiento de corrección requiere la operación de efectivo.",
+      );
+    }
+
+    const correccionValida =
+      await tx.correcciones_operacion_efectivo.count({
+        where: {
+          id: input.correccion_efectivo_id,
+          operacion_efectivo_id: input.operacion_efectivo_id,
+        },
+      });
+
+    if (correccionValida !== 1) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "La corrección no corresponde a la operación de efectivo.",
+      );
+    }
+  }
 }
 
 async function validarMovimientoDuplicado(
@@ -210,7 +234,8 @@ async function validarMovimientoDuplicado(
 
   if (
     input.operacion_efectivo_id &&
-    !input.reingreso_sobrante_id
+    !input.reingreso_sobrante_id &&
+    !input.correccion_efectivo_id
   ) {
     const movimientoOperacion = await tx.movimientos_fondo.findFirst({
       where: {
@@ -273,6 +298,23 @@ async function validarMovimientoDuplicado(
       throw new MovimientoFondoError(
         "MOVIMIENTO_DUPLICADO",
         "El reingreso ya tiene un movimiento financiero registrado.",
+      );
+    }
+  }
+
+  if (input.correccion_efectivo_id) {
+    const movimientoCorreccion =
+      await tx.movimientos_fondo.findUnique({
+        where: {
+          correccion_efectivo_id: input.correccion_efectivo_id,
+        },
+        select: { id: true },
+      });
+
+    if (movimientoCorreccion) {
+      throw new MovimientoFondoError(
+        "MOVIMIENTO_DUPLICADO",
+        "La corrección ya tiene un movimiento financiero registrado.",
       );
     }
   }
@@ -357,6 +399,7 @@ export async function registrarMovimientoFondoEnTransaccionRepository(
       prestamo_proyecto_id: input.prestamo_proyecto_id,
       devolucion_prestamo_id: input.devolucion_prestamo_id,
       reingreso_sobrante_id: input.reingreso_sobrante_id,
+      correccion_efectivo_id: input.correccion_efectivo_id,
       tipo_movimiento: input.tipo_movimiento.trim(),
       direccion: input.direccion,
       valor: input.valor,
