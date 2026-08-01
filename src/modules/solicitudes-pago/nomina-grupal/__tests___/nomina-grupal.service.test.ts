@@ -250,7 +250,6 @@ function solicitudCreadaMock() {
     adjunto_archivo_origen_id: "adjunto-1",
     descripcion: "Nómina grupal de julio de 2026",
     valor_bruto: 3000000,
-    valor_impuestos: 0,
     valor_retenciones: 300000,
     valor_descuentos: 100000,
     valor_neto: 2600000,

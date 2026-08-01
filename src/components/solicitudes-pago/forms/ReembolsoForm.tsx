@@ -36,7 +36,6 @@ const ESTADO_INICIAL: ReembolsoFormularioState = {
   medio_pago: "",
   descripcion: "",
   valor_bruto: "",
-  valor_impuestos: "",
   valor_retenciones: "",
   valor_descuentos: "",
   archivos: [],
@@ -110,9 +109,6 @@ useEffect(() => {
       valor_bruto: formatearValorEntrada(
         String(solicitudEnEdicion.valor_bruto ?? 0),
       ),
-      valor_impuestos: formatearValorEntrada(
-        String(solicitudEnEdicion.valor_impuestos ?? 0),
-      ),
       valor_retenciones: formatearValorEntrada(
         String(solicitudEnEdicion.valor_retenciones ?? 0),
       ),
@@ -159,15 +155,12 @@ const trabajadoresFiltrados = useMemo(() => {
 
   const valores = useMemo(() => {
     const valorBruto = convertirValorMoneda(form.valor_bruto);
-    const valorImpuestos = convertirValorMoneda(form.valor_impuestos);
     const valorRetenciones = convertirValorMoneda(form.valor_retenciones);
     const valorDescuentos = convertirValorMoneda(form.valor_descuentos);
-    const valorNeto =
-      valorBruto + valorImpuestos - valorRetenciones - valorDescuentos;
+    const valorNeto = valorBruto - valorRetenciones - valorDescuentos;
 
     return {
       valorBruto,
-      valorImpuestos,
       valorRetenciones,
       valorDescuentos,
       valorNeto,
@@ -175,7 +168,6 @@ const trabajadoresFiltrados = useMemo(() => {
   }, [
     form.valor_bruto,
     form.valor_descuentos,
-    form.valor_impuestos,
     form.valor_retenciones,
   ]);
 
@@ -203,7 +195,6 @@ const trabajadoresFiltrados = useMemo(() => {
   function actualizarCampoMoneda(
     campo:
       | "valor_bruto"
-      | "valor_impuestos"
       | "valor_retenciones"
       | "valor_descuentos",
     valor: string,
@@ -264,10 +255,6 @@ const trabajadoresFiltrados = useMemo(() => {
       camposFaltantes.push("descripción del gasto");
     }
 
-    if (!solicitudEnEdicion && form.archivos.length === 0) {
-      camposFaltantes.push("al menos un soporte");
-    }
-
     if (camposFaltantes.length > 0) {
       return `Faltan campos obligatorios: ${camposFaltantes.join(", ")}.`;
     }
@@ -293,11 +280,10 @@ const trabajadoresFiltrados = useMemo(() => {
     }
 
     if (
-      valores.valorImpuestos < 0 ||
       valores.valorRetenciones < 0 ||
       valores.valorDescuentos < 0
     ) {
-      return "Impuestos, retenciones y descuentos no pueden ser negativos.";
+      return "Los impuestos y retenciones, junto con los descuentos, no pueden ser negativos.";
     }
 
     if (valores.valorNeto < 0) {
@@ -325,7 +311,6 @@ const trabajadoresFiltrados = useMemo(() => {
     formData.set("medio_pago", form.medio_pago);
     formData.set("descripcion", form.descripcion.trim());
     formData.set("valor_bruto", String(valores.valorBruto));
-    formData.set("valor_impuestos", String(valores.valorImpuestos));
     formData.set("valor_retenciones", String(valores.valorRetenciones));
     formData.set("valor_descuentos", String(valores.valorDescuentos));
 
@@ -563,22 +548,7 @@ const trabajadoresFiltrados = useMemo(() => {
           </label>
 
           <label className={styles.field}>
-            <span className={styles.label}>Impuestos</span>
-
-            <input
-              className={styles.input}
-              type="text"
-              inputMode="numeric"
-              value={form.valor_impuestos}
-              onChange={(event) =>
-                actualizarCampoMoneda("valor_impuestos", event.target.value)
-              }
-              disabled={guardando}
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span className={styles.label}>Retenciones</span>
+            <span className={styles.label}>Impuestos y retenciones</span>
 
             <input
               className={styles.input}
@@ -642,7 +612,8 @@ const trabajadoresFiltrados = useMemo(() => {
           onChange={(archivos) => actualizarCampo("archivos", archivos)}
           onError={informarErrorFormulario}
           disabled={guardando || Boolean(solicitudEnEdicion)}
-          required={!solicitudEnEdicion}
+          titulo="Soportes del reembolso (opcional)"
+          ayuda="Si lo necesitas, adjunta facturas, recibos u otros soportes del gasto. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
         />
 
         <div className={styles.actions}>

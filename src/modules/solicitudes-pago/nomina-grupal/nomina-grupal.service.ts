@@ -76,7 +76,6 @@ type SolicitudNominaGrupalRepositoryResult = {
   adjunto_archivo_origen_id: string | null;
   descripcion: string;
   valor_bruto: unknown;
-  valor_impuestos: unknown;
   valor_retenciones: unknown;
   valor_descuentos: unknown;
   valor_neto: unknown;
@@ -300,9 +299,6 @@ function convertirSolicitudPago(
     adjunto_archivo_origen_id: solicitud.adjunto_archivo_origen_id,
     descripcion: solicitud.descripcion,
     valor_bruto: convertirDecimalANumero(solicitud.valor_bruto),
-    valor_impuestos: convertirDecimalANumero(
-      solicitud.valor_impuestos,
-    ),
     valor_retenciones: convertirDecimalANumero(
       solicitud.valor_retenciones,
     ),

@@ -272,6 +272,31 @@ function normalizarActualizarBeneficiarioInput(
 ): BeneficiarioActualizadoRepositoryInput {
   validarObjetoActualizacion(input);
 
+  let tipoBeneficiario: TipoBeneficiario | undefined;
+
+  if (input.tipo_beneficiario !== undefined) {
+    if (!validarTipoBeneficiario(input.tipo_beneficiario)) {
+      throw new Error("El tipo de beneficiario no es válido.");
+    }
+    tipoBeneficiario = input.tipo_beneficiario;
+  }
+
+  const tipoDocumento = normalizarTextoObligatorioActualizacion(
+    input.tipo_documento,
+    "tipo_documento",
+  );
+  const numeroDocumento = normalizarTextoObligatorioActualizacion(
+    input.numero_documento,
+    "numero_documento",
+  );
+
+  if (numeroDocumento !== undefined) {
+    validarSoloNumeros(
+      numeroDocumento,
+      "El número de documento debe contener solo números.",
+    );
+  }
+
   const nombre = normalizarTextoObligatorioActualizacion(
     input.nombre,
     "nombre",
@@ -308,6 +333,9 @@ function normalizarActualizarBeneficiarioInput(
   const activo = normalizarBooleanOpcional(input.activo, "activo");
 
   const inputNormalizado: BeneficiarioActualizadoRepositoryInput = {
+    ...(tipoBeneficiario !== undefined ? { tipo_beneficiario: tipoBeneficiario } : {}),
+    ...(tipoDocumento !== undefined ? { tipo_documento: tipoDocumento } : {}),
+    ...(numeroDocumento !== undefined ? { numero_documento: numeroDocumento } : {}),
     ...(nombre !== undefined ? { nombre } : {}),
     ...(medioPagoPreferido !== undefined
       ? { medio_pago_preferido: medioPagoPreferido }
@@ -641,6 +669,52 @@ export async function actualizarBeneficiarioService(
   }
 
   const inputNormalizado = normalizarActualizarBeneficiarioInput(input);
+
+  const tipoBeneficiario =
+    inputNormalizado.tipo_beneficiario ?? beneficiarioExistente.tipo_beneficiario;
+  const tipoDocumento =
+    inputNormalizado.tipo_documento ?? beneficiarioExistente.tipo_documento;
+  const numeroDocumento =
+    inputNormalizado.numero_documento ?? beneficiarioExistente.numero_documento;
+
+  validarCampoObligatorio(
+    tipoDocumento,
+    "El tipo de documento del beneficiario es obligatorio.",
+  );
+  validarCampoObligatorio(
+    numeroDocumento,
+    "El número de documento del beneficiario es obligatorio.",
+  );
+  validarTipoDocumentoPorBeneficiario(
+    tipoBeneficiario as TipoBeneficiario,
+    tipoDocumento ?? "",
+  );
+
+  const documentoExistente = await existeBeneficiarioPorDocumentoRepository(
+    tipoDocumento ?? "",
+    numeroDocumento ?? "",
+  );
+
+  if (documentoExistente && documentoExistente.id !== id) {
+    throw new Error(
+      "Ya existe otro beneficiario con ese tipo y número de documento.",
+    );
+  }
+
+  if (tipoBeneficiario === "PROVEEDOR") {
+    const proveedorExistente = await obtenerProveedorPorDocumentoRepository(
+      tipoDocumento ?? "",
+      numeroDocumento ?? "",
+    );
+
+    if (
+      proveedorExistente &&
+      beneficiarioExistente.proveedor_id &&
+      proveedorExistente.id !== beneficiarioExistente.proveedor_id
+    ) {
+      throw new Error("Ya existe otro proveedor con ese documento.");
+    }
+  }
 
   return actualizarBeneficiarioRepository(id, inputNormalizado);
 }

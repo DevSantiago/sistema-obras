@@ -153,6 +153,33 @@
   font-weight: 700;
 }
 
+.table tfoot td {
+  vertical-align: middle;
+  font-weight: 700;
+}
+
+.totalRow td {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.selectedTotalRow td {
+  border-bottom: 0;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.totalValue,
+.selectedTotalValue {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.selectedTotalValue {
+  color: #1d4ed8 !important;
+  font-size: 1rem;
+}
+
 .clickableRow {
   cursor: pointer;
 }
@@ -188,6 +215,37 @@
 
 .cards {
   display: none;
+}
+
+.mobileTotals {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.mobileTotals div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mobileTotals span {
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+.mobileTotals strong {
+  white-space: nowrap;
+}
+
+.mobileSelectedTotal {
+  padding-top: 0.65rem;
+  border-top: 1px solid #bfdbfe;
+  color: #1d4ed8;
 }
 
 .detailButton {

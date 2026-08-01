@@ -42,7 +42,8 @@ El OCR no reemplaza validaciones humanas ni reglas de aprobación. Solo propone 
 - Beneficiarios: `beneficiarios_pago`.
 - Proveedores: `proveedores`.
 - Solicitudes: `solicitudes_pago`.
-- Impuestos sugeridos: `impuestos_retenciones_solicitud`.
+- Impuestos y retenciones sugeridos: campo consolidado
+  `solicitudes_pago.valor_impuestos_retenciones`.
 - Operaciones de efectivo: `operaciones_efectivo` y
   `detalles_operacion_efectivo`.
 - Cargos financieros sugeridos: `cargos_financieros`.

@@ -205,17 +205,9 @@ function construirInput(
         "valor_bruto",
       ),
 
-    valor_impuestos:
-      obtenerNumeroFormulario(
-        formData,
-        "valor_impuestos",
-      ),
-
     valor_retenciones:
-      obtenerNumeroFormulario(
-        formData,
-        "valor_retenciones",
-      ),
+      (obtenerNumeroFormulario(formData, "valor_retenciones") ?? 0) +
+      (obtenerNumeroFormulario(formData, "valor_impuestos") ?? 0),
 
     valor_descuentos:
       obtenerNumeroFormulario(

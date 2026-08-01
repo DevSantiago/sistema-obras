@@ -9,7 +9,6 @@ import type {
 
 export type ValoresSolicitudPago = {
   valorBruto: number;
-  valorImpuestos: number;
   valorRetenciones: number;
   valorDescuentos: number;
   valorNeto: number;
@@ -23,7 +22,6 @@ export const ESTADO_INICIAL_FORMULARIO: SolicitudPagoFormularioState = {
   medio_pago: "",
   descripcion: "",
   valor_bruto: "",
-  valor_impuestos: "0",
   valor_retenciones: "0",
   valor_descuentos: "0",
 };
@@ -40,6 +38,8 @@ export const CATEGORIAS_GASTO = [
 
 export const MEDIOS_PAGO: MedioPagoSolicitud[] = [
   "TRANSFERENCIA",
+  "PSE",
+  "PORTAL",
   "CONSIGNACION",
   "EFECTIVO",
 ];
@@ -82,8 +82,6 @@ export function construirFormularioDesdeFormData(
     medio_pago: obtenerMedioPagoFormulario(formData),
     descripcion: obtenerValorFormulario(formData, "descripcion"),
     valor_bruto: obtenerValorFormulario(formData, "valor_bruto"),
-    valor_impuestos:
-      obtenerValorFormulario(formData, "valor_impuestos") || "0",
     valor_retenciones:
       obtenerValorFormulario(formData, "valor_retenciones") || "0",
     valor_descuentos:
@@ -123,17 +121,15 @@ export function calcularValoresSolicitudPago(
   formulario: SolicitudPagoFormularioState,
 ): ValoresSolicitudPago {
   const valorBruto = convertirNumero(formulario.valor_bruto);
-  const valorImpuestos = convertirNumero(formulario.valor_impuestos);
   const valorRetenciones = convertirNumero(formulario.valor_retenciones);
   const valorDescuentos = convertirNumero(formulario.valor_descuentos);
 
   return {
     valorBruto,
-    valorImpuestos,
     valorRetenciones,
     valorDescuentos,
     valorNeto:
-      valorBruto - valorImpuestos - valorRetenciones - valorDescuentos,
+      valorBruto - valorRetenciones - valorDescuentos,
   };
 }
 

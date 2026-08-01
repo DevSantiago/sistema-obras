@@ -158,9 +158,70 @@ export async function actualizarBeneficiarioRepository(
   id: string,
   input: BeneficiarioActualizadoRepositoryInput,
 ) {
-  return prisma.beneficiarios_pago.update({
-    where: { id },
-    data: {
+  return prisma.$transaction(async (tx) => {
+    const actual = await tx.beneficiarios_pago.findUniqueOrThrow({
+      where: { id },
+    });
+    const tipoBeneficiario = input.tipo_beneficiario ?? actual.tipo_beneficiario;
+    const tipoDocumento = input.tipo_documento ?? actual.tipo_documento;
+    const numeroDocumento = input.numero_documento ?? actual.numero_documento;
+    const nombre = input.nombre ?? actual.nombre;
+    let proveedorId = actual.proveedor_id;
+
+    if (tipoBeneficiario === "PROVEEDOR" && tipoDocumento && numeroDocumento) {
+      if (proveedorId) {
+        await tx.proveedores.update({
+          where: { id: proveedorId },
+          data: {
+            nombre,
+            tipo_documento: tipoDocumento,
+            numero_documento: numeroDocumento,
+            ...(input.correo !== undefined ? { correo: input.correo } : {}),
+            ...(input.telefono !== undefined ? { telefono: input.telefono } : {}),
+            ...(input.banco !== undefined ? { banco: input.banco } : {}),
+            ...(input.tipo_cuenta_bancaria !== undefined
+              ? { tipo_cuenta_bancaria: input.tipo_cuenta_bancaria }
+              : {}),
+            ...(input.numero_cuenta_bancaria !== undefined
+              ? { numero_cuenta_bancaria: input.numero_cuenta_bancaria }
+              : {}),
+          },
+        });
+      } else {
+        const proveedorExistente = await tx.proveedores.findFirst({
+          where: { tipo_documento: tipoDocumento, numero_documento: numeroDocumento },
+        });
+        const proveedor = proveedorExistente ?? await tx.proveedores.create({
+          data: {
+            nombre,
+            tipo_documento: tipoDocumento,
+            numero_documento: numeroDocumento,
+            correo: input.correo ?? actual.correo,
+            telefono: input.telefono ?? actual.telefono,
+            banco: input.banco ?? actual.banco,
+            tipo_cuenta_bancaria: input.tipo_cuenta_bancaria ?? actual.tipo_cuenta_bancaria,
+            numero_cuenta_bancaria: input.numero_cuenta_bancaria ?? actual.numero_cuenta_bancaria,
+          },
+        });
+        proveedorId = proveedor.id;
+      }
+    } else {
+      proveedorId = null;
+    }
+
+    return tx.beneficiarios_pago.update({
+      where: { id },
+      data: {
+      ...(input.tipo_beneficiario !== undefined
+        ? { tipo_beneficiario: input.tipo_beneficiario }
+        : {}),
+      ...(input.tipo_documento !== undefined
+        ? { tipo_documento: input.tipo_documento }
+        : {}),
+      ...(input.numero_documento !== undefined
+        ? { numero_documento: input.numero_documento }
+        : {}),
+      ...(proveedorId !== actual.proveedor_id ? { proveedor_id: proveedorId } : {}),
       ...(input.nombre !== undefined ? { nombre: input.nombre } : {}),
       ...(input.medio_pago_preferido !== undefined
         ? { medio_pago_preferido: input.medio_pago_preferido }
@@ -177,6 +238,7 @@ export async function actualizarBeneficiarioRepository(
       ...(input.notas !== undefined ? { notas: input.notas } : {}),
       ...(input.activo !== undefined ? { activo: input.activo } : {}),
     },
-    include: beneficiarioInclude,
+      include: beneficiarioInclude,
+    });
   });
 }

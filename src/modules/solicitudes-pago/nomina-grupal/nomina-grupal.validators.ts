@@ -11,6 +11,8 @@ import type {
 
 const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
   "TRANSFERENCIA",
+  "PSE",
+  "PORTAL",
   "CONSIGNACION",
   "EFECTIVO",
 ];

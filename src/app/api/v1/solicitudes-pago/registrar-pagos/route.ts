@@ -5,7 +5,6 @@ import { cookies } from "next/headers";
 
 type PagoManifest = {
   solicitud_id?: unknown;
-  fecha_pago?: unknown;
   numero_comprobante?: unknown;
   observacion?: unknown;
   archivo_campo?: unknown;
@@ -46,7 +45,6 @@ function leerPagos(formData: FormData): RegistrarTransferenciaLoteInput[] | null
 
       return {
         solicitud_id: obtenerTexto(item.solicitud_id),
-        fecha_pago: obtenerTexto(item.fecha_pago),
         numero_comprobante: obtenerTexto(item.numero_comprobante),
         observacion: obtenerTexto(item.observacion) || null,
         soporte,

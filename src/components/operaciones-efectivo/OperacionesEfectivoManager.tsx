@@ -1,5 +1,6 @@
 "use client";
 
+import SelectorSoporteConCamara from "@/components/adjuntos/SelectorSoporteConCamara";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ConsultarOperacionesEfectivoData,
@@ -774,19 +775,13 @@ export default function OperacionesEfectivoManager({
                     }
                   />
                 </label>
-                <label>
-                  <span>Soporte *</span>
-                  <input
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    required
-                    type="file"
-                    onChange={(event) =>
-                      setSoporteReingreso(
-                        event.target.files?.[0] ?? null,
-                      )
-                    }
-                  />
-                </label>
+                <SelectorSoporteConCamara
+                  id="soporte-reingreso"
+                  titulo="Soporte"
+                  archivo={soporteReingreso}
+                  onChange={setSoporteReingreso}
+                  required
+                />
                 <label className={styles.fullWidth}>
                   <span>Observación</span>
                   <textarea

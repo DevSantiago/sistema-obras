@@ -11,6 +11,8 @@ export type ModalidadNomina =
 
 export type MedioPagoSolicitud =
   | "TRANSFERENCIA"
+  | "PSE"
+  | "PORTAL"
   | "CONSIGNACION"
   | "EFECTIVO";
 
@@ -110,6 +112,36 @@ export type AprobarSolicitudesNivel2Input = {
   solicitud_ids?: string[];
 };
 
+export type DevolverSolicitudPagoInput = {
+  motivo?: string;
+};
+
+export type DevolverSolicitudesPagoInput = DevolverSolicitudPagoInput & {
+  solicitud_ids?: string[];
+};
+
+export type DevolverSolicitudesPagoData = {
+  cantidad_devuelta: number;
+  estado_destino: "DEVUELTA_APROBADOR_1" | "DEVUELTA_SOLICITANTE";
+};
+
+export type AnularSolicitudesPagoInput = {
+  solicitud_ids?: string[];
+  motivo?: string;
+};
+
+export type AnularSolicitudesPagoData = {
+  cantidad_anulada: number;
+  estado_destino: "ANULADA";
+};
+
+export type DevolverSolicitudPagoData = {
+  solicitud_id: string;
+  estado_origen: "PENDIENTE_APROBADOR_1" | "PENDIENTE_APROBADOR_2" | "DEVUELTA_APROBADOR_1";
+  estado_destino: "DEVUELTA_APROBADOR_1" | "DEVUELTA_SOLICITANTE";
+  motivo: string;
+};
+
 export type SolicitudAprobadaNivel2 = {
   id: string;
   numero_solicitud: string | null;
@@ -165,7 +197,6 @@ export type CrearSolicitudReembolsoInput = {
   medio_pago?: MedioPagoSolicitud;
   descripcion?: string;
   valor_bruto?: number;
-  valor_impuestos?: number;
   valor_retenciones?: number;
   valor_descuentos?: number;
 };
@@ -179,7 +210,6 @@ export type CrearSolicitudPagoProveedorInput = {
   medio_pago?: MedioPagoSolicitud;
   descripcion?: string;
   valor_bruto?: number;
-  valor_impuestos?: number;
   valor_retenciones?: number;
   valor_descuentos?: number;
 };
@@ -236,11 +266,10 @@ type CrearSolicitudPagoRepositoryBaseInput = {
   adjunto_archivo_origen_id: string | null;
   descripcion: string;
   valor_bruto: number;
-  valor_impuestos: number;
   valor_retenciones: number;
   valor_descuentos: number;
   valor_neto: number;
-  estado_actual: "BORRADOR";
+  estado_actual: "BORRADOR" | "DEVUELTA_SOLICITANTE";
   creado_por: string;
 };
 
@@ -370,7 +399,6 @@ export type SolicitudPagoListado = {
   adjunto_archivo_origen_id: string | null;
   descripcion: string;
   valor_bruto: number;
-  valor_impuestos: number;
   valor_retenciones: number;
   valor_descuentos: number;
   valor_neto: number;
@@ -410,6 +438,17 @@ export type SolicitudPagoListado = {
     nombre: string;
     correo: string;
   } | null;
+  ultima_devolucion?: {
+    id: string;
+    estado_origen: string;
+    estado_destino: string;
+    motivo: string;
+    creado_en: string | Date;
+    usuario: {
+      id: string;
+      nombre: string;
+    };
+  } | null;
 };
 
 export type SolicitudProgramadaPago = Omit<
@@ -431,7 +470,6 @@ export type SolicitudProgramadaPago = Omit<
 
 export type RegistrarTransferenciaLoteInput = {
   solicitud_id: string;
-  fecha_pago: string;
   numero_comprobante: string;
   observacion?: string | null;
   soporte: File;
@@ -472,7 +510,6 @@ export type RegistrarDetalleOperacionEfectivoInput = {
 };
 
 export type RegistrarOperacionEfectivoInput = {
-  fecha_retiro: string;
   valor_retirado: number;
   observacion?: string | null;
   reintegrar_sobrante: boolean;
@@ -562,7 +599,6 @@ export type SolicitudPagoFormularioState = {
   medio_pago: MedioPagoSolicitud | "";
   descripcion: string;
   valor_bruto: string;
-  valor_impuestos: string;
   valor_retenciones: string;
   valor_descuentos: string;
 };

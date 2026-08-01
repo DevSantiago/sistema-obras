@@ -781,3 +781,249 @@
     width: 100%;
   }
 }
+.clickableRow,
+.clickableCard {
+  cursor: pointer;
+}
+
+.clickableRow:hover {
+  background: #f8fafc;
+}
+
+.modalBackdrop {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 55%);
+}
+
+.detailDialog {
+  display: grid;
+  width: min(100%, 56rem);
+  max-height: calc(100vh - 2rem);
+  gap: 1.25rem;
+  overflow-y: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border, #d9dee7);
+  border-radius: 1rem;
+  background: var(--color-surface, #ffffff);
+  box-shadow: 0 1.5rem 4rem rgb(15 23 42 / 25%);
+}
+
+.detailHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.detailEyebrow {
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detailHeader h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.detailMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.75rem;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.detailStatus {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.modalCloseButton {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #111827;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modalCloseButton:hover {
+  border-color: #94a3b8;
+  background: #e2e8f0;
+}
+
+.detailLoading {
+  padding: 0.75rem 1rem;
+  border-radius: 0.625rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.detailSection {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detailSection h3 {
+  margin: 0;
+  color: #334155;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.detailGrid > div {
+  padding: 0.875rem;
+  border: 1px solid #d9dee7;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+}
+
+.detailGrid dt {
+  margin-bottom: 0.35rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.detailGrid dd {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detailWide,
+.detailNet {
+  grid-column: 1 / -1;
+}
+
+.valuesGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.detailNet {
+  border-color: #93c5fd !important;
+  background: #eff6ff !important;
+}
+
+.detailNet dd {
+  color: #1d4ed8;
+  font-size: 1.15rem;
+}
+
+.returnReason {
+  padding: 1rem;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #f59e0b;
+  border-radius: 0.625rem;
+  background: #fff7ed;
+  color: #7c2d12;
+}
+
+.returnReason p {
+  margin: 0.35rem 0 0;
+}
+
+.listFilters {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.listFilters label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.listFilters label span {
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.listFilters select {
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.625rem;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+}
+
+.listFilters select:focus {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 15%);
+}
+
+.clearFiltersButton {
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.625rem;
+  background: #ffffff;
+  color: #334155;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 48rem) {
+  .listFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .detailDialog {
+    padding: 1rem;
+    border-radius: 0.75rem;
+  }
+
+  .detailGrid,
+  .valuesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .detailWide,
+  .detailNet {
+    grid-column: auto;
+  }
+
+  .detailMeta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -64,7 +64,7 @@ stateDiagram-v2
 
     PENDIENTE_APROBADOR_1 --> DEVUELTA_SOLICITANTE : Devolver
 
-    DEVUELTA_SOLICITANTE --> BORRADOR : Corregir
+    DEVUELTA_SOLICITANTE --> PENDIENTE_APROBADOR_1 : Corregir y reenviar
 
     PENDIENTE_APROBADOR_2 --> DEVUELTA_APROBADOR_1 : Devolver
 
@@ -76,8 +76,15 @@ stateDiagram-v2
 
     PENDIENTE_APROBADOR_1 --> ANULADA : Anular
 
-    PENDIENTE_APROBADOR_2 --> ANULADA : Anular
 ```
+
+Todas las devoluciones exigen motivo y crean un registro histórico. La reserva
+se conserva entre `PENDIENTE_APROBADOR_2` y `DEVUELTA_APROBADOR_1`; se libera
+cuando la solicitud pasa a `DEVUELTA_SOLICITANTE`.
+
+La anulación durante el flujo de aprobación corresponde al Aprobador de nivel
+1 y solo aplica desde `PENDIENTE_APROBADOR_1`. Es una transición terminal,
+exige motivo y conserva una trazabilidad independiente.
 
 ---
 

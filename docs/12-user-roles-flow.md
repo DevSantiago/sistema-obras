@@ -188,9 +188,9 @@ Verificar la información del beneficiario
 ↓
 Registrar la ejecución del pago
 ↓
-Seleccionar transferencia directa o retiro y pagos
+Seleccionar pago electrónico directo o retiro y pagos
 ↓
-Adjuntar los soportes requeridos
+Adjuntar o fotografiar los soportes requeridos
 ↓
 Marcar la solicitud como pagada
 ↓
@@ -201,9 +201,14 @@ El rol Pagos únicamente puede ejecutar solicitudes que hayan finalizado satisfa
 
 No puede crear solicitudes, aprobar solicitudes ni administrar usuarios, proyectos o beneficiarios.
 
-Las transferencias directas se registran individualmente o por lote. Las
+Los pagos electrónicos directos (`TRANSFERENCIA`, `PSE` o `PORTAL`) se
+registran individualmente o por lote. La fecha y hora de ejecución son
+asignadas por el servidor y no se seleccionan manualmente. Las
 solicitudes en `EFECTIVO` o `CONSIGNACION` pueden agruparse en un retiro
 cuando pertenecen al mismo proyecto y fondo.
+
+La bandeja muestra el total de las solicitudes visibles y, al seleccionar una
+o varias, presenta por separado la cantidad y el valor que se procesará.
 
 ---
 
@@ -213,7 +218,6 @@ Las siguientes funcionalidades hacen parte de la evolución prevista del sistema
 
 ## Operaciones proyectadas
 
-- Registro de reingresos de dinero sobrante.
 - Registro de cargos financieros asociados a cuentas bancarias.
 - Gestión de solicitudes de pago de impuestos.
 - Administración de impuestos y retenciones.

@@ -211,6 +211,10 @@ Una solicitud anulada:
 - no puede reactivarse;
 - conserva toda la trazabilidad histórica;
 - no genera movimientos financieros.
+- si está pendiente del primer nivel, únicamente el Aprobador de nivel 1 o el
+  Administrador pueden anularla, indicando un motivo obligatorio;
+- la anulación puede aplicarse a una selección múltiple y se registra de forma
+  atómica para mantener la trazabilidad del lote.
 
 ### Gestión documental durante el ciclo de vida
 
@@ -681,6 +685,15 @@ DEVUELTA_SOLICITANTE
 
 La devolución deberá registrar una observación obligatoria.
 
+La bandeja admite devolución individual o múltiple mediante el checklist. En
+una devolución múltiple todas las solicitudes reciben el mismo motivo y deben
+pertenecer al mismo nivel; si una cambió de estado, no se devuelve ninguna.
+
+La devolución desde nivel 1 todavía no tiene una reserva propia, por lo que no
+libera ningún valor. Si la solicitud había regresado previamente desde nivel 2
+y el Aprobador 1 decide devolverla al solicitante, la reserva se libera antes
+de permitir cambios de valor, proyecto o fondo.
+
 Mientras la solicitud permanezca devuelta:
 
 - el solicitante podrá editar nuevamente toda la información;
@@ -736,6 +749,10 @@ El Aprobador 1 podrá:
 - realizar los ajustes permitidos;
 - registrar nuevas observaciones;
 - reenviar nuevamente la solicitud al segundo aprobador.
+
+Mientras la solicitud permanezca en `DEVUELTA_APROBADOR_1`, conserva la reserva
+creada en la aprobación de nivel 1. El Aprobador 1 puede reenviarla a nivel 2 o
+devolverla al solicitante; esta última acción libera la reserva.
 
 ---
 
@@ -1001,7 +1018,7 @@ CONSIGNACIÓN
 EFECTIVO
 ```
 
-Las transferencias directas requieren referencia bancaria y soporte por
+Los pagos directos mediante transferencia, PSE o portal requieren referencia y soporte por
 solicitud. Las consignaciones se ejecutan dentro de un retiro agrupado y
 requieren referencia propia. Los pagos en efectivo también se ejecutan
 dentro de un retiro agrupado, pero no requieren referencia bancaria. Todos
@@ -1023,7 +1040,7 @@ Cuando el usuario de Pagos confirme la ejecución del pago, el sistema deberá:
 
 El cambio de estado y el movimiento financiero deberán ejecutarse dentro de la misma transacción para garantizar la consistencia de la información.
 
-Para transferencias directas, cada solicitud genera un movimiento
+Para pagos directos mediante transferencia, PSE o portal, cada solicitud genera un movimiento
 `EGRESO_SOLICITUD_PAGO` y descuenta su valor neto del fondo del proyecto.
 
 Para efectivo y consignaciones, una operación agrupa una o varias solicitudes
@@ -1031,8 +1048,9 @@ del mismo proyecto y fondo. El retiro genera un único
 `EGRESO_RETIRO_EFECTIVO` por el valor retirado. Marcar las solicitudes
 asociadas como pagadas no genera egresos adicionales.
 
-La fecha del pago o retiro puede ser la fecha calendario actual en
-`America/Bogota`; no se permiten fechas posteriores.
+La fecha y hora del pago o retiro se asignan automáticamente cuando el backend
+registra la operación. El usuario de Pagos no puede seleccionarlas ni
+modificarlas desde el formulario.
 
 ---
 
@@ -2134,6 +2152,12 @@ Como mínimo podrán adjuntarse:
 
 El sistema permitirá asociar uno o varios archivos a una misma solicitud.
 
+Desde dispositivos compatibles, el usuario puede tomar una fotografía con la
+cámara trasera como alternativa a seleccionar un archivo existente. Esta
+opción también está disponible al adjuntar comprobantes de pagos directos,
+retiros, consignaciones y reingresos. Las fotografías conservan las mismas
+reglas de tamaño y formato aplicables a los demás soportes.
+
 Los soportes deberán conservarse durante todo el ciclo de vida de la solicitud y permanecer disponibles para consulta y auditoría.
 
 ---
@@ -2147,7 +2171,9 @@ Antes de permitir el envío de una solicitud de reembolso al flujo de aprobació
 - que el centro de costo pertenezca al proyecto seleccionado;
 - que el valor solicitado sea mayor a cero;
 - que la fecha del gasto sea válida;
-- que exista al menos un soporte asociado a la solicitud.
+
+Los soportes son opcionales durante la creación y el envío de la solicitud de
+reembolso. Cuando se adjunten, deben conservarse para consulta y auditoría.
 
 Las solicitudes que no cumplan estas validaciones no podrán ser enviadas al proceso de aprobación.
 

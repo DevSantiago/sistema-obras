@@ -751,4 +751,75 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
       },
     );
   });
+
+  it("debe actualizar tipo de beneficiario e identificación", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
+    vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
+      ...beneficiarioMock,
+      tipo_beneficiario: "OTRO",
+      tipo_documento: "CE",
+      numero_documento: "987654321",
+    } as never);
+
+    await actualizarBeneficiarioService(
+      usuarioAutorizado,
+      "beneficiario-1",
+      {
+        tipo_beneficiario: "OTRO",
+        tipo_documento: "ce",
+        numero_documento: " 987654321 ",
+      },
+    );
+
+    expect(actualizarBeneficiarioRepository).toHaveBeenCalledWith(
+      "beneficiario-1",
+      {
+        tipo_beneficiario: "OTRO",
+        tipo_documento: "CE",
+        numero_documento: "987654321",
+      },
+    );
+  });
+
+  it("debe impedir asignar NIT a un trabajador", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
+        tipo_beneficiario: "TRABAJADOR",
+        tipo_documento: "NIT",
+        numero_documento: "900123456",
+      }),
+    ).rejects.toThrow(
+      "Un beneficiario tipo TRABAJADOR no puede tener tipo de identificación NIT.",
+    );
+
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe impedir una identificación asignada a otro beneficiario", async () => {
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      beneficiarioMock as never,
+    );
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue({
+      id: "beneficiario-2",
+      activo: true,
+    });
+
+    await expect(
+      actualizarBeneficiarioService(usuarioAutorizado, "beneficiario-1", {
+        tipo_documento: "CC",
+        numero_documento: "987654321",
+      }),
+    ).rejects.toThrow(
+      "Ya existe otro beneficiario con ese tipo y número de documento.",
+    );
+
+    expect(actualizarBeneficiarioRepository).not.toHaveBeenCalled();
+  });
 });

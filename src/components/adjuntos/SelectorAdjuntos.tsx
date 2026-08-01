@@ -137,6 +137,26 @@ export default function SelectorAdjuntos({
     onChange(archivosSeleccionados);
   }
 
+  function manejarFoto(event: ChangeEvent<HTMLInputElement>) {
+    const fotosSeleccionadas = Array.from(event.target.files ?? []);
+
+    if (fotosSeleccionadas.length === 0) {
+      return;
+    }
+
+    const archivosActualizados = [...archivos, ...fotosSeleccionadas];
+    const errorValidacion = validarArchivos(archivosActualizados);
+
+    if (errorValidacion) {
+      event.target.value = "";
+      informarError(errorValidacion);
+      return;
+    }
+
+    onChange(archivosActualizados);
+    event.target.value = "";
+  }
+
   function eliminarArchivo(indice: number) {
     const archivosActualizados = archivos.filter(
       (_, indiceActual) => indiceActual !== indice,
@@ -176,6 +196,25 @@ export default function SelectorAdjuntos({
         disabled={disabled}
         required={required && archivos.length === 0}
       />
+
+      <div className={styles.cameraAction}>
+        <input
+          id={`${id}-camera`}
+          className={styles.cameraInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={manejarFoto}
+          disabled={disabled}
+        />
+        <label
+          className={disabled ? styles.cameraButtonDisabled : styles.cameraButton}
+          htmlFor={`${id}-camera`}
+        >
+          Tomar foto
+        </label>
+        <span>Usa la cámara trasera para fotografiar el comprobante.</span>
+      </div>
 
       <p className={styles.fieldHelp}>{textoAyuda}</p>
 

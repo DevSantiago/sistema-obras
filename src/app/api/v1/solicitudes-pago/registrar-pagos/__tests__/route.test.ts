@@ -53,7 +53,6 @@ describe("POST /api/v1/solicitudes-pago/registrar-pagos", () => {
       JSON.stringify([
         {
           solicitud_id: "solicitud-1",
-          fecha_pago: "2026-07-27",
           numero_comprobante: "TRX-001",
           archivo_campo: "soporte_0",
         },

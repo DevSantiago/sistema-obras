@@ -654,7 +654,7 @@ function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
           </label>
 
           <label className={styles.field}>
-            <span className={styles.label}>Retenciones</span>
+            <span className={styles.label}>Impuestos y retenciones</span>
 
             <input
               name="valor_retenciones"
@@ -738,11 +738,11 @@ function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
               );
             }}
             disabled={guardando || Boolean(solicitudEnEdicion)}
-            titulo="Soportes de la nómina"
+            titulo="Soportes de la nómina (opcional)"
             ayuda={
               solicitudEnEdicion
                 ? "Los adjuntos no pueden modificarse desde esta edición. Guarda primero los cambios del borrador."
-                : "Adjunta contratos, cuentas de cobro, desprendibles, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+                : "Si lo necesitas, adjunta contratos, cuentas de cobro, desprendibles, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
             }
         />
 

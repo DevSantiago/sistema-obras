@@ -28,7 +28,6 @@ export type CrearSolicitudProveedorPayload = {
   medio_pago: MedioPagoSolicitud;
   descripcion: string;
   valor_bruto: number;
-  valor_impuestos: number;
   valor_retenciones: number;
   valor_descuentos: number;
 };
@@ -68,7 +67,6 @@ export type ReembolsoFormularioState = {
   medio_pago: MedioPagoSolicitud | "";
   descripcion: string;
   valor_bruto: string;
-  valor_impuestos: string;
   valor_retenciones: string;
   valor_descuentos: string;
   archivos: File[];

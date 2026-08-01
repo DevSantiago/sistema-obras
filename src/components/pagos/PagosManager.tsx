@@ -1,5 +1,6 @@
 "use client";
 
+import SelectorSoporteConCamara from "@/components/adjuntos/SelectorSoporteConCamara";
 import type {
   MedioPagoSolicitud,
   SolicitudProgramadaPago,
@@ -16,7 +17,6 @@ type FiltrosPagos = {
 };
 
 type DatosTransferencia = {
-  fecha_pago: string;
   numero_comprobante: string;
   observacion: string;
   soporte: File | null;
@@ -51,16 +51,6 @@ const FORMATEADOR_FECHA = new Intl.DateTimeFormat("es-CO", {
 
 function formatearFecha(valor: string | Date | null | undefined): string {
   return valor ? FORMATEADOR_FECHA.format(new Date(valor)) : "—";
-}
-
-function obtenerFechaLocalActual(): string {
-  const ahora = new Date();
-
-  return [
-    ahora.getFullYear(),
-    String(ahora.getMonth() + 1).padStart(2, "0"),
-    String(ahora.getDate()).padStart(2, "0"),
-  ].join("-");
 }
 
 function obtenerBeneficiario(solicitud: SolicitudProgramadaPago): string {
@@ -106,7 +96,6 @@ export default function PagosManager() {
     useState(false);
   const [modalRetiroAbierto, setModalRetiroAbierto] = useState(false);
   const [tipoSeleccion, setTipoSeleccion] = useState<TipoSeleccion>(null);
-  const [fechaRetiro, setFechaRetiro] = useState("");
   const [valorRetirado, setValorRetirado] = useState("");
   const [soporteRetiro, setSoporteRetiro] = useState<File | null>(null);
   const [observacionRetiro, setObservacionRetiro] = useState("");
@@ -234,7 +223,9 @@ export default function PagosManager() {
         coincideBusqueda &&
         (vistaOperacion === "TODOS" ||
           (vistaOperacion === "TRANSFERENCIAS"
-            ? solicitud.medio_pago === "TRANSFERENCIA"
+            ? solicitud.medio_pago === "TRANSFERENCIA" ||
+              solicitud.medio_pago === "PSE" ||
+              solicitud.medio_pago === "PORTAL"
             : solicitud.medio_pago === "CONSIGNACION" ||
               solicitud.medio_pago === "EFECTIVO")) &&
         (!filtros.proyecto_base_id ||
@@ -247,12 +238,35 @@ export default function PagosManager() {
     });
   }, [filtros, solicitudes, vistaOperacion]);
 
+  const totalSolicitudesFiltradas = useMemo(
+    () =>
+      solicitudesFiltradas.reduce(
+        (total, solicitud) => total + solicitud.valor_neto,
+        0,
+      ),
+    [solicitudesFiltradas],
+  );
+
+  const totalSolicitudesSeleccionadas = useMemo(
+    () =>
+      solicitudes.reduce(
+        (total, solicitud) =>
+          idsSeleccionados.has(solicitud.id)
+            ? total + solicitud.valor_neto
+            : total,
+        0,
+      ),
+    [idsSeleccionados, solicitudes],
+  );
+
   const transferenciasSeleccionadas = useMemo(
     () =>
       solicitudes.filter(
         (solicitud) =>
           idsSeleccionados.has(solicitud.id) &&
-          solicitud.medio_pago === "TRANSFERENCIA",
+          (solicitud.medio_pago === "TRANSFERENCIA" ||
+            solicitud.medio_pago === "PSE" ||
+            solicitud.medio_pago === "PORTAL"),
       ),
     [idsSeleccionados, solicitudes],
   );
@@ -306,8 +320,7 @@ export default function PagosManager() {
       const datos = datosTransferencias[solicitud.id];
 
       return Boolean(
-        datos?.fecha_pago &&
-          datos.numero_comprobante.trim() &&
+        datos?.numero_comprobante.trim() &&
           datos.soporte,
       );
     });
@@ -328,7 +341,6 @@ export default function PagosManager() {
     : 0;
   const retiroCompleto =
     solicitudesRetiroSeleccionadas.length > 0 &&
-    fechaRetiro &&
     soporteRetiro &&
     valorRetiradoNumero >= valorRequeridoRetiro &&
     valorRetiradoNumero <=
@@ -345,7 +357,9 @@ export default function PagosManager() {
 
   function esSeleccionCompatible(solicitud: SolicitudProgramadaPago) {
     const tipoSolicitud =
-      solicitud.medio_pago === "TRANSFERENCIA"
+      solicitud.medio_pago === "TRANSFERENCIA" ||
+      solicitud.medio_pago === "PSE" ||
+      solicitud.medio_pago === "PORTAL"
         ? "TRANSFERENCIAS"
         : "RETIRO";
 
@@ -380,7 +394,9 @@ export default function PagosManager() {
       } else {
         nuevos.add(solicitud.id);
         setTipoSeleccion(
-          solicitud.medio_pago === "TRANSFERENCIA"
+          solicitud.medio_pago === "TRANSFERENCIA" ||
+          solicitud.medio_pago === "PSE" ||
+          solicitud.medio_pago === "PORTAL"
             ? "TRANSFERENCIAS"
             : "RETIRO",
         );
@@ -401,14 +417,11 @@ export default function PagosManager() {
   }
 
   function abrirRegistroTransferencias() {
-    const fechaHoy = obtenerFechaLocalActual();
-
     setDatosTransferencias((actuales) => {
       const nuevos = { ...actuales };
 
       for (const solicitud of transferenciasSeleccionadas) {
         nuevos[solicitud.id] ??= {
-          fecha_pago: fechaHoy,
           numero_comprobante: "",
           observacion: "",
           soporte: null,
@@ -444,9 +457,6 @@ export default function PagosManager() {
       return;
     }
 
-    const fechaHoy = obtenerFechaLocalActual();
-
-    setFechaRetiro(fechaHoy);
     setValorRetirado(String(valorRequeridoRetiro));
     setDatosPagosRetiro((actuales) => {
       const nuevos = { ...actuales };
@@ -509,7 +519,6 @@ export default function PagosManager() {
       formData.append(
         "operacion",
         JSON.stringify({
-          fecha_retiro: fechaRetiro,
           valor_retirado: valorRetiradoNumero,
           observacion: observacionRetiro,
           reintegrar_sobrante: reintegrarSobrante,
@@ -577,7 +586,6 @@ export default function PagosManager() {
 
           return {
             solicitud_id: solicitud.id,
-            fecha_pago: datos.fecha_pago,
             numero_comprobante: datos.numero_comprobante,
             observacion: datos.observacion,
             archivo_campo: campoArchivo,
@@ -643,7 +651,7 @@ export default function PagosManager() {
           type="button"
           onClick={() => cambiarVista("TRANSFERENCIAS")}
         >
-          Transferencias directas
+          Pagos directos
         </button>
         <button
           className={vistaOperacion === "RETIRO" ? styles.activeTab : ""}
@@ -723,6 +731,8 @@ export default function PagosManager() {
           >
             <option value="">Todos</option>
             <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="PSE">PSE</option>
+            <option value="PORTAL">Portal</option>
             <option value="CONSIGNACION">Consignación</option>
             <option value="EFECTIVO">Efectivo</option>
           </select>
@@ -829,6 +839,26 @@ export default function PagosManager() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className={styles.totalRow}>
+                  <td colSpan={8}>
+                    Total visible ({solicitudesFiltradas.length} solicitudes)
+                  </td>
+                  <td className={styles.totalValue}>
+                    {FORMATEADOR_MONEDA.format(totalSolicitudesFiltradas)}
+                  </td>
+                </tr>
+                {idsSeleccionados.size > 0 ? (
+                  <tr className={styles.selectedTotalRow}>
+                    <td colSpan={8}>
+                      Seleccionado para procesar ({idsSeleccionados.size} solicitudes)
+                    </td>
+                    <td className={styles.selectedTotalValue}>
+                      {FORMATEADOR_MONEDA.format(totalSolicitudesSeleccionadas)}
+                    </td>
+                  </tr>
+                ) : null}
+              </tfoot>
             </table>
           </div>
 
@@ -869,6 +899,18 @@ export default function PagosManager() {
                 </button>
               </article>
             ))}
+            <section className={styles.mobileTotals} aria-label="Resumen de pagos">
+              <div>
+                <span>Total visible ({solicitudesFiltradas.length})</span>
+                <strong>{FORMATEADOR_MONEDA.format(totalSolicitudesFiltradas)}</strong>
+              </div>
+              {idsSeleccionados.size > 0 ? (
+                <div className={styles.mobileSelectedTotal}>
+                  <span>Seleccionado para procesar ({idsSeleccionados.size})</span>
+                  <strong>{FORMATEADOR_MONEDA.format(totalSolicitudesSeleccionadas)}</strong>
+                </div>
+              ) : null}
+            </section>
           </div>
         </>
       )}
@@ -885,13 +927,13 @@ export default function PagosManager() {
               <div>
                 <p className={styles.modalEyebrow}>Registro grupal</p>
                 <h2 id="registro-transferencias-title">
-                  Confirmar transferencias
+                  Confirmar pagos directos
                 </h2>
               </div>
               <button
                 className={styles.closeButton}
                 type="button"
-                aria-label="Cerrar registro de transferencias"
+                aria-label="Cerrar registro de pagos directos"
                 disabled={registrando}
                 onClick={() => setModalTransferenciasAbierto(false)}
               >
@@ -939,20 +981,6 @@ export default function PagosManager() {
                     <p>{obtenerBeneficiario(solicitud)}</p>
                     <div className={styles.paymentGrid}>
                       <label className={styles.field}>
-                        <span>Fecha de pago</span>
-                        <input
-                          type="date"
-                          value={datos.fecha_pago}
-                          max={obtenerFechaLocalActual()}
-                          onChange={(event) =>
-                            actualizarDatosTransferencia(solicitud.id, {
-                              fecha_pago: event.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </label>
-                      <label className={styles.field}>
                         <span>Referencia bancaria</span>
                         <input
                           value={datos.numero_comprobante}
@@ -965,19 +993,15 @@ export default function PagosManager() {
                           required
                         />
                       </label>
-                      <label className={styles.field}>
-                        <span>Soporte de pago</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg"
-                          onChange={(event) =>
-                            actualizarDatosTransferencia(solicitud.id, {
-                              soporte: event.target.files?.[0] ?? null,
-                            })
-                          }
-                          required
-                        />
-                      </label>
+                      <SelectorSoporteConCamara
+                        id={`soporte-pago-directo-${solicitud.id}`}
+                        titulo="Soporte de pago"
+                        archivo={datos.soporte}
+                        onChange={(soporte) =>
+                          actualizarDatosTransferencia(solicitud.id, { soporte })
+                        }
+                        required
+                      />
                       <label className={`${styles.field} ${styles.fullWidth}`}>
                         <span>Observación</span>
                         <textarea
@@ -1079,16 +1103,6 @@ export default function PagosManager() {
                 <legend>Datos generales del retiro</legend>
                 <div className={styles.paymentGrid}>
                   <label className={styles.field}>
-                    <span>Fecha del retiro</span>
-                    <input
-                      type="date"
-                      value={fechaRetiro}
-                      max={obtenerFechaLocalActual()}
-                      onChange={(event) => setFechaRetiro(event.target.value)}
-                      required
-                    />
-                  </label>
-                  <label className={styles.field}>
                     <span>Valor retirado</span>
                     <input
                       type="number"
@@ -1099,17 +1113,13 @@ export default function PagosManager() {
                       required
                     />
                   </label>
-                  <label className={styles.field}>
-                    <span>Soporte del retiro</span>
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg"
-                      onChange={(event) =>
-                        setSoporteRetiro(event.target.files?.[0] ?? null)
-                      }
-                      required
-                    />
-                  </label>
+                  <SelectorSoporteConCamara
+                    id="soporte-retiro"
+                    titulo="Soporte del retiro"
+                    archivo={soporteRetiro}
+                    onChange={setSoporteRetiro}
+                    required
+                  />
                   <label className={`${styles.field} ${styles.fullWidth}`}>
                     <span>Observación del retiro</span>
                     <textarea
@@ -1169,19 +1179,15 @@ export default function PagosManager() {
                           />
                         </label>
                       ) : null}
-                      <label className={styles.field}>
-                        <span>Soporte del pago</span>
-                        <input
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg"
-                          onChange={(event) =>
-                            actualizarDatosPagoRetiro(solicitud.id, {
-                              soporte: event.target.files?.[0] ?? null,
-                            })
-                          }
-                          required
-                        />
-                      </label>
+                      <SelectorSoporteConCamara
+                        id={`soporte-pago-retiro-${solicitud.id}`}
+                        titulo="Soporte del pago"
+                        archivo={datos.soporte}
+                        onChange={(soporte) =>
+                          actualizarDatosPagoRetiro(solicitud.id, { soporte })
+                        }
+                        required
+                      />
                       <label className={`${styles.field} ${styles.fullWidth}`}>
                         <span>Observación</span>
                         <textarea
@@ -1272,8 +1278,7 @@ export default function PagosManager() {
 
             <div className={styles.values}>
               <div><span>Valor bruto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_bruto)}</strong></div>
-              <div><span>Impuestos</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_impuestos)}</strong></div>
-              <div><span>Retenciones</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_retenciones)}</strong></div>
+              <div><span>Impuestos y retenciones</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_retenciones)}</strong></div>
               <div><span>Descuentos</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_descuentos)}</strong></div>
               <div className={styles.netValue}><span>Valor neto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_neto)}</strong></div>
             </div>

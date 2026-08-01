@@ -112,6 +112,15 @@ function convertirFormDataAObjeto(formData: FormData): SolicitudMultipart {
     body[campo] = convertirValorFormulario(campo, valor);
   }
 
+  const valorImpuestosAnterior = Number(body.valor_impuestos ?? 0);
+  const valorRetenciones = Number(body.valor_retenciones ?? 0);
+
+  if (Number.isFinite(valorImpuestosAnterior) && valorImpuestosAnterior !== 0) {
+    body.valor_retenciones = valorRetenciones + valorImpuestosAnterior;
+  }
+
+  delete body.valor_impuestos;
+
   return {
     body,
     archivos,

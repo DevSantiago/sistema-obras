@@ -2,6 +2,7 @@ import type {
   SolicitudPagoListado,
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
+import { useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
   formatearFecha,
@@ -16,6 +17,8 @@ type SolicitudesPagoListProps = {
   enviandoSolicitudId: string | null;
   onEnviar: (solicitudId: string) => void | Promise<void>;
   onEditar: (solicitud: SolicitudPagoListado) => void;
+  onDevolver: (solicitud: SolicitudPagoListado) => void | Promise<void>;
+  onVerDetalle: (solicitud: SolicitudPagoListado) => void;
   onActualizar: () => void | Promise<void>;
 };
 
@@ -48,8 +51,18 @@ function usuarioPuedeEnviarSolicitud(
   solicitud: SolicitudPagoListado,
   usuario: UsuarioSesionSolicitudesPago,
 ): boolean {
-  if (solicitud.estado_actual !== "BORRADOR") {
-    return false;
+  const estadoPermitido =
+    solicitud.estado_actual === "BORRADOR" ||
+    solicitud.estado_actual === "DEVUELTA_SOLICITANTE" ||
+    solicitud.estado_actual === "DEVUELTA_APROBADOR_1";
+
+  if (!estadoPermitido) return false;
+
+  if (solicitud.estado_actual === "DEVUELTA_APROBADOR_1") {
+    return (
+      usuario.permisos?.includes("APROBAR_NIVEL_1") ||
+      usuario.roles.includes("ADMINISTRADOR")
+    );
   }
 
   return (
@@ -62,7 +75,10 @@ function usuarioPuedeEditarSolicitud(
   solicitud: SolicitudPagoListado,
   usuario: UsuarioSesionSolicitudesPago,
 ): boolean {
-  if (solicitud.estado_actual !== "BORRADOR") {
+  if (
+    solicitud.estado_actual !== "BORRADOR" &&
+    solicitud.estado_actual !== "DEVUELTA_SOLICITANTE"
+  ) {
     return false;
   }
 
@@ -85,8 +101,50 @@ export default function SolicitudesPagoList({
   enviandoSolicitudId,
   onEnviar,
   onEditar,
+  onDevolver,
+  onVerDetalle,
   onActualizar,
 }: SolicitudesPagoListProps) {
+  const [proyectoFiltro, setProyectoFiltro] = useState("");
+  const [centroFiltro, setCentroFiltro] = useState("");
+
+  const proyectosFiltro = useMemo(() => {
+    const proyectos = new Map<string, string>();
+    for (const solicitud of solicitudes) {
+      proyectos.set(
+        solicitud.proyecto_base_id,
+        solicitud.proyecto_base?.nombre ?? "Proyecto sin nombre",
+      );
+    }
+    return Array.from(proyectos, ([id, nombre]) => ({ id, nombre })).sort(
+      (a, b) => a.nombre.localeCompare(b.nombre, "es"),
+    );
+  }, [solicitudes]);
+
+  const centrosFiltro = useMemo(() => {
+    const centros = new Map<string, string>();
+    for (const solicitud of solicitudes) {
+      if (proyectoFiltro && solicitud.proyecto_base_id !== proyectoFiltro) continue;
+      centros.set(
+        solicitud.centro_costo_id,
+        solicitud.centro_costo?.nombre ?? "Centro sin nombre",
+      );
+    }
+    return Array.from(centros, ([id, nombre]) => ({ id, nombre })).sort(
+      (a, b) => a.nombre.localeCompare(b.nombre, "es"),
+    );
+  }, [proyectoFiltro, solicitudes]);
+
+  const solicitudesFiltradas = useMemo(
+    () =>
+      solicitudes.filter(
+        (solicitud) =>
+          (!proyectoFiltro || solicitud.proyecto_base_id === proyectoFiltro) &&
+          (!centroFiltro || solicitud.centro_costo_id === centroFiltro),
+      ),
+    [centroFiltro, proyectoFiltro, solicitudes],
+  );
+
   function manejarEnvio(solicitud: SolicitudPagoListado) {
     if (!confirmarEnvio(solicitud)) {
       return;
@@ -110,6 +168,54 @@ export default function SolicitudesPagoList({
         </button>
       </div>
 
+      <div className={styles.listFilters}>
+        <label>
+          <span>Proyecto</span>
+          <select
+            value={proyectoFiltro}
+            onChange={(event) => {
+              setProyectoFiltro(event.target.value);
+              setCentroFiltro("");
+            }}
+          >
+            <option value="">Todos los proyectos</option>
+            {proyectosFiltro.map((proyecto) => (
+              <option key={proyecto.id} value={proyecto.id}>
+                {proyecto.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Centro de costo</span>
+          <select
+            value={centroFiltro}
+            onChange={(event) => setCentroFiltro(event.target.value)}
+          >
+            <option value="">Todos los centros</option>
+            {centrosFiltro.map((centro) => (
+              <option key={centro.id} value={centro.id}>
+                {centro.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {(proyectoFiltro || centroFiltro) ? (
+          <button
+            className={styles.clearFiltersButton}
+            type="button"
+            onClick={() => {
+              setProyectoFiltro("");
+              setCentroFiltro("");
+            }}
+          >
+            Limpiar filtros
+          </button>
+        ) : null}
+      </div>
+
       {cargando ? (
         <div className={styles.empty}>
           <h2>Cargando solicitudes</h2>
@@ -122,6 +228,11 @@ export default function SolicitudesPagoList({
           <p>
             Cuando crees una solicitud de pago, aparecerá en este listado.
           </p>
+        </div>
+      ) : solicitudesFiltradas.length === 0 ? (
+        <div className={styles.empty}>
+          <h2>Sin resultados</h2>
+          <p>No hay solicitudes asociadas a los filtros seleccionados.</p>
         </div>
       ) : (
         <>
@@ -141,7 +252,7 @@ export default function SolicitudesPagoList({
               </thead>
 
               <tbody>
-                {solicitudes.map((solicitud) => {
+                {solicitudesFiltradas.map((solicitud) => {
                   const puedeEnviar = usuarioPuedeEnviarSolicitud(
                     solicitud,
                     usuario,
@@ -149,7 +260,11 @@ export default function SolicitudesPagoList({
                   const enviando = enviandoSolicitudId === solicitud.id;
 
                   return (
-                    <tr key={solicitud.id}>
+                    <tr
+                      key={solicitud.id}
+                      className={styles.clickableRow}
+                      onClick={() => onVerDetalle(solicitud)}
+                    >
                       <td>
                         <strong className={styles.requestNumber}>
                           {solicitud.numero_solicitud}
@@ -216,7 +331,7 @@ export default function SolicitudesPagoList({
 
                       <td>{formatearFecha(solicitud.creado_en)}</td>
 
-                      <td>
+                      <td onClick={(event) => event.stopPropagation()}>
                         <div className={styles.rowActions}>
                           {usuarioPuedeEditarSolicitud(solicitud, usuario) ? (
                             <button
@@ -240,6 +355,17 @@ export default function SolicitudesPagoList({
                             </button>
                           ) : null}
 
+                          {solicitud.estado_actual === "DEVUELTA_APROBADOR_1" ? (
+                            <button
+                              className={styles.editButton}
+                              type="button"
+                              onClick={() => void onDevolver(solicitud)}
+                              disabled={enviandoSolicitudId !== null}
+                            >
+                              Devolver al solicitante
+                            </button>
+                          ) : null}
+
                           {!usuarioPuedeEditarSolicitud(solicitud, usuario) &&
                           !puedeEnviar ? (
                             <span className={styles.noActions}>—</span>
@@ -254,7 +380,7 @@ export default function SolicitudesPagoList({
           </div>
 
           <div className={styles.mobileList}>
-            {solicitudes.map((solicitud) => {
+            {solicitudesFiltradas.map((solicitud) => {
               const puedeEnviar = usuarioPuedeEnviarSolicitud(
                 solicitud,
                 usuario,
@@ -266,7 +392,11 @@ export default function SolicitudesPagoList({
               const enviando = enviandoSolicitudId === solicitud.id;
 
               return (
-                <article className={styles.mobileCard} key={solicitud.id}>
+                <article
+                  className={`${styles.mobileCard} ${styles.clickableCard}`}
+                  key={solicitud.id}
+                  onClick={() => onVerDetalle(solicitud)}
+                >
                   <div className={styles.mobileHeader}>
                     <div>
                       <h3>{solicitud.numero_solicitud}</h3>
@@ -279,6 +409,12 @@ export default function SolicitudesPagoList({
                   </div>
 
                   <dl className={styles.mobileDetails}>
+                    {solicitud.ultima_devolucion ? (
+                      <div>
+                        <dt>Motivo de devolución</dt>
+                        <dd>{solicitud.ultima_devolucion.motivo}</dd>
+                      </div>
+                    ) : null}
                     <div>
                       <dt>Tipo</dt>
                       <dd>
@@ -336,7 +472,10 @@ export default function SolicitudesPagoList({
                   </dl>
 
                   {puedeEditar || puedeEnviar ? (
-                    <div className={styles.mobileActions}>
+                    <div
+                      className={styles.mobileActions}
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       {puedeEditar ? (
                         <button
                           className={styles.editButton}
@@ -356,6 +495,16 @@ export default function SolicitudesPagoList({
                           disabled={enviandoSolicitudId !== null}
                         >
                           {enviando ? "Enviando..." : "Enviar solicitud"}
+                        </button>
+                      ) : null}
+                      {solicitud.estado_actual === "DEVUELTA_APROBADOR_1" ? (
+                        <button
+                          className={styles.editButton}
+                          type="button"
+                          onClick={() => void onDevolver(solicitud)}
+                          disabled={enviandoSolicitudId !== null}
+                        >
+                          Devolver al solicitante
                         </button>
                       ) : null}
                     </div>

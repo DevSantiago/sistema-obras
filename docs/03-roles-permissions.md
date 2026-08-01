@@ -267,7 +267,7 @@ Su función principal consiste en verificar que la solicitud sea coherente desde
 ### Responsabilidades
 
 - Revisar las solicitudes pendientes de primer nivel.
-- Aprobar o devolver solicitudes.
+- Aprobar, devolver o anular solicitudes pendientes de primer nivel.
 - Registrar observaciones durante el proceso de revisión.
 - Consultar la información necesaria para realizar la validación.
 
@@ -275,6 +275,8 @@ Su función principal consiste en verificar que la solicitud sea coherente desde
 
 - Aprobar solicitudes de primer nivel.
 - Devolver solicitudes al solicitante.
+- Anular una o varias solicitudes en `PENDIENTE_APROBADOR_1`, con motivo
+  obligatorio y trazabilidad.
 - Consultar las solicitudes sobre las cuales tenga competencia.
 - Crear solicitudes cuando corresponda.
 
