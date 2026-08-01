@@ -221,6 +221,9 @@ export function BeneficiariosManager({
 
     const body = esEdicion
       ? {
+          tipo_beneficiario: tipoBeneficiario,
+          tipo_documento: tipoDocumento,
+          numero_documento: numeroDocumento,
           nombre,
           medio_pago_preferido: medioPagoPreferido,
           ...datosBancarios,
@@ -328,7 +331,7 @@ export function BeneficiariosManager({
 
             <p className={styles.formDescription}>
               {esEdicion
-                ? "Actualice los datos operativos del beneficiario. La identificación y el tipo de beneficiario no se pueden modificar."
+                ? "Actualice los datos de identificación, clasificación y pago del beneficiario."
                 : "Registre la persona o proveedor que podrá ser usado como beneficiario en solicitudes de pago."}
             </p>
           </header>
@@ -347,7 +350,6 @@ export function BeneficiariosManager({
                     event.target.value as TipoBeneficiario | "",
                   )
                 }
-                disabled={esEdicion}
                 required
               >
                 <option value="" disabled>
@@ -370,7 +372,6 @@ export function BeneficiariosManager({
                 className={styles.input}
                 value={tipoDocumento}
                 onChange={(event) => setTipoDocumento(event.target.value)}
-                disabled={esEdicion}
                 required
               >
                 <option value="" disabled>
@@ -406,7 +407,6 @@ export function BeneficiariosManager({
                   setNumeroDocumento(soloNumeros(event.target.value))
                 }
                 placeholder="Número de documento"
-                disabled={esEdicion}
                 required
               />
             </label>

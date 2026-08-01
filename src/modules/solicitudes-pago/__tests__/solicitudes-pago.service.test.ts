@@ -24,6 +24,9 @@ import {
   obtenerProyectoBaseActivoRepository,
   obtenerSolicitudPagoPorIdRepository,
   SolicitudesPagoCambioConcurrenteError,
+  devolverSolicitudPagoRepository,
+  devolverSolicitudesPagoRepository,
+  anularSolicitudesPagoRepository,
 } from "../solicitudes-pago.repository";
 import {
   crearSolicitudNominaIndividualService,
@@ -39,6 +42,9 @@ import {
   registrarOperacionEfectivoService,
   registrarTransferenciasService,
   registrarAdjuntosSolicitudPagoService,
+  devolverSolicitudPagoService,
+  devolverSolicitudesPagoService,
+  anularSolicitudesPagoService,
 } from "../solicitudes-pago.service";
 
 vi.mock("@/modules/secuencias/secuencias.service", () => ({
@@ -59,6 +65,7 @@ vi.mock("@/modules/storage/storage.service", () => ({
 vi.mock("../solicitudes-pago.repository", () => ({
   SolicitudesPagoCambioConcurrenteError: class
   SolicitudesPagoCambioConcurrenteError extends Error {},
+  RegistroPagosError: class RegistroPagosError extends Error {},
   aprobarSolicitudesNivel1Repository: vi.fn(),
   aprobarSolicitudesNivel2Repository: vi.fn(),
   obtenerReservasPorFondosRepository: vi.fn(),
@@ -78,6 +85,10 @@ vi.mock("../solicitudes-pago.repository", () => ({
   obtenerProyectoBaseActivoRepository: vi.fn(),
   obtenerSolicitudPagoPorIdRepository: vi.fn(),
   eliminarSolicitudPagoRepository: vi.fn(),
+  devolverSolicitudPagoRepository: vi.fn(),
+  devolverSolicitudesPagoRepository: vi.fn(),
+  anularSolicitudesPagoRepository: vi.fn(),
+  reenviarSolicitudDevueltaRepository: vi.fn(),
 }));
 
 const fechaMock = new Date("2026-07-03T10:00:00.000Z");
@@ -285,8 +296,7 @@ const inputProveedorBase = {
   medio_pago: "TRANSFERENCIA" as const,
   descripcion: "Pago de materiales",
   valor_bruto: 100000,
-  valor_impuestos: 19000,
-  valor_retenciones: 5000,
+  valor_retenciones: 24000,
   valor_descuentos: 0,
 };
 
@@ -326,8 +336,7 @@ const inputReembolsoBase = {
   medio_pago: "TRANSFERENCIA" as const,
   descripcion: "Reembolso de transporte para visita de obra",
   valor_bruto: 500000,
-  valor_impuestos: 95000,
-  valor_retenciones: 25000,
+  valor_retenciones: 120000,
   valor_descuentos: 10000,
 };
 
@@ -383,8 +392,7 @@ function prepararMocksProveedor() {
     adjunto_archivo_origen_id: null,
     descripcion: "Pago de materiales",
     valor_bruto: 100000 as never,
-    valor_impuestos: 19000 as never,
-    valor_retenciones: 5000 as never,
+    valor_retenciones: 24000 as never,
     valor_descuentos: 0 as never,
     valor_neto: 76000 as never,
     valor_pagado: null,
@@ -425,8 +433,7 @@ const solicitudProveedorBorrador = {
   adjunto_archivo_origen_id: null,
   descripcion: "Pago de materiales",
   valor_bruto: 100000 as never,
-  valor_impuestos: 19000 as never,
-  valor_retenciones: 5000 as never,
+  valor_retenciones: 24000 as never,
   valor_descuentos: 0 as never,
   valor_neto: 76000 as never,
   valor_pagado: null,
@@ -530,7 +537,6 @@ function prepararMocksNomina() {
     adjunto_archivo_origen_id: null,
     descripcion: "Pago de nómina individual de julio",
     valor_bruto: 2000000 as never,
-    valor_impuestos: 0 as never,
     valor_retenciones: 200000 as never,
     valor_descuentos: 100000 as never,
     valor_neto: 1700000 as never,
@@ -613,10 +619,9 @@ function prepararMocksReembolso(
     adjunto_archivo_origen_id: null,
     descripcion: "Reembolso de transporte para visita de obra",
     valor_bruto: 500000 as never,
-    valor_impuestos: 95000 as never,
-    valor_retenciones: 25000 as never,
+    valor_retenciones: 120000 as never,
     valor_descuentos: 10000 as never,
-    valor_neto: 465000 as never,
+    valor_neto: 370000 as never,
     valor_pagado: null,
     valor_reservado: null,
     estado_actual: "BORRADOR",
@@ -897,7 +902,6 @@ describe("solicitudes-pago.service - registrarTransferenciasService", () => {
       [
         {
           solicitud_id: "solicitud-1",
-          fecha_pago: "2026-07-27",
           numero_comprobante: "TRX-001",
           observacion: "Transferencia",
           soporte: new File(["contenido"], "soporte.pdf", {
@@ -914,6 +918,7 @@ describe("solicitudes-pago.service - registrarTransferenciasService", () => {
         pagos: [
           expect.objectContaining({
             solicitud_id: "solicitud-1",
+            fecha_pago: new Date("2026-07-28T02:00:00.000Z"),
             numero_comprobante: "TRX-001",
           }),
         ],
@@ -932,7 +937,6 @@ describe("solicitudes-pago.service - registrarOperacionEfectivoService", () => {
   });
 
   const crearOperacion = () => ({
-    fecha_retiro: "2026-07-27",
     valor_retirado: 80000,
     observacion: "Retiro de caja",
     reintegrar_sobrante: true,
@@ -999,6 +1003,7 @@ describe("solicitudes-pago.service - registrarOperacionEfectivoService", () => {
       expect.objectContaining({
         usuarioId: "pagos-1",
         operacion: expect.objectContaining({
+          fecha_retiro: new Date("2026-07-28T02:00:00.000Z"),
           valor_retirado: 80000,
           reintegrar_sobrante: true,
           detalles: [
@@ -1091,7 +1096,6 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
       {
         ...inputProveedorBase,
         valor_bruto: 1000,
-        valor_impuestos: 2000,
       },
     );
 
@@ -1339,8 +1343,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
       adjunto_archivo_origen_id: null,
       descripcion: "Pago de materiales",
       valor_bruto: 100000,
-      valor_impuestos: 19000,
-      valor_retenciones: 5000,
+      valor_retenciones: 24000,
       valor_descuentos: 0,
       valor_neto: 76000,
       estado_actual: "BORRADOR",
@@ -1403,7 +1406,6 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
       adjunto_archivo_origen_id: null,
       descripcion: "Pago de nómina individual de julio",
       valor_bruto: 2000000 as never,
-      valor_impuestos: 0 as never,
       valor_retenciones: 200000 as never,
       valor_descuentos: 100000 as never,
       valor_neto: 1700000 as never,
@@ -1712,7 +1714,6 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
       adjunto_archivo_origen_id: null,
       descripcion: "Pago de nómina individual de julio",
       valor_bruto: 2000000,
-      valor_impuestos: 0,
       valor_retenciones: 200000,
       valor_descuentos: 100000,
       valor_neto: 1700000,
@@ -1914,7 +1915,7 @@ describe(
 
       expect(resultado.status).toBe(400);
       expect(resultado.body.message).toBe(
-        "Impuestos, retenciones y descuentos deben ser valores numéricos no negativos.",
+        "Impuestos y retenciones, junto con los descuentos, deben ser valores numéricos no negativos.",
       );
       expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
     });
@@ -1991,7 +1992,7 @@ describe(
       expect(resultado.body.data?.solicitud.tipo_solicitud).toBe(
         "REEMBOLSO",
       );
-      expect(resultado.body.data?.solicitud.valor_neto).toBe(465000);
+      expect(resultado.body.data?.solicitud.valor_neto).toBe(370000);
 
       expect(crearSolicitudPagoRepository).toHaveBeenCalledWith({
         numero_solicitud: null,
@@ -2012,10 +2013,9 @@ describe(
         adjunto_archivo_origen_id: null,
         descripcion: "Reembolso de transporte para visita de obra",
         valor_bruto: 500000,
-        valor_impuestos: 95000,
-        valor_retenciones: 25000,
+        valor_retenciones: 120000,
         valor_descuentos: 10000,
-        valor_neto: 465000,
+        valor_neto: 370000,
         estado_actual: "BORRADOR",
         creado_por: "usuario-1",
       });
@@ -2143,7 +2143,6 @@ describe("solicitudes-pago.service - enviarSolicitudPagoService", () => {
     adjunto_archivo_origen_id: null,
     descripcion: "Reembolso de transporte",
     valor_bruto: 500000 as never,
-    valor_impuestos: 0 as never,
     valor_retenciones: 0 as never,
     valor_descuentos: 0 as never,
     valor_neto: 500000 as never,
@@ -3527,8 +3526,7 @@ describe("solicitudes-pago.service - actualizarSolicitudPagoProveedorService", (
       ...solicitudProveedorBorrador,
       descripcion: "Pago actualizado de materiales",
       valor_bruto: 120000 as never,
-      valor_impuestos: 19000 as never,
-      valor_retenciones: 5000 as never,
+      valor_retenciones: 24000 as never,
       valor_descuentos: 0 as never,
       valor_neto: 96000 as never,
     } as never);
@@ -3574,8 +3572,7 @@ describe("solicitudes-pago.service - actualizarSolicitudPagoProveedorService", (
         adjunto_archivo_origen_id: null,
         descripcion: "Pago actualizado de materiales",
         valor_bruto: 120000,
-        valor_impuestos: 19000,
-        valor_retenciones: 5000,
+        valor_retenciones: 24000,
         valor_descuentos: 0,
         valor_neto: 96000,
         estado_actual: "BORRADOR",
@@ -3605,5 +3602,169 @@ describe("solicitudes-pago.service - actualizarSolicitudPagoProveedorService", (
     expect(
       actualizarSolicitudPagoRepository,
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe("solicitudes-pago.service - devolución de aprobaciones", () => {
+  beforeEach(() => {
+    vi.mocked(devolverSolicitudPagoRepository).mockReset();
+    vi.mocked(devolverSolicitudesPagoRepository).mockReset();
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockReset();
+  });
+
+  it("debe devolver desde nivel 1 al solicitante sin reserva", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_1",
+      numero_solicitud: "SOL-001",
+    } as never);
+    vi.mocked(devolverSolicitudPagoRepository).mockResolvedValue({ count: 1 });
+
+    const resultado = await devolverSolicitudPagoService(
+      usuarioAprobador1,
+      "solicitud-1",
+      { motivo: "Corregir el valor registrado" },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.estado_destino).toBe("DEVUELTA_SOLICITANTE");
+    expect(devolverSolicitudPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        estadoOrigen: "PENDIENTE_APROBADOR_1",
+        estadoDestino: "DEVUELTA_SOLICITANTE",
+        liberarReserva: false,
+      }),
+    );
+  });
+
+  it("debe devolver desde nivel 2 al aprobador 1 conservando reserva", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_2",
+      numero_solicitud: "SOL-001",
+      valor_reservado: 100000,
+    } as never);
+    vi.mocked(devolverSolicitudPagoRepository).mockResolvedValue({ count: 1 });
+
+    const resultado = await devolverSolicitudPagoService(
+      usuarioAprobador2,
+      "solicitud-1",
+      { motivo: "Revisar los soportes adjuntos" },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.estado_destino).toBe("DEVUELTA_APROBADOR_1");
+    expect(devolverSolicitudPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        estadoDestino: "DEVUELTA_APROBADOR_1",
+        liberarReserva: false,
+      }),
+    );
+  });
+
+  it("debe liberar la reserva al devolver desde aprobador 1 al solicitante", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "DEVUELTA_APROBADOR_1",
+      numero_solicitud: "SOL-001",
+      valor_reservado: 100000,
+    } as never);
+    vi.mocked(devolverSolicitudPagoRepository).mockResolvedValue({ count: 1 });
+
+    const resultado = await devolverSolicitudPagoService(
+      usuarioAprobador1,
+      "solicitud-1",
+      { motivo: "El creador debe corregir el beneficiario" },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(devolverSolicitudPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({ liberarReserva: true }),
+    );
+  });
+
+  it("debe devolver en lote solicitudes del mismo nivel", async () => {
+    vi.mocked(obtenerSolicitudesPagoPorIdsRepository).mockResolvedValue([
+      { ...solicitudProveedorBorrador, id: "solicitud-1", estado_actual: "PENDIENTE_APROBADOR_2" },
+      { ...solicitudProveedorBorrador, id: "solicitud-2", estado_actual: "PENDIENTE_APROBADOR_2" },
+    ] as never);
+    vi.mocked(devolverSolicitudesPagoRepository).mockResolvedValue({ count: 2 });
+
+    const resultado = await devolverSolicitudesPagoService(
+      usuarioAprobador2,
+      {
+        solicitud_ids: ["solicitud-1", "solicitud-2"],
+        motivo: "Revisar los soportes de las solicitudes",
+      },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.cantidad_devuelta).toBe(2);
+    expect(devolverSolicitudesPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        estadoDestino: "DEVUELTA_APROBADOR_1",
+        solicitudes: [
+          { id: "solicitud-1", estadoOrigen: "PENDIENTE_APROBADOR_2" },
+          { id: "solicitud-2", estadoOrigen: "PENDIENTE_APROBADOR_2" },
+        ],
+      }),
+    );
+  });
+});
+
+describe("solicitudes-pago.service - anulación en aprobación nivel 1", () => {
+  beforeEach(() => {
+    vi.mocked(anularSolicitudesPagoRepository).mockReset();
+    vi.mocked(obtenerSolicitudesPagoPorIdsRepository).mockReset();
+  });
+
+  it("debe anular en lote solicitudes pendientes de nivel 1", async () => {
+    vi.mocked(obtenerSolicitudesPagoPorIdsRepository).mockResolvedValue([
+      { ...solicitudProveedorBorrador, id: "solicitud-1", estado_actual: "PENDIENTE_APROBADOR_1" },
+      { ...solicitudProveedorBorrador, id: "solicitud-2", estado_actual: "PENDIENTE_APROBADOR_1" },
+    ] as never);
+    vi.mocked(anularSolicitudesPagoRepository).mockResolvedValue({ count: 2 });
+
+    const resultado = await anularSolicitudesPagoService(usuarioAprobador1, {
+      solicitud_ids: ["solicitud-1", "solicitud-2"],
+      motivo: "Las solicitudes no corresponden al proyecto",
+    });
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data).toEqual({
+      cantidad_anulada: 2,
+      estado_destino: "ANULADA",
+    });
+    expect(anularSolicitudesPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        solicitudIds: ["solicitud-1", "solicitud-2"],
+        motivo: "Las solicitudes no corresponden al proyecto",
+        usuarioId: usuarioAprobador1.id,
+      }),
+    );
+  });
+
+  it("debe impedir la anulación a quien no aprueba nivel 1", async () => {
+    const resultado = await anularSolicitudesPagoService(usuarioAprobador2, {
+      solicitud_ids: ["solicitud-1"],
+      motivo: "Solicitud que no debe continuar",
+    });
+
+    expect(resultado.status).toBe(403);
+    expect(anularSolicitudesPagoRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar solicitudes que no estén pendientes de nivel 1", async () => {
+    vi.mocked(obtenerSolicitudesPagoPorIdsRepository).mockResolvedValue([
+      { ...solicitudProveedorBorrador, id: "solicitud-1", estado_actual: "PENDIENTE_APROBADOR_2" },
+    ] as never);
+
+    const resultado = await anularSolicitudesPagoService(usuarioAprobador1, {
+      solicitud_ids: ["solicitud-1"],
+      motivo: "Solicitud que no debe continuar",
+    });
+
+    expect(resultado.status).toBe(409);
+    expect(anularSolicitudesPagoRepository).not.toHaveBeenCalled();
   });
 });

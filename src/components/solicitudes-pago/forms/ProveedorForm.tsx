@@ -81,7 +81,6 @@ export default function ProveedorForm({
         medio_pago: solicitudEnEdicion.medio_pago ?? "",
         descripcion: solicitudEnEdicion.descripcion,
         valor_bruto: String(solicitudEnEdicion.valor_bruto),
-        valor_impuestos: String(solicitudEnEdicion.valor_impuestos),
         valor_retenciones: String(solicitudEnEdicion.valor_retenciones),
         valor_descuentos: String(solicitudEnEdicion.valor_descuentos),
       });
@@ -154,7 +153,6 @@ export default function ProveedorForm({
   function actualizarCampoMoneda(
     campo:
       | "valor_bruto"
-      | "valor_impuestos"
       | "valor_retenciones"
       | "valor_descuentos",
     valor: string,
@@ -235,11 +233,10 @@ export default function ProveedorForm({
     }
 
     if (
-      valores.valorImpuestos < 0 ||
       valores.valorRetenciones < 0 ||
       valores.valorDescuentos < 0
     ) {
-      return "Impuestos, retenciones y descuentos no pueden ser negativos.";
+      return "Los impuestos y retenciones, junto con los descuentos, no pueden ser negativos.";
     }
 
     if (valores.valorNeto < 0) {
@@ -281,7 +278,6 @@ export default function ProveedorForm({
         medio_pago: medioPago,
         descripcion: formulario.descripcion.trim(),
         valor_bruto: valores.valorBruto,
-        valor_impuestos: valores.valorImpuestos,
         valor_retenciones: valores.valorRetenciones,
         valor_descuentos: valores.valorDescuentos,
       },
@@ -539,23 +535,7 @@ export default function ProveedorForm({
           </label>
 
           <label className={styles.field}>
-            <span className={styles.label}>Impuestos</span>
-
-            <input
-              name="valor_impuestos"
-              className={styles.input}
-              type="text"
-              inputMode="numeric"
-              value={form.valor_impuestos}
-              onChange={(event) =>
-                actualizarCampoMoneda("valor_impuestos", event.target.value)
-              }
-              disabled={guardando}
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span className={styles.label}>Retenciones</span>
+            <span className={styles.label}>Impuestos y retenciones</span>
 
             <input
               name="valor_retenciones"
@@ -629,11 +609,11 @@ export default function ProveedorForm({
               );
             }}
             disabled={guardando || solicitudEnEdicion !== null}
-            titulo="Soportes de la solicitud"
+            titulo="Soportes de la solicitud (opcional)"
             ayuda={
               solicitudEnEdicion
                 ? "Los adjuntos existentes se conservan. La modificación de adjuntos durante la edición se implementará en un flujo independiente."
-                : "Adjunta facturas, cuentas de cobro, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+                : "Si lo necesitas, adjunta facturas, cuentas de cobro, certificaciones bancarias u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
             }
           />
 

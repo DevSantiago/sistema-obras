@@ -251,8 +251,7 @@ Los valores consolidados de la solicitud se almacenan en:
 
 ```text
 valor_bruto
-valor_impuestos
-valor_retenciones
+valor_impuestos_retenciones
 valor_descuentos
 valor_neto
 valor_pagado
@@ -291,6 +290,16 @@ pagado_en
 
 Estos campos no constituyen un historial completo de transiciones.
 
+Las devoluciones y anulaciones conservan trazabilidad propia en:
+
+```text
+devoluciones_solicitud_pago
+anulaciones_solicitud_pago
+```
+
+La anulación registra la solicitud, el estado de origen, el motivo, el usuario
+y la fecha. No elimina la solicitud ni sus documentos asociados.
+
 ---
 
 # Restricciones principales
@@ -322,7 +331,8 @@ Su diseño concentra la información organizacional, financiera y operativa de c
 
 # Ejecución de pagos
 
-Las transferencias directas se registran en `pagos`. Cada fila pertenece a
+Los pagos electrónicos directos (`TRANSFERENCIA`, `PSE` o `PORTAL`) se
+registran en `pagos`. Cada fila pertenece a
 una única solicitud, exige un soporte y puede originar un
 `EGRESO_SOLICITUD_PAGO`.
 

@@ -8,6 +8,7 @@ import type {
   ConsultarAprobacionesNivel2Data,
   ProyectoPendienteAprobacionNivel1,
   ProyectoPendienteAprobacionNivel2,
+  SolicitudPagoListado,
   SolicitudesPagoApiResponse,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import {
@@ -99,6 +100,19 @@ export default function AprobacionesManager({
   const [mensajeError, setMensajeError] = useState("");
   const [mensajeExito, setMensajeExito] = useState("");
   const [aprobando, setAprobando] = useState(false);
+  const [solicitudesDevolucion, setSolicitudesDevolucion] =
+    useState<SolicitudPagoListado[]>([]);
+  const [motivoDevolucion, setMotivoDevolucion] = useState("");
+  const [devolviendo, setDevolviendo] = useState(false);
+  const [errorDevolucion, setErrorDevolucion] = useState("");
+  const [solicitudesAnulacion, setSolicitudesAnulacion] =
+    useState<SolicitudPagoListado[]>([]);
+  const [motivoAnulacion, setMotivoAnulacion] = useState("");
+  const [anulando, setAnulando] = useState(false);
+  const [errorAnulacion, setErrorAnulacion] = useState("");
+  const [solicitudDetalle, setSolicitudDetalle] =
+    useState<SolicitudPagoListado | null>(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
 
   const permisoRequerido =
     nivel === 1
@@ -185,6 +199,17 @@ const mensajeSinSolicitudes =
       window.clearTimeout(tareaCarga);
     };
   }, [cargarSolicitudes, puedeAprobar]);
+
+  useEffect(() => {
+    if (!solicitudDetalle) return;
+
+    function cerrarConEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setSolicitudDetalle(null);
+    }
+
+    window.addEventListener("keydown", cerrarConEscape);
+    return () => window.removeEventListener("keydown", cerrarConEscape);
+  }, [solicitudDetalle]);
 
   const solicitudesSeleccionadas = useMemo(
     () =>
@@ -323,6 +348,138 @@ const mensajeSinSolicitudes =
       setMensajeError(mensaje);
     } finally {
       setAprobando(false);
+    }
+  }
+
+  async function devolverSolicitud() {
+    if (solicitudesDevolucion.length === 0 || devolviendo) return;
+
+    const motivo = motivoDevolucion.trim();
+    if (motivo.length < 5) {
+      setErrorDevolucion("Escribe un motivo de devolución de al menos 5 caracteres.");
+      return;
+    }
+
+    setDevolviendo(true);
+    setErrorDevolucion("");
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const esGrupal = solicitudesDevolucion.length > 1;
+      const response = await fetch(
+        esGrupal
+          ? "/api/v1/solicitudes-pago/devolver"
+          : `/api/v1/solicitudes-pago/${solicitudesDevolucion[0].id}/devolver`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            esGrupal
+              ? {
+                  motivo,
+                  solicitud_ids: solicitudesDevolucion.map((solicitud) => solicitud.id),
+                }
+              : { motivo },
+          ),
+        },
+      );
+      const body = (await response.json()) as SolicitudesPagoApiResponse<unknown>;
+
+      if (!response.ok || !body.ok) {
+        throw new Error(body.message ?? "No fue posible devolver la solicitud.");
+      }
+
+      const cantidadDevuelta = solicitudesDevolucion.length;
+      setSolicitudesDevolucion([]);
+      setMotivoDevolucion("");
+      setMensajeExito(
+        cantidadDevuelta === 1
+          ? nivel === 1
+            ? "Solicitud devuelta al solicitante para corrección."
+            : "Solicitud devuelta al aprobador de nivel 1."
+          : `${cantidadDevuelta} solicitudes fueron devueltas correctamente.`,
+      );
+      await cargarSolicitudes();
+    } catch (error) {
+      setErrorDevolucion(error instanceof Error ? error.message : "No fue posible devolver la solicitud.");
+    } finally {
+      setDevolviendo(false);
+    }
+  }
+
+  async function anularSolicitudes() {
+    if (solicitudesAnulacion.length === 0 || anulando) return;
+
+    const motivo = motivoAnulacion.trim();
+    if (motivo.length < 5) {
+      setErrorAnulacion("Escribe un motivo de anulación de al menos 5 caracteres.");
+      return;
+    }
+
+    setAnulando(true);
+    setErrorAnulacion("");
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetch("/api/v1/solicitudes-pago/anular", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          motivo,
+          solicitud_ids: solicitudesAnulacion.map((solicitud) => solicitud.id),
+        }),
+      });
+      const body = (await response.json()) as SolicitudesPagoApiResponse<unknown>;
+
+      if (!response.ok || !body.ok) {
+        throw new Error(body.message ?? "No fue posible anular las solicitudes.");
+      }
+
+      const cantidadAnulada = solicitudesAnulacion.length;
+      setSolicitudesAnulacion([]);
+      setMotivoAnulacion("");
+      setMensajeExito(
+        cantidadAnulada === 1
+          ? "Solicitud anulada correctamente."
+          : `${cantidadAnulada} solicitudes fueron anuladas correctamente.`,
+      );
+      await cargarSolicitudes();
+    } catch (error) {
+      setErrorAnulacion(
+        error instanceof Error ? error.message : "No fue posible anular las solicitudes.",
+      );
+    } finally {
+      setAnulando(false);
+    }
+  }
+
+  async function verDetalleSolicitud(solicitud: SolicitudPagoListado) {
+    setSolicitudDetalle(solicitud);
+    setCargandoDetalle(true);
+    setMensajeError("");
+
+    try {
+      const response = await fetch(`/api/v1/solicitudes-pago/${solicitud.id}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const body = (await response.json()) as SolicitudesPagoApiResponse<{
+        solicitud: SolicitudPagoListado;
+      }>;
+
+      if (!response.ok || !body.ok || !body.data?.solicitud) {
+        throw new Error(body.message ?? "No fue posible consultar el detalle.");
+      }
+
+      setSolicitudDetalle(body.data.solicitud);
+    } catch (error) {
+      setMensajeError(error instanceof Error ? error.message : "No fue posible consultar el detalle.");
+    } finally {
+      setCargandoDetalle(false);
     }
   }
 
@@ -580,12 +737,256 @@ const mensajeSinSolicitudes =
                         proyecto,
                       )
                     }
+                    onDevolver={(solicitud) => {
+                      setSolicitudesDevolucion([solicitud]);
+                      setMotivoDevolucion("");
+                      setErrorDevolucion("");
+                      setSolicitudDetalle(null);
+                      setMensajeError("");
+                    }}
+                    onVerDetalle={(solicitud) => void verDetalleSolicitud(solicitud)}
                   />
                 </article>
               );
             })}
 
+            {solicitudesDevolucion.length > 0 ? (
+              <div className={styles.modalBackdrop} role="presentation">
+                <form
+                  className={styles.returnDialog}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="return-title"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void devolverSolicitud();
+                  }}
+                >
+                  <h2 id="return-title">
+                    {solicitudesDevolucion.length === 1
+                      ? "Devolver solicitud"
+                      : "Devolver solicitudes"}
+                  </h2>
+                  <p>
+                    {solicitudesDevolucion.length === 1
+                      ? solicitudesDevolucion[0].numero_solicitud
+                      : `${solicitudesDevolucion.length} solicitudes seleccionadas`}. {nivel === 1
+                      ? "Regresará al solicitante para que pueda corregirla."
+                      : "Regresará al aprobador de nivel 1 conservando su reserva."}
+                  </p>
+                  <label>
+                    <span>Motivo de devolución *</span>
+                    <textarea
+                      autoFocus
+                      maxLength={500}
+                      rows={4}
+                      value={motivoDevolucion}
+                      onChange={(event) => setMotivoDevolucion(event.target.value)}
+                    />
+                    <small className={styles.returnHelper}>
+                      Escribe al menos 5 caracteres · {motivoDevolucion.length}/500
+                    </small>
+                  </label>
+                  {errorDevolucion ? (
+                    <div className={styles.returnError} role="alert">
+                      <strong>No se pudo completar la devolución</strong>
+                      <span>{errorDevolucion}</span>
+                    </div>
+                  ) : null}
+                  <div className={styles.dialogActions}>
+                    <button
+                      className={styles.refreshButton}
+                      disabled={devolviendo}
+                      type="button"
+                      onClick={() => {
+                        setSolicitudesDevolucion([]);
+                        setErrorDevolucion("");
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className={styles.returnConfirmButton}
+                      disabled={devolviendo}
+                      type="submit"
+                    >
+                      {devolviendo ? "Devolviendo..." : "Confirmar devolución"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : null}
+
+            {nivel === 1 && solicitudesAnulacion.length > 0 ? (
+              <div className={styles.modalBackdrop} role="presentation">
+                <form
+                  className={styles.returnDialog}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="annul-title"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void anularSolicitudes();
+                  }}
+                >
+                  <h2 id="annul-title">
+                    {solicitudesAnulacion.length === 1
+                      ? "Anular solicitud"
+                      : "Anular solicitudes"}
+                  </h2>
+                  <p>
+                    Esta acción es definitiva. Las solicitudes seleccionadas no continuarán en el flujo de aprobación.
+                  </p>
+                  <label>
+                    <span>Motivo de anulación *</span>
+                    <textarea
+                      autoFocus
+                      maxLength={500}
+                      rows={4}
+                      value={motivoAnulacion}
+                      onChange={(event) => setMotivoAnulacion(event.target.value)}
+                    />
+                    <small className={styles.returnHelper}>
+                      Escribe al menos 5 caracteres · {motivoAnulacion.length}/500
+                    </small>
+                  </label>
+                  {errorAnulacion ? (
+                    <div className={styles.returnError} role="alert">
+                      <strong>No se pudo completar la anulación</strong>
+                      <span>{errorAnulacion}</span>
+                    </div>
+                  ) : null}
+                  <div className={styles.dialogActions}>
+                    <button
+                      className={styles.refreshButton}
+                      disabled={anulando}
+                      type="button"
+                      onClick={() => {
+                        setSolicitudesAnulacion([]);
+                        setErrorAnulacion("");
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className={styles.annulConfirmButton}
+                      disabled={anulando}
+                      type="submit"
+                    >
+                      {anulando ? "Anulando..." : "Confirmar anulación"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : null}
+
+            {solicitudDetalle ? (
+              <div
+                className={styles.modalBackdrop}
+                role="presentation"
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget) setSolicitudDetalle(null);
+                }}
+              >
+                <section className={styles.detailDialog} role="dialog" aria-modal="true" aria-labelledby="detail-title">
+                  <div className={styles.detailHeader}>
+                    <div>
+                      <span className={styles.detailEyebrow}>Detalle de solicitud</span>
+                      <h2 id="detail-title">{solicitudDetalle.numero_solicitud ?? "Solicitud sin número"}</h2>
+                      <div className={styles.detailHeaderMeta}>
+                        <span className={styles.detailStatus}>
+                          {solicitudDetalle.estado_actual.replaceAll("_", " ")}
+                        </span>
+                        <span>{solicitudDetalle.tipo_solicitud.replaceAll("_", " ")}</span>
+                      </div>
+                    </div>
+                    <button
+                      className={styles.closeButton}
+                      type="button"
+                      aria-label="Cerrar detalle de la solicitud"
+                      onClick={() => setSolicitudDetalle(null)}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </div>
+
+                  {cargandoDetalle ? (
+                    <div className={styles.detailLoading}>Actualizando información…</div>
+                  ) : null}
+
+                  <div className={styles.detailSection}>
+                    <h3>Información general</h3>
+                    <dl className={styles.detailGrid}>
+                      <div><dt>Proyecto</dt><dd>{solicitudDetalle.proyecto_base?.nombre ?? "—"}</dd></div>
+                      <div><dt>Centro de costo</dt><dd>{solicitudDetalle.centro_costo?.nombre ?? "—"}</dd></div>
+                      <div><dt>Beneficiario</dt><dd>{solicitudDetalle.beneficiario?.nombre ?? "—"}</dd></div>
+                      <div><dt>Medio de pago</dt><dd>{solicitudDetalle.medio_pago?.replaceAll("_", " ") ?? "—"}</dd></div>
+                      {solicitudDetalle.categoria_gasto ? <div><dt>Categoría de gasto</dt><dd>{solicitudDetalle.categoria_gasto.replaceAll("_", " ")}</dd></div> : null}
+                      {solicitudDetalle.categoria_reembolso ? <div><dt>Categoría de reembolso</dt><dd>{solicitudDetalle.categoria_reembolso.replaceAll("_", " ")}</dd></div> : null}
+                      {solicitudDetalle.concepto_nomina ? <div><dt>Concepto de nómina</dt><dd>{solicitudDetalle.concepto_nomina.replaceAll("_", " ")}</dd></div> : null}
+                      {solicitudDetalle.periodo_nomina ? <div><dt>Periodo de nómina</dt><dd>{solicitudDetalle.periodo_nomina}</dd></div> : null}
+                      {solicitudDetalle.tipo_impuesto ? <div><dt>Tipo de impuesto</dt><dd>{solicitudDetalle.tipo_impuesto.replaceAll("_", " ")}</dd></div> : null}
+                      {solicitudDetalle.periodo_impuesto ? <div><dt>Periodo de impuesto</dt><dd>{solicitudDetalle.periodo_impuesto}</dd></div> : null}
+                      <div><dt>Solicitante</dt><dd>{solicitudDetalle.creador?.nombre ?? "—"}</dd></div>
+                      <div className={styles.detailWide}><dt>Descripción</dt><dd>{solicitudDetalle.descripcion}</dd></div>
+                    </dl>
+                  </div>
+
+                  <div className={styles.detailSection}>
+                    <h3>Resumen de valores</h3>
+                    <dl className={`${styles.detailGrid} ${styles.valuesGrid}`}>
+                      <div><dt>Valor bruto</dt><dd>{formatearMoneda(solicitudDetalle.valor_bruto)}</dd></div>
+                      <div><dt>Impuestos y retenciones</dt><dd>{formatearMoneda(solicitudDetalle.valor_retenciones)}</dd></div>
+                      <div><dt>Descuentos</dt><dd>{formatearMoneda(solicitudDetalle.valor_descuentos)}</dd></div>
+                      <div className={styles.detailNet}><dt>Valor neto a pagar</dt><dd>{formatearMoneda(solicitudDetalle.valor_neto)}</dd></div>
+                    </dl>
+                  </div>
+
+                  {solicitudDetalle.ultima_devolucion ? (
+                    <div className={styles.returnReason}>
+                      <strong>Último motivo de devolución</strong>
+                      <p>{solicitudDetalle.ultima_devolucion.motivo}</p>
+                    </div>
+                  ) : null}
+                </section>
+              </div>
+            ) : null}
+
             <div className={styles.actions}>
+              {nivel === 1 ? (
+                <button
+                  type="button"
+                  className={styles.annulSelectedButton}
+                  onClick={() => {
+                    setSolicitudesAnulacion(solicitudesSeleccionadas);
+                    setMotivoAnulacion("");
+                    setErrorAnulacion("");
+                    setSolicitudDetalle(null);
+                    setMensajeError("");
+                  }}
+                  disabled={aprobando || devolviendo || anulando || idsSeleccionados.size === 0}
+                >
+                  {idsSeleccionados.size === 1
+                    ? "Anular solicitud"
+                    : `Anular ${idsSeleccionados.size} solicitudes`}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.returnSelectedButton}
+                onClick={() => {
+                  setSolicitudesDevolucion(solicitudesSeleccionadas);
+                  setMotivoDevolucion("");
+                  setErrorDevolucion("");
+                  setSolicitudDetalle(null);
+                  setMensajeError("");
+                }}
+                disabled={aprobando || devolviendo || idsSeleccionados.size === 0}
+              >
+                {idsSeleccionados.size === 1
+                  ? "Devolver solicitud"
+                  : `Devolver ${idsSeleccionados.size} solicitudes`}
+              </button>
               <button
                 type="button"
                 className={styles.approveButton}

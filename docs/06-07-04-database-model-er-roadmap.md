@@ -69,19 +69,11 @@ Objetivos:
 
 ## Impuestos y retenciones
 
-Permitirá almacenar el detalle de impuestos asociados a una solicitud.
-
-Entidad prevista:
-
-```text
-impuestos_retenciones_solicitud
-```
-
-Objetivos:
-
-- múltiples impuestos;
-- múltiples retenciones;
-- cálculo detallado de valores tributarios.
+El total vigente se almacena de forma consolidada en
+`solicitudes_pago.valor_impuestos_retenciones` y se descuenta una sola vez al
+calcular el valor neto. Una futura entidad de desglose tributario solo deberá
+incorporarse si se aprueba expresamente la necesidad de registrar múltiples
+conceptos; no debe crear totales paralelos de impuestos y retenciones.
 
 ---
 

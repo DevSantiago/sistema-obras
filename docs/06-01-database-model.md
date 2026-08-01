@@ -106,6 +106,8 @@ El modelo se encuentra organizado en los siguientes módulos.
 - operaciones_efectivo;
 - detalles_operacion_efectivo;
 - reingresos_sobrante_efectivo;
+- devoluciones_solicitud_pago;
+- anulaciones_solicitud_pago;
 - correcciones_operacion_efectivo;
 - movimientos_fondo.
 

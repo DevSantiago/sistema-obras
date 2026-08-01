@@ -737,10 +737,19 @@ Se envían únicamente los campos que deban modificarse.
 
 ```json
 {
+  "tipo_beneficiario": "PROVEEDOR",
+  "tipo_documento": "NIT",
+  "numero_documento": "900123456",
   "correo": "nuevo@proveedor.com",
   "telefono": "3200000000"
 }
 ```
+
+El tipo de beneficiario, el tipo de identificación y el número de
+identificación son editables. La combinación de tipo y número de documento
+debe seguir siendo única. Un beneficiario `TRABAJADOR` no puede utilizar
+`NIT`. Cuando el beneficiario es `PROVEEDOR`, sus datos de identificación se
+sincronizan con el registro de proveedor relacionado.
 
 ---
 
@@ -1135,6 +1144,10 @@ POST /api/v1/solicitudes-pago/aprobar-nivel-1
 
 GET  /api/v1/solicitudes-pago/aprobar-nivel-2
 POST /api/v1/solicitudes-pago/aprobar-nivel-2
+
+POST /api/v1/solicitudes-pago/{id}/devolver
+POST /api/v1/solicitudes-pago/devolver
+POST /api/v1/solicitudes-pago/anular
 ```
 
 Los endpoints `POST` reciben un arreglo `solicitud_ids`. El mismo contrato
@@ -1205,15 +1218,17 @@ La solicitud queda disponible para revisión por parte del Aprobador 2.
 
 ---
 
-## Devolver solicitud al solicitante
-
-> **Estado:** proyectado; este endpoint todavía no está implementado.
+## Devolver solicitud
 
 ```http
-POST /api/v1/solicitudes-pago/{id}/devolver-solicitante
+POST /api/v1/solicitudes-pago/{id}/devolver
 ```
 
-Permite que el Aprobador 1 devuelva la solicitud al solicitante para que realice las correcciones o complete la información requerida.
+El destino se determina por el estado y el nivel del usuario:
+
+- `PENDIENTE_APROBADOR_1` pasa a `DEVUELTA_SOLICITANTE`;
+- `PENDIENTE_APROBADOR_2` pasa a `DEVUELTA_APROBADOR_1` y conserva la reserva;
+- `DEVUELTA_APROBADOR_1` pasa a `DEVUELTA_SOLICITANTE` y libera la reserva.
 
 La operación realiza la siguiente transición:
 
@@ -1236,7 +1251,20 @@ PENDIENTE_APROBADOR_1
 }
 ```
 
-El motivo de la devolución es obligatorio.
+El motivo es obligatorio, admite entre 5 y 500 caracteres y se registra en
+`devoluciones_solicitud_pago` junto con usuario, fecha, estado anterior y
+estado nuevo.
+
+Para devolver varias solicitudes desde el checklist se usa el endpoint de
+colección. Todas deben pertenecer al mismo nivel y la operación completa se
+confirma en una única transacción:
+
+```json
+{
+  "solicitud_ids": ["uuid-1", "uuid-2"],
+  "motivo": "Se requiere corregir la documentación adjunta."
+}
+```
 
 ---
 
@@ -1267,50 +1295,15 @@ No se requiere una operación posterior para programar la solicitud. Una vez apr
 
 ---
 
-## Devolver solicitud al Aprobador 1
-
-> **Estado:** proyectado; este endpoint todavía no está implementado.
+## Anular solicitudes en aprobación nivel 1
 
 ```http
-POST /api/v1/solicitudes-pago/{id}/devolver-aprobador-1
+POST /api/v1/solicitudes-pago/anular
 ```
 
-Permite que el Aprobador 2 devuelva la solicitud al primer nivel de aprobación para su revisión.
-
-La operación realiza la siguiente transición:
-
-```text
-PENDIENTE_APROBADOR_2
-→ DEVUELTA_APROBADOR_1
-```
-
-### Parámetros de ruta
-
-| Parámetro | Tipo |
-|-----------|------|
-| id | UUID |
-
-### Cuerpo
-
-```json
-{
-  "motivo": "Se requiere verificar nuevamente la distribución por centro de costo."
-}
-```
-
-El motivo de la devolución es obligatorio.
-
----
-
-## Anular solicitud
-
-> **Estado:** proyectado; este endpoint todavía no está implementado.
-
-```http
-POST /api/v1/solicitudes-pago/{id}/anular
-```
-
-Finaliza el ciclo de vida de una solicitud que no debe continuar dentro del proceso.
+Finaliza el ciclo de vida de una o varias solicitudes que no deben continuar
+dentro del proceso. Requiere el permiso `APROBAR_NIVEL_1` y solo admite
+solicitudes en `PENDIENTE_APROBADOR_1`.
 
 La operación cambia el estado de la solicitud a:
 
@@ -1320,21 +1313,18 @@ ANULADA
 
 La anulación no elimina físicamente la solicitud ni sus registros asociados. La información permanece disponible para consulta, auditoría y trazabilidad.
 
-### Parámetros de ruta
-
-| Parámetro | Tipo |
-|-----------|------|
-| id | UUID |
-
 ### Cuerpo
 
 ```json
 {
+  "solicitud_ids": ["uuid-1", "uuid-2"],
   "motivo": "Solicitud creada con información que no corresponde al pago requerido."
 }
 ```
 
-El motivo de la anulación es obligatorio.
+El motivo de la anulación es obligatorio y debe contener entre 5 y 500
+caracteres. La operación es atómica y registra usuario, motivo y fecha para
+auditoría.
 
 ---
 
@@ -1397,7 +1387,7 @@ tipo de cuenta y número de cuenta. Las solicitudes pagadas no se incluyen.
 POST /api/v1/solicitudes-pago/registrar-pagos
 ```
 
-Registra una o varias transferencias. El mismo endpoint cubre el pago
+Registra uno o varios pagos directos mediante transferencia, PSE o portal. El mismo endpoint cubre el pago
 individual cuando recibe un único elemento.
 
 La operación realiza la siguiente transición:
@@ -1428,7 +1418,6 @@ un manifiesto JSON y cada elemento referencia su archivo mediante
   "pagos": [
     {
       "solicitud_id": "uuid",
-      "fecha_pago": "2026-08-18",
       "medio_pago": "TRANSFERENCIA",
       "numero_comprobante": "TRX-458796",
       "observacion": "Pago realizado mediante transferencia bancaria.",
@@ -1439,10 +1428,14 @@ un manifiesto JSON y cada elemento referencia su archivo mediante
 ```
 
 Cada solicitud debe incluir una referencia y un soporte propios. La operación
-es atómica: si un elemento falla, no se registra ningún pago del lote.
-La fecha puede ser el día actual en `America/Bogota`, pero no una fecha
-posterior. Cada transferencia crea un `pago` y un movimiento
+es atómica: si un elemento falla, no se registra ningún pago del lote. La
+fecha se asigna automáticamente con la hora del servidor al registrar el
+lote. Cada pago directo crea un `pago` y un movimiento
 `EGRESO_SOLICITUD_PAGO`.
+
+El soporte usa el mismo contrato multipart para archivos cargados desde el
+sistema de archivos o imágenes capturadas con la cámara. No existe un campo API
+distinto para la captura fotográfica.
 
 ---
 
@@ -1462,7 +1455,6 @@ pago se referencian mediante el nombre de su campo.
 
 ```json
 {
-  "fecha_retiro": "2026-07-27",
   "valor_retirado": 800000,
   "observacion": "Retiro para pagos del proyecto.",
   "reintegrar_sobrante": false,
@@ -1483,8 +1475,8 @@ las solicitudes como pagadas no genera descuentos adicionales. Cada pago
 exige soporte y las consignaciones exigen referencia.
 
 El soporte general se registra en `adjunto_retiro_id`; cada soporte individual
-se relaciona mediante `detalles_operacion_efectivo`. La fecha puede ser el día
-actual en `America/Bogota`, pero no una fecha posterior.
+se relaciona mediante `detalles_operacion_efectivo`. La fecha del retiro se
+asigna automáticamente con la hora del servidor al registrar la operación.
 
 ---
 

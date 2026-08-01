@@ -225,6 +225,11 @@ creado_en
 actualizado_en
 ```
 
+Los soportes operativos admiten archivos PDF, PNG y JPEG. La captura mediante
+cámara es una alternativa de adquisición del frontend: la imagen resultante se
+almacena como un `adjunto` normal y conserva las mismas reglas de tamaño,
+propiedad, asociación y trazabilidad.
+
 ---
 
 # Índices

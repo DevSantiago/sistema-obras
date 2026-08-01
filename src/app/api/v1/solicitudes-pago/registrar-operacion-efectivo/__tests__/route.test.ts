@@ -52,7 +52,6 @@ describe("POST /api/v1/solicitudes-pago/registrar-operacion-efectivo", () => {
     formData.append(
       "operacion",
       JSON.stringify({
-        fecha_retiro: "2026-07-27",
         valor_retirado: 80000,
         reintegrar_sobrante: true,
         archivo_retiro_campo: "soporte_retiro",

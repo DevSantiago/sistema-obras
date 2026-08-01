@@ -282,8 +282,7 @@ describe(
         medio_pago: "TRANSFERENCIA",
         descripcion: "Reembolso de transporte",
         valor_bruto: 500000,
-        valor_impuestos: 95000,
-        valor_retenciones: 25000,
+        valor_retenciones: 120000,
         valor_descuentos: 10000,
       });
 

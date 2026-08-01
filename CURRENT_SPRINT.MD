@@ -31,6 +31,7 @@ Implementar completamente:
 - HU-1103 — completada
 - HU-1104 — completada
 - HU-1105 — completada
+- Corrección del flujo de devolución entre aprobadores y solicitante — en desarrollo
 
 Incluyendo:
 
@@ -52,6 +53,13 @@ Incluyendo:
 6. HU-1104 implementada y documentada.
 7. HU-1105 implementada y documentada.
 8. Detener el desarrollo.
+
+### Corrección autorizada posterior a la Épica 11
+
+Antes de iniciar una nueva épica se completa el flujo documentado de
+devolución de solicitudes: devolución con motivo desde nivel 1 o nivel 2,
+corrección por el solicitante, reenvío entre niveles, auditoría y manejo de la
+reserva presupuestal.
 
 ---
 

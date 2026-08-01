@@ -25,6 +25,10 @@ import {
   obtenerFondosPorIdsRepository,
   aprobarSolicitudesNivel1Repository,
   aprobarSolicitudesNivel2Repository,
+  devolverSolicitudPagoRepository,
+  devolverSolicitudesPagoRepository,
+  anularSolicitudesPagoRepository,
+  reenviarSolicitudDevueltaRepository,
   SolicitudesPagoCambioConcurrenteError,
   RegistroPagosError,
   registrarOperacionEfectivoRepository,
@@ -56,6 +60,12 @@ import type {
   AprobarSolicitudesNivel2Input,
   ResumenProyectoAprobacionNivel2,
   AprobarSolicitudesNivel2Data,
+  DevolverSolicitudPagoInput,
+  DevolverSolicitudPagoData,
+  DevolverSolicitudesPagoInput,
+  DevolverSolicitudesPagoData,
+  AnularSolicitudesPagoInput,
+  AnularSolicitudesPagoData,
   RegistrarTransferenciaLoteInput,
   RegistrarTransferenciasData,
   RegistrarOperacionEfectivoInput,
@@ -64,6 +74,8 @@ import type {
 
 const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
   "TRANSFERENCIA",
+  "PSE",
+  "PORTAL",
   "CONSIGNACION",
   "EFECTIVO",
 ];
@@ -81,19 +93,6 @@ function obtenerMetadatosAdjunto(archivo: ArchivoGuardado) {
     tipo_mime: archivo.tipo_mime,
     tamano_archivo: archivo.tamano_archivo,
   };
-}
-
-function obtenerFechaActualBogota(fecha: Date): string {
-  const partes = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(fecha);
-  const obtenerParte = (tipo: Intl.DateTimeFormatPartTypes) =>
-    partes.find((parte) => parte.type === tipo)?.value ?? "";
-
-  return `${obtenerParte("year")}-${obtenerParte("month")}-${obtenerParte("day")}`;
 }
 
 const TIPOS_SOLICITUD_VALIDOS: TipoSolicitudPago[] = [
@@ -151,7 +150,6 @@ type SolicitudPagoRepositoryResult = {
   adjunto_archivo_origen_id: string | null;
   descripcion: string;
   valor_bruto: unknown;
-  valor_impuestos: unknown;
   valor_retenciones: unknown;
   valor_descuentos: unknown;
   valor_neto: unknown;
@@ -191,6 +189,17 @@ type SolicitudPagoRepositoryResult = {
     nombre: string;
     correo: string;
   } | null;
+  devoluciones?: Array<{
+    id: string;
+    estado_origen: string;
+    estado_destino: string;
+    motivo: string;
+    creado_en: Date;
+    usuario: {
+      id: string;
+      nombre: string;
+    };
+  }>;
 };
 
 type ContextoFinancieroSolicitud = {
@@ -579,7 +588,6 @@ function convertirSolicitudPago(
     adjunto_archivo_origen_id: solicitud.adjunto_archivo_origen_id,
     descripcion: solicitud.descripcion,
     valor_bruto: convertirDecimalANumero(solicitud.valor_bruto),
-    valor_impuestos: convertirDecimalANumero(solicitud.valor_impuestos),
     valor_retenciones: convertirDecimalANumero(solicitud.valor_retenciones),
     valor_descuentos: convertirDecimalANumero(solicitud.valor_descuentos),
     valor_neto: convertirDecimalANumero(solicitud.valor_neto),
@@ -594,6 +602,7 @@ function convertirSolicitudPago(
     beneficiario: solicitud.beneficiario,
     proveedor: solicitud.proveedor,
     creador: solicitud.creador,
+    ultima_devolucion: solicitud.devoluciones?.[0] ?? null,
   };
 }
 
@@ -665,13 +674,14 @@ function construirSolicitudPagoProveedorRepositoryInput(input: {
   medioPago: MedioPagoSolicitud;
   descripcion: string;
   valorBruto: number;
-  valorImpuestos: number;
   valorRetenciones: number;
   valorDescuentos: number;
   valorNeto: number;
+  numeroSolicitud?: string | null;
+  estadoActual?: "BORRADOR" | "DEVUELTA_SOLICITANTE";
 }): CrearSolicitudPagoProveedorRepositoryInput {
   return {
-    numero_solicitud: null,
+    numero_solicitud: input.numeroSolicitud ?? null,
     tipo_solicitud: "PAGO_PROVEEDOR",
     modalidad_nomina: null,
     periodo_nomina: null,
@@ -689,11 +699,10 @@ function construirSolicitudPagoProveedorRepositoryInput(input: {
     adjunto_archivo_origen_id: null,
     descripcion: input.descripcion,
     valor_bruto: input.valorBruto,
-    valor_impuestos: input.valorImpuestos,
     valor_retenciones: input.valorRetenciones,
     valor_descuentos: input.valorDescuentos,
     valor_neto: input.valorNeto,
-    estado_actual: "BORRADOR",
+    estado_actual: input.estadoActual ?? "BORRADOR",
     creado_por: input.usuarioId,
   };
 }
@@ -909,7 +918,11 @@ async function obtenerSolicitudEditable(
     };
   }
 
-  if (solicitud.estado_actual !== "BORRADOR") {
+  const estadoEditablePorSolicitante =
+    solicitud.estado_actual === "BORRADOR" ||
+    solicitud.estado_actual === "DEVUELTA_SOLICITANTE";
+
+  if (!estadoEditablePorSolicitante) {
     return {
       ok: false,
       response: {
@@ -917,7 +930,7 @@ async function obtenerSolicitudEditable(
         body: {
           ok: false,
           message:
-            "Solo se pueden editar solicitudes en estado BORRADOR.",
+            "Solo se pueden editar solicitudes en borrador o devueltas al solicitante.",
         },
       },
     };
@@ -1133,12 +1146,10 @@ export async function registrarTransferenciasService(
   }
 
   const fechaActual = new Date();
-  const fechaActualBogota = obtenerFechaActualBogota(fechaActual);
 
   for (const pago of pagos) {
     if (
       !pago.solicitud_id.trim() ||
-      !pago.fecha_pago.trim() ||
       !pago.numero_comprobante.trim()
     ) {
       return {
@@ -1146,34 +1157,7 @@ export async function registrarTransferenciasService(
         body: {
           ok: false,
           message:
-            "La solicitud, fecha de pago y referencia son obligatorias para cada transferencia.",
-        },
-      };
-    }
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(pago.fecha_pago)) {
-      return {
-        status: 400,
-        body: {
-          ok: false,
-          message: "Cada fecha de pago debe tener formato YYYY-MM-DD.",
-        },
-      };
-    }
-
-    const fechaPago = new Date(`${pago.fecha_pago}T12:00:00.000Z`);
-
-    if (
-      Number.isNaN(fechaPago.getTime()) ||
-      fechaPago.toISOString().slice(0, 10) !== pago.fecha_pago ||
-      pago.fecha_pago > fechaActualBogota
-    ) {
-      return {
-        status: 400,
-        body: {
-          ok: false,
-          message:
-            "La fecha de pago debe ser válida y no puede estar en el futuro.",
+            "La solicitud y la referencia son obligatorias para cada pago directo.",
         },
       };
     }
@@ -1230,7 +1214,7 @@ export async function registrarTransferenciasService(
     const resultado = await registrarTransferenciasRepository({
       pagos: pagos.map((pago, indice) => ({
         solicitud_id: pago.solicitud_id.trim(),
-        fecha_pago: new Date(`${pago.fecha_pago}T12:00:00.000Z`),
+        fecha_pago: fechaActual,
         numero_comprobante: pago.numero_comprobante.trim(),
         observacion: pago.observacion?.trim() || null,
         soporte: obtenerMetadatosAdjunto(archivosGuardados[indice]),
@@ -1245,8 +1229,8 @@ export async function registrarTransferenciasService(
         ok: true,
         message:
           pagos.length === 1
-            ? "Transferencia registrada correctamente."
-            : `${pagos.length} transferencias registradas correctamente.`,
+            ? "Pago directo registrado correctamente."
+            : `${pagos.length} pagos directos registrados correctamente.`,
         data: {
           solicitudes: resultado.solicitudes.map(convertirSolicitudPago),
           resumen_proyectos: resultado.resumen_proyectos,
@@ -1319,7 +1303,6 @@ export async function registrarOperacionEfectivoService(
   }
 
   if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(operacion.fecha_retiro) ||
     !Number.isFinite(operacion.valor_retirado) ||
     operacion.valor_retirado <= 0
   ) {
@@ -1328,32 +1311,12 @@ export async function registrarOperacionEfectivoService(
       body: {
         ok: false,
         message:
-          "La fecha y un valor retirado mayor que cero son obligatorios.",
+          "El valor retirado debe ser mayor que cero.",
       },
     };
   }
 
   const fechaActual = new Date();
-  const fechaActualBogota = obtenerFechaActualBogota(fechaActual);
-  const fechaRetiro = new Date(
-    `${operacion.fecha_retiro}T12:00:00.000Z`,
-  );
-
-  if (
-    Number.isNaN(fechaRetiro.getTime()) ||
-    fechaRetiro.toISOString().slice(0, 10) !==
-      operacion.fecha_retiro ||
-    operacion.fecha_retiro > fechaActualBogota
-  ) {
-    return {
-      status: 400,
-      body: {
-        ok: false,
-        message:
-          "La fecha del retiro debe ser válida y no puede estar en el futuro.",
-      },
-    };
-  }
 
   const archivos = [
     operacion.soporte_retiro,
@@ -1400,7 +1363,7 @@ export async function registrarOperacionEfectivoService(
 
     const resultado = await registrarOperacionEfectivoRepository({
       operacion: {
-        fecha_retiro: fechaRetiro,
+        fecha_retiro: fechaActual,
         valor_retirado: operacion.valor_retirado,
         observacion: operacion.observacion?.trim() || null,
         reintegrar_sobrante: operacion.reintegrar_sobrante,
@@ -1832,13 +1795,11 @@ export async function crearSolicitudPagoProveedorService(
   }
 
   const valorBruto = obtenerNumeroNoNegativo(input.valor_bruto, -1);
-  const valorImpuestos = obtenerNumeroNoNegativo(input.valor_impuestos);
   const valorRetenciones = obtenerNumeroNoNegativo(input.valor_retenciones);
   const valorDescuentos = obtenerNumeroNoNegativo(input.valor_descuentos);
 
   if (
     valorBruto === null ||
-    valorImpuestos === null ||
     valorRetenciones === null ||
     valorDescuentos === null ||
     valorBruto <= 0
@@ -1853,8 +1814,7 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
-  const valorNeto =
-    valorBruto - valorImpuestos - valorRetenciones - valorDescuentos;
+  const valorNeto = valorBruto - valorRetenciones - valorDescuentos;
 
   if (valorNeto < 0) {
     return {
@@ -1915,7 +1875,6 @@ export async function crearSolicitudPagoProveedorService(
       medioPago,
       descripcion,
       valorBruto,
-      valorImpuestos,
       valorRetenciones,
       valorDescuentos,
       valorNeto,
@@ -2015,9 +1974,6 @@ export async function actualizarSolicitudPagoProveedorService(
     input.valor_bruto,
     -1,
   );
-  const valorImpuestos = obtenerNumeroNoNegativo(
-    input.valor_impuestos,
-  );
   const valorRetenciones = obtenerNumeroNoNegativo(
     input.valor_retenciones,
   );
@@ -2027,7 +1983,6 @@ export async function actualizarSolicitudPagoProveedorService(
 
   if (
     valorBruto === null ||
-    valorImpuestos === null ||
     valorRetenciones === null ||
     valorDescuentos === null ||
     valorBruto <= 0
@@ -2042,11 +1997,7 @@ export async function actualizarSolicitudPagoProveedorService(
     };
   }
 
-  const valorNeto =
-    valorBruto -
-    valorImpuestos -
-    valorRetenciones -
-    valorDescuentos;
+  const valorNeto = valorBruto - valorRetenciones - valorDescuentos;
 
   if (valorNeto < 0) {
     return {
@@ -2109,10 +2060,14 @@ export async function actualizarSolicitudPagoProveedorService(
       medioPago,
       descripcion,
       valorBruto,
-      valorImpuestos,
       valorRetenciones,
       valorDescuentos,
       valorNeto,
+      numeroSolicitud:
+        solicitudEditable.solicitud.numero_solicitud,
+      estadoActual: solicitudEditable.solicitud.estado_actual as
+        | "BORRADOR"
+        | "DEVUELTA_SOLICITANTE",
     });
 
   const solicitudActualizada =
@@ -2322,7 +2277,6 @@ export async function crearSolicitudNominaIndividualService(
     adjunto_archivo_origen_id: null,
     descripcion,
     valor_bruto: valorBruto,
-    valor_impuestos: 0,
     valor_retenciones: valorRetenciones,
     valor_descuentos: valorDescuentos,
     valor_neto: valorNeto,
@@ -2566,11 +2520,12 @@ export async function actualizarSolicitudNominaIndividualService(
         adjunto_archivo_origen_id: null,
         descripcion,
         valor_bruto: valorBruto,
-        valor_impuestos: 0,
         valor_retenciones: valorRetenciones,
         valor_descuentos: valorDescuentos,
         valor_neto: valorNeto,
-        estado_actual: "BORRADOR",
+        estado_actual: solicitudEditable.solicitud.estado_actual as
+          | "BORRADOR"
+          | "DEVUELTA_SOLICITANTE",
         creado_por:
           solicitudEditable.solicitud.creado_por ??
           usuarioAutenticado.id,
@@ -2723,7 +2678,6 @@ export async function crearSolicitudPagoImpuestoService(
     adjunto_archivo_origen_id: null,
     descripcion,
     valor_bruto: valorBruto,
-    valor_impuestos: 0,
     valor_retenciones: 0,
     valor_descuentos: 0,
     valor_neto: valorBruto,
@@ -2919,11 +2873,12 @@ export async function actualizarSolicitudPagoImpuestoService(
         adjunto_archivo_origen_id: null,
         descripcion,
         valor_bruto: valorBruto,
-        valor_impuestos: 0,
         valor_retenciones: 0,
         valor_descuentos: 0,
         valor_neto: valorBruto,
-        estado_actual: "BORRADOR",
+        estado_actual: solicitudEditable.solicitud.estado_actual as
+          | "BORRADOR"
+          | "DEVUELTA_SOLICITANTE",
         creado_por:
           solicitudEditable.solicitud.creado_por ??
           usuarioAutenticado.id,
@@ -3008,10 +2963,6 @@ export async function crearSolicitudReembolsoService(
   }
 
   const valorBruto = obtenerNumeroNoNegativo(input.valor_bruto, -1);
-  const valorImpuestos = obtenerNumeroNoNegativo(
-    input.valor_impuestos,
-    0,
-  );
   const valorRetenciones = obtenerNumeroNoNegativo(
     input.valor_retenciones,
     0,
@@ -3033,7 +2984,6 @@ export async function crearSolicitudReembolsoService(
   }
 
   if (
-    valorImpuestos === null ||
     valorRetenciones === null ||
     valorDescuentos === null
   ) {
@@ -3042,7 +2992,7 @@ export async function crearSolicitudReembolsoService(
       body: {
         ok: false,
         message:
-          "Impuestos, retenciones y descuentos deben ser valores numéricos no negativos.",
+          "Impuestos y retenciones, junto con los descuentos, deben ser valores numéricos no negativos.",
       },
     };
   }
@@ -3116,7 +3066,6 @@ export async function crearSolicitudReembolsoService(
     adjunto_archivo_origen_id: null,
     descripcion,
     valor_bruto: valorBruto,
-    valor_impuestos: valorImpuestos,
     valor_retenciones: valorRetenciones,
     valor_descuentos: valorDescuentos,
     valor_neto: valorNeto,
@@ -3235,10 +3184,6 @@ export async function actualizarSolicitudReembolsoService(
     input.valor_bruto,
     -1,
   );
-  const valorImpuestos = obtenerNumeroNoNegativo(
-    input.valor_impuestos,
-    0,
-  );
   const valorRetenciones = obtenerNumeroNoNegativo(
     input.valor_retenciones,
     0,
@@ -3260,7 +3205,6 @@ export async function actualizarSolicitudReembolsoService(
   }
 
   if (
-    valorImpuestos === null ||
     valorRetenciones === null ||
     valorDescuentos === null
   ) {
@@ -3269,7 +3213,7 @@ export async function actualizarSolicitudReembolsoService(
       body: {
         ok: false,
         message:
-          "Impuestos, retenciones y descuentos deben ser valores numéricos no negativos.",
+          "Impuestos y retenciones, junto con los descuentos, deben ser valores numéricos no negativos.",
       },
     };
   }
@@ -3348,11 +3292,12 @@ export async function actualizarSolicitudReembolsoService(
         adjunto_archivo_origen_id: null,
         descripcion,
         valor_bruto: valorBruto,
-        valor_impuestos: valorImpuestos,
         valor_retenciones: valorRetenciones,
         valor_descuentos: valorDescuentos,
         valor_neto: valorNeto,
-        estado_actual: "BORRADOR",
+        estado_actual: solicitudEditable.solicitud.estado_actual as
+          | "BORRADOR"
+          | "DEVUELTA_SOLICITANTE",
         creado_por:
           solicitudEditable.solicitud.creado_por ??
           usuarioAutenticado.id,
@@ -3451,13 +3396,72 @@ export async function enviarSolicitudPagoService(
   }
 
   const esPropietario = solicitud.creado_por === usuarioAutenticado.id;
+  const esAdministrador = usuarioEsAdministrador(usuarioAutenticado);
+  const esReenvioAprobador1 =
+    solicitud.estado_actual === "DEVUELTA_APROBADOR_1" &&
+    (usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_1") ||
+      esAdministrador);
 
-  if (!esPropietario && !usuarioEsAdministrador(usuarioAutenticado)) {
+  if (!esPropietario && !esAdministrador && !esReenvioAprobador1) {
     return {
       status: 403,
       body: {
         ok: false,
         message: "Solo el creador de la solicitud o un Administrador puede enviarla.",
+      },
+    };
+  }
+
+  if (solicitud.estado_actual === "DEVUELTA_SOLICITANTE") {
+    const resultado = await reenviarSolicitudDevueltaRepository({
+      solicitudId: id,
+      estadoOrigen: "DEVUELTA_SOLICITANTE",
+      estadoDestino: "PENDIENTE_APROBADOR_1",
+      fecha: new Date(),
+    });
+
+    if (resultado.count !== 1) {
+      return {
+        status: 409,
+        body: { ok: false, message: "La solicitud cambió de estado. Actualice la información." },
+      };
+    }
+
+    const reenviada = await obtenerSolicitudPagoPorIdRepository(id);
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message: "Solicitud corregida y reenviada al aprobador de nivel 1.",
+        data: { solicitud: convertirSolicitudPago(reenviada!) },
+      },
+    };
+  }
+
+  if (solicitud.estado_actual === "DEVUELTA_APROBADOR_1") {
+    const resultado = await reenviarSolicitudDevueltaRepository({
+      solicitudId: id,
+      estadoOrigen: "DEVUELTA_APROBADOR_1",
+      estadoDestino: "PENDIENTE_APROBADOR_2",
+      fecha: new Date(),
+    });
+
+    if (resultado.count !== 1) {
+      return {
+        status: 409,
+        body: { ok: false, message: "La solicitud cambió de estado. Actualice la información." },
+      };
+    }
+
+    const reenviada = await obtenerSolicitudPagoPorIdRepository(id);
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message: "Solicitud reenviada al aprobador de nivel 2.",
+        data: { solicitud: convertirSolicitudPago(reenviada!) },
       },
     };
   }
@@ -3502,6 +3506,222 @@ export async function enviarSolicitudPagoService(
       },
     },
   };
+}
+
+export async function devolverSolicitudPagoService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  input: DevolverSolicitudPagoInput,
+): Promise<ServiceResponse<DevolverSolicitudPagoData>> {
+  const id = normalizarTexto(solicitudId);
+  const motivo = normalizarTexto(input.motivo);
+
+  if (!id) {
+    return { status: 400, body: { ok: false, message: "El identificador de la solicitud es obligatorio." } };
+  }
+
+  if (motivo.length < 5 || motivo.length > 500) {
+    return { status: 400, body: { ok: false, message: "El motivo debe tener entre 5 y 500 caracteres." } };
+  }
+
+  const solicitud = await obtenerSolicitudPagoPorIdRepository(id);
+
+  if (!solicitud) {
+    return { status: 404, body: { ok: false, message: "La solicitud de pago no existe." } };
+  }
+
+  const estadoOrigen = solicitud.estado_actual;
+  let estadoDestino: "DEVUELTA_APROBADOR_1" | "DEVUELTA_SOLICITANTE";
+  let liberarReserva = false;
+
+  if (estadoOrigen === "PENDIENTE_APROBADOR_1") {
+    if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_1")) {
+      return { status: 403, body: { ok: false, message: "No tiene permiso para devolver solicitudes de nivel 1." } };
+    }
+    estadoDestino = "DEVUELTA_SOLICITANTE";
+  } else if (estadoOrigen === "PENDIENTE_APROBADOR_2") {
+    if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_2")) {
+      return { status: 403, body: { ok: false, message: "No tiene permiso para devolver solicitudes de nivel 2." } };
+    }
+    estadoDestino = "DEVUELTA_APROBADOR_1";
+  } else if (estadoOrigen === "DEVUELTA_APROBADOR_1") {
+    if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_1")) {
+      return { status: 403, body: { ok: false, message: "No tiene permiso para gestionar esta devolución." } };
+    }
+    estadoDestino = "DEVUELTA_SOLICITANTE";
+    liberarReserva = true;
+  } else {
+    return { status: 409, body: { ok: false, message: "La solicitud no se encuentra en un estado que permita devolución." } };
+  }
+
+  try {
+    await devolverSolicitudPagoRepository({
+      solicitudId: id,
+      estadoOrigen,
+      estadoDestino,
+      motivo,
+      usuarioId: usuarioAutenticado.id,
+      fecha: new Date(),
+      liberarReserva,
+    });
+  } catch (error) {
+    if (error instanceof SolicitudesPagoCambioConcurrenteError) {
+      return { status: 409, body: { ok: false, message: "La solicitud cambió de estado. Actualice la información." } };
+    }
+    throw error;
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: estadoDestino === "DEVUELTA_SOLICITANTE"
+        ? "Solicitud devuelta al solicitante para corrección."
+        : "Solicitud devuelta al aprobador de nivel 1.",
+      data: { solicitud_id: id, estado_origen: estadoOrigen, estado_destino: estadoDestino, motivo },
+    },
+  };
+}
+
+export async function devolverSolicitudesPagoService(
+  usuarioAutenticado: UsuarioSesion,
+  input: DevolverSolicitudesPagoInput,
+): Promise<ServiceResponse<DevolverSolicitudesPagoData>> {
+  const ids = normalizarIdsSolicitudes(input.solicitud_ids);
+  const motivo = normalizarTexto(input.motivo);
+
+  if (ids.ids.length === 0) {
+    return { status: 400, body: { ok: false, message: "Debe seleccionar al menos una solicitud." } };
+  }
+
+  if (ids.tieneValoresInvalidos || ids.tieneDuplicados) {
+    return { status: 400, body: { ok: false, message: "La selección contiene identificadores inválidos o duplicados." } };
+  }
+
+  if (motivo.length < 5 || motivo.length > 500) {
+    return { status: 400, body: { ok: false, message: "El motivo debe tener entre 5 y 500 caracteres." } };
+  }
+
+  const solicitudes = await obtenerSolicitudesPagoPorIdsRepository(ids.ids);
+
+  if (solicitudes.length !== ids.ids.length) {
+    return { status: 404, body: { ok: false, message: "Una o más solicitudes seleccionadas no existen." } };
+  }
+
+  const esNivel1 = solicitudes.every(
+    (solicitud) => solicitud.estado_actual === "PENDIENTE_APROBADOR_1",
+  );
+  const esNivel2 = solicitudes.every(
+    (solicitud) => solicitud.estado_actual === "PENDIENTE_APROBADOR_2",
+  );
+
+  if (!esNivel1 && !esNivel2) {
+    return { status: 409, body: { ok: false, message: "Todas las solicitudes deben pertenecer al mismo nivel de aprobación." } };
+  }
+
+  const permiso = esNivel1 ? "APROBAR_NIVEL_1" : "APROBAR_NIVEL_2";
+  if (!usuarioTienePermiso(usuarioAutenticado, permiso)) {
+    return { status: 403, body: { ok: false, message: "No tiene permiso para devolver las solicitudes seleccionadas." } };
+  }
+
+  const estadoOrigen = esNivel1
+    ? "PENDIENTE_APROBADOR_1" as const
+    : "PENDIENTE_APROBADOR_2" as const;
+  const estadoDestino = esNivel1
+    ? "DEVUELTA_SOLICITANTE" as const
+    : "DEVUELTA_APROBADOR_1" as const;
+
+  try {
+    const resultado = await devolverSolicitudesPagoRepository({
+      solicitudes: solicitudes.map((solicitud) => ({
+        id: solicitud.id,
+        estadoOrigen,
+      })),
+      estadoDestino,
+      motivo,
+      usuarioId: usuarioAutenticado.id,
+      fecha: new Date(),
+    });
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message: `${resultado.count} solicitudes fueron devueltas correctamente.`,
+        data: {
+          cantidad_devuelta: resultado.count,
+          estado_destino: estadoDestino,
+        },
+      },
+    };
+  } catch (error) {
+    if (error instanceof SolicitudesPagoCambioConcurrenteError) {
+      return { status: 409, body: { ok: false, message: "Una o más solicitudes cambiaron de estado. Actualice la información." } };
+    }
+    throw error;
+  }
+}
+
+export async function anularSolicitudesPagoService(
+  usuarioAutenticado: UsuarioSesion,
+  input: AnularSolicitudesPagoInput,
+): Promise<ServiceResponse<AnularSolicitudesPagoData>> {
+  const ids = normalizarIdsSolicitudes(input.solicitud_ids);
+  const motivo = normalizarTexto(input.motivo);
+
+  if (ids.ids.length === 0) {
+    return { status: 400, body: { ok: false, message: "Debe seleccionar al menos una solicitud." } };
+  }
+
+  if (ids.tieneValoresInvalidos || ids.tieneDuplicados) {
+    return { status: 400, body: { ok: false, message: "La selección contiene identificadores inválidos o duplicados." } };
+  }
+
+  if (motivo.length < 5 || motivo.length > 500) {
+    return { status: 400, body: { ok: false, message: "El motivo debe tener entre 5 y 500 caracteres." } };
+  }
+
+  if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_1")) {
+    return { status: 403, body: { ok: false, message: "No tiene permiso para anular solicitudes en aprobación de nivel 1." } };
+  }
+
+  const solicitudes = await obtenerSolicitudesPagoPorIdsRepository(ids.ids);
+
+  if (solicitudes.length !== ids.ids.length) {
+    return { status: 404, body: { ok: false, message: "Una o más solicitudes seleccionadas no existen." } };
+  }
+
+  if (solicitudes.some((solicitud) => solicitud.estado_actual !== "PENDIENTE_APROBADOR_1")) {
+    return { status: 409, body: { ok: false, message: "Solo pueden anularse solicitudes pendientes de aprobación de nivel 1." } };
+  }
+
+  try {
+    const resultado = await anularSolicitudesPagoRepository({
+      solicitudIds: ids.ids,
+      motivo,
+      usuarioId: usuarioAutenticado.id,
+      fecha: new Date(),
+    });
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message: resultado.count === 1
+          ? "Solicitud anulada correctamente."
+          : `${resultado.count} solicitudes fueron anuladas correctamente.`,
+        data: {
+          cantidad_anulada: resultado.count,
+          estado_destino: "ANULADA",
+        },
+      },
+    };
+  } catch (error) {
+    if (error instanceof SolicitudesPagoCambioConcurrenteError) {
+      return { status: 409, body: { ok: false, message: "Una o más solicitudes cambiaron de estado. Actualice la información." } };
+    }
+    throw error;
+  }
 }
 
 export async function aprobarSolicitudesNivel1Service(

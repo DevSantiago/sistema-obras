@@ -43,6 +43,54 @@
   cursor: not-allowed;
 }
 
+.cameraAction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cameraAction span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.cameraInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.cameraButton,
+.cameraButtonDisabled {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cameraButton:hover {
+  background: #eff6ff;
+}
+
+.cameraButtonDisabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
 .fileList {
   display: grid;
   gap: 8px;

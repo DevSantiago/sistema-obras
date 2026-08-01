@@ -124,11 +124,12 @@ Estado a la fecha de actualización:
 | Proyectos base | APROBADA | Creación de proyecto, fondo general y centros iniciales |
 | Centros de costo | APROBADA | `PRO-OBRA`, `OBRA`, `PRO-INT`, `INT` y cambios de estado implementados |
 | Autorización por permisos | APROBADA | Crear usuarios/proyectos y asignar accesos valida permisos, no solo rol |
-| Beneficiarios | APROBADA | Backend y frontend integrados; validación de `TRABAJADOR` sin `NIT` y pruebas completadas |
+| Beneficiarios | APROBADA | Creación y edición completa, unicidad documental, sincronización de proveedores y validación de `TRABAJADOR` sin `NIT` |
 | Secuencias documentales | APROBADA | Consecutivo contextual por tipo, proyecto, centro de costo y año |
 | Solicitudes de pago | APROBADA | Proveedor, nómina individual y agrupada, reembolso, edición, envío y aprobaciones implementados |
-| Pagos | APROBADA | Bandeja, transferencias directas y retiros para efectivo o consignación implementados |
-| Fondos y movimientos | EN_DESARROLLO | Fondo y movimientos base implementados desde pagos; pendiente consulta financiera de la Épica 10 |
+| Pagos | APROBADA | Bandeja, pagos directos, retiros, fechas automáticas, soportes y resúmenes implementados |
+| Fondos y movimientos | APROBADA | Saldo por proyecto, servicio financiero común y consulta de movimientos implementados |
+| Operaciones de efectivo | APROBADA | Seguimiento, reingresos parciales, ajustes y anulaciones implementados |
 
 ---
 
@@ -166,7 +167,7 @@ Criterios:
 - Muestra adjuntos.
 - Muestra estado actual.
 - Diferencia pago a proveedor, nómina, reembolso, pago de impuesto y otro pago.
-- Admite `TRANSFERENCIA`, `CONSIGNACION` y `EFECTIVO`.
+- Admite `TRANSFERENCIA`, `PSE`, `PORTAL`, `CONSIGNACION` y `EFECTIVO`.
 
 ### HU-0002. Diseñar wireframes del módulo Pagos
 
@@ -747,7 +748,7 @@ Criterios:
 - Registra `periodo_nomina` como el mes correspondiente al pago en formato `YYYY-MM`.
 - El periodo es independiente de la fecha de creación y de la fecha efectiva del pago.
 - No permite seleccionar meses futuros ni meses de años distintos al vigente.
-- Permite `TRANSFERENCIA`, `CONSIGNACION` o `EFECTIVO`.
+- Permite `TRANSFERENCIA`, `PSE`, `PORTAL`, `CONSIGNACION` o `EFECTIVO`.
 - No permite otra solicitud no anulada con el mismo proyecto, centro, trabajador, concepto y periodo.
 - Estado inicial `BORRADOR`.
 
@@ -775,7 +776,7 @@ Como Auxiliar contable o Administrador, quiero crear una solicitud `PAGO_IMPUEST
 Criterios:
 
 - Registra tipo de impuesto, periodo, entidad beneficiaria y valor.
-- Permite `TRANSFERENCIA`, `CONSIGNACION` o `EFECTIVO` cuando corresponda.
+- Permite `TRANSFERENCIA`, `PSE`, `PORTAL`, `CONSIGNACION` o `EFECTIVO` cuando corresponda.
 - Recorre el flujo normal de aprobación.
 - Genera movimiento `EGRESO_IMPUESTO_RETENCION` al pagarse.
 
@@ -808,6 +809,10 @@ Permitir la carga, consulta y trazabilidad de archivos asociados a las solicitud
 - Evita reutilizar un archivo ya asociado.
 - Respeta los permisos de acceso.
 - Mantiene consistencia transaccional al crear la solicitud y asociar sus archivos.
+- Los soportes de creación son opcionales, excepto el archivo origen requerido
+  para nómina agrupada.
+- Permite elegir un archivo o tomar una fotografía cuando el dispositivo y el
+  navegador lo soporten.
 
 ## Historias
 
@@ -825,6 +830,7 @@ Criterios:
 - Verifica que el archivo pertenezca al usuario autenticado.
 - Impide reutilizar un archivo asociado previamente.
 - Elimina o revierte los registros correspondientes si falla la creación de la solicitud.
+- Acepta PDF, PNG y JPEG dentro del límite configurado.
 
 ---
 
@@ -918,7 +924,7 @@ Modificar el flujo documental para que el número oficial de la solicitud única
 
 ### HU-0805. Edición de solicitudes por el Solicitante
 
-**Estado:** ⏳ Pendiente
+**Estado:** ✅ Terminada
 
 **Descripción**
 
@@ -968,7 +974,7 @@ Permitir que el solicitante edite solicitudes antes de iniciar el proceso de apr
 
 ### HU-0806. Consulta detallada de solicitudes
 
-**Estado:** ⏳ Pendiente
+**Estado:** ✅ Terminada
 
 **Descripción**
 
@@ -1010,8 +1016,7 @@ Permitir que el Aprobador Nivel 1 realice correcciones funcionales antes de apro
 **Podrá modificar**
 
 - Valor factura.
-- Impuestos.
-- Retenciones.
+- Impuestos y retenciones en un único valor consolidado.
 - Descuentos.
 - Beneficiario / proveedor.
 - Categoría de gasto.
@@ -1057,6 +1062,21 @@ Permitir que el Aprobador Nivel 2 consulte el detalle completo de la solicitud y
 
 - Edición de datos.
 - Edición de adjuntos.
+
+### HU-0810. Devolver o anular solicitudes durante la aprobación
+
+**Estado:** ✅ Terminada
+
+**Incluye**
+
+- Devolución individual o múltiple con motivo obligatorio.
+- Nivel 1 devuelve a `DEVUELTA_SOLICITANTE`.
+- Nivel 2 devuelve a `DEVUELTA_APROBADOR_1` y conserva la reserva vigente.
+- La devolución posterior al solicitante libera la reserva.
+- Anulación individual o múltiple exclusivamente desde nivel 1.
+- La anulación solo aplica a `PENDIENTE_APROBADOR_1`, es terminal, no genera
+  movimiento financiero y conserva auditoría.
+- Detalle de la solicitud al seleccionar una fila y totales por tabla.
 
 ---
 
@@ -1139,7 +1159,8 @@ Permitir que el rol Pagos marque solicitudes como pagadas.
 - No aprueba.
 - Registra la referencia de la transacción de pago y permite asociar el soporte correspondiente cuando aplique.
 - Crea movimiento financiero.
-- Soporta transferencia y efectivo.
+- Soporta pagos directos (`TRANSFERENCIA`, `PSE`, `PORTAL`) y retiros para
+  `EFECTIVO` o `CONSIGNACION`.
 
 ## Historias
 
@@ -1157,22 +1178,28 @@ Criterios:
 - Muestra valor neto.
 - Muestra medio de pago.
 - Permite filtrar.
+- Permite abrir el detalle de la solicitud desde la fila.
+- Muestra el total de la bandeja filtrada y el total de la selección activa.
 
-### HU-0902. Marcar transferencia como pagada
+### HU-0902. Marcar pago electrónico directo como pagado
 
 **Estado: COMPLETADA**
 
-Como usuario de Pagos, quiero marcar una transferencia como pagada, para cerrar la solicitud.
+Como usuario de Pagos, quiero marcar un pago electrónico directo como pagado,
+para cerrar la solicitud.
 
 Criterios:
 
-- Solo si medio de pago es `TRANSFERENCIA`.
+- Aplica a `TRANSFERENCIA`, `PSE` o `PORTAL`.
 - Permite seleccionar una o varias solicitudes.
 - Cada solicitud exige referencia y soporte de pago propios.
 - Muestra saldo actual, total seleccionado y saldo proyectado por proyecto.
 - Crea `EGRESO_SOLICITUD_PAGO`.
 - Cambia solicitud a `PAGADA`.
 - Registra `pagado_en`.
+- La fecha y hora son asignadas por el servidor; cualquier fecha enviada por un
+  cliente anterior se ignora.
+- El soporte puede seleccionarse como archivo o capturarse con la cámara.
 
 ### HU-0903. Marcar pago en efectivo
 
@@ -1193,6 +1220,8 @@ Criterios:
 - Las consignaciones exigen referencia propia.
 - Descuenta el valor retirado una única vez del fondo del proyecto.
 - Cambia solicitud a `PAGADA`.
+- La fecha y hora del retiro y de los pagos son asignadas por el servidor.
+- Los soportes pueden seleccionarse como archivo o capturarse con la cámara.
 
 ---
 
@@ -1277,7 +1306,7 @@ Implementación:
 - Impide duplicar movimientos por pago y por tipo de operación de efectivo.
 - Registra el saldo anterior, el saldo nuevo y la actualización del fondo en
   la misma transacción serializable.
-- Integrado en transferencias directas, retiros de efectivo y reintegros
+- Integrado en pagos electrónicos directos, retiros de efectivo y reintegros
   inmediatos.
 - No expone un endpoint independiente: el movimiento se origina desde la
   operación funcional que afecta el saldo.
@@ -1503,13 +1532,13 @@ Implementación:
 
 ## Objetivo
 
-Registrar impuestos, retenciones y descuentos tributarios asociados a solicitudes.
+Registrar de forma consolidada los impuestos y retenciones asociados a una
+solicitud, sin confundirlos con cargos financieros.
 
 ## Criterios de aceptación de la épica
 
-- Registra impuestos por solicitud.
-- Registra retenciones por solicitud.
-- Calcula valores de desglose.
+- Registra un único valor de impuestos y retenciones por solicitud.
+- Calcula `valor_neto = valor_bruto - valor_impuestos_retenciones - valor_descuentos`.
 - No los registra como cargos financieros.
 - No crea aprobación independiente.
 - Permite ajuste con auditoría.
@@ -1517,17 +1546,19 @@ Registrar impuestos, retenciones y descuentos tributarios asociados a solicitude
 
 ## Historias
 
-### HU-1201. Registrar impuesto o retención en solicitud
+### HU-1201. Registrar impuestos y retenciones en la solicitud
 
-Como usuario autorizado, quiero registrar impuestos y retenciones, para calcular correctamente el valor neto.
+Como usuario autorizado, quiero registrar el valor consolidado de impuestos y
+retenciones, para calcular correctamente el valor neto sin duplicar descuentos.
 
 Criterios:
 
-- Crea `impuestos_retenciones_solicitud`.
-- Valida tipo.
-- Valida naturaleza.
-- Valida valor no negativo.
-- Actualiza totales de la solicitud.
+- Usa el campo físico `valor_impuestos_retenciones` de `solicitudes_pago`.
+- Presenta un único campo visible como **Impuestos y retenciones**.
+- Valida un valor no negativo.
+- Descuenta el valor una sola vez al calcular el neto.
+- El desglose tributario detallado, si se requiere posteriormente, deberá ser
+  una ampliación explícita y no recrear dos totales paralelos.
 
 ### HU-1202. Ajustar impuesto o retención
 

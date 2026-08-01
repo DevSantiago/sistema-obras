@@ -29,6 +29,8 @@ import {
 } from "./solicitudes-pago.types";
 import {
   centroCostoPermitidoParaUsuario,
+  formatearMoneda,
+  formatearTextoDominio,
   obtenerCentrosCosto,
 } from "./solicitudes-pago.utils";
 import SolicitudTipoSelector from "./shared/SolicitudTipoSelector";
@@ -177,6 +179,9 @@ export default function SolicitudesPagoManager({
   const [mensajeError, setMensajeError] = useState("");
   const [solicitudEnEdicion, setSolicitudEnEdicion] =
     useState<SolicitudPagoListado | null>(null);
+  const [solicitudDetalle, setSolicitudDetalle] =
+    useState<SolicitudPagoListado | null>(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const formularioRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -367,6 +372,17 @@ export default function SolicitudesPagoManager({
       );
     };
   }, []);
+
+  useEffect(() => {
+    if (!solicitudDetalle) return;
+
+    function cerrarDetalle(event: KeyboardEvent) {
+      if (event.key === "Escape") setSolicitudDetalle(null);
+    }
+
+    window.addEventListener("keydown", cerrarDetalle);
+    return () => window.removeEventListener("keydown", cerrarDetalle);
+  }, [solicitudDetalle]);
 
   function limpiarMensajes() {
     setMensajeError("");
@@ -639,7 +655,6 @@ export default function SolicitudesPagoManager({
               medio_pago: formData.get("medio_pago"),
               descripcion: formData.get("descripcion"),
               valor_bruto: formData.get("valor_bruto"),
-              valor_impuestos: formData.get("valor_impuestos"),
               valor_retenciones: formData.get("valor_retenciones"),
               valor_descuentos: formData.get("valor_descuentos"),
             }),
@@ -770,6 +785,68 @@ export default function SolicitudesPagoManager({
     }
   }
 
+  async function devolverSolicitudAlSolicitante(
+    solicitud: SolicitudPagoListado,
+  ): Promise<void> {
+    const motivo = window.prompt(
+      `Motivo para devolver ${solicitud.numero_solicitud} al solicitante:`,
+    )?.trim();
+
+    if (!motivo) return;
+
+    if (motivo.length < 5) {
+      setMensajeError("El motivo debe tener al menos 5 caracteres.");
+      return;
+    }
+
+    setEnviandoSolicitudId(solicitud.id);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetchJson(
+        `/api/v1/solicitudes-pago/${solicitud.id}/devolver`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ motivo }),
+        },
+      );
+      setMensajeExito(response.message ?? "Solicitud devuelta al solicitante.");
+      await cargarSolicitudes();
+    } catch (error) {
+      setMensajeError(error instanceof Error ? error.message : "No fue posible devolver la solicitud.");
+    } finally {
+      setEnviandoSolicitudId(null);
+    }
+  }
+
+  async function verDetalleSolicitud(
+    solicitud: SolicitudPagoListado,
+  ): Promise<void> {
+    setSolicitudDetalle(solicitud);
+    setCargandoDetalle(true);
+
+    try {
+      const response = await fetchJson<{ solicitud: SolicitudPagoListado }>(
+        `/api/v1/solicitudes-pago/${solicitud.id}`,
+        { cache: "no-store" },
+      );
+
+      if (response.data?.solicitud) {
+        setSolicitudDetalle(response.data.solicitud);
+      }
+    } catch (error) {
+      setMensajeError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible consultar el detalle de la solicitud.",
+      );
+    } finally {
+      setCargandoDetalle(false);
+    }
+  }
+
   function renderizarFormulario() {
     switch (tipoSeleccionado) {
       case "PAGO_PROVEEDOR":
@@ -888,8 +965,91 @@ export default function SolicitudesPagoManager({
         enviandoSolicitudId={enviandoSolicitudId}
         onEnviar={enviarSolicitud}
         onEditar={editarSolicitud}
+        onDevolver={devolverSolicitudAlSolicitante}
+        onVerDetalle={(solicitud) => void verDetalleSolicitud(solicitud)}
         onActualizar={cargarSolicitudes}
       />
+
+      {solicitudDetalle ? (
+        <div
+          className={styles.modalBackdrop}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSolicitudDetalle(null);
+            }
+          }}
+        >
+          <section
+            className={styles.detailDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="solicitud-detail-title"
+          >
+            <header className={styles.detailHeader}>
+              <div>
+                <span className={styles.detailEyebrow}>Detalle de solicitud</span>
+                <h2 id="solicitud-detail-title">
+                  {solicitudDetalle.numero_solicitud ?? "Borrador sin número"}
+                </h2>
+                <div className={styles.detailMeta}>
+                  <span className={styles.detailStatus}>
+                    {formatearTextoDominio(solicitudDetalle.estado_actual)}
+                  </span>
+                  <span>{formatearTextoDominio(solicitudDetalle.tipo_solicitud)}</span>
+                </div>
+              </div>
+              <button
+                className={styles.modalCloseButton}
+                type="button"
+                aria-label="Cerrar detalle de la solicitud"
+                onClick={() => setSolicitudDetalle(null)}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </header>
+
+            {cargandoDetalle ? (
+              <div className={styles.detailLoading}>Actualizando información…</div>
+            ) : null}
+
+            <section className={styles.detailSection}>
+              <h3>Información general</h3>
+              <dl className={styles.detailGrid}>
+                <div><dt>Proyecto</dt><dd>{solicitudDetalle.proyecto_base?.nombre ?? "—"}</dd></div>
+                <div><dt>Centro de costo</dt><dd>{solicitudDetalle.centro_costo?.nombre ?? "—"}</dd></div>
+                <div><dt>Beneficiario</dt><dd>{solicitudDetalle.beneficiario?.nombre ?? "—"}</dd></div>
+                <div><dt>Medio de pago</dt><dd>{formatearTextoDominio(solicitudDetalle.medio_pago)}</dd></div>
+                {solicitudDetalle.categoria_gasto ? <div><dt>Categoría</dt><dd>{formatearTextoDominio(solicitudDetalle.categoria_gasto)}</dd></div> : null}
+                {solicitudDetalle.categoria_reembolso ? <div><dt>Categoría</dt><dd>{formatearTextoDominio(solicitudDetalle.categoria_reembolso)}</dd></div> : null}
+                {solicitudDetalle.concepto_nomina ? <div><dt>Concepto de nómina</dt><dd>{formatearTextoDominio(solicitudDetalle.concepto_nomina)}</dd></div> : null}
+                {solicitudDetalle.periodo_nomina ? <div><dt>Periodo de nómina</dt><dd>{solicitudDetalle.periodo_nomina}</dd></div> : null}
+                {solicitudDetalle.tipo_impuesto ? <div><dt>Tipo de impuesto</dt><dd>{formatearTextoDominio(solicitudDetalle.tipo_impuesto)}</dd></div> : null}
+                {solicitudDetalle.periodo_impuesto ? <div><dt>Periodo de impuesto</dt><dd>{solicitudDetalle.periodo_impuesto}</dd></div> : null}
+                <div><dt>Solicitante</dt><dd>{solicitudDetalle.creador?.nombre ?? "—"}</dd></div>
+                <div className={styles.detailWide}><dt>Descripción</dt><dd>{solicitudDetalle.descripcion}</dd></div>
+              </dl>
+            </section>
+
+            <section className={styles.detailSection}>
+              <h3>Resumen de valores</h3>
+              <dl className={`${styles.detailGrid} ${styles.valuesGrid}`}>
+                <div><dt>Valor bruto</dt><dd>{formatearMoneda(solicitudDetalle.valor_bruto)}</dd></div>
+                <div><dt>Impuestos y retenciones</dt><dd>{formatearMoneda(solicitudDetalle.valor_retenciones)}</dd></div>
+                <div><dt>Descuentos</dt><dd>{formatearMoneda(solicitudDetalle.valor_descuentos)}</dd></div>
+                <div className={styles.detailNet}><dt>Valor neto a pagar</dt><dd>{formatearMoneda(solicitudDetalle.valor_neto)}</dd></div>
+              </dl>
+            </section>
+
+            {solicitudDetalle.ultima_devolucion ? (
+              <aside className={styles.returnReason}>
+                <strong>Último motivo de devolución</strong>
+                <p>{solicitudDetalle.ultima_devolucion.motivo}</p>
+              </aside>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

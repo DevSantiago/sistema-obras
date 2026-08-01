@@ -27,7 +27,8 @@ La solicitud de pago constituye el núcleo del modelo y se relaciona principalme
 - Organización;
 - Beneficiarios;
 - Gestión documental;
-- Nómina.
+- Nómina;
+- Aprobaciones, pagos y movimientos financieros.
 
 ---
 
@@ -94,6 +95,15 @@ erDiagram
     adjuntos o|--o{ solicitudes_pago : archivo_origen
 
     usuarios o|--o{ adjuntos : carga
+
+    %% ==========================
+    %% APROBACIONES Y PAGOS
+    %% ==========================
+
+    solicitudes_pago ||--o{ devoluciones_solicitud_pago : registra
+    solicitudes_pago ||--o{ anulaciones_solicitud_pago : registra
+    solicitudes_pago ||--o{ pagos : ejecuta
+    fondos ||--o{ movimientos_fondo : contabiliza
 ```
 
 ---

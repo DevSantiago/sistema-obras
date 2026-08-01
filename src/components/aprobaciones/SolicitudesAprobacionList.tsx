@@ -9,6 +9,8 @@ interface SolicitudesAprobacionListProps {
   deshabilitado?: boolean;
   onCambiarSeleccion: (solicitudId: string) => void;
   onCambiarSeleccionTodas: () => void;
+  onDevolver: (solicitud: SolicitudPagoListado) => void;
+  onVerDetalle: (solicitud: SolicitudPagoListado) => void;
 }
 
 const FORMATEADOR_MONEDA = new Intl.NumberFormat("es-CO", {
@@ -72,6 +74,8 @@ export default function SolicitudesAprobacionList({
   deshabilitado = false,
   onCambiarSeleccion,
   onCambiarSeleccionTodas,
+  onDevolver,
+  onVerDetalle,
 }: SolicitudesAprobacionListProps) {
   const todasSeleccionadas =
     solicitudes.length > 0 &&
@@ -107,6 +111,7 @@ export default function SolicitudesAprobacionList({
             <th>Beneficiario</th>
             <th>Descripción</th>
             <th>Valor neto</th>
+            <th>Acciones</th>
           </tr>
         </thead>
 
@@ -119,11 +124,12 @@ export default function SolicitudesAprobacionList({
             return (
               <tr
                 key={solicitud.id}
+                onClick={() => onVerDetalle(solicitud)}
                 className={
-                  seleccionada ? styles.selectedRow : undefined
+                  `${styles.clickableRow} ${seleccionada ? styles.selectedRow : ""}`
                 }
               >
-                <td>
+                <td onClick={(event) => event.stopPropagation()}>
                   <label>
                     <span className={styles.visuallyHidden}>
                       Seleccionar solicitud{" "}
@@ -163,6 +169,16 @@ export default function SolicitudesAprobacionList({
                 <td className={styles.moneyCell}>
                   {formatearMoneda(solicitud.valor_neto)}
                 </td>
+                <td onClick={(event) => event.stopPropagation()}>
+                  <button
+                    className={styles.returnButton}
+                    disabled={deshabilitado}
+                    type="button"
+                    onClick={() => onDevolver(solicitud)}
+                  >
+                    Devolver
+                  </button>
+                </td>
               </tr>
             );
           })}
@@ -175,6 +191,7 @@ export default function SolicitudesAprobacionList({
             <td className={styles.totalValue}>
               {formatearMoneda(totalSolicitudes)}
             </td>
+            <td />
           </tr>
         </tfoot>
       </table>

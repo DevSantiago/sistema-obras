@@ -57,6 +57,25 @@ const solicitudPagoInclude = {
       correo: true,
     },
   },
+  devoluciones: {
+    orderBy: {
+      creado_en: "desc" as const,
+    },
+    take: 1,
+    select: {
+      id: true,
+      estado_origen: true,
+      estado_destino: true,
+      motivo: true,
+      creado_en: true,
+      usuario: {
+        select: {
+          id: true,
+          nombre: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.solicitudes_pagoInclude;
 
 export class SolicitudesPagoCambioConcurrenteError extends Error {
@@ -248,7 +267,6 @@ export async function crearSolicitudPagoRepository(
       adjunto_archivo_origen_id: data.adjunto_archivo_origen_id,
       descripcion: data.descripcion,
       valor_bruto: data.valor_bruto,
-      valor_impuestos: data.valor_impuestos,
       valor_retenciones: data.valor_retenciones,
       valor_descuentos: data.valor_descuentos,
       valor_neto: data.valor_neto,
@@ -460,7 +478,6 @@ export async function actualizarSolicitudPagoRepository(
         input.data.adjunto_archivo_origen_id,
       descripcion: input.data.descripcion,
       valor_bruto: input.data.valor_bruto,
-      valor_impuestos: input.data.valor_impuestos,
       valor_retenciones: input.data.valor_retenciones,
       valor_descuentos: input.data.valor_descuentos,
       valor_neto: input.data.valor_neto,
@@ -702,6 +719,163 @@ export async function aprobarSolicitudesNivel2Repository(
   });
 }
 
+export async function devolverSolicitudPagoRepository(input: {
+  solicitudId: string;
+  estadoOrigen:
+    | "PENDIENTE_APROBADOR_1"
+    | "PENDIENTE_APROBADOR_2"
+    | "DEVUELTA_APROBADOR_1";
+  estadoDestino:
+    | "DEVUELTA_APROBADOR_1"
+    | "DEVUELTA_SOLICITANTE";
+  motivo: string;
+  usuarioId: string;
+  fecha: Date;
+  liberarReserva: boolean;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const actualizada = await tx.solicitudes_pago.updateMany({
+      where: {
+        id: input.solicitudId,
+        estado_actual: input.estadoOrigen,
+      },
+      data: {
+        estado_actual: input.estadoDestino,
+        ...(input.liberarReserva ? { valor_reservado: null } : {}),
+        ...(input.estadoDestino === "DEVUELTA_APROBADOR_1"
+          ? { devuelto_aprobador_1_en: input.fecha }
+          : { devuelto_solicitante_en: input.fecha }),
+        actualizado_en: input.fecha,
+      },
+    });
+
+    if (actualizada.count !== 1) {
+      throw new SolicitudesPagoCambioConcurrenteError();
+    }
+
+    await tx.devoluciones_solicitud_pago.create({
+      data: {
+        solicitud_pago_id: input.solicitudId,
+        estado_origen: input.estadoOrigen,
+        estado_destino: input.estadoDestino,
+        motivo: input.motivo,
+        devuelto_por: input.usuarioId,
+        creado_en: input.fecha,
+      },
+    });
+
+    return { count: actualizada.count };
+  });
+}
+
+export async function devolverSolicitudesPagoRepository(input: {
+  solicitudes: Array<{
+    id: string;
+    estadoOrigen: "PENDIENTE_APROBADOR_1" | "PENDIENTE_APROBADOR_2";
+  }>;
+  estadoDestino: "DEVUELTA_APROBADOR_1" | "DEVUELTA_SOLICITANTE";
+  motivo: string;
+  usuarioId: string;
+  fecha: Date;
+}) {
+  return prisma.$transaction(async (tx) => {
+    for (const solicitud of input.solicitudes) {
+      const actualizada = await tx.solicitudes_pago.updateMany({
+        where: {
+          id: solicitud.id,
+          estado_actual: solicitud.estadoOrigen,
+        },
+        data: {
+          estado_actual: input.estadoDestino,
+          ...(input.estadoDestino === "DEVUELTA_APROBADOR_1"
+            ? { devuelto_aprobador_1_en: input.fecha }
+            : { devuelto_solicitante_en: input.fecha }),
+          actualizado_en: input.fecha,
+        },
+      });
+
+      if (actualizada.count !== 1) {
+        throw new SolicitudesPagoCambioConcurrenteError();
+      }
+
+      await tx.devoluciones_solicitud_pago.create({
+        data: {
+          solicitud_pago_id: solicitud.id,
+          estado_origen: solicitud.estadoOrigen,
+          estado_destino: input.estadoDestino,
+          motivo: input.motivo,
+          devuelto_por: input.usuarioId,
+          creado_en: input.fecha,
+        },
+      });
+    }
+
+    return { count: input.solicitudes.length };
+  });
+}
+
+export async function anularSolicitudesPagoRepository(input: {
+  solicitudIds: string[];
+  motivo: string;
+  usuarioId: string;
+  fecha: Date;
+}) {
+  return prisma.$transaction(async (tx) => {
+    for (const solicitudId of input.solicitudIds) {
+      const actualizada = await tx.solicitudes_pago.updateMany({
+        where: {
+          id: solicitudId,
+          estado_actual: "PENDIENTE_APROBADOR_1",
+        },
+        data: {
+          estado_actual: "ANULADA",
+          valor_reservado: null,
+          actualizado_en: input.fecha,
+        },
+      });
+
+      if (actualizada.count !== 1) {
+        throw new SolicitudesPagoCambioConcurrenteError();
+      }
+
+      await tx.anulaciones_solicitud_pago.create({
+        data: {
+          solicitud_pago_id: solicitudId,
+          estado_origen: "PENDIENTE_APROBADOR_1",
+          motivo: input.motivo,
+          anulado_por: input.usuarioId,
+          creado_en: input.fecha,
+        },
+      });
+    }
+
+    return { count: input.solicitudIds.length };
+  });
+}
+
+export async function reenviarSolicitudDevueltaRepository(input: {
+  solicitudId: string;
+  estadoOrigen: "DEVUELTA_SOLICITANTE" | "DEVUELTA_APROBADOR_1";
+  estadoDestino: "PENDIENTE_APROBADOR_1" | "PENDIENTE_APROBADOR_2";
+  fecha: Date;
+  valorReservado?: Prisma.Decimal;
+}) {
+  return prisma.solicitudes_pago.updateMany({
+    where: {
+      id: input.solicitudId,
+      estado_actual: input.estadoOrigen,
+    },
+    data: {
+      estado_actual: input.estadoDestino,
+      ...(input.valorReservado !== undefined
+        ? { valor_reservado: input.valorReservado }
+        : {}),
+      enviado_en: input.fecha,
+      actualizado_en: input.fecha,
+    },
+  });
+}
+
 export async function eliminarSolicitudPagoRepository(
   solicitudPagoId: string,
 ) {
@@ -767,9 +941,13 @@ export async function registrarTransferenciasRepository(input: {
           );
         }
 
-        if (solicitud.medio_pago !== "TRANSFERENCIA") {
+        if (
+          solicitud.medio_pago !== "TRANSFERENCIA" &&
+          solicitud.medio_pago !== "PSE" &&
+          solicitud.medio_pago !== "PORTAL"
+        ) {
           throw new RegistroPagosError(
-            `La solicitud ${numero} no tiene medio de pago TRANSFERENCIA.`,
+            `La solicitud ${numero} no tiene un medio de pago directo.`,
           );
         }
 
@@ -777,7 +955,7 @@ export async function registrarTransferenciasRepository(input: {
           where: {
             id: solicitud.id,
             estado_actual: "PROGRAMADA_PAGO",
-            medio_pago: "TRANSFERENCIA",
+            medio_pago: { in: ["TRANSFERENCIA", "PSE", "PORTAL"] },
             pagos: null,
           },
           data: {
@@ -809,7 +987,7 @@ export async function registrarTransferenciasRepository(input: {
             solicitud_pago_id: solicitud.id,
             adjunto_soporte_id: soporte.id,
             fecha_pago: pagoInput.fecha_pago,
-            medio_pago: "TRANSFERENCIA",
+            medio_pago: solicitud.medio_pago,
             numero_comprobante: pagoInput.numero_comprobante,
             observacion: pagoInput.observacion,
             valor_pagado: valor,

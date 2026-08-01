@@ -11,7 +11,6 @@ type DetalleManifest = {
 };
 
 type OperacionManifest = {
-  fecha_retiro?: unknown;
   valor_retirado?: unknown;
   observacion?: unknown;
   reintegrar_sobrante?: unknown;
@@ -52,7 +51,6 @@ function leerOperacion(
     }
 
     return {
-      fecha_retiro: obtenerTexto(datos.fecha_retiro),
       valor_retirado:
         typeof datos.valor_retirado === "number"
           ? datos.valor_retirado

@@ -214,8 +214,7 @@ describe("POST /api/v1/solicitudes-pago", () => {
       medio_pago: "TRANSFERENCIA",
       descripcion: "Pago de factura al proveedor",
       valor_bruto: 1000000,
-      valor_impuestos: 190000,
-      valor_retenciones: 25000,
+      valor_retenciones: 215000,
       valor_descuentos: 10000,
     };
 
@@ -279,8 +278,7 @@ describe("POST /api/v1/solicitudes-pago", () => {
       medio_pago: "TRANSFERENCIA",
       descripcion: "Pago de factura al proveedor",
       valor_bruto: 1000000,
-      valor_impuestos: 190000,
-      valor_retenciones: 25000,
+      valor_retenciones: 215000,
       valor_descuentos: 10000,
     });
 
@@ -415,7 +413,6 @@ describe("POST /api/v1/solicitudes-pago", () => {
       descripcion:
         "Pago de IVA del periodo julio de 2026",
       valor_bruto: 850000,
-      valor_impuestos: 0,
       valor_retenciones: 0,
       valor_descuentos: 0,
     });
@@ -489,7 +486,6 @@ describe("POST /api/v1/solicitudes-pago", () => {
       descripcion:
         "Pago de nómina individual julio de 2026",
       valor_bruto: 2500000,
-      valor_impuestos: 0,
       valor_retenciones: 125000,
       valor_descuentos: 50000,
     });

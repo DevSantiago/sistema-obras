@@ -574,8 +574,8 @@ export default function PagoImpuestoForm({
             );
           }}
           disabled={guardando || Boolean(solicitudEnEdicion)}
-          titulo="Soportes del impuesto"
-          ayuda="Adjunta declaraciones, recibos oficiales, formularios tributarios u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
+          titulo="Soportes del impuesto (opcional)"
+          ayuda="Si lo necesitas, adjunta declaraciones, recibos oficiales, formularios tributarios u otros soportes. Formatos PDF, JPG, JPEG o PNG. Máximo 10 MB por archivo."
         />
 
         <div className={styles.actions}>

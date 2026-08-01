@@ -520,7 +520,6 @@ export async function crearSolicitudNominaGrupalRepository(
             data.adjunto_archivo_origen_id,
           descripcion: data.descripcion,
           valor_bruto: data.valor_bruto,
-          valor_impuestos: 0,
           valor_retenciones: data.valor_retenciones,
           valor_descuentos: data.valor_descuentos,
           valor_neto: data.valor_neto,

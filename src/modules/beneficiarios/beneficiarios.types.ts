@@ -111,6 +111,9 @@ export type BeneficiarioListado = Omit<
 };
 
 export type ActualizarBeneficiarioInput = {
+  tipo_beneficiario?: TipoBeneficiario;
+  tipo_documento?: string;
+  numero_documento?: string;
   nombre?: string;
   medio_pago_preferido?: MedioPagoPreferido;
   banco?: string | null;
@@ -123,6 +126,9 @@ export type ActualizarBeneficiarioInput = {
 };
 
 export type BeneficiarioActualizadoRepositoryInput = {
+  tipo_beneficiario?: TipoBeneficiario;
+  tipo_documento?: string;
+  numero_documento?: string;
   nombre?: string;
   medio_pago_preferido?: MedioPagoPreferido;
   banco?: string | null;

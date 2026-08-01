@@ -318,6 +318,11 @@ Reglas principales:
 - Para `TRANSFERENCIA` o `CONSIGNACION` son obligatorios banco, tipo de cuenta y número de cuenta.
 - Para `EFECTIVO`, los datos bancarios son opcionales.
 - La deduplicación funcional se realiza por tipo y número de documento.
+- La clasificación, el tipo de documento y el número de documento pueden
+  corregirse desde la edición, conservando la validación de unicidad y las
+  restricciones propias de cada tipo de beneficiario.
+- Cuando el beneficiario representa a un proveedor, los datos de identificación
+  compartidos se mantienen sincronizados con el registro de `proveedores`.
 
 ## Categorías, conceptos y valores
 
@@ -336,7 +341,7 @@ Cuando la categoría o el concepto sea `OTRO`, debe exigirse descripción.
 El valor neto debe conservar coherencia con el desglose aplicable:
 
 ```text
-valor_neto = valor_bruto + valor_impuestos - valor_retenciones - valor_descuentos
+valor_neto = valor_bruto - valor_impuestos_retenciones - valor_descuentos
 ```
 
 ## Nómina
@@ -395,15 +400,21 @@ El módulo Pagos debe:
 - consultar solicitudes en `PROGRAMADA_PAGO`;
 - mostrar beneficiario, proyecto, centro de costo, fecha de aprobación, medio de pago y valores;
 - filtrar por proyecto, centro de costo y medio de pago;
-- registrar transferencias directas individualmente o por lote;
+- registrar pagos electrónicos directos (`TRANSFERENCIA`, `PSE` o `PORTAL`)
+  individualmente o por lote;
 - registrar retiros agrupados para solicitudes en `EFECTIVO` o `CONSIGNACION`;
-- exigir referencia para cada transferencia y consignación;
+- exigir referencia para cada pago electrónico directo y consignación;
 - exigir soporte individual por pago y soporte general para cada retiro;
+- permitir cargar el soporte desde archivos o capturarlo con la cámara del
+  dispositivo cuando el navegador sea compatible;
+- asignar en el servidor la fecha y hora de pago o retiro;
+- mostrar el total de la bandeja filtrada y, cuando exista selección múltiple,
+  el total y cantidad seleccionados;
 - marcar la solicitud como `PAGADA`;
 - generar el movimiento financiero correspondiente;
 - impedir doble pago.
 
-Las transferencias directas generan un `EGRESO_SOLICITUD_PAGO` por
+Los pagos electrónicos directos generan un `EGRESO_SOLICITUD_PAGO` por
 solicitud. Los pagos en efectivo y las consignaciones financiadas mediante
 retiro generan un único `EGRESO_RETIRO_EFECTIVO` por operación; las
 solicitudes asociadas no descuentan nuevamente el fondo.
@@ -572,21 +583,13 @@ A la fecha de esta actualización se encuentran implementados y validados funcio
 - Carga, consulta, descarga y eliminación lógica de archivos conforme a las reglas del módulo documental.
 - Restricciones de base de datos para estados y valores críticos ya migrados.
 
-### Pendiente para cerrar definitivamente el MVP de Solicitudes
+### Estado funcional posterior
 
-- Edición de solicitudes en estado `BORRADOR` desde frontend.
-- Verificación y, si es necesario, ampliación del backend de edición para cubrir todos los tipos de solicitud.
-- Anulación de solicitudes según las reglas definitivas del flujo.
-- Solicitud independiente de pago de impuestos.
-- Revisión final de validaciones cruzadas entre tipos de solicitud.
-
-### Próxima etapa principal
-
-Con el cierre de la **Épica 7 – Gestión documental y adjuntos**, la siguiente etapa principal del desarrollo corresponde a la **Épica 8 – Aprobaciones**.
-
-Posteriormente continuarán las épicas de Pagos y del módulo Financiero.
-
-La edición de solicitudes en estado `BORRADOR` permanece como deuda funcional identificada en el backlog y fue reprogramada para una etapa posterior del proyecto.
+La edición de solicitudes, las aprobaciones de ambos niveles, las devoluciones,
+la anulación en primer nivel, la ejecución de pagos y la consulta financiera ya
+forman parte del producto implementado. El alcance pendiente se conserva en
+`11-mvp-backlog.md`, especialmente para impuestos, retenciones y cargos
+financieros.
 
 ## Fuera del MVP
 
