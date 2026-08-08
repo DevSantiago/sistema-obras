@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import SolicitudesAprobacionList from "./SolicitudesAprobacionList";
+import EdicionAprobadorNivel1Form from "./EdicionAprobadorNivel1Form";
 import styles from "./AprobacionesManager.module.css";
 
 type NivelAprobacion = 1 | 2;
@@ -113,6 +114,8 @@ export default function AprobacionesManager({
   const [solicitudDetalle, setSolicitudDetalle] =
     useState<SolicitudPagoListado | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [solicitudEdicion, setSolicitudEdicion] =
+    useState<SolicitudPagoListado | null>(null);
 
   const permisoRequerido =
     nivel === 1
@@ -756,6 +759,12 @@ const mensajeSinSolicitudes =
                       setMensajeError("");
                     }}
                     onVerDetalle={(solicitud) => void verDetalleSolicitud(solicitud)}
+                    onEditar={nivel === 1 ? (solicitud) => {
+                      setSolicitudEdicion(solicitud);
+                      setSolicitudDetalle(null);
+                      setMensajeError("");
+                      setMensajeExito("");
+                    } : undefined}
                   />
                 </article>
               );
@@ -961,6 +970,18 @@ const mensajeSinSolicitudes =
                   ) : null}
                 </section>
               </div>
+            ) : null}
+
+            {nivel === 1 && solicitudEdicion ? (
+              <EdicionAprobadorNivel1Form
+                solicitud={solicitudEdicion}
+                onCancelar={() => setSolicitudEdicion(null)}
+                onGuardada={async () => {
+                  setSolicitudEdicion(null);
+                  setMensajeExito("Solicitud actualizada correctamente.");
+                  await cargarSolicitudes();
+                }}
+              />
             ) : null}
 
             <div className={styles.actions}>

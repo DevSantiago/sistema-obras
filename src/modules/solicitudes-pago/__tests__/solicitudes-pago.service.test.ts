@@ -5,6 +5,7 @@ import { storageService } from "@/modules/storage/storage.service";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   actualizarSolicitudPagoRepository,
+  editarSolicitudAprobadorNivel1Repository,
   aprobarSolicitudesNivel1Repository,
   aprobarSolicitudesNivel2Repository,
   buscarDuplicadoNominaIndividualRepository,
@@ -45,6 +46,7 @@ import {
   devolverSolicitudPagoService,
   devolverSolicitudesPagoService,
   anularSolicitudesPagoService,
+  editarSolicitudAprobadorNivel1Service,
 } from "../solicitudes-pago.service";
 
 vi.mock("@/modules/secuencias/secuencias.service", () => ({
@@ -73,6 +75,7 @@ vi.mock("../solicitudes-pago.repository", () => ({
   buscarDuplicadoNominaIndividualRepository: vi.fn(),
   crearSolicitudPagoRepository: vi.fn(),
   actualizarSolicitudPagoRepository: vi.fn(),
+  editarSolicitudAprobadorNivel1Repository: vi.fn(),
   enviarSolicitudPagoRepository: vi.fn(),
   listarSolicitudesPagoRepository: vi.fn(),
   registrarOperacionEfectivoRepository: vi.fn(),
@@ -3659,6 +3662,100 @@ describe("solicitudes-pago.service - actualizarSolicitudPagoProveedorService", (
     expect(
       actualizarSolicitudPagoRepository,
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe("solicitudes-pago.service - editarSolicitudAprobadorNivel1Service", () => {
+  const inputEdicion = {
+    beneficiario_id: "beneficiario-1",
+    categoria: "SERVICIOS",
+    medio_pago: "TRANSFERENCIA" as const,
+    descripcion: "Concepto corregido por nivel 1",
+    valor_bruto: 120000,
+    valor_retenciones: 20000,
+    valor_descuentos: 5000,
+  };
+
+  it("rechaza usuarios sin permiso de aprobación nivel 1", async () => {
+    const resultado = await editarSolicitudAprobadorNivel1Service(
+      usuarioSolicitante,
+      "solicitud-1",
+      inputEdicion,
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(editarSolicitudAprobadorNivel1Repository).not.toHaveBeenCalled();
+  });
+
+  it("edita solo los campos funcionales y recalcula el valor neto", async () => {
+    const solicitudPendiente = {
+      ...solicitudProveedorBorrador,
+      numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000001",
+      estado_actual: "PENDIENTE_APROBADOR_1",
+    };
+    const solicitudActualizada = {
+      ...solicitudPendiente,
+      categoria_gasto: "SERVICIOS",
+      descripcion: inputEdicion.descripcion,
+      valor_bruto: 120000,
+      valor_retenciones: 20000,
+      valor_descuentos: 5000,
+      valor_neto: 95000,
+    };
+
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue(
+      solicitudPendiente as never,
+    );
+    vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(
+      beneficiarioProveedorMock as never,
+    );
+    vi.mocked(editarSolicitudAprobadorNivel1Repository).mockResolvedValue(
+      solicitudActualizada as never,
+    );
+
+    const resultado = await editarSolicitudAprobadorNivel1Service(
+      usuarioAprobador1,
+      "solicitud-1",
+      inputEdicion,
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(editarSolicitudAprobadorNivel1Repository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        solicitudId: "solicitud-1",
+        estadoOrigen: "PENDIENTE_APROBADOR_1",
+        categoriaGasto: "SERVICIOS",
+        valorNeto: 95000,
+      }),
+    );
+  });
+
+  it("impide aumentar una reserva por encima del saldo disponible", async () => {
+    vi.mocked(editarSolicitudAprobadorNivel1Repository).mockClear();
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      numero_solicitud: "SOL-PRO-OBRA-HUMAPO-2026-000001",
+      estado_actual: "DEVUELTA_APROBADOR_1",
+      valor_reservado: 76000,
+    } as never);
+    vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(
+      beneficiarioProveedorMock as never,
+    );
+    vi.mocked(obtenerReservasPorFondosRepository).mockResolvedValue([
+      { fondo_id: "fondo-1", _sum: { valor_reservado: 990000 } },
+    ] as never);
+    vi.mocked(obtenerFondosPorIdsRepository).mockResolvedValue([
+      { id: "fondo-1", saldo_actual: 1000000, activo: true },
+    ] as never);
+
+    const resultado = await editarSolicitudAprobadorNivel1Service(
+      usuarioAprobador1,
+      "solicitud-1",
+      inputEdicion,
+    );
+
+    expect(resultado.status).toBe(409);
+    expect(editarSolicitudAprobadorNivel1Repository).not.toHaveBeenCalled();
   });
 });
 

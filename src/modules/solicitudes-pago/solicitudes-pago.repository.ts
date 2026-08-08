@@ -556,6 +556,58 @@ export async function actualizarSolicitudPagoRepository(
   });
 }
 
+export async function editarSolicitudAprobadorNivel1Repository(input: {
+  solicitudId: string;
+  estadoOrigen: "PENDIENTE_APROBADOR_1" | "DEVUELTA_APROBADOR_1";
+  beneficiarioId: string;
+  proveedorId: string | null;
+  categoriaGasto: string | null;
+  categoriaReembolso: string | null;
+  conceptoNomina: string | null;
+  tipoImpuesto: string | null;
+  medioPago: string;
+  descripcion: string;
+  valorBruto: number;
+  valorRetenciones: number;
+  valorDescuentos: number;
+  valorNeto: number;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const resultado = await tx.solicitudes_pago.updateMany({
+      where: {
+        id: input.solicitudId,
+        estado_actual: input.estadoOrigen,
+      },
+      data: {
+        beneficiario_id: input.beneficiarioId,
+        proveedor_id: input.proveedorId,
+        categoria_gasto: input.categoriaGasto,
+        categoria_reembolso: input.categoriaReembolso,
+        concepto_nomina: input.conceptoNomina,
+        tipo_impuesto: input.tipoImpuesto,
+        medio_pago: input.medioPago,
+        descripcion: input.descripcion,
+        valor_bruto: input.valorBruto,
+        valor_retenciones: input.valorRetenciones,
+        valor_descuentos: input.valorDescuentos,
+        valor_neto: input.valorNeto,
+        ...(input.estadoOrigen === "DEVUELTA_APROBADOR_1"
+          ? { valor_reservado: input.valorNeto }
+          : {}),
+      },
+    });
+
+    if (resultado.count !== 1) {
+      throw new SolicitudesPagoCambioConcurrenteError();
+    }
+
+    return tx.solicitudes_pago.findUniqueOrThrow({
+      where: { id: input.solicitudId },
+      include: solicitudPagoInclude,
+    });
+  });
+}
+
 export async function enviarSolicitudPagoRepository(input: {
   solicitudId: string;
   enviadoEn: Date;

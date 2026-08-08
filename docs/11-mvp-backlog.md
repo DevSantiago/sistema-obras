@@ -919,7 +919,7 @@ Permitir que el Aprobador Nivel 2 consulte y apruebe solicitudes previamente apr
 
 ### HU-0804. Refactor del ciclo de vida de las solicitudes
 
-**Estado:** ⏳ Pendiente
+**Estado:** ✅ Terminada
 
 **Descripción**
 
@@ -1020,7 +1020,7 @@ Implementar un componente reutilizable para consultar el detalle completo de una
 
 ### HU-0807. Edición por Aprobador Nivel 1
 
-**Estado:** ⏳ Pendiente
+**Estado:** 🚧 En desarrollo
 
 **Descripción**
 
@@ -1056,13 +1056,13 @@ Permitir que el Aprobador Nivel 1 realice correcciones funcionales antes de apro
 - Actualizar reserva presupuestal cuando corresponda.
 - Aprobar.
 - Devolver al solicitante.
-- Auditoría completa de modificaciones.
+- Los eventos de modificación serán consolidados por HU-0809.
 
 ---
 
 ### HU-0808. Gestión de solicitudes por Aprobador Nivel 2
 
-**Estado:** ⏳ Pendiente
+**Estado:** ✅ Terminada
 
 **Descripción**
 

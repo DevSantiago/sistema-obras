@@ -1160,11 +1160,46 @@ POST /api/v1/solicitudes-pago/aprobar-nivel-2
 POST /api/v1/solicitudes-pago/{id}/devolver
 POST /api/v1/solicitudes-pago/devolver
 POST /api/v1/solicitudes-pago/anular
+PATCH /api/v1/solicitudes-pago/{id}/editar-nivel-1
 ```
 
 Los endpoints `POST` reciben un arreglo `solicitud_ids`. El mismo contrato
 permite aprobar una solicitud o varias seleccionadas mediante checklist; no
 existe un endpoint individual redundante.
+
+---
+
+## Editar solicitud en primer nivel
+
+```http
+PATCH /api/v1/solicitudes-pago/{id}/editar-nivel-1
+```
+
+Requiere el permiso `APROBAR_NIVEL_1` y solo admite solicitudes en
+`PENDIENTE_APROBADOR_1` o `DEVUELTA_APROBADOR_1`. No permite modificar
+proyecto, centro de costo, tipo, número ni solicitante.
+
+### Cuerpo
+
+```json
+{
+  "beneficiario_id": "uuid",
+  "categoria": "SERVICIOS",
+  "medio_pago": "TRANSFERENCIA",
+  "descripcion": "Concepto corregido",
+  "valor_bruto": 120000,
+  "valor_retenciones": 20000,
+  "valor_descuentos": 5000
+}
+```
+
+El servidor recalcula `valor_neto`. Cuando la solicitud está
+`DEVUELTA_APROBADOR_1`, también actualiza `valor_reservado` y valida que el
+nuevo valor no supere el saldo disponible del fondo.
+
+También admite `multipart/form-data` con los mismos campos y hasta diez
+entradas `archivos`. Los soportes son opcionales, aceptan PDF, PNG o JPEG y
+tienen un límite de 10 MB por archivo.
 
 ---
 
