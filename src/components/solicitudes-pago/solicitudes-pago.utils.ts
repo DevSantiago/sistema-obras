@@ -149,8 +149,34 @@ export function formatearFecha(fecha: string | Date): string {
   }).format(new Date(fecha));
 }
 
+export function formatearFechaHora(
+  fecha?: string | Date | null,
+): string {
+  if (!fecha) return "Pendiente";
+
+  return new Intl.DateTimeFormat("es-CO", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(fecha));
+}
+
 export function formatearTextoDominio(valor?: string | null): string {
   return valor?.replaceAll("_", " ") ?? "No definido";
+}
+
+const ETIQUETAS_ESTADO_SOLICITUD: Record<string, string> = {
+  PENDIENTE_APROBADOR_1: "PEND. APROBACIÓN N1",
+  PENDIENTE_APROBADOR_2: "PEND. APROBACIÓN N2",
+  DEVUELTA_APROBADOR_1: "DEV. APROBADOR N1",
+  DEVUELTA_SOLICITANTE: "DEV. SOLICITANTE",
+  PROGRAMADA_PAGO: "PROG. PAGO",
+};
+
+export function formatearEstadoSolicitud(estado: string): string {
+  return ETIQUETAS_ESTADO_SOLICITUD[estado] ?? formatearTextoDominio(estado);
 }
 
 function usuarioTieneRol(

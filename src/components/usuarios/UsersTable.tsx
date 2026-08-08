@@ -50,6 +50,7 @@ function UserActions({
       <UserStatusButton
         usuarioId={usuario.id}
         estadoActual={usuario.estado}
+        esAdministrador={usuario.rol === "ADMINISTRADOR"}
       />
     </div>
   );

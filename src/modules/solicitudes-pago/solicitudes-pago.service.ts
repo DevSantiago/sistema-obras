@@ -14,11 +14,13 @@ import {
   enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
+  obtenerAccesoActivoUsuarioProyectoRepository,
   obtenerBeneficiarioActivoRepository,
   obtenerCentroCostoActivoRepository,
   obtenerFondoActivoPorProyectoRepository,
   obtenerProyectoBaseActivoRepository,
   obtenerSolicitudPagoPorIdRepository,
+  obtenerComprobantePagoSolicitudRepository,
   eliminarSolicitudPagoRepository,
   obtenerSolicitudesPagoPorIdsRepository,
   obtenerReservasPorFondosRepository,
@@ -156,7 +158,9 @@ type SolicitudPagoRepositoryResult = {
   estado_actual: string;
   creado_por: string | null;
   enviado_en: Date | null;
+  aprobado_1_en: Date | null;
   aprobado_2_en: Date | null;
+  pagado_en: Date | null;
   creado_en: Date;
   actualizado_en: Date;
   proyecto_base?: {
@@ -200,6 +204,20 @@ type SolicitudPagoRepositoryResult = {
       nombre: string;
     };
   }>;
+  pagos?: {
+    soporte: {
+      id: string;
+      nombre_archivo: string;
+      tipo_mime: string | null;
+    };
+  } | null;
+  detalleOperacionEfectivo?: {
+    soporte: {
+      id: string;
+      nombre_archivo: string;
+      tipo_mime: string | null;
+    };
+  } | null;
 };
 
 type ContextoFinancieroSolicitud = {
@@ -321,6 +339,7 @@ function construirVisibilidadSolicitudesPago(
     consultar_todas: consultarTodas,
     usuario_id: usuario.id,
     incluir_propias: !consultarTodas,
+    incluir_proyectos_asignados: !consultarTodas,
     estados_flujo: consultarTodas ? [] : Array.from(estadosFlujo),
   };
 }
@@ -594,7 +613,9 @@ function convertirSolicitudPago(
     estado_actual: solicitud.estado_actual as EstadoSolicitudPago,
     creado_por: solicitud.creado_por,
     enviado_en: solicitud.enviado_en,
+    aprobado_1_en: solicitud.aprobado_1_en,
     aprobado_2_en: solicitud.aprobado_2_en,
+    pagado_en: solicitud.pagado_en,
     creado_en: solicitud.creado_en,
     actualizado_en: solicitud.actualizado_en,
     proyecto_base: solicitud.proyecto_base,
@@ -603,6 +624,10 @@ function convertirSolicitudPago(
     proveedor: solicitud.proveedor,
     creador: solicitud.creador,
     ultima_devolucion: solicitud.devoluciones?.[0] ?? null,
+    comprobante_pago:
+      solicitud.pagos?.soporte ??
+      solicitud.detalleOperacionEfectivo?.soporte ??
+      null,
   };
 }
 
@@ -1043,6 +1068,7 @@ export async function listarBandejaPagosService(
       consultar_todas: true,
       usuario_id: usuarioAutenticado.id,
       incluir_propias: false,
+      incluir_proyectos_asignados: false,
       estados_flujo: [],
     },
   });
@@ -1433,14 +1459,20 @@ export async function consultarAprobacionesNivel1Service(
   const visibilidad =
     construirVisibilidadSolicitudesPago(usuarioAutenticado);
 
-  const solicitudes = (
-    await listarSolicitudesPagoRepository({
-      filters: {
-        estado_actual: "PENDIENTE_APROBADOR_1",
-      },
+  const [pendientesNivel1, devueltasDesdeNivel2] = await Promise.all([
+    listarSolicitudesPagoRepository({
+      filters: { estado_actual: "PENDIENTE_APROBADOR_1" },
       visibilidad,
-    })
-  ).map(convertirSolicitudPago);
+    }),
+    listarSolicitudesPagoRepository({
+      filters: { estado_actual: "DEVUELTA_APROBADOR_1" },
+      visibilidad,
+    }),
+  ]);
+  const solicitudes = [
+    ...pendientesNivel1,
+    ...devueltasDesdeNivel2,
+  ].map(convertirSolicitudPago);
 
   if (solicitudes.length === 0) {
     return {
@@ -1490,18 +1522,22 @@ export async function consultarAprobacionesNivel1Service(
       convertirDecimalANumero(fondo.saldo_actual);
 
     const valorPendiente = solicitud.valor_neto;
+    const valorPorReservar =
+      solicitud.estado_actual === "DEVUELTA_APROBADOR_1"
+        ? 0
+        : valorPendiente;
 
     const saldoDisponible =
       saldoActual - reservasExistentes;
 
     const saldoProyectado =
-      saldoDisponible - valorPendiente;
+      saldoDisponible - valorPorReservar;
 
     const existente = proyectos.get(fondo.id);
 
     if (existente) {
       existente.valor_pendiente += valorPendiente;
-      existente.saldo_proyectado -= valorPendiente;
+      existente.saldo_proyectado -= valorPorReservar;
       existente.cantidad_solicitudes += 1;
       existente.solicitudes.push(solicitud);
       continue;
@@ -1713,7 +1749,14 @@ export async function obtenerSolicitudPagoPorIdService(
       solicitud.creado_por === visibilidad.usuario_id) ||
     visibilidad.estados_flujo.includes(
       solicitud.estado_actual as EstadoSolicitudPago,
-    );
+    ) ||
+    (visibilidad.incluir_proyectos_asignados &&
+      Boolean(
+        await obtenerAccesoActivoUsuarioProyectoRepository(
+          usuarioAutenticado.id,
+          solicitud.proyecto_base_id,
+        ),
+      ));
 
   if (!puedeConsultar) {
     return {
@@ -1730,7 +1773,27 @@ export async function obtenerSolicitudPagoPorIdService(
     solicitud.tipo_solicitud === "PAGO_NOMINA" &&
     solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
   ) {
-    return obtenerDetalleNominaGrupalService(id);
+    const detalleNomina = await obtenerDetalleNominaGrupalService(id);
+
+    if (detalleNomina.body.ok && detalleNomina.body.data) {
+      return {
+        ...detalleNomina,
+        body: {
+          ...detalleNomina.body,
+          data: {
+            solicitud: {
+              ...detalleNomina.body.data.solicitud,
+              comprobante_pago:
+                solicitud.pagos?.soporte ??
+                solicitud.detalleOperacionEfectivo?.soporte ??
+                null,
+            },
+          },
+        },
+      };
+    }
+
+    return detalleNomina;
   }
 
   return {
@@ -1741,6 +1804,43 @@ export async function obtenerSolicitudPagoPorIdService(
       data: {
         solicitud: convertirSolicitudPago(solicitud),
       },
+    },
+  };
+}
+
+export async function obtenerComprobantePagoSolicitudService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+) {
+  const detalle = await obtenerSolicitudPagoPorIdService(
+    usuarioAutenticado,
+    solicitudId,
+  );
+
+  if (!detalle.body.ok) {
+    return detalle;
+  }
+
+  const archivo = await obtenerComprobantePagoSolicitudRepository(
+    solicitudId,
+  );
+
+  if (!archivo) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "La solicitud no tiene comprobante de pago.",
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Comprobante consultado correctamente.",
+      data: archivo,
     },
   };
 }
@@ -3800,7 +3900,8 @@ export async function aprobarSolicitudesNivel1Service(
 
   const solicitudesEstadoInvalido = solicitudes.filter(
     (solicitud) =>
-      solicitud.estado_actual !== "PENDIENTE_APROBADOR_1",
+      solicitud.estado_actual !== "PENDIENTE_APROBADOR_1" &&
+      solicitud.estado_actual !== "DEVUELTA_APROBADOR_1",
   );
 
   if (solicitudesEstadoInvalido.length > 0) {
@@ -3814,7 +3915,7 @@ export async function aprobarSolicitudesNivel1Service(
       body: {
         ok: false,
         message:
-          "Todas las solicitudes deben estar en estado PENDIENTE_APROBADOR_1. " +
+          "Todas las solicitudes deben estar pendientes de nivel 1 o devueltas desde nivel 2. " +
           `Solicitudes no aprobables: ${referenciasInvalidas.join(", ")}.`,
       },
     };
@@ -3848,6 +3949,7 @@ export async function aprobarSolicitudesNivel1Service(
     reservas_existentes: number;
     saldo_disponible: number;
     valor_seleccionado: number;
+    valor_nuevo_reservar: number;
     solicitudes: {
       id: string;
       numero_solicitud: string | null;
@@ -3858,6 +3960,10 @@ export async function aprobarSolicitudesNivel1Service(
 
   for (const solicitud of solicitudes) {
     const valorNeto = Number(solicitud.valor_neto);
+    const valorNuevoReservar =
+      solicitud.estado_actual === "DEVUELTA_APROBADOR_1"
+        ? 0
+        : valorNeto;
     const saldoActual = Number(solicitud.fondo.saldo_actual);
     const reservasExistentes =
       reservasPorFondo.get(solicitud.fondo_id) ?? 0;
@@ -3869,6 +3975,7 @@ export async function aprobarSolicitudesNivel1Service(
 
     if (grupoExistente) {
       grupoExistente.valor_seleccionado += valorNeto;
+      grupoExistente.valor_nuevo_reservar += valorNuevoReservar;
       grupoExistente.solicitudes.push({
         id: solicitud.id,
         numero_solicitud: solicitud.numero_solicitud,
@@ -3886,6 +3993,7 @@ export async function aprobarSolicitudesNivel1Service(
       reservas_existentes: reservasExistentes,
       saldo_disponible: saldoDisponible,
       valor_seleccionado: valorNeto,
+      valor_nuevo_reservar: valorNuevoReservar,
       solicitudes: [
         {
           id: solicitud.id,
@@ -3899,7 +4007,7 @@ export async function aprobarSolicitudesNivel1Service(
   const gruposConSaldoInsuficiente = Array.from(
     solicitudesAgrupadasPorFondo.values(),
   ).filter(
-    (grupo) => grupo.valor_seleccionado > grupo.saldo_disponible,
+    (grupo) => grupo.valor_nuevo_reservar > grupo.saldo_disponible,
   );
 
   if (gruposConSaldoInsuficiente.length > 0) {
@@ -3961,6 +4069,9 @@ export async function aprobarSolicitudesNivel1Service(
         solicitudes.map((solicitud) => ({
           id: solicitud.id,
           valor_reservado: solicitud.valor_neto,
+          estado_origen: solicitud.estado_actual as
+            | "PENDIENTE_APROBADOR_1"
+            | "DEVUELTA_APROBADOR_1",
         })),
         usuarioAutenticado.id,
         fechaAprobacion,
@@ -3992,7 +4103,7 @@ export async function aprobarSolicitudesNivel1Service(
     saldo_disponible: grupo.saldo_disponible,
     valor_seleccionado: grupo.valor_seleccionado,
     saldo_proyectado:
-      grupo.saldo_disponible - grupo.valor_seleccionado,
+      grupo.saldo_disponible - grupo.valor_nuevo_reservar,
     cantidad_solicitudes: grupo.solicitudes.length,
   }));
 

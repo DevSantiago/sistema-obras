@@ -34,6 +34,16 @@ const usuarioDirector: UsuarioSesion = {
   permisos: ["CONSULTAR_FONDOS"],
 };
 
+const usuarioAprobador: UsuarioSesion = {
+  id: "aprobador-1",
+  nombre: "Aprobador",
+  correo: "aprobador@test.com",
+  telefono: null,
+  estado: "ACTIVO",
+  roles: ["APROBADOR_1"],
+  permisos: ["CONSULTAR_FONDOS", "CONSULTAR_TODO"],
+};
+
 describe("fondos.service - consultarFondosService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,6 +67,16 @@ describe("fondos.service - consultarFondosService", () => {
     expect(consultarFondosRepository).toHaveBeenCalledWith({
       tipo: "ACCESOS",
       usuario_id: "director-1",
+    });
+  });
+
+  it("debe dar visibilidad total a los aprobadores autorizados", async () => {
+    vi.mocked(consultarFondosRepository).mockResolvedValue([]);
+
+    await consultarFondosService(usuarioAprobador);
+
+    expect(consultarFondosRepository).toHaveBeenCalledWith({
+      tipo: "TOTAL",
     });
   });
 

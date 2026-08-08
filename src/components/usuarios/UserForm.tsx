@@ -10,7 +10,6 @@ import type {
 import styles from "./UserForm.module.css";
 
 const ROLES_DISPONIBLES = [
-  "ADMINISTRADOR",
   "DIRECTOR",
   "APROBADOR_1",
   "APROBADOR_2",
@@ -64,6 +63,7 @@ export function UserForm({
 }: UserFormProps) {
   const router = useRouter();
   const esEdicion = Boolean(usuarioEditando);
+  const esAdministradorProtegido = usuarioEditando?.rol === "ADMINISTRADOR";
 
   const [tipoDocumento, setTipoDocumento] = useState(
     usuarioEditando?.tipo_documento ?? "CC",
@@ -93,7 +93,7 @@ export function UserForm({
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
-  const rolActualEsObsoleto = Boolean(
+  const rolActualNoAsignable = Boolean(
     usuarioEditando?.rol &&
       !ROLES_DISPONIBLES.includes(usuarioEditando.rol),
   );
@@ -353,12 +353,14 @@ export function UserForm({
               id="rol"
               value={rolSeleccionado}
               onChange={(event) => manejarCambioRol(event.target.value)}
+              disabled={esAdministradorProtegido}
               required
             >
               <option value="">Seleccione un rol</option>
-              {rolActualEsObsoleto && usuarioEditando?.rol && (
+              {rolActualNoAsignable && usuarioEditando?.rol && (
                 <option value={usuarioEditando.rol} disabled>
-                  {usuarioEditando.rol} (inactivo)
+                  {usuarioEditando.rol}
+                  {esAdministradorProtegido ? " (protegido)" : " (inactivo)"}
                 </option>
               )}
               {ROLES_DISPONIBLES.map((rol) => (

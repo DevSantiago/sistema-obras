@@ -216,7 +216,7 @@ export async function registrarCorreccionOperacionEfectivoService(
 
   if (
     !input.operacion_efectivo_id.trim() ||
-    !["AJUSTE", "ANULACION"].includes(input.tipo) ||
+    input.tipo !== "AJUSTE" ||
     !motivo
   ) {
     return {
@@ -261,10 +261,7 @@ export async function registrarCorreccionOperacionEfectivoService(
       status: 201,
       body: {
         ok: true,
-        message:
-          input.tipo === "ANULACION"
-            ? "Operación anulada correctamente."
-            : "Ajuste registrado correctamente.",
+        message: "Ajuste registrado correctamente.",
         data: correccion,
       },
     };

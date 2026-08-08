@@ -69,6 +69,9 @@
 }
 
 .secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 42px;
   padding: 9px 14px;
   border: 1px solid #d1d5db;
@@ -76,6 +79,7 @@
   background: #ffffff;
   color: #374151;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -103,9 +107,16 @@
   color: #374151;
 }
 
-.summary > div {
+.summary > div:first-child {
   display: grid;
   gap: 3px;
+}
+
+.summaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .paymentHint {
@@ -516,6 +527,15 @@
   .summary {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .summaryActions {
+    flex-direction: column;
+  }
+
+  .summaryActions .primaryButton,
+  .summaryActions .secondaryButton {
+    width: 100%;
   }
 
   .tableWrapper {

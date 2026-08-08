@@ -578,6 +578,15 @@ const mensajeSinSolicitudes =
                 obtenerValorSeleccionadoProyecto(
                   proyecto,
                 );
+              const valorNuevoPorReservar =
+                proyecto.solicitudes.reduce(
+                  (total, solicitud) =>
+                    idsSeleccionados.has(solicitud.id) &&
+                    solicitud.estado_actual === "PENDIENTE_APROBADOR_1"
+                      ? total + solicitud.valor_neto
+                      : total,
+                  0,
+                );
               const cantidadSeleccionadaProyecto =
                 proyecto.solicitudes.filter((solicitud) =>
                   idsSeleccionados.has(solicitud.id),
@@ -598,7 +607,9 @@ const mensajeSinSolicitudes =
                   nivel,
                   proyecto.saldo_actual,
                   proyecto.saldo_disponible,
-                  valorSeleccionado,
+                  nivel === 1
+                    ? valorNuevoPorReservar
+                    : valorSeleccionado,
                   reservaRestante,
                 );
 

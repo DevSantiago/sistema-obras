@@ -76,6 +76,28 @@ const solicitudPagoInclude = {
       },
     },
   },
+  pagos: {
+    select: {
+      soporte: {
+        select: {
+          id: true,
+          nombre_archivo: true,
+          tipo_mime: true,
+        },
+      },
+    },
+  },
+  detalleOperacionEfectivo: {
+    select: {
+      soporte: {
+        select: {
+          id: true,
+          nombre_archivo: true,
+          tipo_mime: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.solicitudes_pagoInclude;
 
 export class SolicitudesPagoCambioConcurrenteError extends Error {
@@ -121,6 +143,7 @@ async function registrarMovimientoPago(
 type SolicitudReservaNivel1 = {
   id: string;
   valor_reservado: Prisma.Decimal;
+  estado_origen: "PENDIENTE_APROBADOR_1" | "DEVUELTA_APROBADOR_1";
 };
 
 function obtenerReferenciaCentroCosto(input: {
@@ -207,6 +230,20 @@ export async function obtenerAccesoActivoUsuarioProyectoLineaRepository(
       linea_negocio: lineaNegocio,
       activo: true,
     },
+  });
+}
+
+export async function obtenerAccesoActivoUsuarioProyectoRepository(
+  usuarioId: string,
+  proyectoBaseId: string,
+) {
+  return prisma.accesos_usuario_proyecto.findFirst({
+    where: {
+      usuario_id: usuarioId,
+      proyecto_base_id: proyectoBaseId,
+      activo: true,
+    },
+    select: { id: true },
   });
 }
 
@@ -414,6 +451,19 @@ export async function listarSolicitudesPagoRepository(input: {
     });
   }
 
+  if (input.visibilidad.incluir_proyectos_asignados) {
+    condicionesVisibilidad.push({
+      proyecto_base: {
+        accesos: {
+          some: {
+            usuario_id: input.visibilidad.usuario_id,
+            activo: true,
+          },
+        },
+      },
+    });
+  }
+
   if (input.visibilidad.estados_flujo.length > 0) {
     condicionesVisibilidad.push({
       estado_actual: {
@@ -449,6 +499,26 @@ export async function obtenerSolicitudPagoPorIdRepository(id: string) {
       id,
     },
     include: solicitudPagoInclude,
+  });
+}
+
+export async function obtenerComprobantePagoSolicitudRepository(id: string) {
+  return prisma.adjuntos.findFirst({
+    where: {
+      OR: [
+        { soporte_pago: { solicitud_pago_id: id } },
+        {
+          soportes_detalle_efectivo: {
+            some: { solicitud_pago_id: id },
+          },
+        },
+      ],
+    },
+    select: {
+      nombre_archivo: true,
+      ruta_archivo: true,
+      tipo_mime: true,
+    },
   });
 }
 
@@ -656,12 +726,17 @@ export async function aprobarSolicitudesNivel1Repository(
       const resultado = await tx.solicitudes_pago.updateMany({
         where: {
           id: solicitud.id,
-          estado_actual: "PENDIENTE_APROBADOR_1",
-          valor_reservado: null,
+          estado_actual: solicitud.estado_origen,
+          valor_reservado:
+            solicitud.estado_origen === "PENDIENTE_APROBADOR_1"
+              ? null
+              : { not: null },
         },
         data: {
           estado_actual: "PENDIENTE_APROBADOR_2",
-          valor_reservado: solicitud.valor_reservado,
+          ...(solicitud.estado_origen === "PENDIENTE_APROBADOR_1"
+            ? { valor_reservado: solicitud.valor_reservado }
+            : {}),
           aprobado_1_por: usuarioAprobadorId,
           aprobado_1_en: fechaAprobacion,
           actualizado_en: fechaAprobacion,

@@ -29,6 +29,8 @@ import {
 } from "./solicitudes-pago.types";
 import {
   centroCostoPermitidoParaUsuario,
+  formatearEstadoSolicitud,
+  formatearFechaHora,
   formatearMoneda,
   formatearTextoDominio,
   obtenerCentrosCosto,
@@ -994,7 +996,7 @@ export default function SolicitudesPagoManager({
                 </h2>
                 <div className={styles.detailMeta}>
                   <span className={styles.detailStatus}>
-                    {formatearTextoDominio(solicitudDetalle.estado_actual)}
+                    {formatearEstadoSolicitud(solicitudDetalle.estado_actual)}
                   </span>
                   <span>{formatearTextoDominio(solicitudDetalle.tipo_solicitud)}</span>
                 </div>
@@ -1040,6 +1042,32 @@ export default function SolicitudesPagoManager({
                 <div className={styles.detailNet}><dt>Valor neto a pagar</dt><dd>{formatearMoneda(solicitudDetalle.valor_neto)}</dd></div>
               </dl>
             </section>
+
+            <section className={styles.detailSection}>
+              <h3>Fechas del proceso</h3>
+              <dl className={styles.processTimeline}>
+                <div><dt>Creación</dt><dd>{formatearFechaHora(solicitudDetalle.creado_en)}</dd></div>
+                <div><dt>Aprobación nivel 1</dt><dd>{formatearFechaHora(solicitudDetalle.aprobado_1_en)}</dd></div>
+                <div><dt>Aprobación nivel 2</dt><dd>{formatearFechaHora(solicitudDetalle.aprobado_2_en)}</dd></div>
+                <div><dt>Pago</dt><dd>{formatearFechaHora(solicitudDetalle.pagado_en)}</dd></div>
+              </dl>
+            </section>
+
+            {solicitudDetalle.estado_actual === "PAGADA" &&
+            solicitudDetalle.comprobante_pago ? (
+              <section className={styles.detailSection}>
+                <h3>Comprobante de pago</h3>
+                <a
+                  className={styles.receiptLink}
+                  href={`/api/v1/solicitudes-pago/${solicitudDetalle.id}/comprobante`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span>{solicitudDetalle.comprobante_pago.nombre_archivo}</span>
+                  <strong>Ver comprobante</strong>
+                </a>
+              </section>
+            ) : null}
 
             {solicitudDetalle.ultima_devolucion ? (
               <aside className={styles.returnReason}>

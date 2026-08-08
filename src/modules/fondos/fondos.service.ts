@@ -16,11 +16,11 @@ import type {
 function obtenerVisibilidadFondos(
   usuario: UsuarioSesion,
 ): VisibilidadFondos {
-  const tieneVisibilidadTotal = [
-    "ADMINISTRADOR",
-    "AUXILIAR_CONTABLE",
-    "PAGOS",
-  ].some((rol) => usuario.roles.includes(rol));
+  const tieneVisibilidadTotal =
+    usuario.permisos.includes("CONSULTAR_TODO") ||
+    ["ADMINISTRADOR", "AUXILIAR_CONTABLE", "PAGOS"].some((rol) =>
+      usuario.roles.includes(rol),
+    );
 
   return tieneVisibilidadTotal
     ? { tipo: "TOTAL" }

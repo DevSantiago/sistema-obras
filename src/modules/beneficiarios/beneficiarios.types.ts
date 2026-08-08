@@ -139,3 +139,29 @@ export type BeneficiarioActualizadoRepositoryInput = {
   notas?: string | null;
   activo?: boolean;
 };
+
+export type FilaProveedorMasivo = {
+  fila: number;
+  tipo_documento: string;
+  numero_documento: string;
+  nombre: string;
+  correo: string;
+  telefono: string;
+  medio_pago_preferido: string;
+  banco: string;
+  tipo_cuenta_bancaria: string;
+  numero_cuenta_bancaria: string;
+  concepto_pago: string;
+};
+
+export type ResultadoFilaProveedorMasivo = FilaProveedorMasivo & {
+  valido: boolean;
+  errores: string[];
+};
+
+export type ResultadoCargaMasivaProveedores = {
+  total: number;
+  validos: number;
+  rechazados: number;
+  filas: ResultadoFilaProveedorMasivo[];
+};

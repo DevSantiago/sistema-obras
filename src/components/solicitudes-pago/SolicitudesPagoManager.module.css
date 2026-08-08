@@ -458,6 +458,41 @@
   background: #f9fafb;
 }
 
+.processDates {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 11rem;
+  margin: 0;
+}
+
+.processDates div {
+  display: grid;
+  grid-template-columns: 6.25rem 1fr;
+  gap: 0.5rem;
+}
+
+.processDates dt {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.processDates dd {
+  margin: 0;
+  color: #334155;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.mobileProcessDates {
+  grid-column: 1 / -1;
+}
+
+.mobileProcessDates dd {
+  display: grid;
+  gap: 0.3rem;
+}
+
 .requestNumber,
 .primaryText,
 .valueLine,
@@ -953,6 +988,61 @@
   margin: 0.35rem 0 0;
 }
 
+.processTimeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.processTimeline > div {
+  padding: 0.875rem;
+  border: 1px solid #d9dee7;
+  border-top: 3px solid #2563eb;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+}
+
+.processTimeline dt {
+  margin-bottom: 0.35rem;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.processTimeline dd {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+}
+
+.receiptLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.625rem;
+  background: #eff6ff;
+  color: #1e40af;
+  text-decoration: none;
+}
+
+.receiptLink span {
+  overflow-wrap: anywhere;
+}
+
+.receiptLink strong {
+  flex: 0 0 auto;
+}
+
+.receiptLink:hover {
+  border-color: #60a5fa;
+  background: #dbeafe;
+}
+
 .listFilters {
   display: grid;
   grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) auto;
@@ -1013,8 +1103,14 @@
   }
 
   .detailGrid,
-  .valuesGrid {
+  .valuesGrid,
+  .processTimeline {
     grid-template-columns: 1fr;
+  }
+
+  .receiptLink {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .detailWide,

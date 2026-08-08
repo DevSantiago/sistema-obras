@@ -4,6 +4,7 @@ import {
   crearBeneficiarioService,
   listarBeneficiariosService,
   obtenerBeneficiarioPorIdService,
+  validarCargaMasivaProveedoresService,
 } from "../beneficiarios.service";
 import {
   actualizarBeneficiarioRepository,
@@ -65,6 +66,67 @@ const beneficiarioMock = {
   creado_en: new Date("2026-07-01T10:00:00.000Z"),
   actualizado_en: new Date("2026-07-01T10:00:00.000Z"),
 };
+
+describe("beneficiarios.service - carga masiva", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
+    vi.mocked(obtenerProveedorPorDocumentoRepository).mockResolvedValue(null);
+  });
+
+  it("valida una fila completa de proveedor", async () => {
+    const resultado = await validarCargaMasivaProveedoresService(
+      usuarioAutorizado,
+      [
+        {
+          fila: 2,
+          tipo_documento: "nit",
+          numero_documento: "900123456",
+          nombre: "Proveedor Uno SAS",
+          correo: "contacto@proveedor.com",
+          telefono: "3001234567",
+          medio_pago_preferido: "transferencia",
+          banco: "bancolombia",
+          tipo_cuenta_bancaria: "corriente",
+          numero_cuenta_bancaria: "123456789",
+          concepto_pago: "materiales",
+        },
+      ],
+    );
+
+    expect(resultado.validos).toBe(1);
+    expect(resultado.filas[0]).toEqual(
+      expect.objectContaining({
+        valido: true,
+        tipo_documento: "NIT",
+        nombre: "PROVEEDOR UNO SAS",
+      }),
+    );
+  });
+
+  it("rechaza documentos repetidos dentro del archivo", async () => {
+    const fila = {
+      fila: 2,
+      tipo_documento: "NIT",
+      numero_documento: "900123456",
+      nombre: "PROVEEDOR UNO SAS",
+      correo: "contacto@proveedor.com",
+      telefono: "3001234567",
+      medio_pago_preferido: "TRANSFERENCIA",
+      banco: "BANCOLOMBIA",
+      tipo_cuenta_bancaria: "CORRIENTE",
+      numero_cuenta_bancaria: "123456789",
+      concepto_pago: "MATERIALES",
+    };
+    const resultado = await validarCargaMasivaProveedoresService(
+      usuarioAutorizado,
+      [fila, { ...fila, fila: 3 }],
+    );
+
+    expect(resultado.rechazados).toBe(1);
+    expect(resultado.filas[1].errores[0]).toContain("fila 2");
+  });
+});
 
 describe("beneficiarios.service - listarBeneficiariosService", () => {
   beforeEach(() => {

@@ -306,6 +306,16 @@ export async function crearUsuario(
   const documentoNormalizado = numero_documento.trim();
   const nombreRol = normalizarRol(rol);
 
+  if (nombreRol === "ADMINISTRADOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "No se permite crear usuarios con rol ADMINISTRADOR.",
+      },
+    };
+  }
+
   const usuarioExistentePorCorreo =
     await buscarUsuarioPorCorreo(correoNormalizado);
 
@@ -555,6 +565,30 @@ export async function actualizarUsuario(
     };
   }
 
+  const esAdministrador = usuarioExistente.roles.some(
+    (usuarioRol) => usuarioRol.rol.nombre === "ADMINISTRADOR",
+  );
+
+  if (esAdministrador && rol !== undefined && normalizarRol(rol) !== "ADMINISTRADOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "No se permite cambiar el rol del administrador del sistema.",
+      },
+    };
+  }
+
+  if (!esAdministrador && rol !== undefined && normalizarRol(rol) === "ADMINISTRADOR") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "No se permite asignar el rol ADMINISTRADOR.",
+      },
+    };
+  }
+
   const correoNormalizado = correo?.trim().toLowerCase();
 
   if (correoNormalizado) {
@@ -720,6 +754,20 @@ export async function cambiarEstadoUsuario(
       body: {
         ok: false,
         message: "Usuario no encontrado.",
+      },
+    };
+  }
+
+  const esAdministrador = usuarioExistente.roles.some(
+    (usuarioRol) => usuarioRol.rol.nombre === "ADMINISTRADOR",
+  );
+
+  if (esAdministrador && estado === "INACTIVO") {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "No se permite desactivar al administrador del sistema.",
       },
     };
   }

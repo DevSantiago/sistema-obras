@@ -131,6 +131,8 @@ El sistema evalúa simultáneamente:
 - el estado de la solicitud;
 - la relación del usuario con la solicitud.
 
+Un acceso activo al proyecto permite consultar todas sus solicitudes. Las acciones sobre cada solicitud continúan condicionadas por el rol, los permisos y el estado del flujo.
+
 Las reglas detalladas de visibilidad se encuentran definidas en el documento **02-business-process.md**.
 
 ---
@@ -188,6 +190,11 @@ En las siguientes secciones se describen las responsabilidades, permisos y restr
 ## 4.1 Administrador
 
 El **Administrador** es el responsable de la configuración y administración general del sistema.
+
+El rol `ADMINISTRADOR` está reservado para el usuario técnico creado durante
+la parametrización inicial. No puede asignarse al crear o editar usuarios y el
+usuario que lo posee no puede ser desactivado ni cambiado a otro rol desde el
+módulo de usuarios.
 
 Posee acceso completo a todos los módulos y funcionalidades del aplicativo, sin restricciones por proyecto o línea de negocio.
 
@@ -399,6 +406,7 @@ Es el punto de inicio del flujo de solicitudes.
 ### Permisos principales
 
 - Crear solicitudes.
+- Crear y gestionar beneficiarios requeridos para sus solicitudes.
 - Editar solicitudes mientras la operación lo permita.
 - Adjuntar soportes.
 - Consultar las solicitudes propias.
@@ -421,7 +429,7 @@ No puede:
 |---------------|:-------------:|:--------:|:-----------:|:-----------:|:-----------------:|:------:|:------------:|
 | Administrar usuarios | ✓ | Según permisos | Según permisos | — | — | — | — |
 | Administrar proyectos | ✓ | Según permisos | Según permisos | — | — | — | — |
-| Gestionar beneficiarios | ✓ | Según permisos | Según permisos | Según permisos | Según permisos | — | Según permisos |
+| Gestionar beneficiarios | ✓ | Según permisos | Según permisos | Según permisos | Según permisos | — | ✓ |
 | Crear solicitudes | ✓ | ✓ | ✓ | — | ✓ | — | ✓ |
 | Crear nómina individual y agrupada | Acceso transversal | ✓ | — | — | — | — | — |
 | Aprobar nivel 1 | ✓ | — | ✓ | — | — | — | — |
@@ -429,6 +437,7 @@ No puede:
 | Registrar pagos | ✓ | — | — | — | — | ✓ | — |
 | Registrar anticipos | ✓ | — | — | — | ✓ | — | — |
 | Registrar préstamos | ✓ | — | — | — | ✓ | — | — |
+| Consultar fondos y movimientos | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
 | Consultar auditoría | ✓ | Según permisos | Según permisos | Según permisos | Según permisos | Según permisos | — |
 | Administrar configuración del sistema | ✓ | — | — | — | — | — | — |
 
