@@ -671,6 +671,13 @@ Toda modificación realizada por el Aprobador 1 debe quedar registrada en la aud
 - valor anterior;
 - valor nuevo.
 
+Durante la edición, el proyecto base, centro de costo, tipo, número y
+solicitante permanecen inmutables. El valor neto se recalcula con el valor
+bruto, impuestos y retenciones y descuentos. Si la solicitud fue devuelta
+desde nivel 2, el cambio actualiza su valor reservado dentro del saldo
+disponible del fondo; si todavía no ha sido aprobada en nivel 1, la reserva se
+crea únicamente al aprobar.
+
 El creador ya no puede modificar la solicitud mientras permanezca en revisión.
 
 ---

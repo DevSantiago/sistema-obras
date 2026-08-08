@@ -11,6 +11,7 @@ interface SolicitudesAprobacionListProps {
   onCambiarSeleccionTodas: () => void;
   onDevolver: (solicitud: SolicitudPagoListado) => void;
   onVerDetalle: (solicitud: SolicitudPagoListado) => void;
+  onEditar?: (solicitud: SolicitudPagoListado) => void;
 }
 
 const FORMATEADOR_MONEDA = new Intl.NumberFormat("es-CO", {
@@ -76,6 +77,7 @@ export default function SolicitudesAprobacionList({
   onCambiarSeleccionTodas,
   onDevolver,
   onVerDetalle,
+  onEditar,
 }: SolicitudesAprobacionListProps) {
   const todasSeleccionadas =
     solicitudes.length > 0 &&
@@ -170,14 +172,26 @@ export default function SolicitudesAprobacionList({
                   {formatearMoneda(solicitud.valor_neto)}
                 </td>
                 <td onClick={(event) => event.stopPropagation()}>
-                  <button
-                    className={styles.returnButton}
-                    disabled={deshabilitado}
-                    type="button"
-                    onClick={() => onDevolver(solicitud)}
-                  >
-                    Devolver
-                  </button>
+                  <div className={styles.rowActions}>
+                    {onEditar && solicitud.modalidad_nomina !== "AGRUPADA_EXCEL" ? (
+                      <button
+                        className={styles.editButton}
+                        disabled={deshabilitado}
+                        type="button"
+                        onClick={() => onEditar(solicitud)}
+                      >
+                        Editar
+                      </button>
+                    ) : null}
+                    <button
+                      className={styles.returnButton}
+                      disabled={deshabilitado}
+                      type="button"
+                      onClick={() => onDevolver(solicitud)}
+                    >
+                      Devolver
+                    </button>
+                  </div>
                 </td>
               </tr>
             );

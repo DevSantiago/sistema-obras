@@ -34,6 +34,7 @@
 
 .refreshButton,
 .approveButton,
+.editButton,
 .returnButton,
 .returnConfirmButton,
 .returnSelectedButton,
@@ -75,8 +76,38 @@
 
 .returnButton {
   border: 1px solid #d97706;
-  background: transparent;
+  background: #ffffff;
   color: #92400e;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.rowActions .editButton,
+.rowActions .returnButton {
+  min-height: 2.25rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.editButton {
+  border: 1px solid #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.editButton:hover:not(:disabled) {
+  border-color: #60a5fa;
+  background: #dbeafe;
+}
+
+.returnButton:hover:not(:disabled) {
+  border-color: #f59e0b;
+  background: #fffbeb;
 }
 
 .returnConfirmButton {
@@ -306,6 +337,151 @@
   margin: 0;
 }
 
+.editDialog {
+  display: grid;
+  width: min(54rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  gap: 1.25rem;
+  padding: 1.5rem 1.5rem 1.25rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border, #d9dee7);
+  border-radius: 1rem;
+  background: var(--color-surface, #ffffff);
+  box-shadow: 0 24px 60px rgb(15 23 42 / 22%);
+}
+
+.editDialog h2,
+.editDialog p {
+  margin: 0;
+}
+
+.editReference {
+  margin-top: 0.35rem !important;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.immutableNotice {
+  padding: 0.75rem 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.625rem;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.editSection {
+  display: grid;
+  gap: 1rem;
+  padding: 1.125rem;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.editSectionHeader {
+  display: grid;
+  gap: 0.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.editSectionHeader h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.editSectionHeader p {
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.editGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.editGrid label,
+.valuesEditGrid label {
+  display: grid;
+  gap: 0.4rem;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.editGrid input,
+.editGrid select,
+.editGrid textarea,
+.valuesEditGrid input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.625rem;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editGrid textarea {
+  min-height: 5.75rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.editGrid input:focus,
+.editGrid select:focus,
+.editGrid textarea:focus,
+.valuesEditGrid input:focus {
+  border-color: #2563eb;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 14%);
+}
+
+.editWide {
+  grid-column: 1 / -1;
+}
+
+.valuesEditGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.netPreview {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border: 1px solid #93c5fd;
+  border-radius: 0.625rem;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.netPreview strong {
+  font-size: 1.15rem;
+}
+
+.editDialogActions {
+  position: sticky;
+  bottom: -1.25rem;
+  margin: 0 -1.5rem -1.25rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  background: rgb(255 255 255 / 96%);
+  backdrop-filter: blur(6px);
+}
+
 .returnDialog label {
   display: grid;
   gap: 0.5rem;
@@ -371,6 +547,8 @@
 
 .refreshButton:focus-visible,
 .approveButton:focus-visible,
+.editButton:focus-visible,
+.returnButton:focus-visible,
 .selectAll input:focus-visible,
 .table input:focus-visible {
   outline: 3px solid rgb(37 99 235 / 25%);
@@ -379,6 +557,8 @@
 
 .refreshButton:disabled,
 .approveButton:disabled,
+.editButton:disabled,
+.returnButton:disabled,
 .returnSelectedButton:disabled,
 .returnConfirmButton:disabled,
 .annulSelectedButton:disabled,
@@ -744,5 +924,45 @@
 
   .detailWide {
     grid-column: auto;
+  }
+
+  .editGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .editDialog {
+    width: min(100%, calc(100vw - 1rem));
+    max-height: calc(100vh - 1rem);
+    padding: 1rem 1rem 0.875rem;
+  }
+
+  .editSection {
+    padding: 0.875rem;
+  }
+
+  .valuesEditGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .editWide,
+  .netPreview {
+    grid-column: auto;
+  }
+
+  .netPreview {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .editDialogActions {
+    bottom: -0.875rem;
+    flex-direction: column-reverse;
+    margin: 0 -1rem -0.875rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .editDialogActions button {
+    width: 100%;
   }
 }

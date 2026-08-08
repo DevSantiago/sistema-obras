@@ -9,6 +9,7 @@ import {
 } from "./solicitudes-pago.types";
 import {
   actualizarSolicitudPagoRepository,
+  editarSolicitudAprobadorNivel1Repository,
   buscarDuplicadoNominaIndividualRepository,
   crearSolicitudPagoRepository,
   enviarSolicitudPagoRepository,
@@ -57,6 +58,7 @@ import type {
   VisibilidadSolicitudesPago,
   AprobarSolicitudesNivel1Input,
   AprobarSolicitudesNivel1Data,
+  EditarSolicitudAprobadorNivel1Input,
   ConsultarAprobacionesNivel2Data,
   ProyectoPendienteAprobacionNivel2,
   AprobarSolicitudesNivel2Input,
@@ -85,6 +87,25 @@ const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
 const MODALIDADES_NOMINA_VALIDAS: ModalidadNomina[] = [
   "INDIVIDUAL",
   "AGRUPADA_EXCEL",
+];
+
+const CONCEPTOS_NOMINA_VALIDOS = [
+  "SALARIO",
+  "HONORARIOS",
+  "BONIFICACION",
+  "AUXILIO",
+  "LIQUIDACION",
+  "OTRO",
+];
+
+const CATEGORIAS_GASTO_VALIDAS = [
+  "MATERIALES",
+  "MANO_OBRA",
+  "EQUIPOS",
+  "SERVICIOS",
+  "TRANSPORTE",
+  "ADMINISTRATIVO",
+  "OTRO",
 ];
 
 function obtenerMetadatosAdjunto(archivo: ArchivoGuardado) {
@@ -965,6 +986,299 @@ async function obtenerSolicitudEditable(
     ok: true,
     solicitud,
   };
+}
+
+export async function editarSolicitudAprobadorNivel1Service(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  input: EditarSolicitudAprobadorNivel1Input,
+): Promise<ServiceResponse<{ solicitud: SolicitudPagoListado }>> {
+  if (!usuarioTienePermiso(usuarioAutenticado, "APROBAR_NIVEL_1")) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permiso para editar solicitudes en aprobación nivel 1.",
+      },
+    };
+  }
+
+  const id = normalizarTexto(solicitudId);
+  const solicitud = id
+    ? await obtenerSolicitudPagoPorIdRepository(id)
+    : null;
+
+  if (!solicitud) {
+    return {
+      status: id ? 404 : 400,
+      body: {
+        ok: false,
+        message: id
+          ? "La solicitud de pago no existe."
+          : "El identificador de la solicitud es obligatorio.",
+      },
+    };
+  }
+
+  if (
+    solicitud.estado_actual !== "PENDIENTE_APROBADOR_1" &&
+    solicitud.estado_actual !== "DEVUELTA_APROBADOR_1"
+  ) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message: "Solo se pueden editar solicitudes pendientes de nivel 1 o devueltas desde nivel 2.",
+      },
+    };
+  }
+
+  if (
+    solicitud.tipo_solicitud === "PAGO_NOMINA" &&
+    solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
+  ) {
+    return {
+      status: 409,
+      body: {
+        ok: false,
+        message: "La nómina agrupada debe corregirse desde su flujo de edición grupal.",
+      },
+    };
+  }
+
+  const contexto = await obtenerContextoFinancieroSolicitud({
+    usuarioAutenticado,
+    proyectoBaseId: solicitud.proyecto_base_id,
+    centroCostoId: solicitud.centro_costo_id,
+  });
+
+  if (!contexto.ok) {
+    return contexto.response;
+  }
+
+  const beneficiarioId = normalizarTexto(input.beneficiario_id);
+  const categoria = normalizarTextoDominio(input.categoria);
+  const medioPago = normalizarMedioPago(input.medio_pago);
+  const descripcion = normalizarTexto(input.descripcion);
+
+  if (!beneficiarioId || !categoria || !medioPago || !descripcion) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Beneficiario, categoría, medio de pago y concepto de pago son obligatorios.",
+      },
+    };
+  }
+
+  if (!MEDIOS_PAGO_VALIDOS.includes(medioPago)) {
+    return {
+      status: 400,
+      body: { ok: false, message: "El medio de pago no es válido." },
+    };
+  }
+
+  const valorBruto = obtenerNumeroNoNegativo(input.valor_bruto, -1);
+  const valorRetenciones = obtenerNumeroNoNegativo(input.valor_retenciones);
+  const valorDescuentos = obtenerNumeroNoNegativo(input.valor_descuentos);
+
+  if (
+    valorBruto === null ||
+    valorRetenciones === null ||
+    valorDescuentos === null ||
+    valorBruto <= 0
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Los valores deben ser numéricos no negativos y el valor bruto debe ser mayor a cero.",
+      },
+    };
+  }
+
+  const valorNeto = valorBruto - valorRetenciones - valorDescuentos;
+
+  if (valorNeto < 0) {
+    return {
+      status: 400,
+      body: { ok: false, message: "El valor neto no puede ser negativo." },
+    };
+  }
+
+  const beneficiario = await obtenerBeneficiarioActivoRepository(beneficiarioId);
+
+  if (!beneficiario) {
+    return {
+      status: 404,
+      body: { ok: false, message: "El beneficiario no existe o está inactivo." },
+    };
+  }
+
+  if (
+    solicitud.tipo_solicitud === "PAGO_PROVEEDOR" &&
+    beneficiario.tipo_beneficiario !== "PROVEEDOR"
+  ) {
+    return {
+      status: 400,
+      body: { ok: false, message: "El beneficiario debe ser tipo PROVEEDOR." },
+    };
+  }
+
+  if (
+    (solicitud.tipo_solicitud === "PAGO_NOMINA" ||
+      solicitud.tipo_solicitud === "REEMBOLSO") &&
+    beneficiario.tipo_beneficiario !== "TRABAJADOR"
+  ) {
+    return {
+      status: 400,
+      body: { ok: false, message: "El beneficiario debe ser tipo TRABAJADOR." },
+    };
+  }
+
+  if (
+    solicitud.tipo_solicitud === "PAGO_PROVEEDOR" &&
+    !CATEGORIAS_GASTO_VALIDAS.includes(categoria)
+  ) {
+    return {
+      status: 400,
+      body: { ok: false, message: "La categoría de gasto no es válida." },
+    };
+  }
+
+  if (
+    solicitud.tipo_solicitud === "REEMBOLSO" &&
+    !CATEGORIAS_REEMBOLSO.includes(categoria as CategoriaReembolso)
+  ) {
+    return {
+      status: 400,
+      body: { ok: false, message: "La categoría de reembolso no es válida." },
+    };
+  }
+
+  if (
+    solicitud.tipo_solicitud === "PAGO_NOMINA" &&
+    !CONCEPTOS_NOMINA_VALIDOS.includes(categoria)
+  ) {
+    return {
+      status: 400,
+      body: { ok: false, message: "El concepto de nómina no es válido." },
+    };
+  }
+
+  if (
+    solicitud.tipo_solicitud === "PAGO_IMPUESTO" &&
+    !TIPOS_IMPUESTO_SOLICITUD.includes(categoria as TipoImpuestoSolicitud)
+  ) {
+    return {
+      status: 400,
+      body: { ok: false, message: "El tipo de impuesto no es válido." },
+    };
+  }
+
+  if (solicitud.estado_actual === "DEVUELTA_APROBADOR_1") {
+    const [reservas, fondos] = await Promise.all([
+      obtenerReservasPorFondosRepository([solicitud.fondo_id]),
+      obtenerFondosPorIdsRepository([solicitud.fondo_id]),
+    ]);
+    const fondo = fondos[0];
+    const totalReservado = Number(reservas[0]?._sum.valor_reservado ?? 0);
+    const reservaActual = Number(solicitud.valor_reservado ?? 0);
+    const disponibleParaSolicitud = Number(fondo?.saldo_actual ?? 0) -
+      totalReservado + reservaActual;
+
+    if (!fondo?.activo || valorNeto > disponibleParaSolicitud) {
+      return {
+        status: 409,
+        body: {
+          ok: false,
+          message: !fondo?.activo
+            ? "El fondo asociado no está activo."
+            : "El nuevo valor neto supera el saldo disponible del proyecto.",
+        },
+      };
+    }
+  }
+
+  try {
+    const actualizada = await editarSolicitudAprobadorNivel1Repository({
+      solicitudId: solicitud.id,
+      estadoOrigen: solicitud.estado_actual,
+      beneficiarioId,
+      proveedorId:
+        solicitud.tipo_solicitud === "PAGO_PROVEEDOR"
+          ? normalizarTextoOpcional(beneficiario.proveedor_id)
+          : null,
+      categoriaGasto:
+        solicitud.tipo_solicitud === "PAGO_PROVEEDOR" ? categoria : null,
+      categoriaReembolso:
+        solicitud.tipo_solicitud === "REEMBOLSO" ? categoria : null,
+      conceptoNomina:
+        solicitud.tipo_solicitud === "PAGO_NOMINA" ? categoria : null,
+      tipoImpuesto:
+        solicitud.tipo_solicitud === "PAGO_IMPUESTO" ? categoria : null,
+      medioPago,
+      descripcion,
+      valorBruto,
+      valorRetenciones,
+      valorDescuentos,
+      valorNeto,
+    });
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message: "Solicitud actualizada correctamente por el Aprobador Nivel 1.",
+        data: { solicitud: convertirSolicitudPago(actualizada) },
+      },
+    };
+  } catch (error) {
+    if (error instanceof SolicitudesPagoCambioConcurrenteError) {
+      return {
+        status: 409,
+        body: {
+          ok: false,
+          message: "La solicitud cambió de estado durante la edición. Actualice la bandeja e intente nuevamente.",
+        },
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function agregarAdjuntosSolicitudNivel1Service(input: {
+  usuarioAutenticado: UsuarioSesion;
+  solicitudId: string;
+  archivos: File[];
+}) {
+  if (input.archivos.length === 0) {
+    return { count: 0 };
+  }
+
+  if (!usuarioTienePermiso(input.usuarioAutenticado, "APROBAR_NIVEL_1")) {
+    throw new Error("No tiene permiso para adjuntar soportes en aprobación nivel 1.");
+  }
+
+  const solicitud = await obtenerSolicitudPagoPorIdRepository(input.solicitudId);
+
+  if (
+    !solicitud ||
+    (solicitud.estado_actual !== "PENDIENTE_APROBADOR_1" &&
+      solicitud.estado_actual !== "DEVUELTA_APROBADOR_1")
+  ) {
+    throw new Error("La solicitud ya no admite adjuntos desde aprobación nivel 1.");
+  }
+
+  const resultado = await crearAdjuntosSolicitudPagoService({
+    solicitudPagoId: solicitud.id,
+    archivos: input.archivos,
+    subidoPor: input.usuarioAutenticado.id,
+    carpeta: "solicitudes-pago/aprobacion-nivel-1",
+  });
+
+  return { count: resultado.count };
 }
 
 export async function listarSolicitudesPagoService(

@@ -62,6 +62,16 @@ export type AprobarSolicitudesNivel1Input = {
   solicitud_ids?: string[];
 };
 
+export type EditarSolicitudAprobadorNivel1Input = {
+  beneficiario_id?: string;
+  categoria?: string;
+  medio_pago?: MedioPagoSolicitud;
+  descripcion?: string;
+  valor_bruto?: number;
+  valor_retenciones?: number;
+  valor_descuentos?: number;
+};
+
 export type SolicitudAprobadaNivel1 = {
   id: string;
   numero_solicitud: string | null;

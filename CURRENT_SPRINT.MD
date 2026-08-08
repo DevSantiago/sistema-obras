@@ -2,8 +2,9 @@
 
 ## Objetivo
 
-Completar el seguimiento operativo de los retiros y sobrantes de efectivo
-sobre la base financiera implementada en las Épicas 9, 10 y 14.
+Completar la edición funcional de solicitudes por el Aprobador Nivel 1,
+manteniendo las restricciones estructurales y presupuestales del flujo de
+aprobación.
 
 ---
 
@@ -11,27 +12,24 @@ sobre la base financiera implementada en las Épicas 9, 10 y 14.
 
 Implementar únicamente:
 
-- Épica 11
+- HU-0807 de la Épica 8
 
-según lo definido en `11-mvp-backlog.md`.
-
-La Épica 11 retoma su prioridad después de finalizar completamente la
-Épica 14.
+según lo definido en `docs/11-mvp-backlog.md`.
 
 ---
 
 ## Historias autorizadas
 
-### Épica 11
+### Épica 8
 
 Implementar completamente:
 
-- HU-1101 — completada
-- HU-1102 — completada
-- HU-1103 — completada
-- HU-1104 — completada
-- HU-1105 — completada
-- Corrección del flujo de devolución entre aprobadores y solicitante — en desarrollo
+- HU-0807 — en desarrollo
+
+Base confirmada:
+
+- HU-0804 — desarrollada y probada
+- HU-0808 — desarrollada y probada
 
 Incluyendo:
 
@@ -45,34 +43,22 @@ Incluyendo:
 
 ## Orden obligatorio
 
-1. HU-1101 implementada y documentada.
+1. HU-0807 implementada y documentada.
 2. Ejecutar validación funcional.
 3. Ejecutar pruebas.
 4. Ejecutar `npm run build`.
 5. Cerrar la rama y hacer merge a `dev`.
-6. HU-1104 implementada y documentada.
-7. HU-1105 implementada y documentada.
-8. Detener el desarrollo.
-
-### Corrección autorizada posterior a la Épica 11
-
-Antes de iniciar una nueva épica se completa el flujo documentado de
-devolución de solicitudes: devolución con motivo desde nivel 1 o nivel 2,
-corrección por el solicitante, reenvío entre niveles, auditoría y manejo de la
-reserva presupuestal.
+6. Detener el desarrollo antes de iniciar HU-0809.
 
 ---
 
 ## Base completada
 
-- Épica 9: ejecución y registro de pagos.
-- Épica 10: fondos y movimientos financieros.
-- Épica 14: anticipos, préstamos y devoluciones.
-- Retiro agrupado para solicitudes en `EFECTIVO` o `CONSIGNACION`.
-- Registro transaccional de `operaciones_efectivo` y sus detalles.
-- Movimiento `EGRESO_RETIRO_EFECTIVO`.
-- Reintegro inmediato opcional mediante
-  `INGRESO_REINTEGRO_EFECTIVO`.
+- HU-0804: consecutivo oficial generado al enviar la solicitud.
+- HU-0805: edición por el solicitante.
+- HU-0806: consulta detallada reutilizable.
+- HU-0808: aprobación o devolución desde nivel 2 hacia nivel 1.
+- HU-0810: devolución y anulación durante la aprobación.
 
 ---
 
@@ -80,6 +66,7 @@ reserva presupuestal.
 
 No implementar:
 
+- HU-0809
 - Épica 12
 - Épica 13
 - Épica 15
@@ -89,12 +76,13 @@ No implementar:
 
 aunque existan dependencias futuras previstas en la documentación.
 
-No duplicar:
+No modificar:
 
-- el registro de pagos implementado en la Épica 9;
-- la actualización de fondos y movimientos de la Épica 10;
-- los préstamos implementados en la Épica 14;
-- el reintegro inmediato ya disponible en las operaciones de efectivo.
+- proyecto base;
+- centro de costo;
+- tipo o número de solicitud;
+- solicitante;
+- máquina de estados.
 
 ---
 
@@ -102,8 +90,8 @@ No duplicar:
 
 El trabajo termina cuando:
 
-- la Épica 11 esté completamente terminada;
-- los retiros, reingresos y sobrantes tengan trazabilidad operativa;
+- el Aprobador Nivel 1 pueda editar únicamente los campos autorizados;
+- el valor neto y la reserva se recalculen de forma consistente;
 - la documentación correspondiente esté actualizada;
 - el proyecto compile correctamente (`npm run build`);
 - las pruebas existentes y nuevas continúen pasando.
