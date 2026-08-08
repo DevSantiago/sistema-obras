@@ -12,11 +12,13 @@ type CambiarEstadoResponse = {
 type UserStatusButtonProps = {
   usuarioId: string;
   estadoActual: string;
+  esAdministrador: boolean;
 };
 
 export function UserStatusButton({
   usuarioId,
   estadoActual,
+  esAdministrador,
 }: UserStatusButtonProps) {
   const router = useRouter();
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
@@ -69,9 +71,16 @@ export function UserStatusButton({
         }
         type="button"
         onClick={manejarCambioEstado}
-        disabled={cambiandoEstado}
+        disabled={cambiandoEstado || esAdministrador}
+        title={
+          esAdministrador
+            ? "El administrador del sistema no se puede desactivar."
+            : undefined
+        }
       >
-        {cambiandoEstado
+        {esAdministrador
+          ? "Usuario protegido"
+          : cambiandoEstado
           ? "Procesando..."
           : esDesactivacion
             ? "Desactivar"

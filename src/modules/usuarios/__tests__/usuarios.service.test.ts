@@ -254,6 +254,19 @@ describe("usuarios.service - crearUsuario", () => {
     vi.clearAllMocks();
   });
 
+  it("debe impedir crear usuarios administradores", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ rol: "ADMINISTRADOR" }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "No se permite crear usuarios con rol ADMINISTRADOR.",
+    );
+    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
   it("debe devolver 403 si no tiene el permiso requerido", async () => {
     const resultado = await crearUsuario(
       usuarioSolicitante,
@@ -558,6 +571,24 @@ describe("usuarios.service - actualizarUsuario", () => {
     expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
   });
 
+  it("debe impedir asignar el rol administrador durante la edición", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      usuarioConAccesoObraMock as never,
+    );
+
+    const resultado = await actualizarUsuario(
+      usuarioAdministrador,
+      "usuario-1",
+      { rol: "ADMINISTRADOR" },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "No se permite asignar el rol ADMINISTRADOR.",
+    );
+    expect(actualizarUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
   it("debe rechazar un correo que pertenece a otro usuario", async () => {
     vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
       usuarioConAccesoObraMock as never,
@@ -724,6 +755,33 @@ describe("usuarios.service - cambiarEstadoUsuario", () => {
     );
 
     expect(resultado.status).toBe(404);
+  });
+
+  it("debe impedir desactivar al administrador del sistema", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue({
+      ...usuarioConAccesoObraMock,
+      roles: [
+        {
+          ...usuarioConAccesoObraMock.roles[0],
+          rol: {
+            ...usuarioConAccesoObraMock.roles[0].rol,
+            nombre: "ADMINISTRADOR",
+          },
+        },
+      ],
+    } as never);
+
+    const resultado = await cambiarEstadoUsuario(
+      usuarioAdministrador,
+      "admin-1",
+      { estado: "INACTIVO" },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "No se permite desactivar al administrador del sistema.",
+    );
+    expect(actualizarEstadoUsuarioEnBD).not.toHaveBeenCalled();
   });
 
   it("debe cambiar el estado correctamente", async () => {

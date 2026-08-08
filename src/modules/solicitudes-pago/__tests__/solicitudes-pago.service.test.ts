@@ -652,11 +652,12 @@ describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
     expect(resultado.status).toBe(200);
 
     expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
-      filters: {},
+      filters: expect.objectContaining({}),
       visibilidad: {
         consultar_todas: false,
         usuario_id: "usuario-1",
         incluir_propias: true,
+        incluir_proyectos_asignados: true,
         estados_flujo: [],
       },
     });
@@ -668,11 +669,12 @@ describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
     expect(resultado.status).toBe(200);
 
     expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
-      filters: {},
+      filters: expect.objectContaining({}),
       visibilidad: {
         consultar_todas: false,
         usuario_id: "aprobador-1",
         incluir_propias: true,
+        incluir_proyectos_asignados: true,
         estados_flujo: [
           "PENDIENTE_APROBADOR_1",
           "DEVUELTA_APROBADOR_1",
@@ -687,11 +689,12 @@ describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
     expect(resultado.status).toBe(200);
 
     expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
-      filters: {},
+      filters: expect.objectContaining({}),
       visibilidad: {
         consultar_todas: false,
         usuario_id: "aprobador-2",
         incluir_propias: true,
+        incluir_proyectos_asignados: true,
         estados_flujo: ["PENDIENTE_APROBADOR_2"],
       },
     });
@@ -703,11 +706,12 @@ describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
     expect(resultado.status).toBe(200);
 
     expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
-      filters: {},
+      filters: expect.objectContaining({}),
       visibilidad: {
         consultar_todas: false,
         usuario_id: "pagos-1",
         incluir_propias: true,
+        incluir_proyectos_asignados: true,
         estados_flujo: ["PROGRAMADA_PAGO"],
       },
     });
@@ -721,11 +725,12 @@ describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
     expect(resultado.status).toBe(200);
 
     expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith({
-      filters: {},
+      filters: expect.objectContaining({}),
       visibilidad: {
         consultar_todas: true,
         usuario_id: "admin-1",
         incluir_propias: false,
+        incluir_proyectos_asignados: false,
         estados_flujo: [],
       },
     });
@@ -756,6 +761,7 @@ describe("solicitudes-pago.service - listarSolicitudesPagoService", () => {
         consultar_todas: true,
         usuario_id: "admin-1",
         incluir_propias: false,
+        incluir_proyectos_asignados: false,
         estados_flujo: [],
       },
     });
@@ -822,6 +828,7 @@ describe("solicitudes-pago.service - listarBandejaPagosService", () => {
         consultar_todas: true,
         usuario_id: "pagos-1",
         incluir_propias: false,
+        incluir_proyectos_asignados: false,
         estados_flujo: [],
       },
     });
@@ -2504,7 +2511,7 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel1Service", () => {
     expect(resultado.status).toBe(409);
     expect(resultado.body.ok).toBe(false);
     expect(resultado.body.message).toBe(
-      "Todas las solicitudes deben estar en estado PENDIENTE_APROBADOR_1. Solicitudes no aprobables: SOL-PRO-OBRA-HUMAPO-2026-000001 (BORRADOR).",
+      "Todas las solicitudes deben estar pendientes de nivel 1 o devueltas desde nivel 2. Solicitudes no aprobables: SOL-PRO-OBRA-HUMAPO-2026-000001 (BORRADOR).",
     );
 
     expect(
@@ -2711,10 +2718,12 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel1Service", () => {
         {
           id: "solicitud-1",
           valor_reservado: 1000,
+          estado_origen: "PENDIENTE_APROBADOR_1",
         },
         {
           id: "solicitud-2",
           valor_reservado: 800,
+          estado_origen: "PENDIENTE_APROBADOR_1",
         },
       ],
       usuarioAprobador1.id,
@@ -2823,10 +2832,55 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel1Service", () => {
         {
           id: "solicitud-1",
           valor_reservado: 1000,
+          estado_origen: "PENDIENTE_APROBADOR_1",
         },
       ],
       usuarioAprobador1.id,
       expect.any(Date),
+    );
+  });
+
+  it("debe reenviar a nivel 2 una solicitud devuelta sin crear otra reserva", async () => {
+    vi.mocked(obtenerSolicitudesPagoPorIdsRepository).mockResolvedValue([
+      {
+        ...solicitudProveedorBorrador,
+        estado_actual: "DEVUELTA_APROBADOR_1",
+        numero_solicitud: "SOL-DEVUELTA-001",
+        valor_neto: 1000,
+        valor_reservado: 1000,
+        fondo: { saldo_actual: 5000, activo: true },
+        proyecto_base: { nombre: "HUMAPO" },
+      },
+    ] as never);
+    vi.mocked(obtenerReservasPorFondosRepository).mockResolvedValue([
+      {
+        fondo_id: "fondo-1",
+        _sum: { valor_reservado: 1000 },
+      },
+    ] as never);
+    vi.mocked(aprobarSolicitudesNivel1Repository).mockResolvedValue({
+      count: 1,
+    });
+
+    const resultado = await aprobarSolicitudesNivel1Service(
+      usuarioAprobador1,
+      { solicitud_ids: ["solicitud-1"] },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(aprobarSolicitudesNivel1Repository).toHaveBeenCalledWith(
+      [
+        {
+          id: "solicitud-1",
+          valor_reservado: 1000,
+          estado_origen: "DEVUELTA_APROBADOR_1",
+        },
+      ],
+      usuarioAprobador1.id,
+      expect.any(Date),
+    );
+    expect(resultado.body.data?.proyectos[0].saldo_proyectado).toBe(
+      4000,
     );
   });
 
@@ -2941,10 +2995,12 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel1Service", () => {
         {
           id: "solicitud-1",
           valor_reservado: 1000,
+          estado_origen: "PENDIENTE_APROBADOR_1",
         },
         {
           id: "solicitud-2",
           valor_reservado: 1500,
+          estado_origen: "PENDIENTE_APROBADOR_1",
         },
       ],
       usuarioAprobador1.id,
@@ -3008,6 +3064,7 @@ describe("solicitudes-pago.service - aprobarSolicitudesNivel1Service", () => {
         {
           id: "solicitud-1",
           valor_reservado: 1000,
+          estado_origen: "PENDIENTE_APROBADOR_1",
         },
       ],
       usuarioAprobador1.id,

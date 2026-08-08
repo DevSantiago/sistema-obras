@@ -43,7 +43,12 @@ const MENU_ITEMS: MenuItem[] = [
   {
     label: "Beneficiarios",
     href: "/beneficiarios",
-    visibleParaRoles: ["ADMINISTRADOR", "DIRECTOR", "APROBADOR_1"],
+    visibleParaRoles: [
+      "ADMINISTRADOR",
+      "DIRECTOR",
+      "APROBADOR_1",
+      "SOLICITANTE",
+    ],
   },
   {
     label: "Solicitudes",

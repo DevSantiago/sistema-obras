@@ -316,23 +316,7 @@ describe("operaciones-efectivo.service", () => {
     );
   });
 
-  it("debe permitir anular sin recibir valor manual", async () => {
-    vi.mocked(
-      registrarCorreccionOperacionEfectivoRepository,
-    ).mockResolvedValue({
-      id: "correccion-2",
-      referencia_sistema: "COR-PROYECTO-2026-000002",
-      tipo: "ANULACION",
-      direccion: "INGRESO",
-      valor: 800000,
-      pendiente_anterior: null,
-      pendiente_nuevo: null,
-      estado_operacion: "ANULADA",
-      saldo_fondo_anterior: 200000,
-      saldo_fondo_nuevo: 1000000,
-      registrado_en: "2026-07-31T15:00:00.000Z",
-    });
-
+  it("debe rechazar la anulación de una operación", async () => {
     const resultado =
       await registrarCorreccionOperacionEfectivoService(usuario, {
         operacion_efectivo_id: "operacion-1",
@@ -340,8 +324,10 @@ describe("operaciones-efectivo.service", () => {
         motivo: "Operación duplicada",
       });
 
-    expect(resultado.status).toBe(201);
-    expect(resultado.body.data?.estado_operacion).toBe("ANULADA");
+    expect(resultado.status).toBe(400);
+    expect(
+      registrarCorreccionOperacionEfectivoRepository,
+    ).not.toHaveBeenCalled();
   });
 
   it("debe rechazar un ajuste sin valor", async () => {
@@ -371,7 +357,9 @@ describe("operaciones-efectivo.service", () => {
     const resultado =
       await registrarCorreccionOperacionEfectivoService(usuario, {
         operacion_efectivo_id: "operacion-1",
-        tipo: "ANULACION",
+        tipo: "AJUSTE",
+        direccion: "INGRESO",
+        valor: 10000,
         motivo: "Duplicada",
       });
 

@@ -11,6 +11,7 @@ import type {
   TipoBeneficiario,
   TipoBeneficiarioFormulario,
   TipoCuentaBancaria,
+  ResultadoCargaMasivaProveedores,
 } from "@/modules/beneficiarios/beneficiarios.types";
 import styles from "./BeneficiariosManager.module.css";
 
@@ -82,8 +83,16 @@ export function BeneficiariosManager({
   const [mensajeError, setMensajeError] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [archivoMasivo, setArchivoMasivo] = useState<File | null>(null);
+  const [resultadoMasivo, setResultadoMasivo] =
+    useState<(ResultadoCargaMasivaProveedores & { creados?: number }) | null>(null);
+  const [procesandoMasivo, setProcesandoMasivo] = useState(false);
+  const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null);
 
   const esEdicion = Boolean(beneficiarioEditando);
+  const requiereBanco =
+    tipoBeneficiario === "PROVEEDOR" ||
+    requiereDatosBancarios(medioPagoPreferido);
 
   const tiposDocumentoDisponibles =
     tipoBeneficiario === "TRABAJADOR"
@@ -135,7 +144,7 @@ export function BeneficiariosManager({
   function manejarCambioMedioPago(valor: MedioPagoPreferido | "") {
     setMedioPagoPreferido(valor);
 
-    if (!requiereDatosBancarios(valor)) {
+    if (tipoBeneficiario !== "PROVEEDOR" && !requiereDatosBancarios(valor)) {
       setBanco("");
       setTipoCuentaBancaria("");
       setNumeroCuentaBancaria("");
@@ -183,18 +192,18 @@ export function BeneficiariosManager({
       return;
     }
 
-    if (requiereDatosBancarios(medioPagoPreferido) && !banco) {
+    if (requiereBanco && !banco) {
       setMensajeError("Seleccione el banco.");
       return;
     }
 
-    if (requiereDatosBancarios(medioPagoPreferido) && !tipoCuentaBancaria) {
+    if (requiereBanco && !tipoCuentaBancaria) {
       setMensajeError("Seleccione el tipo de cuenta bancaria.");
       return;
     }
 
     if (
-      requiereDatosBancarios(medioPagoPreferido) &&
+      requiereBanco &&
       !numeroCuentaBancaria.trim()
     ) {
       setMensajeError("Ingrese el número de cuenta bancaria.");
@@ -207,7 +216,16 @@ export function BeneficiariosManager({
     const correoNormalizado = limpiarOpcional(correo);
     const notasNormalizadas = limpiarOpcional(notas);
 
-    const datosBancarios = requiereDatosBancarios(medioPagoPreferido)
+    if (tipoBeneficiario === "PROVEEDOR") {
+      if (!telefono.trim() || !correo.trim() || !notas.trim()) {
+        setMensajeError(
+          "Correo, teléfono y concepto de pago son obligatorios para proveedores.",
+        );
+        return;
+      }
+    }
+
+    const datosBancarios = requiereBanco
       ? {
           banco: bancoNormalizado,
           tipo_cuenta_bancaria: tipoCuentaBancaria,
@@ -320,8 +338,137 @@ export function BeneficiariosManager({
     );
   }
 
+  async function procesarCargaMasiva(accion: "VALIDAR" | "IMPORTAR") {
+    if (!archivoMasivo) {
+      setMensajeMasivo("Seleccione un archivo Excel.");
+      return;
+    }
+
+    setProcesandoMasivo(true);
+    setMensajeMasivo(null);
+    const formData = new FormData();
+    formData.append("archivo", archivoMasivo);
+    formData.append("accion", accion);
+
+    try {
+      const response = await fetch("/api/v1/beneficiarios/carga-masiva", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const body = (await response.json()) as {
+        ok: boolean;
+        message: string;
+        data?: ResultadoCargaMasivaProveedores & { creados?: number };
+      };
+      if (!response.ok || !body.ok || !body.data) {
+        throw new Error(body.message || "No fue posible procesar el archivo.");
+      }
+
+      setResultadoMasivo(body.data);
+      setMensajeMasivo(body.message);
+      if (accion === "IMPORTAR") router.refresh();
+    } catch (error) {
+      setMensajeMasivo(
+        error instanceof Error ? error.message : "No fue posible procesar el archivo.",
+      );
+    } finally {
+      setProcesandoMasivo(false);
+    }
+  }
+
+  function descargarInformeErrores() {
+    if (!resultadoMasivo) return;
+    const filas = resultadoMasivo.filas.filter((fila) => !fila.valido);
+    const escapar = (valor: string) => `"${valor.replaceAll('"', '""')}"`;
+    const csv = [
+      "FILA,IDENTIFICACION,NOMBRE,ERRORES",
+      ...filas.map((fila) =>
+        [fila.fila, fila.numero_documento, fila.nombre, fila.errores.join(" | ")]
+          .map((valor) => escapar(String(valor)))
+          .join(","),
+      ),
+    ].join("\n");
+    const url = URL.createObjectURL(
+      new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }),
+    );
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = "errores-carga-proveedores.csv";
+    enlace.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className={styles.container}>
+      <section className={`${styles.card} ${styles.bulkCard}`}>
+        <header className={styles.bulkHeader}>
+          <div>
+            <h2>Carga masiva de proveedores</h2>
+            <p>Use la plantilla oficial. Los registros existentes se reportan y no se modifican.</p>
+          </div>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => window.location.assign("/api/v1/beneficiarios/carga-masiva")}
+          >
+            Descargar plantilla
+          </button>
+        </header>
+        <div className={styles.bulkControls}>
+          <label className={styles.field}>
+            <span className={styles.label}>Archivo Excel (.xlsx)</span>
+            <input
+              className={styles.input}
+              type="file"
+              accept=".xlsx"
+              onChange={(event) => {
+                setArchivoMasivo(event.target.files?.[0] ?? null);
+                setResultadoMasivo(null);
+                setMensajeMasivo(null);
+              }}
+            />
+          </label>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            disabled={!archivoMasivo || procesandoMasivo}
+            onClick={() => void procesarCargaMasiva("VALIDAR")}
+          >
+            {procesandoMasivo ? "Procesando..." : "Validar archivo"}
+          </button>
+        </div>
+        {resultadoMasivo ? (
+          <div className={styles.bulkResult}>
+            <div><strong>{resultadoMasivo.total}</strong><span>Total</span></div>
+            <div><strong>{resultadoMasivo.validos}</strong><span>Válidos</span></div>
+            <div><strong>{resultadoMasivo.rechazados}</strong><span>Rechazados</span></div>
+            <div className={styles.bulkActions}>
+              {resultadoMasivo.rechazados > 0 ? (
+                <button type="button" className={styles.secondaryButton} onClick={descargarInformeErrores}>
+                  Descargar errores
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.button}
+                disabled={
+                  resultadoMasivo.validos === 0 ||
+                  procesandoMasivo ||
+                  resultadoMasivo.creados !== undefined
+                }
+                onClick={() => void procesarCargaMasiva("IMPORTAR")}
+              >
+                {resultadoMasivo.creados !== undefined
+                  ? `${resultadoMasivo.creados} proveedor(es) importado(s)`
+                  : `Importar ${resultadoMasivo.validos} proveedor(es)`}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {mensajeMasivo ? <p className={styles.helpText}>{mensajeMasivo}</p> : null}
+      </section>
+
       <section className={styles.card}>
         <form className={styles.form} onSubmit={manejarSubmit}>
           <header className={styles.formHeader}>
@@ -454,7 +601,7 @@ export function BeneficiariosManager({
             <label className={styles.field}>
               <span className={styles.label}>
                 Banco
-                {requiereDatosBancarios(medioPagoPreferido) && (
+                {requiereBanco && (
                   <>
                     {" "}
                     <strong aria-hidden="true">*</strong>
@@ -466,8 +613,8 @@ export function BeneficiariosManager({
                 className={styles.input}
                 value={banco}
                 onChange={(event) => setBanco(event.target.value)}
-                disabled={!requiereDatosBancarios(medioPagoPreferido)}
-                required={requiereDatosBancarios(medioPagoPreferido)}
+                disabled={!requiereBanco}
+                required={requiereBanco}
               >
                 <option value="" disabled>
                   Seleccione
@@ -484,7 +631,7 @@ export function BeneficiariosManager({
             <label className={styles.field}>
               <span className={styles.label}>
                 Tipo de cuenta
-                {requiereDatosBancarios(medioPagoPreferido) && (
+                {requiereBanco && (
                   <>
                     {" "}
                     <strong aria-hidden="true">*</strong>
@@ -500,8 +647,8 @@ export function BeneficiariosManager({
                     event.target.value as TipoCuentaBancaria | "",
                   )
                 }
-                disabled={!requiereDatosBancarios(medioPagoPreferido)}
-                required={requiereDatosBancarios(medioPagoPreferido)}
+                disabled={!requiereBanco}
+                required={requiereBanco}
               >
                 <option value="" disabled>
                   Seleccione
@@ -519,7 +666,7 @@ export function BeneficiariosManager({
             <label className={styles.field}>
               <span className={styles.label}>
                 Número de cuenta
-                {requiereDatosBancarios(medioPagoPreferido) && (
+                {requiereBanco && (
                   <>
                     {" "}
                     <strong aria-hidden="true">*</strong>
@@ -537,13 +684,15 @@ export function BeneficiariosManager({
                   setNumeroCuentaBancaria(soloNumeros(event.target.value))
                 }
                 placeholder="Número de cuenta"
-                disabled={!requiereDatosBancarios(medioPagoPreferido)}
-                required={requiereDatosBancarios(medioPagoPreferido)}
+                disabled={!requiereBanco}
+                required={requiereBanco}
               />
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Teléfono</span>
+              <span className={styles.label}>
+                Teléfono {tipoBeneficiario === "PROVEEDOR" ? <strong>*</strong> : null}
+              </span>
 
               <input
                 className={styles.input}
@@ -551,11 +700,14 @@ export function BeneficiariosManager({
                 value={telefono}
                 onChange={(event) => setTelefono(event.target.value)}
                 placeholder="Opcional"
+                required={tipoBeneficiario === "PROVEEDOR"}
               />
             </label>
 
             <label className={styles.field}>
-              <span className={styles.label}>Correo</span>
+              <span className={styles.label}>
+                Correo {tipoBeneficiario === "PROVEEDOR" ? <strong>*</strong> : null}
+              </span>
 
               <input
                 className={styles.input}
@@ -563,6 +715,7 @@ export function BeneficiariosManager({
                 value={correo}
                 onChange={(event) => setCorreo(event.target.value)}
                 placeholder="correo@empresa.com"
+                required={tipoBeneficiario === "PROVEEDOR"}
               />
             </label>
 
@@ -587,7 +740,9 @@ export function BeneficiariosManager({
           </div>
 
           <label className={styles.field}>
-            <span className={styles.label}>Concepto de pago</span>
+            <span className={styles.label}>
+              Concepto de pago {tipoBeneficiario === "PROVEEDOR" ? <strong>*</strong> : null}
+            </span>
 
             <textarea
               className={styles.textarea}
@@ -595,6 +750,7 @@ export function BeneficiariosManager({
               onChange={(event) => setNotas(event.target.value)}
               placeholder="Concepto u observaciones opcionales"
               rows={3}
+              required={tipoBeneficiario === "PROVEEDOR"}
             />
           </label>
 

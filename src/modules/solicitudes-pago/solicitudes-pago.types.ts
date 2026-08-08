@@ -376,6 +376,7 @@ export type VisibilidadSolicitudesPago = {
   consultar_todas: boolean;
   usuario_id: string;
   incluir_propias: boolean;
+  incluir_proyectos_asignados: boolean;
   estados_flujo: EstadoSolicitudPago[];
 };
 
@@ -405,7 +406,9 @@ export type SolicitudPagoListado = {
   estado_actual: EstadoSolicitudPago;
   creado_por: string | null;
   enviado_en: string | Date | null;
+  aprobado_1_en?: string | Date | null;
   aprobado_2_en?: string | Date | null;
+  pagado_en?: string | Date | null;
   creado_en: string | Date;
   actualizado_en: string | Date;
   proyecto_base?: {
@@ -448,6 +451,11 @@ export type SolicitudPagoListado = {
       id: string;
       nombre: string;
     };
+  } | null;
+  comprobante_pago?: {
+    id: string;
+    nombre_archivo: string;
+    tipo_mime: string | null;
   } | null;
 };
 

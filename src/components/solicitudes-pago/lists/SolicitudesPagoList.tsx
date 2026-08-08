@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
   formatearFecha,
+  formatearFechaHora,
+  formatearEstadoSolicitud,
   formatearMoneda,
   formatearTextoDominio,
 } from "../solicitudes-pago.utils";
@@ -246,7 +248,7 @@ export default function SolicitudesPagoList({
                   <th>Categoría</th>
                   <th>Valores</th>
                   <th>Estado</th>
-                  <th>Fecha</th>
+                  <th>Fechas del proceso</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -325,11 +327,18 @@ export default function SolicitudesPagoList({
 
                       <td>
                         <span className={styles.status}>
-                          {formatearTextoDominio(solicitud.estado_actual)}
+                          {formatearEstadoSolicitud(solicitud.estado_actual)}
                         </span>
                       </td>
 
-                      <td>{formatearFecha(solicitud.creado_en)}</td>
+                      <td>
+                        <dl className={styles.processDates}>
+                          <div><dt>Creación</dt><dd>{formatearFechaHora(solicitud.creado_en)}</dd></div>
+                          <div><dt>Aprobación N1</dt><dd>{formatearFechaHora(solicitud.aprobado_1_en)}</dd></div>
+                          <div><dt>Aprobación N2</dt><dd>{formatearFechaHora(solicitud.aprobado_2_en)}</dd></div>
+                          <div><dt>Pago</dt><dd>{formatearFechaHora(solicitud.pagado_en)}</dd></div>
+                        </dl>
+                      </td>
 
                       <td onClick={(event) => event.stopPropagation()}>
                         <div className={styles.rowActions}>
@@ -404,7 +413,7 @@ export default function SolicitudesPagoList({
                     </div>
 
                     <span className={styles.status}>
-                      {formatearTextoDominio(solicitud.estado_actual)}
+                      {formatearEstadoSolicitud(solicitud.estado_actual)}
                     </span>
                   </div>
 
@@ -453,6 +462,16 @@ export default function SolicitudesPagoList({
                     <div>
                       <dt>Medio de pago</dt>
                       <dd>{formatearTextoDominio(solicitud.medio_pago)}</dd>
+                    </div>
+
+                    <div className={styles.mobileProcessDates}>
+                      <dt>Fechas del proceso</dt>
+                      <dd>
+                        <span>Creación: {formatearFechaHora(solicitud.creado_en)}</span>
+                        <span>Aprobación N1: {formatearFechaHora(solicitud.aprobado_1_en)}</span>
+                        <span>Aprobación N2: {formatearFechaHora(solicitud.aprobado_2_en)}</span>
+                        <span>Pago: {formatearFechaHora(solicitud.pagado_en)}</span>
+                      </dd>
                     </div>
 
                     <div>

@@ -16,10 +16,12 @@ import type {
   BeneficiarioActualizadoRepositoryInput,
   BeneficiarioListFilters,
   CrearBeneficiarioInput,
+  FilaProveedorMasivo,
   MedioPagoPreferido,
   ProveedorNormalizadoInput,
   TipoBeneficiario,
   TipoCuentaBancaria,
+  ResultadoCargaMasivaProveedores,
 } from "./beneficiarios.types";
 
 const TIPOS_BENEFICIARIO_VALIDOS: TipoBeneficiario[] = [
@@ -439,7 +441,25 @@ export async function crearBeneficiarioService(
     tipoDocumento,
   );
 
-  const requiereBanco = requiereDatosBancarios(input.medio_pago_preferido);
+  const requiereBanco =
+    input.tipo_beneficiario === "PROVEEDOR" ||
+    requiereDatosBancarios(input.medio_pago_preferido);
+
+  if (input.tipo_beneficiario === "PROVEEDOR") {
+    validarCampoObligatorio(
+      input.correo,
+      "El correo del proveedor es obligatorio.",
+    );
+    validarCampoObligatorio(
+      input.telefono,
+      "El teléfono del proveedor es obligatorio.",
+    );
+    validarCampoObligatorio(
+      input.notas,
+      "El concepto de pago del proveedor es obligatorio.",
+    );
+    validarCorreoBeneficiario(normalizarCorreo(input.correo));
+  }
 
   if (requiereBanco) {
     validarCampoObligatorio(input.banco, "El banco es obligatorio.");
@@ -651,6 +671,154 @@ export async function crearBeneficiarioService(
   });
 }
 
+export async function validarCargaMasivaProveedoresService(
+  usuario: UsuarioSesion,
+  filas: FilaProveedorMasivo[],
+): Promise<ResultadoCargaMasivaProveedores> {
+  validarPermisoGestionBeneficiarios(usuario);
+  const documentosArchivo = new Map<string, number>();
+  const resultados = [];
+
+  for (const fila of filas) {
+    const tipoDocumento = normalizarTextoMayuscula(fila.tipo_documento);
+    const numeroDocumento = fila.numero_documento.trim();
+    const medioPago = normalizarTextoMayuscula(fila.medio_pago_preferido);
+    const banco = normalizarTextoMayuscula(fila.banco);
+    const tipoCuenta = normalizarTextoMayuscula(fila.tipo_cuenta_bancaria);
+    const errores: string[] = [];
+
+    const obligatorios = [
+      [fila.tipo_documento, "Tipo de identificación"],
+      [fila.numero_documento, "Número de identificación"],
+      [fila.nombre, "Nombre o razón social"],
+      [fila.correo, "Correo"],
+      [fila.telefono, "Teléfono"],
+      [fila.medio_pago_preferido, "Medio de pago sugerido"],
+      [fila.banco, "Banco"],
+      [fila.tipo_cuenta_bancaria, "Tipo de cuenta"],
+      [fila.numero_cuenta_bancaria, "Número de cuenta"],
+      [fila.concepto_pago, "Concepto de pago"],
+    ];
+    for (const [valor, nombreCampo] of obligatorios) {
+      if (!valor.trim()) errores.push(`${nombreCampo} es obligatorio.`);
+    }
+
+    if (tipoDocumento && !["NIT", "CC", "CE"].includes(tipoDocumento)) {
+      errores.push("Tipo de identificación no válido.");
+    }
+    if (numeroDocumento && !/^\d+$/.test(numeroDocumento)) {
+      errores.push("El número de identificación debe contener solo números.");
+    }
+    if (fila.telefono && !/^\d{7,15}$/.test(fila.telefono.trim())) {
+      errores.push("El teléfono debe contener entre 7 y 15 números.");
+    }
+    if (fila.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fila.correo.trim())) {
+      errores.push("El correo no tiene un formato válido.");
+    }
+    if (medioPago && !MEDIOS_PAGO_VALIDOS.includes(medioPago as MedioPagoPreferido)) {
+      errores.push("Medio de pago sugerido no válido.");
+    }
+    if (banco && !esBancoValido(banco)) errores.push("Banco no válido.");
+    if (tipoCuenta && !TIPOS_CUENTA_VALIDOS.includes(tipoCuenta as TipoCuentaBancaria)) {
+      errores.push("Tipo de cuenta no válido.");
+    }
+    if (fila.numero_cuenta_bancaria && !/^\d+$/.test(fila.numero_cuenta_bancaria.trim())) {
+      errores.push("El número de cuenta debe contener solo números.");
+    }
+
+    const claveDocumento = `${tipoDocumento}:${numeroDocumento}`;
+    if (tipoDocumento && numeroDocumento) {
+      const filaAnterior = documentosArchivo.get(claveDocumento);
+      if (filaAnterior) {
+        errores.push(`Documento duplicado en el archivo (fila ${filaAnterior}).`);
+      } else {
+        documentosArchivo.set(claveDocumento, fila.fila);
+      }
+
+      const [beneficiarioExistente, proveedorExistente] = await Promise.all([
+        existeBeneficiarioPorDocumentoRepository(tipoDocumento, numeroDocumento),
+        obtenerProveedorPorDocumentoRepository(tipoDocumento, numeroDocumento),
+      ]);
+      if (beneficiarioExistente || proveedorExistente) {
+        errores.push("El proveedor ya existe y no será modificado.");
+      }
+    }
+
+    resultados.push({
+      ...fila,
+      tipo_documento: tipoDocumento,
+      numero_documento: numeroDocumento,
+      nombre: normalizarTextoMayuscula(fila.nombre),
+      correo: fila.correo.trim().toLowerCase(),
+      telefono: fila.telefono.trim(),
+      medio_pago_preferido: medioPago,
+      banco,
+      tipo_cuenta_bancaria: tipoCuenta,
+      numero_cuenta_bancaria: fila.numero_cuenta_bancaria.trim(),
+      concepto_pago: normalizarTextoMayuscula(fila.concepto_pago),
+      valido: errores.length === 0,
+      errores,
+    });
+  }
+
+  const validos = resultados.filter((fila) => fila.valido).length;
+  return {
+    total: resultados.length,
+    validos,
+    rechazados: resultados.length - validos,
+    filas: resultados,
+  };
+}
+
+export async function importarCargaMasivaProveedoresService(
+  usuario: UsuarioSesion,
+  filas: FilaProveedorMasivo[],
+) {
+  const validacion = await validarCargaMasivaProveedoresService(usuario, filas);
+  let creados = 0;
+
+  for (const fila of validacion.filas.filter((item) => item.valido)) {
+    try {
+      await crearBeneficiarioService(usuario, {
+        tipo_beneficiario: "PROVEEDOR",
+        nombre: fila.nombre,
+        tipo_documento: fila.tipo_documento,
+        numero_documento: fila.numero_documento,
+        medio_pago_preferido: fila.medio_pago_preferido as MedioPagoPreferido,
+        banco: fila.banco,
+        tipo_cuenta_bancaria: fila.tipo_cuenta_bancaria as TipoCuentaBancaria,
+        numero_cuenta_bancaria: fila.numero_cuenta_bancaria,
+        telefono: fila.telefono,
+        correo: fila.correo,
+        notas: fila.concepto_pago,
+        proveedor: {
+          nombre: fila.nombre,
+          tipo_documento: fila.tipo_documento,
+          numero_documento: fila.numero_documento,
+          correo: fila.correo,
+          telefono: fila.telefono,
+          banco: fila.banco,
+          tipo_cuenta_bancaria: fila.tipo_cuenta_bancaria as TipoCuentaBancaria,
+          numero_cuenta_bancaria: fila.numero_cuenta_bancaria,
+        },
+      });
+      creados += 1;
+    } catch (error) {
+      fila.valido = false;
+      fila.errores.push(
+        error instanceof Error ? error.message : "No fue posible crear el proveedor.",
+      );
+    }
+  }
+
+  return {
+    ...validacion,
+    validos: creados,
+    rechazados: validacion.total - creados,
+    creados,
+  };
+}
+
 export async function actualizarBeneficiarioService(
   usuario: UsuarioSesion,
   id: string,
@@ -689,6 +857,40 @@ export async function actualizarBeneficiarioService(
     tipoBeneficiario as TipoBeneficiario,
     tipoDocumento ?? "",
   );
+
+  if (tipoBeneficiario === "PROVEEDOR") {
+    const correoFinal =
+      inputNormalizado.correo !== undefined
+        ? inputNormalizado.correo
+        : beneficiarioExistente.correo;
+    const telefonoFinal =
+      inputNormalizado.telefono !== undefined
+        ? inputNormalizado.telefono
+        : beneficiarioExistente.telefono;
+    const bancoFinal =
+      inputNormalizado.banco !== undefined
+        ? inputNormalizado.banco
+        : beneficiarioExistente.banco;
+    const tipoCuentaFinal =
+      inputNormalizado.tipo_cuenta_bancaria !== undefined
+        ? inputNormalizado.tipo_cuenta_bancaria
+        : beneficiarioExistente.tipo_cuenta_bancaria;
+    const numeroCuentaFinal =
+      inputNormalizado.numero_cuenta_bancaria !== undefined
+        ? inputNormalizado.numero_cuenta_bancaria
+        : beneficiarioExistente.numero_cuenta_bancaria;
+    const notasFinales =
+      inputNormalizado.notas !== undefined
+        ? inputNormalizado.notas
+        : beneficiarioExistente.notas;
+
+    validarCampoObligatorio(correoFinal, "El correo del proveedor es obligatorio.");
+    validarCampoObligatorio(telefonoFinal, "El teléfono del proveedor es obligatorio.");
+    validarCampoObligatorio(bancoFinal, "El banco del proveedor es obligatorio.");
+    validarCampoObligatorio(tipoCuentaFinal, "El tipo de cuenta del proveedor es obligatorio.");
+    validarCampoObligatorio(numeroCuentaFinal, "El número de cuenta del proveedor es obligatorio.");
+    validarCampoObligatorio(notasFinales, "El concepto de pago del proveedor es obligatorio.");
+  }
 
   const documentoExistente = await existeBeneficiarioPorDocumentoRepository(
     tipoDocumento ?? "",

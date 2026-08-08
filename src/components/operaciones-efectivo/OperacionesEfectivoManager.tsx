@@ -48,8 +48,6 @@ export default function OperacionesEfectivoManager({
     useState(false);
   const [mensajeReingreso, setMensajeReingreso] = useState("");
   const [errorReingreso, setErrorReingreso] = useState(false);
-  const [tipoCorreccion, setTipoCorreccion] =
-    useState<"AJUSTE" | "ANULACION">("AJUSTE");
   const [direccionCorreccion, setDireccionCorreccion] =
     useState<"INGRESO" | "EGRESO">("INGRESO");
   const [valorCorreccion, setValorCorreccion] = useState("");
@@ -336,21 +334,9 @@ export default function OperacionesEfectivoManager({
       valorCorreccion.replace(/[^\d]/g, ""),
     );
 
-    if (
-      tipoCorreccion === "AJUSTE" &&
-      (!Number.isFinite(valorNumerico) || valorNumerico <= 0)
-    ) {
+    if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
       setErrorCorreccion(true);
       setMensajeCorreccion("El valor del ajuste debe ser mayor que cero.");
-      return;
-    }
-
-    if (
-      tipoCorreccion === "ANULACION" &&
-      !window.confirm(
-        "La anulación es definitiva y generará la compensación financiera necesaria. ¿Desea continuar?",
-      )
-    ) {
       return;
     }
 
@@ -365,15 +351,9 @@ export default function OperacionesEfectivoManager({
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            tipo: tipoCorreccion,
-            direccion:
-              tipoCorreccion === "AJUSTE"
-                ? direccionCorreccion
-                : undefined,
-            valor:
-              tipoCorreccion === "AJUSTE"
-                ? valorNumerico
-                : undefined,
+            tipo: "AJUSTE",
+            direccion: direccionCorreccion,
+            valor: valorNumerico,
             motivo: motivoCorreccion,
             observacion: observacionCorreccion,
           }),
@@ -822,73 +802,54 @@ export default function OperacionesEfectivoManager({
                 onSubmit={registrarCorreccion}
               >
                 <div className={styles.correctionIntro}>
-                  <h3>Ajustar o anular operación</h3>
+                  <span className={styles.correctionEyebrow}>
+                    Corrección financiera
+                  </span>
+                  <h3>Registrar ajuste</h3>
                   <p>
-                    Corrige el valor retirado sin modificar pagos ni
-                    movimientos anteriores. Toda diferencia queda registrada
-                    como una compensación nueva.
+                    Registra una diferencia del retiro mediante un movimiento
+                    compensatorio, sin modificar los pagos anteriores.
                   </p>
                 </div>
                 <label>
-                  <span>Acción *</span>
+                  <span>Tipo de compensación *</span>
                   <select
-                    value={tipoCorreccion}
+                    value={direccionCorreccion}
                     onChange={(event) =>
-                      setTipoCorreccion(
-                        event.target.value as "AJUSTE" | "ANULACION",
+                      setDireccionCorreccion(
+                        event.target.value as "INGRESO" | "EGRESO",
                       )
                     }
                   >
-                    <option value="AJUSTE">Registrar ajuste</option>
-                    <option value="ANULACION">Anular operación</option>
+                    <option value="INGRESO">Ingreso al fondo</option>
+                    <option value="EGRESO">Egreso del fondo</option>
                   </select>
+                  <small>
+                    {direccionCorreccion === "INGRESO"
+                      ? "El retiro real fue menor y reduce el saldo pendiente."
+                      : "El retiro real fue mayor y aumenta el saldo pendiente."}
+                  </small>
                 </label>
-                {tipoCorreccion === "AJUSTE" ? (
-                  <>
-                    <label>
-                      <span>Tipo de compensación *</span>
-                      <select
-                        value={direccionCorreccion}
-                        onChange={(event) =>
-                          setDireccionCorreccion(
-                            event.target.value as "INGRESO" | "EGRESO",
-                          )
-                        }
-                      >
-                        <option value="INGRESO">Ingreso al fondo</option>
-                        <option value="EGRESO">Egreso del fondo</option>
-                      </select>
-                      <small>
-                        {direccionCorreccion === "INGRESO"
-                          ? "El retiro real fue menor: reduce el saldo pendiente."
-                          : "El retiro real fue mayor: aumenta el saldo pendiente."}
-                      </small>
-                    </label>
-                    <label>
-                      <span>Valor *</span>
-                      <input
-                        inputMode="numeric"
-                        placeholder="0"
-                        type="text"
-                        value={valorCorreccion}
-                        onChange={(event) =>
-                          setValorCorreccion(
-                            formatearValorEntrada(event.target.value),
-                          )
-                        }
-                      />
-                    </label>
-                  </>
-                ) : (
-                  <p className={styles.annulmentNotice}>
-                    El sistema calculará y compensará el efecto financiero
-                    neto. La operación quedará bloqueada definitivamente.
-                  </p>
-                )}
                 <label>
+                  <span>Valor del ajuste *</span>
+                  <input
+                    inputMode="numeric"
+                    placeholder="$ 0"
+                    type="text"
+                    value={valorCorreccion}
+                    onChange={(event) =>
+                      setValorCorreccion(
+                        formatearValorEntrada(event.target.value),
+                      )
+                    }
+                  />
+                  <small>Valor de la diferencia que se compensará.</small>
+                </label>
+                <label className={styles.fullWidth}>
                   <span>Motivo *</span>
                   <input
                     maxLength={250}
+                    placeholder="Ej. Diferencia entre el retiro registrado y el valor real"
                     required
                     type="text"
                     value={motivoCorreccion}
@@ -900,6 +861,7 @@ export default function OperacionesEfectivoManager({
                 <label className={styles.fullWidth}>
                   <span>Observación</span>
                   <textarea
+                    placeholder="Agrega contexto adicional si es necesario"
                     rows={2}
                     value={observacionCorreccion}
                     onChange={(event) =>
@@ -918,21 +880,17 @@ export default function OperacionesEfectivoManager({
                     {mensajeCorreccion}
                   </p>
                 ) : null}
-                <button
-                  className={
-                    tipoCorreccion === "ANULACION"
-                      ? styles.dangerButton
-                      : undefined
-                  }
-                  disabled={registrandoCorreccion}
-                  type="submit"
-                >
-                  {registrandoCorreccion
-                    ? "Registrando..."
-                    : tipoCorreccion === "ANULACION"
-                      ? "Anular operación"
+                <div className={styles.correctionActions}>
+                  <span>El ajuste quedará registrado en el historial.</span>
+                  <button
+                    disabled={registrandoCorreccion}
+                    type="submit"
+                  >
+                    {registrandoCorreccion
+                      ? "Registrando..."
                       : "Registrar ajuste"}
-                </button>
+                  </button>
+                </div>
               </form>
             ) : null}
           </section>

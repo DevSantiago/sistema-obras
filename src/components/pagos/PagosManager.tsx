@@ -634,6 +634,12 @@ export default function PagosManager() {
     setFiltros(FILTROS_INICIALES);
   }
 
+  function descargarRelacionExcel() {
+    window.location.assign(
+      "/api/v1/solicitudes-pago/programadas/exportar",
+    );
+  }
+
   return (
     <section className={styles.container}>
       <div className={styles.operationTabs} aria-label="Tipo de operación">
@@ -751,14 +757,23 @@ export default function PagosManager() {
           <strong>Solicitudes programadas</strong>
           <span>{solicitudesFiltradas.length} resultado(s)</span>
         </div>
-        <button
-          className={styles.primaryButton}
-          type="button"
-          disabled={idsSeleccionados.size === 0}
-          onClick={abrirRegistro}
-        >
-          Procesar pagos seleccionados ({idsSeleccionados.size})
-        </button>
+        <div className={styles.summaryActions}>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={descargarRelacionExcel}
+          >
+            Descargar relación Excel
+          </button>
+          <button
+            className={styles.primaryButton}
+            type="button"
+            disabled={idsSeleccionados.size === 0}
+            onClick={abrirRegistro}
+          >
+            Procesar pagos seleccionados ({idsSeleccionados.size})
+          </button>
+        </div>
       </div>
 
       <p className={styles.paymentHint}>

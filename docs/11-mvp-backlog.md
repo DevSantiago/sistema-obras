@@ -595,6 +595,8 @@ Gestionar personas o entidades que reciben pagos.
 - Permite definir medio de pago preferido.
 - Permite datos bancarios cuando aplique.
 - Permite deduplicación por documento.
+- Permite carga masiva de proveedores mediante plantilla Excel, validación previa e informe de errores.
+- Exige información bancaria y de contacto completa para proveedores.
 
 
 ## Historias
@@ -623,6 +625,19 @@ Criterios:
 - Permite editar datos bancarios.
 - Permite activar o inactivar.
 - Registra auditoría.
+
+### HU-0403. Cargar proveedores masivamente
+
+Como usuario autorizado, quiero cargar proveedores desde Excel, para mantener un directorio completo de contacto y pago.
+
+Criterios:
+
+- Descarga una plantilla oficial con catálogos.
+- Exige todos los campos de identificación, contacto, pago y concepto.
+- Muestra resumen de filas válidas, rechazadas y duplicadas antes de importar.
+- No modifica proveedores existentes.
+- Importa únicamente filas válidas.
+- Permite descargar el informe de errores.
 
 ---
 
@@ -698,11 +713,14 @@ Crear, editar, enviar y consultar solicitudes de pago.
 b
 Reglas de visibilidad:
 
-- El creador ve sus solicitudes.
-- `APROBADOR_1` no ve borradores de terceros; recibe solicitudes en `PENDIENTE_APROBADOR_1` y `DEVUELTA_APROBADOR_1`.
-- `APROBADOR_2` recibe solicitudes en `PENDIENTE_APROBADOR_2`.
-- `PAGOS` recibe solicitudes en `PROGRAMADA_PAGO`.
+- Todo usuario con acceso activo a un proyecto ve todas las solicitudes de ese proyecto.
+- La visibilidad no habilita acciones adicionales: editar, enviar, aprobar y pagar siguen dependiendo del rol, permiso y estado.
+- `APROBADOR_1` recibe para operar solicitudes en `PENDIENTE_APROBADOR_1` y `DEVUELTA_APROBADOR_1`.
+- `APROBADOR_2` recibe para operar solicitudes en `PENDIENTE_APROBADOR_2`.
+- `PAGOS` recibe para operar solicitudes en `PROGRAMADA_PAGO`.
 - `ADMINISTRADOR` ve todas.
+- El listado muestra fecha y hora de creación, aprobación nivel 1, aprobación nivel 2 y pago.
+- El detalle de una solicitud pagada permite consultar su comprobante.
 
 ## Historias
 
@@ -1180,6 +1198,7 @@ Criterios:
 - Permite filtrar.
 - Permite abrir el detalle de la solicitud desde la fila.
 - Muestra el total de la bandeja filtrada y el total de la selección activa.
+- Permite descargar en Excel la relación completa de solicitudes en `PROGRAMADA_PAGO`, con datos de solicitud, beneficiario y fechas del proceso.
 
 ### HU-0902. Marcar pago electrónico directo como pagado
 
@@ -1272,8 +1291,8 @@ Implementación:
 - Endpoint `GET /api/v1/fondos`.
 - Permiso `CONSULTAR_FONDOS`.
 - Vista responsive `/fondos`.
-- `DIRECTOR` limitado por proyecto y línea; roles financieros con
-  visibilidad total.
+- `DIRECTOR` limitado por proyecto y línea; `APROBADOR_1`, `APROBADOR_2` y
+  roles financieros con visibilidad total.
 - El gasto de retiros se imputa mediante sus solicitudes y no duplica el
   movimiento general del retiro.
 
@@ -1495,11 +1514,11 @@ Implementación:
   distribución por proyecto, fondo y centro de costo.
 - Mantiene la tabla para escritorio y las tarjetas responsive para móvil.
 
-### HU-1105. Ajustar o anular una operación de efectivo
+### HU-1105. Ajustar una operación de efectivo
 
 **Estado: COMPLETADA**
 
-Como usuario autorizado, quiero ajustar o anular una operación de efectivo,
+Como usuario autorizado, quiero ajustar una operación de efectivo,
 para corregir errores sin eliminar su trazabilidad.
 
 Criterios:
@@ -1508,22 +1527,19 @@ Criterios:
 - Exige motivo y registra usuario, fecha y observación.
 - Genera movimientos compensatorios cuando exista afectación del saldo.
 - Actualiza el estado de la operación.
-- Impide duplicar una anulación.
 - Conserva las solicitudes, pagos y soportes relacionados para consulta.
 
 Implementación:
 
-- Agrega el estado `ACTIVA`, `AJUSTADA` o `ANULADA` a la operación.
+- Conserva los estados históricos `ACTIVA`, `AJUSTADA` o `ANULADA` de la operación.
 - Registra cada acción en `correcciones_operacion_efectivo` con referencia
   `COR`, motivo, observación, usuario y fecha del sistema.
 - Los ajustes crean un movimiento compensatorio de ingreso o egreso.
 - Los ajustes actualizan el pendiente operativo y conservan sus valores
   anterior y nuevo para impedir reingresos duplicados.
-- La anulación calcula el efecto neto acumulado y crea la compensación
-  inversa necesaria.
 - Ejecuta corrección, movimiento, cambio de saldo y estado en una transacción
   serializable.
-- Impide nuevas correcciones y reingresos sobre operaciones anuladas.
+- No permite registrar nuevas anulaciones; las existentes permanecen en el historial.
 - Muestra el formulario y el historial dentro del detalle del retiro.
 
 ---

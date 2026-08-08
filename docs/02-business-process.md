@@ -534,6 +534,10 @@ Un usuario puede crear solicitudes para múltiples beneficiarios.
 
 Un beneficiario incluso puede no tener usuario asociado.
 
+Los beneficiarios tipo `PROVEEDOR` funcionan además como directorio de contacto y datos de pago. Para crearlos o actualizarlos son obligatorios correo, teléfono, banco, tipo de cuenta, número de cuenta y concepto de pago, incluso si su medio sugerido es efectivo.
+
+El módulo permite cargar proveedores mediante la plantilla Excel oficial. Antes de confirmar, valida campos, formatos, catálogos y documentos duplicados dentro del archivo o existentes en la base de datos. Solo importa filas válidas y nunca actualiza automáticamente proveedores existentes.
+
 ---
 
 ## 7.1 Tipos de beneficiario
@@ -776,7 +780,7 @@ El módulo de solicitudes utiliza una única tabla principal para consultar y ge
 
 No existen bandejas independientes por rol. La misma tabla adapta la información mostrada mediante filtros y acciones disponibles, de acuerdo con el rol del usuario, el estado de la solicitud y los permisos asignados sobre el proyecto.
 
-El acceso a un proyecto habilita la operación sobre dicho proyecto, pero no otorga automáticamente acceso a todas las solicitudes creadas por otros usuarios.
+Todo usuario con un acceso activo a un proyecto puede consultar todas las solicitudes asociadas a ese proyecto, independientemente de quién las haya creado. Esta visibilidad no concede por sí sola permisos para editar, enviar, aprobar o pagar solicitudes.
 
 ---
 
@@ -794,7 +798,13 @@ La tabla deberá presentar, como mínimo, la siguiente información:
 - Estado.
 - Usuario creador.
 - Fecha de creación.
-- Fecha de última actualización.
+- Fecha de aprobación de nivel 1, cuando aplique.
+- Fecha de aprobación de nivel 2, cuando aplique.
+- Fecha de pago, cuando aplique.
+
+Para conservar la legibilidad, estas fechas y horas se presentan agrupadas como trazabilidad del proceso tanto en la tabla como en el detalle. Las etapas que todavía no hayan ocurrido se identifican como pendientes.
+
+Cuando la solicitud se encuentra pagada, su detalle permite consultar el comprobante registrado, tanto para pagos directos como para pagos derivados de una operación de efectivo.
 
 Las acciones disponibles para cada registro dependerán del estado de la solicitud y del rol del usuario autenticado.
 
@@ -1422,7 +1432,7 @@ La Épica 11 queda limitada a:
 - reingresos posteriores, parciales y con soporte;
 - estados propios de la operación;
 - consulta y exportación de pendientes;
-- ajustes o anulaciones mediante movimientos compensatorios.
+- ajustes mediante movimientos compensatorios.
 
 La consulta del movimiento financiero no sustituye el detalle operativo. Un
 movimiento `EGRESO_RETIRO_EFECTIVO` puede servir como acceso a la operación,
@@ -1437,11 +1447,9 @@ pagos o sus movimientos originales:
   y un egreso lo aumenta;
 - el pendiente anterior y el nuevo quedan auditados y limitan los reingresos
   posteriores para impedir una devolución duplicada;
-- una anulación calcula el efecto financiero neto de todos los movimientos
-  asociados y registra la compensación inversa;
 - motivo, observación, usuario y fecha quedan en
   `correcciones_operacion_efectivo`;
-- una operación anulada no admite ajustes, anulaciones ni reingresos nuevos.
+- las anulaciones históricas se conservan para consulta, pero el flujo operativo ya no permite registrar nuevas anulaciones.
 
 ---
 

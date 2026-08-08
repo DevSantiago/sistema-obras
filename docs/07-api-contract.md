@@ -208,7 +208,7 @@ y conserva el soporte en una transacción serializable.
 
 ---
 
-## Ajustar o anular una operación de efectivo
+## Ajustar una operación de efectivo
 
 ```http
 POST /api/v1/operaciones-efectivo/{id}/correcciones
@@ -216,8 +216,6 @@ Content-Type: application/json
 ```
 
 Disponible para `ADMINISTRADOR` y `PAGOS`.
-
-Para un ajuste:
 
 ```json
 {
@@ -229,20 +227,12 @@ Para un ajuste:
 }
 ```
 
-Para una anulación:
-
-```json
-{
-  "tipo": "ANULACION",
-  "motivo": "Operación duplicada",
-  "observacion": "Confirmada por Pagos"
-}
-```
-
 El ajuste exige dirección `INGRESO` o `EGRESO` y valor mayor que cero. La
 dirección corrige el valor retirado: `INGRESO` reduce el pendiente y no puede
 superarlo; `EGRESO` incrementa el pendiente. La respuesta y el historial
 incluyen `pendiente_anterior` y `pendiente_nuevo`.
+
+El servicio rechaza nuevas solicitudes con tipo `ANULACION`. Las anulaciones históricas permanecen disponibles únicamente para consulta y auditoría.
 
 La
 anulación no recibe valor: el sistema calcula el efecto neto de todos los
@@ -644,6 +634,8 @@ GET    /api/v1/beneficiarios
 POST   /api/v1/beneficiarios
 GET    /api/v1/beneficiarios/{id}
 PATCH  /api/v1/beneficiarios/{id}
+GET    /api/v1/beneficiarios/carga-masiva
+POST   /api/v1/beneficiarios/carga-masiva
 ```
 
 ---
@@ -704,6 +696,26 @@ POST /api/v1/beneficiarios
   "correo": "contacto@proveedor.com"
 }
 ```
+
+## Carga masiva de proveedores
+
+```http
+GET /api/v1/beneficiarios/carga-masiva
+```
+
+Descarga la plantilla `.xlsx` con las columnas obligatorias y una hoja de catálogos.
+
+```http
+POST /api/v1/beneficiarios/carga-masiva
+Content-Type: multipart/form-data
+```
+
+Campos:
+
+- `archivo`: archivo `.xlsx` de máximo 10 MB y 1.000 filas.
+- `accion`: `VALIDAR` o `IMPORTAR`.
+
+Todos los proveedores se crean activos y con tipo `PROVEEDOR`. Correo, teléfono, medio de pago, banco, tipo de cuenta, número de cuenta y concepto de pago son obligatorios. Los documentos duplicados se rechazan y los proveedores existentes no se actualizan.
 
 ### Respuesta
 
@@ -1366,6 +1378,14 @@ La respuesta incluye el saldo actual del fondo de cada solicitud y la
 información del beneficiario necesaria para validar el desembolso: banco,
 tipo de cuenta y número de cuenta. Las solicitudes pagadas no se incluyen.
 
+## Descargar relación de solicitudes programadas
+
+```http
+GET /api/v1/solicitudes-pago/programadas/exportar
+```
+
+Genera un archivo `.xlsx` con todas las solicitudes en `PROGRAMADA_PAGO`. Incluye información de la solicitud, proyecto, centro de costo, beneficiario, datos bancarios, valores y fechas de creación, aprobación nivel 1, aprobación nivel 2 y pago.
+
 ### Parámetros de consulta
 
 | Parámetro | Tipo | Obligatorio |
@@ -1519,6 +1539,14 @@ La reversión:
 ```
 
 El motivo de la reversión es obligatorio.
+
+## Consultar comprobante de una solicitud pagada
+
+```http
+GET /api/v1/solicitudes-pago/{id}/comprobante
+```
+
+Retorna el archivo del comprobante con disposición `inline`. Requiere que el usuario pueda consultar la solicitud por visibilidad total, relación con el flujo o acceso activo al proyecto. El comprobante puede corresponder a un pago directo o al detalle de una operación de efectivo.
 
 ---
 
