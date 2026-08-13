@@ -17,6 +17,7 @@ import PagoImpuestoForm from "./forms/PagoImpuestoForm";
 import ProveedorForm from "./forms/ProveedorForm";
 import ReembolsoForm from "./forms/ReembolsoForm";
 import SolicitudesPagoList from "./lists/SolicitudesPagoList";
+import HistorialSolicitud from "./shared/HistorialSolicitud";
 import styles from "./SolicitudesPagoManager.module.css";
 import {
   OPCIONES_TIPO_SOLICITUD,
@@ -1051,6 +1052,10 @@ export default function SolicitudesPagoManager({
                 <div><dt>Aprobación nivel 2</dt><dd>{formatearFechaHora(solicitudDetalle.aprobado_2_en)}</dd></div>
                 <div><dt>Pago</dt><dd>{formatearFechaHora(solicitudDetalle.pagado_en)}</dd></div>
               </dl>
+            </section>
+
+            <section className={styles.detailSection}>
+              <HistorialSolicitud eventos={solicitudDetalle.historial} />
             </section>
 
             {solicitudDetalle.estado_actual === "PAGADA" &&

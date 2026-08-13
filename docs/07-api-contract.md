@@ -929,6 +929,12 @@ GET /api/v1/solicitudes-pago/{id}
 
 Obtiene el detalle completo de una solicitud.
 
+La propiedad `historial` retorna los eventos en orden cronológico descendente.
+Cada evento contiene `accion`, `descripcion`, `estado_anterior`,
+`estado_nuevo`, `cambios`, `creado_en` y el `usuario` responsable. El historial
+integra los registros operativos de aprobaciones, devoluciones, anulaciones,
+adjuntos y pagos con los eventos complementarios de edición y reenvío.
+
 ## Parámetros
 
 | Parámetro | Tipo |

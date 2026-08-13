@@ -2354,6 +2354,7 @@ describe("solicitudes-pago.service - enviarSolicitudPagoService", () => {
     expect(enviarSolicitudPagoRepository).toHaveBeenCalledWith({
       solicitudId: "solicitud-1",
       enviadoEn: expect.any(Date),
+      usuarioId: "usuario-1",
     });
   });
 });
@@ -3613,6 +3614,7 @@ describe("solicitudes-pago.service - actualizarSolicitudPagoProveedorService", (
       actualizarSolicitudPagoRepository,
     ).toHaveBeenCalledWith({
       id: "solicitud-1",
+      modificado_por: "usuario-1",
       data: {
         numero_solicitud: null,
         tipo_solicitud: "PAGO_PROVEEDOR",

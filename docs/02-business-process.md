@@ -2394,6 +2394,11 @@ En caso de requerirse una corrección, el sistema deberá generar un nuevo event
 
 La información de auditoría podrá consultarse desde los módulos autorizados del sistema.
 
+En solicitudes de pago, el detalle presenta una línea de tiempo única. Esta
+vista reconstruye los eventos respaldados por las entidades operativas y los
+combina con la bitácora complementaria de modificaciones y reenvíos, sin
+duplicar aprobaciones, devoluciones, anulaciones ni pagos.
+
 Las consultas podrán filtrarse, entre otros criterios, por:
 
 - módulo;

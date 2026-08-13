@@ -19,6 +19,7 @@ import {
 } from "react";
 import SolicitudesAprobacionList from "./SolicitudesAprobacionList";
 import EdicionAprobadorNivel1Form from "./EdicionAprobadorNivel1Form";
+import HistorialSolicitud from "@/components/solicitudes-pago/shared/HistorialSolicitud";
 import styles from "./AprobacionesManager.module.css";
 
 type NivelAprobacion = 1 | 2;
@@ -968,6 +969,10 @@ const mensajeSinSolicitudes =
                       <p>{solicitudDetalle.ultima_devolucion.motivo}</p>
                     </div>
                   ) : null}
+
+                  <div className={styles.detailSection}>
+                    <HistorialSolicitud eventos={solicitudDetalle.historial} />
+                  </div>
                 </section>
               </div>
             ) : null}

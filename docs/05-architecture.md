@@ -124,6 +124,13 @@ El backend de bandeja y registro de pagos forma parte del módulo
 `solicitudes-pago`, manteniendo el patrón `route → service → repository`. La
 interfaz se encuentra en `src/components/pagos`.
 
+El historial de cada solicitud se compone en el servicio de
+`solicitudes-pago`. Reutiliza las fuentes operativas existentes para creación,
+aprobaciones, devoluciones, anulaciones, adjuntos y pagos, y las complementa
+con `eventos_auditoria_solicitud_pago` para conservar ediciones y reenvíos que
+no tienen una entidad operativa propia. Las escrituras de auditoría se realizan
+en la misma transacción que la operación funcional.
+
 El módulo `fondos` concentra la consulta financiera y el registro común de
 movimientos. Los servicios de otros módulos reutilizan su operación de
 repositorio dentro de la transacción funcional en curso. De esta forma, la

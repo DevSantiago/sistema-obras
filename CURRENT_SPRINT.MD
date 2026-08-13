@@ -2,9 +2,8 @@
 
 ## Objetivo
 
-Completar la edición funcional de solicitudes por el Aprobador Nivel 1,
-manteniendo las restricciones estructurales y presupuestales del flujo de
-aprobación.
+Completar el historial documental y la auditoría funcional de las solicitudes
+de pago durante todo su ciclo de vida.
 
 ---
 
@@ -12,7 +11,7 @@ aprobación.
 
 Implementar únicamente:
 
-- HU-0807 de la Épica 8
+- HU-0809 de la Épica 8
 
 según lo definido en `docs/11-mvp-backlog.md`.
 
@@ -24,12 +23,13 @@ según lo definido en `docs/11-mvp-backlog.md`.
 
 Implementar completamente:
 
-- HU-0807 — en desarrollo
+- HU-0809 — terminada y validada técnicamente; pendiente de merge
 
 Base confirmada:
 
-- HU-0804 — desarrollada y probada
-- HU-0808 — desarrollada y probada
+- HU-0804 — terminada
+- HU-0807 — terminada
+- HU-0808 — terminada
 
 Incluyendo:
 
@@ -43,12 +43,12 @@ Incluyendo:
 
 ## Orden obligatorio
 
-1. HU-0807 implementada y documentada.
+1. HU-0809 implementada y documentada.
 2. Ejecutar validación funcional.
 3. Ejecutar pruebas.
 4. Ejecutar `npm run build`.
 5. Cerrar la rama y hacer merge a `dev`.
-6. Detener el desarrollo antes de iniciar HU-0809.
+6. Cerrar la Épica 8 y detener el desarrollo.
 
 ---
 
@@ -57,6 +57,7 @@ Incluyendo:
 - HU-0804: consecutivo oficial generado al enviar la solicitud.
 - HU-0805: edición por el solicitante.
 - HU-0806: consulta detallada reutilizable.
+- HU-0807: edición funcional por Aprobador Nivel 1.
 - HU-0808: aprobación o devolución desde nivel 2 hacia nivel 1.
 - HU-0810: devolución y anulación durante la aprobación.
 
@@ -66,7 +67,6 @@ Incluyendo:
 
 No implementar:
 
-- HU-0809
 - Épica 12
 - Épica 13
 - Épica 15
@@ -76,13 +76,8 @@ No implementar:
 
 aunque existan dependencias futuras previstas en la documentación.
 
-No modificar:
-
-- proyecto base;
-- centro de costo;
-- tipo o número de solicitud;
-- solicitante;
-- máquina de estados.
+No modificar la máquina de estados ni duplicar los registros operativos ya
+existentes de devoluciones, anulaciones, pagos y movimientos financieros.
 
 ---
 
@@ -90,8 +85,8 @@ No modificar:
 
 El trabajo termina cuando:
 
-- el Aprobador Nivel 1 pueda editar únicamente los campos autorizados;
-- el valor neto y la reserva se recalculen de forma consistente;
+- cada evento del ciclo de vida tenga usuario, fecha, acción y contexto;
+- el detalle de la solicitud permita consultar su historial en orden;
 - la documentación correspondiente esté actualizada;
 - el proyecto compile correctamente (`npm run build`);
 - las pruebas existentes y nuevas continúen pasando.

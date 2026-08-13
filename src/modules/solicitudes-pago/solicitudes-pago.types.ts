@@ -57,6 +57,17 @@ export type EstadoSolicitudPago =
   | "PAGADA"
   | "ANULADA";
 
+export type EventoHistorialSolicitudPago = {
+  id: string;
+  accion: string;
+  descripcion: string;
+  estado_anterior: string | null;
+  estado_nuevo: string | null;
+  cambios: unknown;
+  creado_en: string | Date;
+  usuario: { id: string; nombre: string } | null;
+};
+
 
 export type AprobarSolicitudesNivel1Input = {
   solicitud_ids?: string[];
@@ -355,6 +366,7 @@ export type CrearSolicitudPagoRepositoryInput =
 
 export type ActualizarSolicitudPagoRepositoryInput = {
   id: string;
+  modificado_por: string;
   data: CrearSolicitudPagoRepositoryInput;
 };
 
@@ -467,6 +479,7 @@ export type SolicitudPagoListado = {
     nombre_archivo: string;
     tipo_mime: string | null;
   } | null;
+  historial?: EventoHistorialSolicitudPago[];
 };
 
 export type SolicitudProgramadaPago = Omit<
