@@ -214,6 +214,9 @@ type SolicitudPagoRepositoryResult = {
     nombre: string;
     correo: string;
   } | null;
+  aprobador1?: { id: string; nombre: string } | null;
+  aprobador2?: { id: string; nombre: string } | null;
+  pagador?: { id: string; nombre: string } | null;
   devoluciones?: Array<{
     id: string;
     estado_origen: string;
@@ -225,7 +228,32 @@ type SolicitudPagoRepositoryResult = {
       nombre: string;
     };
   }>;
+  anulaciones?: Array<{
+    id: string;
+    estado_origen: string;
+    motivo: string;
+    creado_en: Date;
+    usuario: { id: string; nombre: string };
+  }>;
+  adjuntos?: Array<{
+    id: string;
+    nombre_archivo: string;
+    subido_en: Date;
+    usuario_subio: { id: string; nombre: string } | null;
+  }>;
+  eventos_auditoria?: Array<{
+    id: string;
+    accion: string;
+    estado_anterior: string | null;
+    estado_nuevo: string | null;
+    descripcion: string;
+    cambios: unknown;
+    creado_en: Date;
+    usuario: { id: string; nombre: string } | null;
+  }>;
   pagos?: {
+    registrado_en: Date;
+    registrador: { id: string; nombre: string };
     soporte: {
       id: string;
       nombre_archivo: string;
@@ -606,6 +634,110 @@ function validarPeriodoImpuesto(periodo: string): string | null {
 function convertirSolicitudPago(
   solicitud: SolicitudPagoRepositoryResult,
 ): SolicitudPagoListado {
+  const historial = [
+    {
+      id: `${solicitud.id}-creacion`,
+      accion: "CREACION_BORRADOR",
+      descripcion: "Se creó el borrador de la solicitud.",
+      estado_anterior: null,
+      estado_nuevo: "BORRADOR",
+      cambios: null,
+      creado_en: solicitud.creado_en,
+      usuario: solicitud.creador
+        ? { id: solicitud.creador.id, nombre: solicitud.creador.nombre }
+        : null,
+    },
+    ...(solicitud.enviado_en &&
+      !(solicitud.eventos_auditoria ?? []).some(
+        (evento) => evento.accion === "ENVIO_APROBACION",
+      )
+      ? [{
+          id: `${solicitud.id}-envio`,
+          accion: "ENVIO_APROBACION",
+          descripcion: "La solicitud fue enviada a aprobación nivel 1.",
+          estado_anterior: "BORRADOR",
+          estado_nuevo: "PENDIENTE_APROBADOR_1",
+          cambios: null,
+          creado_en: solicitud.enviado_en,
+          usuario: solicitud.creador
+            ? { id: solicitud.creador.id, nombre: solicitud.creador.nombre }
+            : null,
+        }]
+      : []),
+    ...(solicitud.aprobado_1_en
+      ? [{
+          id: `${solicitud.id}-aprobacion-1`,
+          accion: "APROBACION_NIVEL_1",
+          descripcion: "La solicitud fue aprobada en nivel 1.",
+          estado_anterior: "PENDIENTE_APROBADOR_1",
+          estado_nuevo: "PENDIENTE_APROBADOR_2",
+          cambios: null,
+          creado_en: solicitud.aprobado_1_en,
+          usuario: solicitud.aprobador1 ?? null,
+        }]
+      : []),
+    ...(solicitud.aprobado_2_en
+      ? [{
+          id: `${solicitud.id}-aprobacion-2`,
+          accion: "APROBACION_NIVEL_2",
+          descripcion: "La solicitud fue aprobada en nivel 2 y programada para pago.",
+          estado_anterior: "PENDIENTE_APROBADOR_2",
+          estado_nuevo: "PROGRAMADA_PAGO",
+          cambios: null,
+          creado_en: solicitud.aprobado_2_en,
+          usuario: solicitud.aprobador2 ?? null,
+        }]
+      : []),
+    ...(solicitud.devoluciones ?? []).map((evento) => ({
+      id: evento.id,
+      accion: "DEVOLUCION",
+      descripcion: evento.motivo,
+      estado_anterior: evento.estado_origen,
+      estado_nuevo: evento.estado_destino,
+      cambios: null,
+      creado_en: evento.creado_en,
+      usuario: evento.usuario,
+    })),
+    ...(solicitud.anulaciones ?? []).map((evento) => ({
+      id: evento.id,
+      accion: "ANULACION",
+      descripcion: evento.motivo,
+      estado_anterior: evento.estado_origen,
+      estado_nuevo: "ANULADA",
+      cambios: null,
+      creado_en: evento.creado_en,
+      usuario: evento.usuario,
+    })),
+    ...(solicitud.adjuntos ?? []).map((evento) => ({
+      id: evento.id,
+      accion: "ADJUNTO_CARGADO",
+      descripcion: `Se cargó el archivo ${evento.nombre_archivo}.`,
+      estado_anterior: null,
+      estado_nuevo: null,
+      cambios: null,
+      creado_en: evento.subido_en,
+      usuario: evento.usuario_subio,
+    })),
+    ...(solicitud.pagado_en
+      ? [{
+          id: `${solicitud.id}-pago`,
+          accion: "PAGO_REGISTRADO",
+          descripcion: "La solicitud fue marcada como pagada.",
+          estado_anterior: "PROGRAMADA_PAGO",
+          estado_nuevo: "PAGADA",
+          cambios: null,
+          creado_en: solicitud.pagado_en,
+          usuario: solicitud.pagador ?? solicitud.pagos?.registrador ?? null,
+        }]
+      : []),
+    ...(solicitud.eventos_auditoria ?? []).map((evento) => ({
+      ...evento,
+      usuario: evento.usuario,
+    })),
+  ].sort(
+    (a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime(),
+  );
+
   return {
     id: solicitud.id,
     numero_solicitud: solicitud.numero_solicitud,
@@ -649,6 +781,7 @@ function convertirSolicitudPago(
       solicitud.pagos?.soporte ??
       solicitud.detalleOperacionEfectivo?.soporte ??
       null,
+    historial,
   };
 }
 
@@ -1203,6 +1336,7 @@ export async function editarSolicitudAprobadorNivel1Service(
   try {
     const actualizada = await editarSolicitudAprobadorNivel1Repository({
       solicitudId: solicitud.id,
+      modificadoPor: usuarioAutenticado.id,
       estadoOrigen: solicitud.estado_actual,
       beneficiarioId,
       proveedorId:
@@ -2087,6 +2221,7 @@ export async function obtenerSolicitudPagoPorIdService(
     solicitud.tipo_solicitud === "PAGO_NOMINA" &&
     solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
   ) {
+    const solicitudConHistorial = convertirSolicitudPago(solicitud);
     const detalleNomina = await obtenerDetalleNominaGrupalService(id);
 
     if (detalleNomina.body.ok && detalleNomina.body.data) {
@@ -2101,6 +2236,7 @@ export async function obtenerSolicitudPagoPorIdService(
                 solicitud.pagos?.soporte ??
                 solicitud.detalleOperacionEfectivo?.soporte ??
                 null,
+              historial: solicitudConHistorial.historial,
             },
           },
         },
@@ -2487,6 +2623,7 @@ export async function actualizarSolicitudPagoProveedorService(
   const solicitudActualizada =
     await actualizarSolicitudPagoRepository({
       id: solicitudEditable.solicitud.id,
+      modificado_por: usuarioAutenticado.id,
       data: repositoryInput,
     });
 
@@ -2914,6 +3051,7 @@ export async function actualizarSolicitudNominaIndividualService(
   const solicitudActualizada =
     await actualizarSolicitudPagoRepository({
       id: solicitudEditable.solicitud.id,
+      modificado_por: usuarioAutenticado.id,
       data: {
         numero_solicitud:
           solicitudEditable.solicitud.numero_solicitud,
@@ -3267,6 +3405,7 @@ export async function actualizarSolicitudPagoImpuestoService(
   const solicitudActualizada =
     await actualizarSolicitudPagoRepository({
       id: solicitudEditable.solicitud.id,
+      modificado_por: usuarioAutenticado.id,
       data: {
         numero_solicitud:
           solicitudEditable.solicitud.numero_solicitud,
@@ -3686,6 +3825,7 @@ export async function actualizarSolicitudReembolsoService(
   const solicitudActualizada =
     await actualizarSolicitudPagoRepository({
       id: solicitudEditable.solicitud.id,
+      modificado_por: usuarioAutenticado.id,
       data: {
         numero_solicitud:
           solicitudEditable.solicitud.numero_solicitud,
@@ -3832,6 +3972,7 @@ export async function enviarSolicitudPagoService(
       estadoOrigen: "DEVUELTA_SOLICITANTE",
       estadoDestino: "PENDIENTE_APROBADOR_1",
       fecha: new Date(),
+      usuarioId: usuarioAutenticado.id,
     });
 
     if (resultado.count !== 1) {
@@ -3859,6 +4000,7 @@ export async function enviarSolicitudPagoService(
       estadoOrigen: "DEVUELTA_APROBADOR_1",
       estadoDestino: "PENDIENTE_APROBADOR_2",
       fecha: new Date(),
+      usuarioId: usuarioAutenticado.id,
     });
 
     if (resultado.count !== 1) {
@@ -3897,6 +4039,7 @@ export async function enviarSolicitudPagoService(
   const solicitudEnviada = await enviarSolicitudPagoRepository({
     solicitudId: id,
     enviadoEn: new Date(),
+    usuarioId: usuarioAutenticado.id,
   });
 
   if (!solicitudEnviada) {

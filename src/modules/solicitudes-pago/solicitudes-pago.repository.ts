@@ -57,11 +57,13 @@ const solicitudPagoInclude = {
       correo: true,
     },
   },
+  aprobador1: { select: { id: true, nombre: true } },
+  aprobador2: { select: { id: true, nombre: true } },
+  pagador: { select: { id: true, nombre: true } },
   devoluciones: {
     orderBy: {
       creado_en: "desc" as const,
     },
-    take: 1,
     select: {
       id: true,
       estado_origen: true,
@@ -76,8 +78,42 @@ const solicitudPagoInclude = {
       },
     },
   },
+  anulaciones: {
+    orderBy: { creado_en: "desc" as const },
+    select: {
+      id: true,
+      estado_origen: true,
+      motivo: true,
+      creado_en: true,
+      usuario: { select: { id: true, nombre: true } },
+    },
+  },
+  adjuntos: {
+    orderBy: { subido_en: "desc" as const },
+    select: {
+      id: true,
+      nombre_archivo: true,
+      subido_en: true,
+      usuario_subio: { select: { id: true, nombre: true } },
+    },
+  },
+  eventos_auditoria: {
+    orderBy: { creado_en: "desc" as const },
+    select: {
+      id: true,
+      accion: true,
+      estado_anterior: true,
+      estado_nuevo: true,
+      descripcion: true,
+      cambios: true,
+      creado_en: true,
+      usuario: { select: { id: true, nombre: true } },
+    },
+  },
   pagos: {
     select: {
+      registrado_en: true,
+      registrador: { select: { id: true, nombre: true } },
       soporte: {
         select: {
           id: true,
@@ -522,14 +558,42 @@ export async function obtenerComprobantePagoSolicitudRepository(id: string) {
   });
 }
 
+function valorAuditable(valor: unknown) {
+  if (valor instanceof Prisma.Decimal) {
+    return valor.toNumber();
+  }
+
+  return valor ?? null;
+}
+
+function construirCambiosAuditoria(
+  anterior: Record<string, unknown>,
+  nuevosValores: Record<string, unknown>,
+) {
+  return Object.fromEntries(
+    Object.entries(nuevosValores)
+      .filter(([campo, nuevoValor]) =>
+        String(valorAuditable(anterior[campo])) !==
+          String(valorAuditable(nuevoValor)),
+      )
+      .map(([campo, nuevoValor]) => [
+        campo,
+        {
+          anterior: valorAuditable(anterior[campo]),
+          nuevo: valorAuditable(nuevoValor),
+        },
+      ]),
+  );
+}
+
 export async function actualizarSolicitudPagoRepository(
   input: ActualizarSolicitudPagoRepositoryInput,
 ) {
-  return prisma.solicitudes_pago.update({
-    where: {
-      id: input.id,
-    },
-    data: {
+  return prisma.$transaction(async (tx) => {
+    const anterior = await tx.solicitudes_pago.findUniqueOrThrow({
+      where: { id: input.id },
+    });
+    const data = {
       tipo_solicitud: input.data.tipo_solicitud,
       modalidad_nomina: input.data.modalidad_nomina,
       periodo_nomina: input.data.periodo_nomina,
@@ -551,13 +615,36 @@ export async function actualizarSolicitudPagoRepository(
       valor_retenciones: input.data.valor_retenciones,
       valor_descuentos: input.data.valor_descuentos,
       valor_neto: input.data.valor_neto,
-    },
-    include: solicitudPagoInclude,
+    };
+    await tx.solicitudes_pago.update({
+      where: { id: input.id },
+      data,
+    });
+
+    await tx.eventos_auditoria_solicitud_pago.create({
+      data: {
+        solicitud_pago_id: anterior.id,
+        solicitud_ref_id: anterior.id,
+        numero_solicitud: anterior.numero_solicitud,
+        accion: "EDICION_SOLICITANTE",
+        estado_anterior: anterior.estado_actual,
+        estado_nuevo: anterior.estado_actual,
+        descripcion: "El solicitante actualizó la información de la solicitud.",
+        cambios: construirCambiosAuditoria(anterior, data),
+        registrado_por: input.modificado_por,
+      },
+    });
+
+    return tx.solicitudes_pago.findUniqueOrThrow({
+      where: { id: input.id },
+      include: solicitudPagoInclude,
+    });
   });
 }
 
 export async function editarSolicitudAprobadorNivel1Repository(input: {
   solicitudId: string;
+  modificadoPor: string;
   estadoOrigen: "PENDIENTE_APROBADOR_1" | "DEVUELTA_APROBADOR_1";
   beneficiarioId: string;
   proveedorId: string | null;
@@ -573,33 +660,51 @@ export async function editarSolicitudAprobadorNivel1Repository(input: {
   valorNeto: number;
 }) {
   return prisma.$transaction(async (tx) => {
+    const anterior = await tx.solicitudes_pago.findUniqueOrThrow({
+      where: { id: input.solicitudId },
+    });
+    const data = {
+      beneficiario_id: input.beneficiarioId,
+      proveedor_id: input.proveedorId,
+      categoria_gasto: input.categoriaGasto,
+      categoria_reembolso: input.categoriaReembolso,
+      concepto_nomina: input.conceptoNomina,
+      tipo_impuesto: input.tipoImpuesto,
+      medio_pago: input.medioPago,
+      descripcion: input.descripcion,
+      valor_bruto: input.valorBruto,
+      valor_retenciones: input.valorRetenciones,
+      valor_descuentos: input.valorDescuentos,
+      valor_neto: input.valorNeto,
+      ...(input.estadoOrigen === "DEVUELTA_APROBADOR_1"
+        ? { valor_reservado: input.valorNeto }
+        : {}),
+    };
     const resultado = await tx.solicitudes_pago.updateMany({
       where: {
         id: input.solicitudId,
         estado_actual: input.estadoOrigen,
       },
-      data: {
-        beneficiario_id: input.beneficiarioId,
-        proveedor_id: input.proveedorId,
-        categoria_gasto: input.categoriaGasto,
-        categoria_reembolso: input.categoriaReembolso,
-        concepto_nomina: input.conceptoNomina,
-        tipo_impuesto: input.tipoImpuesto,
-        medio_pago: input.medioPago,
-        descripcion: input.descripcion,
-        valor_bruto: input.valorBruto,
-        valor_retenciones: input.valorRetenciones,
-        valor_descuentos: input.valorDescuentos,
-        valor_neto: input.valorNeto,
-        ...(input.estadoOrigen === "DEVUELTA_APROBADOR_1"
-          ? { valor_reservado: input.valorNeto }
-          : {}),
-      },
+      data,
     });
 
     if (resultado.count !== 1) {
       throw new SolicitudesPagoCambioConcurrenteError();
     }
+
+    await tx.eventos_auditoria_solicitud_pago.create({
+      data: {
+        solicitud_pago_id: anterior.id,
+        solicitud_ref_id: anterior.id,
+        numero_solicitud: anterior.numero_solicitud,
+        accion: "EDICION_APROBADOR_1",
+        estado_anterior: anterior.estado_actual,
+        estado_nuevo: anterior.estado_actual,
+        descripcion: "El aprobador de nivel 1 actualizó la información de la solicitud.",
+        cambios: construirCambiosAuditoria(anterior, data),
+        registrado_por: input.modificadoPor,
+      },
+    });
 
     return tx.solicitudes_pago.findUniqueOrThrow({
       where: { id: input.solicitudId },
@@ -611,6 +716,7 @@ export async function editarSolicitudAprobadorNivel1Repository(input: {
 export async function enviarSolicitudPagoRepository(input: {
   solicitudId: string;
   enviadoEn: Date;
+  usuarioId: string;
 }) {
   return prisma.$transaction(async (tx) => {
     const resultado = await tx.solicitudes_pago.updateMany({
@@ -682,6 +788,20 @@ export async function enviarSolicitudPagoRepository(input: {
       data: {
         numero_solicitud: secuencia.referencia,
         actualizado_en: input.enviadoEn,
+      },
+    });
+
+    await tx.eventos_auditoria_solicitud_pago.create({
+      data: {
+        solicitud_pago_id: solicitud.id,
+        solicitud_ref_id: solicitud.id,
+        numero_solicitud: secuencia.referencia,
+        accion: "ENVIO_APROBACION",
+        estado_anterior: "BORRADOR",
+        estado_nuevo: "PENDIENTE_APROBADOR_1",
+        descripcion: `Se generó el número oficial ${secuencia.referencia} y la solicitud fue enviada a aprobación nivel 1.`,
+        registrado_por: input.usuarioId,
+        creado_en: input.enviadoEn,
       },
     });
 
@@ -985,21 +1105,43 @@ export async function reenviarSolicitudDevueltaRepository(input: {
   estadoOrigen: "DEVUELTA_SOLICITANTE" | "DEVUELTA_APROBADOR_1";
   estadoDestino: "PENDIENTE_APROBADOR_1" | "PENDIENTE_APROBADOR_2";
   fecha: Date;
+  usuarioId: string;
   valorReservado?: Prisma.Decimal;
 }) {
-  return prisma.solicitudes_pago.updateMany({
-    where: {
-      id: input.solicitudId,
-      estado_actual: input.estadoOrigen,
-    },
-    data: {
-      estado_actual: input.estadoDestino,
-      ...(input.valorReservado !== undefined
-        ? { valor_reservado: input.valorReservado }
-        : {}),
-      enviado_en: input.fecha,
-      actualizado_en: input.fecha,
-    },
+  return prisma.$transaction(async (tx) => {
+    const solicitud = await tx.solicitudes_pago.findUniqueOrThrow({
+      where: { id: input.solicitudId },
+      select: { id: true, numero_solicitud: true },
+    });
+    const resultado = await tx.solicitudes_pago.updateMany({
+      where: {
+        id: input.solicitudId,
+        estado_actual: input.estadoOrigen,
+      },
+      data: {
+        estado_actual: input.estadoDestino,
+        ...(input.valorReservado !== undefined
+          ? { valor_reservado: input.valorReservado }
+          : {}),
+        actualizado_en: input.fecha,
+      },
+    });
+    if (resultado.count === 1) {
+      await tx.eventos_auditoria_solicitud_pago.create({
+        data: {
+          solicitud_pago_id: solicitud.id,
+          solicitud_ref_id: solicitud.id,
+          numero_solicitud: solicitud.numero_solicitud,
+          accion: "REENVIO_APROBACION",
+          estado_anterior: input.estadoOrigen,
+          estado_nuevo: input.estadoDestino,
+          descripcion: "La solicitud corregida fue reenviada al flujo de aprobación.",
+          registrado_por: input.usuarioId,
+          creado_en: input.fecha,
+        },
+      });
+    }
+    return resultado;
   });
 }
 

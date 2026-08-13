@@ -30,6 +30,7 @@ Esta entidad representa la cabecera común para las solicitudes de proveedores, 
 | `operaciones_efectivo` | Cabecera de un retiro agrupado. |
 | `detalles_operacion_efectivo` | Pago individual cubierto por un retiro. |
 | `movimientos_fondo` | Egresos e ingresos que afectan el fondo. |
+| `eventos_auditoria_solicitud_pago` | Eventos complementarios del historial funcional. |
 
 ---
 
@@ -61,6 +62,8 @@ erDiagram
 
     solicitudes_pago ||--o| pagos : transferencia
     solicitudes_pago ||--o| detalles_operacion_efectivo : pago_retiro
+    solicitudes_pago o|--o{ eventos_auditoria_solicitud_pago : audita
+    usuarios o|--o{ eventos_auditoria_solicitud_pago : registra
 
     operaciones_efectivo ||--o{ detalles_operacion_efectivo : agrupa
     operaciones_efectivo ||--o{ movimientos_fondo : genera
@@ -296,6 +299,18 @@ Las devoluciones y anulaciones conservan trazabilidad propia en:
 devoluciones_solicitud_pago
 anulaciones_solicitud_pago
 ```
+
+Los eventos que no poseen una entidad operativa propia se conservan en:
+
+```text
+eventos_auditoria_solicitud_pago
+```
+
+Cada registro conserva la referencia estable de la solicitud, número oficial,
+acción, estados anterior y nuevo, descripción, cambios por campo, responsable
+y fecha. La relación con `solicitudes_pago` admite `SetNull` para preservar la
+evidencia histórica si se elimina un borrador, mientras `solicitud_ref_id`
+mantiene su identificación original.
 
 La anulación registra la solicitud, el estado de origen, el motivo, el usuario
 y la fecha. No elimina la solicitud ni sus documentos asociados.

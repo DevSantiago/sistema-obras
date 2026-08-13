@@ -51,6 +51,7 @@ model usuarios {
   devoluciones_prestamo_registradas  devoluciones_prestamo[]           @relation("DevolucionesPrestamoRegistradasPor")
   devoluciones_solicitud_registradas devoluciones_solicitud_pago[]     @relation("DevolucionesSolicitudRegistradasPor")
   anulaciones_solicitud_registradas  anulaciones_solicitud_pago[]      @relation("AnulacionesSolicitudRegistradasPor")
+  eventos_auditoria_solicitud        eventos_auditoria_solicitud_pago[] @relation("EventosAuditoriaSolicitudRegistradosPor")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
@@ -376,6 +377,7 @@ model solicitudes_pago {
   detalleOperacionEfectivo detalles_operacion_efectivo?
   devoluciones             devoluciones_solicitud_pago[]
   anulaciones              anulaciones_solicitud_pago[]
+  eventos_auditoria        eventos_auditoria_solicitud_pago[]
 
   @@index([numero_solicitud])
   @@index([proyecto_base_id])
@@ -428,6 +430,28 @@ model anulaciones_solicitud_pago {
 
   @@index([solicitud_pago_id, creado_en])
   @@index([anulado_por])
+}
+
+model eventos_auditoria_solicitud_pago {
+  id                String   @id @default(uuid())
+  solicitud_pago_id String?
+  solicitud_ref_id  String
+  numero_solicitud  String?  @db.VarChar(100)
+  accion            String   @db.VarChar(80)
+  estado_anterior   String?
+  estado_nuevo      String?
+  descripcion       String   @db.VarChar(500)
+  cambios           Json?
+  registrado_por    String?
+  creado_en         DateTime @default(now())
+
+  solicitud solicitudes_pago? @relation(fields: [solicitud_pago_id], references: [id], onDelete: SetNull)
+  usuario   usuarios?         @relation("EventosAuditoriaSolicitudRegistradosPor", fields: [registrado_por], references: [id], onDelete: SetNull)
+
+  @@index([solicitud_pago_id, creado_en])
+  @@index([solicitud_ref_id, creado_en])
+  @@index([registrado_por])
+  @@index([accion])
 }
 
 model adjuntos {

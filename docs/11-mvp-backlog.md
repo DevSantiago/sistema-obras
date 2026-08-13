@@ -1020,7 +1020,7 @@ Implementar un componente reutilizable para consultar el detalle completo de una
 
 ### HU-0807. Edición por Aprobador Nivel 1
 
-**Estado:** 🚧 En desarrollo
+**Estado:** ✅ Terminada
 
 **Descripción**
 
@@ -1100,7 +1100,7 @@ Permitir que el Aprobador Nivel 2 consulte el detalle completo de la solicitud y
 
 ### HU-0809. Historial y auditoría
 
-**Estado:** ⏳ Pendiente
+**Estado:** ✅ Terminada
 
 **Descripción**
 
