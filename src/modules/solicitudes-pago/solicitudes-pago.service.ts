@@ -108,6 +108,12 @@ const CATEGORIAS_GASTO_VALIDAS = [
   "OTRO",
 ];
 
+function esBeneficiarioValidoParaPagoProveedor(
+  tipoBeneficiario: string,
+): boolean {
+  return tipoBeneficiario === "PROVEEDOR" || tipoBeneficiario === "OTRO";
+}
+
 function obtenerMetadatosAdjunto(archivo: ArchivoGuardado) {
   return {
     nombre_archivo: archivo.nombre_archivo,
@@ -1250,11 +1256,16 @@ export async function editarSolicitudAprobadorNivel1Service(
 
   if (
     solicitud.tipo_solicitud === "PAGO_PROVEEDOR" &&
-    beneficiario.tipo_beneficiario !== "PROVEEDOR"
+    !esBeneficiarioValidoParaPagoProveedor(
+      beneficiario.tipo_beneficiario,
+    )
   ) {
     return {
       status: 400,
-      body: { ok: false, message: "El beneficiario debe ser tipo PROVEEDOR." },
+      body: {
+        ok: false,
+        message: "El beneficiario debe ser tipo PROVEEDOR u OTRO.",
+      },
     };
   }
 
@@ -2400,13 +2411,17 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
-  if (beneficiario.tipo_beneficiario !== "PROVEEDOR") {
+  if (
+    !esBeneficiarioValidoParaPagoProveedor(
+      beneficiario.tipo_beneficiario,
+    )
+  ) {
     return {
       status: 400,
       body: {
         ok: false,
         message:
-          "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR.",
+          "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR u OTRO.",
       },
     };
   }
@@ -2583,13 +2598,17 @@ export async function actualizarSolicitudPagoProveedorService(
     };
   }
 
-  if (beneficiario.tipo_beneficiario !== "PROVEEDOR") {
+  if (
+    !esBeneficiarioValidoParaPagoProveedor(
+      beneficiario.tipo_beneficiario,
+    )
+  ) {
     return {
       status: 400,
       body: {
         ok: false,
         message:
-          "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR.",
+          "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR u OTRO.",
       },
     };
   }

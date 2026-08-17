@@ -963,6 +963,9 @@ El tipo de solicitud se determina mediante los campos enviados en el cuerpo de l
 
 ## Pago a proveedor
 
+El campo `beneficiario_id` puede corresponder a un beneficiario activo de tipo
+`PROVEEDOR` u `OTRO`.
+
 Ejemplo:
 
 ```json

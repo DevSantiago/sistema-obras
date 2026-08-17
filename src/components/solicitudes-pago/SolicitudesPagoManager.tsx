@@ -316,7 +316,10 @@ export default function SolicitudesPagoManager({
           setProyectos(extraerProyectos(proyectosResponse.data));
 
           setBeneficiariosProveedor(
-            extraerBeneficiarios(proveedoresResponse.data),
+            [
+              ...extraerBeneficiarios(proveedoresResponse.data),
+              ...extraerBeneficiarios(entidadesResponse.data),
+            ],
           );
 
           setTrabajadores(
