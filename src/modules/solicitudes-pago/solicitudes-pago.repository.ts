@@ -93,6 +93,7 @@ const solicitudPagoInclude = {
     select: {
       id: true,
       nombre_archivo: true,
+      tipo_mime: true,
       subido_en: true,
       usuario_subio: { select: { id: true, nombre: true } },
     },
@@ -551,6 +552,24 @@ export async function obtenerComprobantePagoSolicitudRepository(id: string) {
       ],
     },
     select: {
+      nombre_archivo: true,
+      ruta_archivo: true,
+      tipo_mime: true,
+    },
+  });
+}
+
+export async function obtenerAdjuntoSolicitudPagoRepository(
+  solicitudId: string,
+  adjuntoId: string,
+) {
+  return prisma.adjuntos.findFirst({
+    where: {
+      id: adjuntoId,
+      solicitud_pago_id: solicitudId,
+    },
+    select: {
+      id: true,
       nombre_archivo: true,
       ruta_archivo: true,
       tipo_mime: true,

@@ -22,6 +22,7 @@ import {
   obtenerProyectoBaseActivoRepository,
   obtenerSolicitudPagoPorIdRepository,
   obtenerComprobantePagoSolicitudRepository,
+  obtenerAdjuntoSolicitudPagoRepository,
   eliminarSolicitudPagoRepository,
   obtenerSolicitudesPagoPorIdsRepository,
   obtenerReservasPorFondosRepository,
@@ -244,6 +245,7 @@ type SolicitudPagoRepositoryResult = {
   adjuntos?: Array<{
     id: string;
     nombre_archivo: string;
+    tipo_mime: string | null;
     subido_en: Date;
     usuario_subio: { id: string; nombre: string } | null;
   }>;
@@ -783,6 +785,7 @@ function convertirSolicitudPago(
     proveedor: solicitud.proveedor,
     creador: solicitud.creador,
     ultima_devolucion: solicitud.devoluciones?.[0] ?? null,
+    adjuntos: solicitud.adjuntos ?? [],
     comprobante_pago:
       solicitud.pagos?.soporte ??
       solicitud.detalleOperacionEfectivo?.soporte ??
@@ -2302,6 +2305,57 @@ export async function obtenerComprobantePagoSolicitudService(
       ok: true,
       message: "Comprobante consultado correctamente.",
       data: archivo,
+    },
+  };
+}
+
+export async function obtenerAdjuntoSolicitudPagoService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  adjuntoId: string,
+) {
+  const detalle = await obtenerSolicitudPagoPorIdService(
+    usuarioAutenticado,
+    solicitudId,
+  );
+
+  if (!detalle.body.ok) {
+    return detalle;
+  }
+
+  const idAdjunto = normalizarTexto(adjuntoId);
+
+  if (!idAdjunto) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El identificador del adjunto es obligatorio.",
+      },
+    };
+  }
+
+  const adjunto = await obtenerAdjuntoSolicitudPagoRepository(
+    solicitudId,
+    idAdjunto,
+  );
+
+  if (!adjunto) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "El adjunto no existe o no pertenece a la solicitud.",
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Adjunto consultado correctamente.",
+      data: adjunto,
     },
   };
 }
