@@ -1,13 +1,14 @@
 import { localStorageProvider } from "./local-storage.provider";
+import { s3StorageProvider } from "./s3-storage.provider";
 import type { StorageProvider } from "./storage.types";
 
-export type StorageProviderName = "local" | "gcs";
+export type StorageProviderName = "local" | "s3";
 
 function obtenerNombreProvider(): StorageProviderName {
   const provider =
     process.env.STORAGE_PROVIDER?.trim().toLowerCase() || "local";
 
-  if (provider === "local" || provider === "gcs") {
+  if (provider === "local" || provider === "s3") {
     return provider;
   }
 
@@ -23,9 +24,7 @@ export function obtenerStorageProvider(): StorageProvider {
     return localStorageProvider;
   }
 
-  throw new Error(
-    "El proveedor GCS todavía no está configurado. Use STORAGE_PROVIDER=local en desarrollo.",
-  );
+  return s3StorageProvider;
 }
 
 export const storageService = {

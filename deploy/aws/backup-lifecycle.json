@@ -1,0 +1,17 @@
+{
+  "Rules": [
+    {
+      "ID": "EliminarRespaldosAntiguos",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "postgres/"
+      },
+      "Expiration": {
+        "Days": 90
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 30
+      }
+    }
+  ]
+}
