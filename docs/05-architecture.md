@@ -130,6 +130,12 @@ producción utilizan Amazon S3 con buckets y credenciales IAM independientes.
 Los demás módulos consumen exclusivamente `storageService`, por lo que no
 conocen el proveedor físico ni exponen directamente los objetos de los buckets.
 
+El módulo `whatsapp` encapsula la configuración y validación de webhooks de
+WhatsApp Business Platform. La ruta pública entrega el cuerpo crudo y la firma
+al servicio, que valida el token de alta y `X-Hub-Signature-256` antes de aceptar
+eventos. En HU-1901 y HU-1902 no persiste información ni modifica solicitudes;
+la trazabilidad e idempotencia se incorporan en historias posteriores.
+
 El historial de cada solicitud se compone en el servicio de
 `solicitudes-pago`. Reutiliza las fuentes operativas existentes para creación,
 aprobaciones, devoluciones, anulaciones, adjuntos y pagos, y las complementa

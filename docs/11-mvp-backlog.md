@@ -1961,7 +1961,7 @@ Criterios:
 
 ## Estado
 
-**APROBADA PARA DESARROLLO — pendiente de disponer de staging público con HTTPS.**
+**EN DESARROLLO — staging público con HTTPS disponible; HU-1901 y HU-1902 en ejecución.**
 
 ## Objetivo
 

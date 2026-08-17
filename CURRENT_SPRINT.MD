@@ -2,69 +2,75 @@
 
 ## Objetivo
 
-Preparar la base técnica para desplegar el sistema en un VPS de Hostinger con
-ambientes aislados de staging y producción, PostgreSQL en el VPS y adjuntos en
-Amazon S3.
+Iniciar la Épica 19 mediante la configuración aislada de WhatsApp Business
+Platform y la publicación de un webhook seguro en el ambiente de staging.
 
 ---
 
 ## Alcance autorizado
 
-Implementar únicamente la preparación de despliegue necesaria antes de iniciar
-la Épica 19:
+Implementar HU-1901 y HU-1902:
 
-- contenedores para aplicación, PostgreSQL y proxy HTTPS;
-- configuración separada para staging y producción;
-- almacenamiento de adjuntos mediante Amazon S3;
-- respaldo de PostgreSQL hacia S3;
-- endpoints de salud y documentación operativa.
+- configurar WhatsApp mediante variables de entorno independientes;
+- exponer la verificación `GET` requerida por Meta;
+- recibir eventos mediante `POST` sobre HTTPS;
+- validar el token de verificación y la firma `X-Hub-Signature-256`;
+- documentar la configuración y desplegar el webhook en staging.
 
 ---
 
 ## Base funcional cerrada
 
 - Épica 8 cerrada y fusionada en `dev`.
-- HU-0804, HU-0807, HU-0808 y HU-0809 terminadas y probadas.
-- `dev` constituye la base para preparar el despliegue.
+- Preparación del VPS, PostgreSQL, HTTPS y Amazon S3 terminada.
+- Staging operativo en `https://stg.dimensiones.cloud`.
+- Carga y consulta de adjuntos en S3 validada desde staging.
+
+---
+
+## Historias del sprint
+
+### HU-1901. Configurar integración de WhatsApp por ambiente
+
+- Configuración separada para staging y producción.
+- Secretos únicamente en variables de entorno.
+- Número, WABA, aplicación, token, versión de API y plantillas configurables.
+
+### HU-1902. Recibir y validar webhooks de Meta
+
+- Verificación de suscripción por `GET`.
+- Recepción de eventos por `POST`.
+- Validación criptográfica de la firma antes de procesar el contenido.
+- Respuesta oportuna sin modificar solicitudes ni enviar mensajes todavía.
 
 ---
 
 ## Orden obligatorio
 
-1. Configurar Amazon S3 como proveedor de adjuntos.
-2. Preparar contenedores y variables para staging y producción.
-3. Preparar proxy HTTPS, PostgreSQL y respaldos hacia S3.
-4. Ejecutar pruebas y `npm run build`.
-5. Desplegar staging en el VPS y validar persistencia, archivos y HTTPS.
-6. Iniciar la Épica 19 usando el webhook público de staging.
-
----
-
-## Decisiones de infraestructura
-
-- Desarrollo: ejecución local, fuera del VPS.
-- Staging y producción: aplicaciones y bases de datos lógicamente aisladas.
-- Base de datos: PostgreSQL persistente dentro del VPS, sin exposición pública.
-- Adjuntos: buckets S3 separados por ambiente.
-- Respaldos: bucket S3 independiente con política de retención.
-- Entrada web: dominios separados con HTTPS automático.
+1. Incorporar plantillas de variables sin secretos.
+2. Implementar el servicio de validación del webhook.
+3. Exponer el endpoint público.
+4. Crear pruebas de token, firma y respuestas HTTP.
+5. Ejecutar pruebas, lint y `npm run build`.
+6. Desplegar staging y validar el endpoint público.
+7. Configurar la URL y el token en `Obras WebApp | STG`.
 
 ---
 
 ## Fuera de alcance
 
-No implementar todavía el envío de mensajes de WhatsApp ni el webhook de Meta.
-La Épica 19 queda documentada y se inicia después de publicar staging con HTTPS.
-No modificar la máquina de estados ni el comportamiento funcional existente.
+- No enviar mensajes de WhatsApp todavía.
+- No crear notificaciones por cambios de estado.
+- No implementar reintentos ni bandeja administrativa.
+- No persistir estados de entrega ni procesar idempotencia en esta rama.
+- No modificar la máquina de estados de solicitudes.
 
 ---
 
 ## Criterio de finalización
 
-La preparación queda lista para pasar al VPS cuando:
-
-- el proveedor S3 tenga pruebas automatizadas;
-- existan plantillas de variables sin secretos;
-- la aplicación compile correctamente (`npm run build`);
-- las pruebas existentes y nuevas continúen pasando;
-- la configuración de despliegue y recuperación esté documentada.
+- La configuración de WhatsApp queda aislada por ambiente.
+- Meta puede verificar el webhook mediante token.
+- Las solicitudes `POST` sin firma válida son rechazadas.
+- El endpoint queda publicado con HTTPS en staging.
+- Las pruebas, lint y build finalizan sin errores.
