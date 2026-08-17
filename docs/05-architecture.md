@@ -59,7 +59,7 @@ PostgreSQL
 
 Vitest
 
-Google Cloud Storage
+Amazon S3
 ```
 
 La arquitectura ha sido diseñada para permitir la incorporación de nuevos componentes sin afectar la estructura general del sistema.
@@ -123,6 +123,12 @@ src/
 El backend de bandeja y registro de pagos forma parte del módulo
 `solicitudes-pago`, manteniendo el patrón `route → service → repository`. La
 interfaz se encuentra en `src/components/pagos`.
+
+El módulo `storage` abstrae la persistencia física de documentos mediante el
+contrato `StorageProvider`. En desarrollo utiliza el proveedor local; staging y
+producción utilizan Amazon S3 con buckets y credenciales IAM independientes.
+Los demás módulos consumen exclusivamente `storageService`, por lo que no
+conocen el proveedor físico ni exponen directamente los objetos de los buckets.
 
 El historial de cada solicitud se compone en el servicio de
 `solicitudes-pago`. Reutiliza las fuentes operativas existentes para creación,

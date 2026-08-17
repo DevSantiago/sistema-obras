@@ -1,6 +1,9 @@
 # 09. Despliegue
 
-> **Última actualización funcional:** Julio de 2026.
+> **Última actualización funcional:** Agosto de 2026.
+
+> **Estrategia vigente:** VPS Hostinger con ambientes `stg` y `prod`,
+> PostgreSQL dentro del VPS y almacenamiento documental privado en Amazon S3.
 
 ---
 
@@ -172,6 +175,9 @@ Características:
 - ejecución de migraciones y seed de desarrollo.
 
 Este ambiente puede contener datos de prueba y no representa información productiva.
+
+La operación vigente no contempla un ambiente `dev` remoto: el desarrollo se
+mantiene local y las ramas se integran en `dev` antes de promoverse a `stg`.
 
 ---
 
@@ -357,6 +363,21 @@ La infraestructura contempla, como mínimo:
 
 Esta arquitectura permite escalar cada componente de manera independiente conforme aumenten las necesidades operativas del sistema.
 
+La implementación inicial utiliza `docker-compose.vps.yml` y contiene:
+
+- `app-stg` y `app-prod`, construidos desde una misma imagen versionada;
+- PostgreSQL con bases y usuarios independientes por ambiente;
+- una red interna que impide exponer PostgreSQL a internet;
+- Caddy como proxy inverso y administrador de certificados HTTPS;
+- volúmenes persistentes para PostgreSQL y certificados de Caddy.
+
+Los archivos de configuración reales se crean a partir de las plantillas de
+`deploy/env` y nunca se incluyen en Git.
+
+`app-prod` pertenece al perfil opcional `production`. El arranque inicial sin
+perfiles publica solamente staging; producción se habilita de forma explícita
+después de validar la versión candidata.
+
 ---
 
 # Variables de entorno
@@ -425,6 +446,38 @@ Entre ellas pueden encontrarse:
 - configuración de tiempos de espera.
 
 La disponibilidad de estas variables depende de la implementación del servicio OCR correspondiente.
+
+Para Amazon S3 se utilizan:
+
+```text
+STORAGE_PROVIDER=s3
+AWS_REGION
+AWS_S3_BUCKET
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+```
+
+El SDK también admite credenciales temporales mediante `AWS_SESSION_TOKEN`.
+Cada ambiente debe usar un bucket y una identidad IAM independientes. Los
+buckets permanecen privados y los objetos se guardan cifrados con SSE-S3.
+
+La infraestructura inicial utiliza tres buckets:
+
+```text
+dimensiones-obras-stg
+dimensiones-obras-prod
+dimensiones-obras-backups
+```
+
+En todos se debe activar el bloqueo de acceso público. Las políticas IAM de
+referencia se encuentran en `deploy/aws`; deben reemplazarse los nombres de
+bucket antes de aplicarlas. La identidad de cada aplicación solo recibe
+`ListBucket`, `PutObject`, `GetObject` y `DeleteObject` sobre su propio bucket.
+La identidad de respaldos solo recibe `PutObject` bajo el prefijo `postgres/`.
+
+El archivo `deploy/aws/backup-lifecycle.json` establece una retención inicial
+de 90 días y elimina versiones anteriores después de 30 días. Esta política
+debe revisarse con el cliente antes de activarse.
 
 ---
 
@@ -532,6 +585,20 @@ Cuando sea necesario corregir una estructura existente, la corrección deberá i
 ## Aplicación de migraciones
 
 Antes de desplegar una nueva versión de la aplicación deberán ejecutarse las migraciones pendientes sobre la base de datos correspondiente al ambiente de destino.
+
+En staging se ejecuta exclusivamente:
+
+```bash
+docker compose -f docker-compose.vps.yml run --rm app-stg npx prisma migrate deploy
+```
+
+Después de validar staging, en producción se ejecuta:
+
+```bash
+docker compose -f docker-compose.vps.yml --profile production run --rm app-prod npx prisma migrate deploy
+```
+
+`prisma migrate dev` queda reservado al ambiente local.
 
 La aplicación únicamente podrá iniciar cuando el esquema de la base de datos sea compatible con la versión desplegada.
 
@@ -926,6 +993,11 @@ Cada respaldo debe garantizar:
 - compatibilidad con la versión utilizada por la aplicación.
 
 Los respaldos deberán almacenarse de forma independiente al servidor principal.
+
+El script `deploy/backup-postgres.sh` genera respaldos PostgreSQL en formato
+custom y los carga cifrados al bucket privado indicado por
+`BACKUP_S3_BUCKET`. Debe ejecutarse diariamente desde cron o un temporizador
+del VPS con las variables de `deploy/env/backup.env.example`.
 
 ---
 

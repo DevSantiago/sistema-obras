@@ -34,3 +34,49 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Despliegue en VPS
+
+La configuración operativa utiliza un VPS con Docker Compose:
+
+- aplicación de staging;
+- aplicación de producción;
+- PostgreSQL con bases separadas;
+- Caddy con HTTPS automático;
+- Amazon S3 para documentos;
+- respaldos de PostgreSQL en un bucket S3 independiente.
+
+Antes del primer arranque, copie las plantillas sin incluir sus valores en Git:
+
+```bash
+cp deploy/env/vps.env.example deploy/env/vps.env
+cp deploy/env/stg.env.example deploy/env/stg.env
+cp deploy/env/prod.env.example deploy/env/prod.env
+cp deploy/env/backup.env.example deploy/env/backup.env
+```
+
+Después de configurar DNS, credenciales y secretos:
+
+```bash
+docker compose -f docker-compose.vps.yml build
+docker compose -f docker-compose.vps.yml up -d postgres
+docker compose -f docker-compose.vps.yml run --rm app-stg npx prisma migrate deploy
+docker compose -f docker-compose.vps.yml up -d
+```
+
+El comando anterior publica únicamente staging. Después de validarlo, producción
+se habilita explícitamente con:
+
+```bash
+docker compose -f docker-compose.vps.yml --profile production run --rm app-prod npx prisma migrate deploy
+docker compose -f docker-compose.vps.yml --profile production up -d
+```
+
+El respaldo manual se ejecuta con:
+
+```bash
+docker compose -f docker-compose.vps.yml --profile operations run --rm backup
+```
+
+La configuración detallada, seguridad, migraciones y recuperación están en
+`docs/09-deployment.md`.

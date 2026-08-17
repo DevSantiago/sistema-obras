@@ -1,6 +1,6 @@
 # 11. Backlog MVP
 
-> Última actualización funcional: 14 de julio de 2026.
+> Última actualización funcional: 13 de agosto de 2026.
 
 ## Objetivo
 
@@ -103,6 +103,7 @@ Cada historia debe tener criterios de aceptación verificables. Cuando una histo
 | 16 | Exportación | SHOULD | Exportación de información operativa y financiera desde vistas integradas |
 | 17 | Seguridad y hardening | MUST | Validaciones, permisos y protección básica aplicadas en backend y frontend |
 | 18 | OCR futuro | COULD | Base para procesamiento posterior de soportes con validación humana futura |
+| 19 | Notificaciones por WhatsApp | MUST | Avisos trazables ante transiciones del flujo de aprobación mediante WhatsApp Business Platform |
 
 ## Criterio transversal de entrega incremental
 
@@ -1953,3 +1954,117 @@ Criterios:
 - Permite aceptar o rechazar.
 - No crea aprobación automática.
 - Registra auditoría.
+
+---
+
+# Épica 19. Notificaciones por WhatsApp
+
+## Estado
+
+**APROBADA PARA DESARROLLO — pendiente de disponer de staging público con HTTPS.**
+
+## Objetivo
+
+Notificar a los responsables cuando una solicitud avance o sea devuelta en el
+flujo de aprobación, sin convertir WhatsApp en fuente de verdad ni alterar la
+máquina de estados del sistema.
+
+## Criterios de aceptación de la épica
+
+- Usa WhatsApp Business Platform mediante la aplicación `Obras WebApp | STG`
+  para staging y `Obras WebApp` para producción.
+- Los ambientes tienen URL de webhook, token de verificación, credenciales y
+  plantillas independientes.
+- El cambio de estado se confirma aunque WhatsApp esté temporalmente caído.
+- Cada notificación conserva destinatario, evento, estado de entrega, intentos
+  y respuesta del proveedor.
+- Los envíos usan plantillas aprobadas por Meta cuando corresponda.
+- Los webhooks validan el token de verificación y la firma de Meta.
+- Los eventos repetidos se procesan de forma idempotente.
+
+## Destinatarios por transición
+
+| Transición | Destinatario |
+|---|---|
+| `BORRADOR` → `PENDIENTE_APROBADOR_1` | Aprobadores nivel 1 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_1` → `PENDIENTE_APROBADOR_2` | Aprobadores nivel 2 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_2` → `DEVUELTA_APROBADOR_1` | Aprobador nivel 1 responsable |
+| `DEVUELTA_APROBADOR_1` → `PENDIENTE_APROBADOR_2` | Aprobadores nivel 2 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_1` → `DEVUELTA_SOLICITANTE` | Usuario solicitante |
+| `DEVUELTA_SOLICITANTE` → `PENDIENTE_APROBADOR_1` | Aprobadores nivel 1 autorizados para el proyecto |
+
+## Historias
+
+### HU-1901. Configurar integración de WhatsApp por ambiente
+
+Como administrador del sistema, quiero configurar WhatsApp de forma aislada
+por ambiente, para probar sin enviar mensajes desde producción.
+
+Criterios:
+
+- Configura número, WABA, aplicación, token y plantillas para staging.
+- Configura credenciales independientes para producción.
+- Guarda secretos únicamente en variables de entorno.
+- Documenta términos, medio de pago y publicación requeridos por Meta.
+
+### HU-1902. Recibir y validar webhooks de Meta
+
+Como sistema, quiero recibir webhooks verificados, para conocer mensajes y
+estados de entrega.
+
+Criterios:
+
+- Expone verificación `GET` y recepción `POST` sobre HTTPS.
+- Valida el token de verificación en el alta del webhook.
+- Valida `X-Hub-Signature-256` antes de procesar eventos.
+- Responde oportunamente y procesa lotes de forma segura.
+- Suscribe los campos necesarios de mensajes y estados.
+
+### HU-1903. Crear notificaciones al cambiar una solicitud de estado
+
+Como responsable del proceso, quiero recibir información de la solicitud que
+requiere mi atención, para actuar oportunamente.
+
+Criterios:
+
+- Crea la notificación dentro de la misma operación lógica del cambio de estado.
+- Incluye consecutivo, proyecto, beneficiario, valor, nuevo estado y enlace.
+- Resuelve destinatarios según rol y acceso al proyecto.
+- Evita duplicados por solicitud, transición y destinatario.
+
+### HU-1904. Enviar notificaciones de forma asíncrona
+
+Como sistema, quiero reintentar los envíos sin bloquear aprobaciones, para
+mantener el flujo operativo disponible.
+
+Criterios:
+
+- Maneja estados `PENDIENTE`, `ENVIANDO`, `ENVIADA`, `ENTREGADA`, `LEIDA` y
+  `FALLIDA`.
+- Registra número de intentos, último error e identificador del mensaje Meta.
+- Aplica reintentos controlados y no duplica mensajes confirmados.
+- Una falla de WhatsApp no revierte el estado de la solicitud.
+
+### HU-1905. Procesar estados e idempotencia del webhook
+
+Como administrador, quiero trazabilidad de recepción y entrega, para diagnosticar
+mensajes que no llegaron.
+
+Criterios:
+
+- Conserva el identificador único de cada evento recibido.
+- Ignora eventos ya procesados.
+- Actualiza los estados de entrega sin retroceder estados confirmados.
+- Registra eventos inválidos o no reconocidos sin afectar el servicio.
+
+### HU-1906. Consultar y reintentar notificaciones
+
+Como administrador, quiero consultar los envíos y reintentar fallos, para dar
+soporte a la operación.
+
+Criterios:
+
+- Permite filtrar por solicitud, ambiente, destinatario, fecha y estado.
+- Muestra intentos y último error sin exponer secretos.
+- Permite reintentar únicamente notificaciones fallidas.
+- La acción exige permiso administrativo y queda auditada.
