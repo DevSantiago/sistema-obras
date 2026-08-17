@@ -1249,7 +1249,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
     );
   });
 
-  it("debe validar beneficiario tipo proveedor", async () => {
+  it("debe rechazar un trabajador como beneficiario de pago a proveedor", async () => {
     vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(
       proyectoBaseMock as never,
     );
@@ -1278,7 +1278,7 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
 
     expect(resultado.status).toBe(400);
     expect(resultado.body.message).toBe(
-      "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR.",
+      "Para una solicitud de pago a proveedor, el beneficiario debe ser tipo PROVEEDOR u OTRO.",
     );
   });
 
@@ -1359,6 +1359,29 @@ describe("solicitudes-pago.service - crearSolicitudPagoProveedorService", () => 
       estado_actual: "BORRADOR",
       creado_por: "usuario-1",
     });
+  });
+
+  it("debe crear un pago a proveedor para un beneficiario tipo otro", async () => {
+    prepararMocksProveedor();
+    vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue({
+      ...beneficiarioProveedorMock,
+      tipo_beneficiario: "OTRO",
+      proveedor_id: null,
+    } as never);
+
+    const resultado = await crearSolicitudPagoProveedorService(
+      usuarioSolicitante,
+      inputProveedorBase,
+    );
+
+    expect(resultado.status).toBe(201);
+    expect(crearSolicitudPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        beneficiario_id: "beneficiario-1",
+        proveedor_id: null,
+        tipo_solicitud: "PAGO_PROVEEDOR",
+      }),
+    );
   });
 });
 

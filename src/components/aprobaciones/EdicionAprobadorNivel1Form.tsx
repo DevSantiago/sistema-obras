@@ -103,9 +103,15 @@ export default function EdicionAprobadorNivel1Form({
   }, []);
 
   const beneficiariosPermitidos = useMemo(() => {
-    const tipoEsperado = solicitud.tipo_solicitud === "PAGO_PROVEEDOR"
-      ? "PROVEEDOR"
-      : solicitud.tipo_solicitud === "PAGO_NOMINA" || solicitud.tipo_solicitud === "REEMBOLSO"
+    if (solicitud.tipo_solicitud === "PAGO_PROVEEDOR") {
+      return beneficiarios.filter((beneficiario) =>
+        ["PROVEEDOR", "OTRO"].includes(
+          beneficiario.tipo_beneficiario,
+        ),
+      );
+    }
+
+    const tipoEsperado = solicitud.tipo_solicitud === "PAGO_NOMINA" || solicitud.tipo_solicitud === "REEMBOLSO"
         ? "TRABAJADOR"
         : null;
 

@@ -526,6 +526,10 @@ Cuando un beneficiario previamente inactivo sea registrado nuevamente con la mis
 
 Todo pago realizado por el sistema debe tener asociado un beneficiario.
 
+Las solicitudes de pago a proveedor permiten seleccionar beneficiarios activos
+clasificados como `PROVEEDOR` u `OTRO`. Los beneficiarios `TRABAJADOR` continúan
+reservados para los flujos de nómina y reembolso.
+
 El beneficiario representa la persona natural o jurídica que recibe efectivamente el dinero.
 
 El usuario del sistema y el beneficiario son conceptos independientes.
