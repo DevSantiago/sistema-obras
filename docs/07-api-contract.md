@@ -1001,6 +1001,17 @@ Ejemplo:
 
 ---
 
+# Consultar adjunto de solicitud
+
+```http
+GET /api/v1/solicitudes-pago/{id}/adjuntos/{adjuntoId}
+```
+
+Devuelve el contenido del adjunto únicamente cuando el usuario autenticado
+tiene permiso para consultar la solicitud y el archivo pertenece a ella.
+
+---
+
 # Enviar solicitud
 
 ```http

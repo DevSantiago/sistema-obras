@@ -1057,6 +1057,27 @@ export default function SolicitudesPagoManager({
               </dl>
             </section>
 
+            {solicitudDetalle.adjuntos &&
+            solicitudDetalle.adjuntos.length > 0 ? (
+              <section className={styles.detailSection}>
+                <h3>Documentos adjuntos</h3>
+                <div className={styles.attachmentList}>
+                  {solicitudDetalle.adjuntos.map((adjunto) => (
+                    <a
+                      key={adjunto.id}
+                      className={styles.receiptLink}
+                      href={`/api/v1/solicitudes-pago/${solicitudDetalle.id}/adjuntos/${adjunto.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>{adjunto.nombre_archivo}</span>
+                      <strong>Ver adjunto</strong>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             <section className={styles.detailSection}>
               <HistorialSolicitud eventos={solicitudDetalle.historial} />
             </section>

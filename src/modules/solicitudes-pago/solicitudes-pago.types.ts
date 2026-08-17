@@ -474,6 +474,12 @@ export type SolicitudPagoListado = {
       nombre: string;
     };
   } | null;
+  adjuntos?: {
+    id: string;
+    nombre_archivo: string;
+    tipo_mime: string | null;
+    subido_en: string | Date;
+  }[];
   comprobante_pago?: {
     id: string;
     nombre_archivo: string;

@@ -1030,6 +1030,11 @@
   text-decoration: none;
 }
 
+.attachmentList {
+  display: grid;
+  gap: 0.625rem;
+}
+
 .receiptLink span {
   overflow-wrap: anywhere;
 }
