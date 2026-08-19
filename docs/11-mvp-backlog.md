@@ -1961,7 +1961,7 @@ Criterios:
 
 ## Estado
 
-**EN DESARROLLO — staging público con HTTPS disponible; HU-1901 y HU-1902 en ejecución.**
+**EN DESARROLLO — HU-1901 y HU-1902 terminadas; HU-1903 en ejecución.**
 
 ## Objetivo
 
@@ -1997,6 +1997,8 @@ máquina de estados del sistema.
 
 ### HU-1901. Configurar integración de WhatsApp por ambiente
 
+**Estado: TERMINADA Y FUSIONADA EN `dev`.**
+
 Como administrador del sistema, quiero configurar WhatsApp de forma aislada
 por ambiente, para probar sin enviar mensajes desde producción.
 
@@ -2008,6 +2010,8 @@ Criterios:
 - Documenta términos, medio de pago y publicación requeridos por Meta.
 
 ### HU-1902. Recibir y validar webhooks de Meta
+
+**Estado: TERMINADA Y FUSIONADA EN `dev`.**
 
 Como sistema, quiero recibir webhooks verificados, para conocer mensajes y
 estados de entrega.
@@ -2021,6 +2025,8 @@ Criterios:
 - Suscribe los campos necesarios de mensajes y estados.
 
 ### HU-1903. Crear notificaciones al cambiar una solicitud de estado
+
+**Estado: EN DESARROLLO.**
 
 Como responsable del proceso, quiero recibir información de la solicitud que
 requiere mi atención, para actuar oportunamente.

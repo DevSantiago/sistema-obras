@@ -2,20 +2,20 @@
 
 ## Objetivo
 
-Iniciar la Épica 19 mediante la configuración aislada de WhatsApp Business
-Platform y la publicación de un webhook seguro en el ambiente de staging.
+Continuar la Épica 19 creando notificaciones persistentes y transaccionales
+cuando una solicitud avance o sea devuelta en el flujo de aprobación.
 
 ---
 
 ## Alcance autorizado
 
-Implementar HU-1901 y HU-1902:
+Implementar HU-1903:
 
-- configurar WhatsApp mediante variables de entorno independientes;
-- exponer la verificación `GET` requerida por Meta;
-- recibir eventos mediante `POST` sobre HTTPS;
-- validar el token de verificación y la firma `X-Hub-Signature-256`;
-- documentar la configuración y desplegar el webhook en staging.
+- crear una notificación dentro de la transacción del cambio de estado;
+- resolver destinatarios según rol, proyecto y línea de negocio;
+- conservar una copia del teléfono y contenido funcional del evento;
+- impedir duplicados dentro de una misma ocurrencia de transición;
+- no enviar mensajes todavía.
 
 ---
 
@@ -25,52 +25,45 @@ Implementar HU-1901 y HU-1902:
 - Preparación del VPS, PostgreSQL, HTTPS y Amazon S3 terminada.
 - Staging operativo en `https://stg.dimensiones.cloud`.
 - Carga y consulta de adjuntos en S3 validada desde staging.
+- HU-1901 y HU-1902 cerradas y fusionadas en `dev`.
+- Webhook de Meta verificado y número de prueba conectado en staging.
 
 ---
 
 ## Historias del sprint
 
-### HU-1901. Configurar integración de WhatsApp por ambiente
+### HU-1903. Crear notificaciones al cambiar una solicitud de estado
 
-- Configuración separada para staging y producción.
-- Secretos únicamente en variables de entorno.
-- Número, WABA, aplicación, token, versión de API y plantillas configurables.
-
-### HU-1902. Recibir y validar webhooks de Meta
-
-- Verificación de suscripción por `GET`.
-- Recepción de eventos por `POST`.
-- Validación criptográfica de la firma antes de procesar el contenido.
-- Respuesta oportuna sin modificar solicitudes ni enviar mensajes todavía.
+- Persiste solicitud, transición, destinatario, teléfono y contenido.
+- Incluye consecutivo, proyecto, beneficiario, valor, estado y enlace.
+- Conserva la transición aunque WhatsApp no esté disponible.
+- Permite que HU-1904 procese posteriormente la cola pendiente.
 
 ---
 
 ## Orden obligatorio
 
-1. Incorporar plantillas de variables sin secretos.
-2. Implementar el servicio de validación del webhook.
-3. Exponer el endpoint público.
-4. Crear pruebas de token, firma y respuestas HTTP.
+1. Crear la tabla y migración de notificaciones.
+2. Implementar la resolución de destinatarios.
+3. Integrar las transiciones documentadas en la misma transacción Prisma.
+4. Crear pruebas de contenido, acceso y ausencia de teléfono.
 5. Ejecutar pruebas, lint y `npm run build`.
-6. Desplegar staging y validar el endpoint público.
-7. Configurar la URL y el token en `Obras WebApp | STG`.
 
 ---
 
 ## Fuera de alcance
 
 - No enviar mensajes de WhatsApp todavía.
-- No crear notificaciones por cambios de estado.
 - No implementar reintentos ni bandeja administrativa.
-- No persistir estados de entrega ni procesar idempotencia en esta rama.
+- No procesar estados de entrega ni webhooks idempotentes en esta rama.
 - No modificar la máquina de estados de solicitudes.
 
 ---
 
 ## Criterio de finalización
 
-- La configuración de WhatsApp queda aislada por ambiente.
-- Meta puede verificar el webhook mediante token.
-- Las solicitudes `POST` sin firma válida son rechazadas.
-- El endpoint queda publicado con HTTPS en staging.
+- Cada transición documentada crea sus notificaciones en la misma transacción.
+- Los destinatarios respetan rol y acceso activo al proyecto.
+- El contenido incluye los datos funcionales definidos por HU-1903.
+- Una ausencia de destinatario o teléfono no bloquea el flujo operativo.
 - Las pruebas, lint y build finalizan sin errores.
