@@ -171,6 +171,10 @@ La copia de `telefono_destinatario` se normaliza con el prefijo de Colombia
 La restricción única por evento, solicitud y destinatario evita duplicados sin
 impedir notificaciones nuevas cuando una solicitud repite el ciclo después de
 ser corregida.
+HU-1904 utiliza `estado`, `intentos`, `ultimo_error`, `respuesta_proveedor`,
+`meta_mensaje_id` y `enviado_en` para procesar la cola sin reenviar mensajes ya
+confirmados. Los registros `ENVIANDO` vencidos se recuperan tras el tiempo
+límite configurado.
 
 ---
 

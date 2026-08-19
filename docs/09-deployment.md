@@ -453,6 +453,12 @@ WHATSAPP_APP_ID
 WHATSAPP_APP_SECRET
 WHATSAPP_ACCESS_TOKEN
 WHATSAPP_VERIFY_TOKEN
+WHATSAPP_PROCESSOR_TOKEN
+WHATSAPP_MAX_ATTEMPTS
+WHATSAPP_BATCH_SIZE
+WHATSAPP_RETRY_MINUTES
+WHATSAPP_SENDING_TIMEOUT_MINUTES
+WHATSAPP_REQUEST_TIMEOUT_MS
 WHATSAPP_TEMPLATE_APROBACION_NIVEL_1
 WHATSAPP_TEMPLATE_APROBACION_NIVEL_2
 WHATSAPP_TEMPLATE_DEVOLUCION_APROBADOR_1
@@ -464,6 +470,23 @@ WHATSAPP_TEMPLATE_LANGUAGE
 secretos. No deben compartirse por mensajes, registrarse en logs ni incluirse
 en Git. El token de verificación se define internamente y debe coincidir con el
 registrado en Meta.
+
+`WHATSAPP_PROCESSOR_TOKEN` protege el endpoint interno que procesa la cola y
+debe ser un secreto aleatorio diferente en staging y producción. El VPS debe
+invocar el procesador periódicamente sin incluir ese secreto en el repositorio.
+Para staging se puede programar cada minuto desde el host con:
+
+```cron
+* * * * * cd /opt/sistema-obras/app && docker compose -f docker-compose.vps.yml exec -T app-stg node -e "fetch('http://127.0.0.1:3000/api/v1/whatsapp/notificaciones/procesar',{method:'POST',headers:{authorization:'Bearer '+process.env.WHATSAPP_PROCESSOR_TOKEN}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+```
+
+La tarea procesa lotes pequeños, recupera registros que permanezcan en
+`ENVIANDO` después del tiempo límite y reintenta estados `FALLIDA` sin bloquear
+el flujo de aprobaciones.
+
+Las plantillas funcionales definen seis parámetros de cuerpo en este orden:
+número de solicitud, proyecto, beneficiario, valor, estado nuevo y enlace. La
+plantilla de prueba estándar `hello_world` se envía sin parámetros.
 
 El webhook de staging es:
 

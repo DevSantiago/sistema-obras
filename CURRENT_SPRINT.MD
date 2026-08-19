@@ -2,20 +2,20 @@
 
 ## Objetivo
 
-Continuar la Épica 19 creando notificaciones persistentes y transaccionales
-cuando una solicitud avance o sea devuelta en el flujo de aprobación.
+Continuar la Épica 19 enviando de forma asíncrona las notificaciones pendientes
+sin bloquear el flujo de aprobación.
 
 ---
 
 ## Alcance autorizado
 
-Implementar HU-1903:
+Implementar HU-1904:
 
-- crear una notificación dentro de la transacción del cambio de estado;
-- resolver destinatarios según rol, proyecto y línea de negocio;
-- conservar una copia del teléfono y contenido funcional del evento;
-- impedir duplicados dentro de una misma ocurrencia de transición;
-- no enviar mensajes todavía.
+- reclamar notificaciones pendientes sin concurrencia duplicada;
+- enviar plantillas mediante WhatsApp Business Platform;
+- registrar intentos, errores, respuesta e identificador de Meta;
+- reintentar fallos de forma controlada;
+- ejecutar el procesador periódicamente desde el VPS.
 
 ---
 
@@ -25,45 +25,44 @@ Implementar HU-1903:
 - Preparación del VPS, PostgreSQL, HTTPS y Amazon S3 terminada.
 - Staging operativo en `https://stg.dimensiones.cloud`.
 - Carga y consulta de adjuntos en S3 validada desde staging.
-- HU-1901 y HU-1902 cerradas y fusionadas en `dev`.
+- HU-1901, HU-1902 y HU-1903 cerradas y fusionadas en `dev`.
 - Webhook de Meta verificado y número de prueba conectado en staging.
 
 ---
 
 ## Historias del sprint
 
-### HU-1903. Crear notificaciones al cambiar una solicitud de estado
+### HU-1904. Enviar notificaciones de forma asíncrona
 
-- Persiste solicitud, transición, destinatario, teléfono y contenido.
-- Incluye consecutivo, proyecto, beneficiario, valor, estado y enlace.
-- Conserva la transición aunque WhatsApp no esté disponible.
-- Permite que HU-1904 procese posteriormente la cola pendiente.
+- Procesa registros `PENDIENTE`, `FALLIDA` y bloqueos `ENVIANDO` vencidos.
+- Envía plantillas con los datos persistidos por HU-1903.
+- Registra intentos, errores, respuesta e identificador `wamid`.
+- No selecciona nuevamente mensajes confirmados por Meta.
 
 ---
 
 ## Orden obligatorio
 
-1. Crear la tabla y migración de notificaciones.
-2. Implementar la resolución de destinatarios.
-3. Integrar las transiciones documentadas en la misma transacción Prisma.
-4. Crear pruebas de contenido, acceso y ausencia de teléfono.
+1. Implementar el reclamo atómico de notificaciones procesables.
+2. Integrar el envío de plantillas con timeout y respuesta de Meta.
+3. Implementar fallos y reintentos controlados.
+4. Proteger y programar el disparador interno del VPS.
 5. Ejecutar pruebas, lint y `npm run build`.
 
 ---
 
 ## Fuera de alcance
 
-- No enviar mensajes de WhatsApp todavía.
-- No implementar reintentos ni bandeja administrativa.
 - No procesar estados de entrega ni webhooks idempotentes en esta rama.
+- No implementar la bandeja administrativa ni el reintento manual.
 - No modificar la máquina de estados de solicitudes.
 
 ---
 
 ## Criterio de finalización
 
-- Cada transición documentada crea sus notificaciones en la misma transacción.
-- Los destinatarios respetan rol y acceso activo al proyecto.
-- El contenido incluye los datos funcionales definidos por HU-1903.
-- Una ausencia de destinatario o teléfono no bloquea el flujo operativo.
+- Cada registro se reclama una sola vez por ejecución concurrente.
+- Los mensajes confirmados guardan identificador de Meta y estado `ENVIADA`.
+- Los fallos registran el error y se reintentan hasta el límite configurado.
+- La indisponibilidad de WhatsApp no afecta el estado de la solicitud.
 - Las pruebas, lint y build finalizan sin errores.
