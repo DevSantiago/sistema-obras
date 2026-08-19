@@ -6,6 +6,7 @@ import {
 } from "@/modules/fondos/movimientos-fondo.repository";
 import type { RegistrarMovimientoFondoInput } from "@/modules/fondos/movimientos-fondo.types";
 import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
+import { crearNotificacionesTransicionesRepository } from "@/modules/whatsapp/notificaciones-whatsapp.repository";
 import type {
   ActualizarSolicitudPagoRepositoryInput,
   BuscarDuplicadoNominaIndividualInput,
@@ -824,6 +825,20 @@ export async function enviarSolicitudPagoRepository(input: {
       },
     });
 
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: solicitud.id,
+            estadoOrigen: "BORRADOR",
+            estadoDestino: "PENDIENTE_APROBADOR_1",
+          },
+        ],
+        fecha: input.enviadoEn,
+      },
+      tx,
+    );
+
     return tx.solicitudes_pago.findUnique({
       where: {
         id: input.solicitudId,
@@ -941,6 +956,18 @@ export async function aprobarSolicitudesNivel1Repository(
       cantidadActualizada += resultado.count;
     }
 
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: solicitudes.map((solicitud) => ({
+          solicitudId: solicitud.id,
+          estadoOrigen: solicitud.estado_origen,
+          estadoDestino: "PENDIENTE_APROBADOR_2" as const,
+        })),
+        fecha: fechaAprobacion,
+      },
+      tx,
+    );
+
     return {
       count: cantidadActualizada,
     };
@@ -1030,6 +1057,20 @@ export async function devolverSolicitudPagoRepository(input: {
       },
     });
 
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: input.solicitudId,
+            estadoOrigen: input.estadoOrigen,
+            estadoDestino: input.estadoDestino,
+          },
+        ],
+        fecha: input.fecha,
+      },
+      tx,
+    );
+
     return { count: actualizada.count };
   });
 }
@@ -1075,6 +1116,18 @@ export async function devolverSolicitudesPagoRepository(input: {
         },
       });
     }
+
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: input.solicitudes.map((solicitud) => ({
+          solicitudId: solicitud.id,
+          estadoOrigen: solicitud.estadoOrigen,
+          estadoDestino: input.estadoDestino,
+        })),
+        fecha: input.fecha,
+      },
+      tx,
+    );
 
     return { count: input.solicitudes.length };
   });
@@ -1159,6 +1212,20 @@ export async function reenviarSolicitudDevueltaRepository(input: {
           creado_en: input.fecha,
         },
       });
+
+      await crearNotificacionesTransicionesRepository(
+        {
+          transiciones: [
+            {
+              solicitudId: input.solicitudId,
+              estadoOrigen: input.estadoOrigen,
+              estadoDestino: input.estadoDestino,
+            },
+          ],
+          fecha: input.fecha,
+        },
+        tx,
+      );
     }
     return resultado;
   });

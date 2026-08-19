@@ -2423,3 +2423,22 @@ La auditoría constituye un registro histórico y no un mecanismo para modificar
 Todas las operaciones auditables deberán registrarse automáticamente por el backend, independientemente de la interfaz utilizada para ejecutar la acción.
 
 Los registros de auditoría deberán preservarse durante toda la vida útil del sistema, garantizando la integridad, disponibilidad y trazabilidad de la información.
+
+---
+
+# 18. Notificaciones del flujo de aprobación
+
+Las transiciones cubiertas por la Épica 19 generan una notificación persistente
+para cada responsable. La creación ocurre dentro de la misma transacción que
+actualiza la solicitud, pero el envío a Meta se ejecuta posteriormente.
+
+Los aprobadores se resuelven por rol, acceso activo al proyecto y línea de
+negocio de la solicitud. Las devoluciones de nivel 2 se dirigen al aprobador de
+nivel 1 que atendió la solicitud; las devoluciones al solicitante utilizan el
+usuario creador.
+
+Cada registro conserva consecutivo, proyecto, beneficiario, valor, nuevo estado
+y enlace. Si no existe un destinatario activo no se bloquea la transición. Si
+el destinatario existe pero no tiene teléfono, la notificación permanece
+pendiente para que el proceso de envío registre el problema y permita su
+corrección posterior.

@@ -117,6 +117,10 @@ El modelo se encuentra organizado en los siguientes módulos.
 
 - adjuntos.
 
+## Notificaciones
+
+- notificaciones_whatsapp.
+
 ---
 
 # Estado de implementación
@@ -151,10 +155,20 @@ El modelo se encuentra organizado en los siguientes módulos.
 | devoluciones_prestamo | ✅ |
 | reingresos_sobrante_efectivo | ✅ |
 | correcciones_operacion_efectivo | ✅ |
+| eventos_auditoria_solicitud_pago | ✅ |
+| notificaciones_whatsapp | ✅ |
 
 `correcciones_operacion_efectivo` conserva `pendiente_anterior` y
 `pendiente_nuevo` para conciliar los ajustes del valor retirado con los
 reingresos posteriores.
+
+`notificaciones_whatsapp` conserva una notificación por destinatario y
+ocurrencia de transición. Relaciona la solicitud y el usuario, mantiene una
+copia del nombre, teléfono, ambiente y contenido funcional, y prepara los
+campos de estado, intentos y respuesta del proveedor que utilizarán las historias posteriores.
+La restricción única por evento, solicitud y destinatario evita duplicados sin
+impedir notificaciones nuevas cuando una solicitud repite el ciclo después de
+ser corregida.
 
 ---
 

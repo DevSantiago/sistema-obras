@@ -52,6 +52,7 @@ model usuarios {
   devoluciones_solicitud_registradas devoluciones_solicitud_pago[]     @relation("DevolucionesSolicitudRegistradasPor")
   anulaciones_solicitud_registradas  anulaciones_solicitud_pago[]      @relation("AnulacionesSolicitudRegistradasPor")
   eventos_auditoria_solicitud        eventos_auditoria_solicitud_pago[] @relation("EventosAuditoriaSolicitudRegistradosPor")
+  notificaciones_whatsapp            notificaciones_whatsapp[]          @relation("NotificacionesWhatsAppDestinatario")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
@@ -378,6 +379,7 @@ model solicitudes_pago {
   devoluciones             devoluciones_solicitud_pago[]
   anulaciones              anulaciones_solicitud_pago[]
   eventos_auditoria        eventos_auditoria_solicitud_pago[]
+  notificaciones_whatsapp  notificaciones_whatsapp[]
 
   @@index([numero_solicitud])
   @@index([proyecto_base_id])
@@ -452,6 +454,41 @@ model eventos_auditoria_solicitud_pago {
   @@index([solicitud_ref_id, creado_en])
   @@index([registrado_por])
   @@index([accion])
+}
+
+model notificaciones_whatsapp {
+  id                       String    @id @default(uuid())
+  evento_transicion_id     String
+  solicitud_pago_id        String
+  destinatario_usuario_id  String?
+  destinatario_nombre      String    @db.VarChar(150)
+  telefono_destinatario    String?
+  ambiente                 String    @db.VarChar(30)
+  tipo_evento              String    @db.VarChar(80)
+  estado_origen            String
+  estado_destino           String
+  plantilla                String?   @db.VarChar(150)
+  idioma                   String    @default("es_CO") @db.VarChar(10)
+  contenido                Json
+  estado                   String    @default("PENDIENTE") @db.VarChar(30)
+  intentos                 Int       @default(0)
+  meta_mensaje_id          String?   @unique @db.VarChar(255)
+  ultimo_error             String?   @db.Text
+  respuesta_proveedor      Json?
+  creado_en                DateTime  @default(now())
+  actualizado_en           DateTime  @updatedAt
+  enviado_en               DateTime?
+  entregado_en             DateTime?
+  leido_en                 DateTime?
+
+  solicitud   solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  destinatario usuarios?        @relation("NotificacionesWhatsAppDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: SetNull)
+
+  @@unique([evento_transicion_id, solicitud_pago_id, destinatario_usuario_id], map: "notificaciones_whatsapp_evento_solicitud_destinatario_key")
+  @@index([solicitud_pago_id, creado_en])
+  @@index([destinatario_usuario_id, creado_en])
+  @@index([estado, creado_en])
+  @@index([tipo_evento])
 }
 
 model adjuntos {
