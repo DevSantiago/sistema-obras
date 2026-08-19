@@ -54,7 +54,7 @@ describe("notificaciones-whatsapp.repository", () => {
   it("crea una notificación para cada aprobador autorizado del proyecto", async () => {
     const tx = crearTransaccionMock();
     tx.usuarios.findMany.mockResolvedValue([
-      { id: "aprobador-1", nombre: "Aprobador Uno", telefono: "+573001111111" },
+      { id: "aprobador-1", nombre: "Aprobador Uno", telefono: "300 111 1111" },
       { id: "aprobador-2", nombre: "Aprobador Dos", telefono: null },
     ]);
 
@@ -91,6 +91,7 @@ describe("notificaciones-whatsapp.repository", () => {
     expect(datos[0]).toMatchObject({
       destinatario_usuario_id: "aprobador-1",
       destinatario_nombre: "Aprobador Uno",
+      telefono_destinatario: "573001111111",
       plantilla: "aprobacion_nivel_1",
       contenido: {
         numero_solicitud: "SOL-2026-000001",
@@ -103,6 +104,32 @@ describe("notificaciones-whatsapp.repository", () => {
       },
     });
     expect(datos[0].evento_transicion_id).toBe(datos[1].evento_transicion_id);
+  });
+
+  it("conserva el prefijo 57 sin duplicarlo", async () => {
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([
+      { id: "aprobador-1", nombre: "Aprobador Uno", telefono: "+57 300-111-1111" },
+    ]);
+
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "BORRADOR",
+            estadoDestino: "PENDIENTE_APROBADOR_1",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(
+      tx.notificaciones_whatsapp.createMany.mock.calls[0][0].data[0]
+        .telefono_destinatario,
+    ).toBe("573001111111");
   });
 
   it("dirige la devolución de nivel 2 al aprobador de nivel 1 responsable", async () => {

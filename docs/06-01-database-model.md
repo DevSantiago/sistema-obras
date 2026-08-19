@@ -166,6 +166,8 @@ reingresos posteriores.
 ocurrencia de transición. Relaciona la solicitud y el usuario, mantiene una
 copia del nombre, teléfono, ambiente y contenido funcional, y prepara los
 campos de estado, intentos y respuesta del proveedor que utilizarán las historias posteriores.
+La copia de `telefono_destinatario` se normaliza con el prefijo de Colombia
+`57` y solo dígitos para que pueda ser utilizada por WhatsApp Business Platform.
 La restricción única por evento, solicitud y destinatario evita duplicados sin
 impedir notificaciones nuevas cuando una solicitud repite el ciclo después de
 ser corregida.
