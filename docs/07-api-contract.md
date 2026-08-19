@@ -1671,3 +1671,19 @@ La firma HMAC SHA-256 se valida sobre el cuerpo crudo utilizando
 cuerpos inválidos responden `400` y los superiores a 1 MiB responden `413`.
 Durante HU-1902 los eventos válidos se confirman con `200`, sin modificar
 solicitudes ni persistir estados de entrega.
+
+## Procesar notificaciones pendientes
+
+```http
+POST /api/v1/whatsapp/notificaciones/procesar
+Authorization: Bearer {WHATSAPP_PROCESSOR_TOKEN}
+```
+
+Endpoint interno utilizado por la tarea programada del VPS. Reclama un lote de
+notificaciones pendientes, envía las plantillas a WhatsApp Business Platform y
+responde con las cantidades revisadas, enviadas, fallidas y omitidas. Un token
+inválido responde `401` y una configuración incompleta responde `503`.
+
+Los registros `FALLIDA` se vuelven a intentar después del intervalo configurado
+hasta `WHATSAPP_MAX_ATTEMPTS`. Los registros confirmados con identificador de
+Meta no vuelven a seleccionarse.

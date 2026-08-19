@@ -137,6 +137,9 @@ eventos. Desde HU-1903 el módulo también crea registros en
 `notificaciones_whatsapp` dentro de la misma transacción Prisma que modifica la
 solicitud. El envío, los reintentos y la actualización de estados se mantienen
 separados para que una indisponibilidad de Meta no revierta el flujo funcional.
+Desde HU-1904 un endpoint interno protegido dispara lotes pequeños; el servicio
+construye y envía las plantillas, mientras el repositorio reclama cada registro
+de forma atómica y conserva intentos, errores y confirmaciones de Meta.
 
 El historial de cada solicitud se compone en el servicio de
 `solicitudes-pago`. Reutiliza las fuentes operativas existentes para creación,

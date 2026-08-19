@@ -1961,7 +1961,7 @@ Criterios:
 
 ## Estado
 
-**EN DESARROLLO — HU-1901 y HU-1902 terminadas; HU-1903 en ejecución.**
+**EN DESARROLLO — HU-1901, HU-1902 y HU-1903 terminadas; HU-1904 en ejecución.**
 
 ## Objetivo
 
@@ -2026,7 +2026,7 @@ Criterios:
 
 ### HU-1903. Crear notificaciones al cambiar una solicitud de estado
 
-**Estado: EN DESARROLLO.**
+**Estado: TERMINADA Y FUSIONADA EN `dev`.**
 
 Como responsable del proceso, quiero recibir información de la solicitud que
 requiere mi atención, para actuar oportunamente.
@@ -2040,6 +2040,8 @@ Criterios:
 - Evita duplicados por solicitud, transición y destinatario.
 
 ### HU-1904. Enviar notificaciones de forma asíncrona
+
+**Estado: EN DESARROLLO.**
 
 Como sistema, quiero reintentar los envíos sin bloquear aprobaciones, para
 mantener el flujo operativo disponible.
