@@ -2036,6 +2036,7 @@ Criterios:
 - Crea la notificación dentro de la misma operación lógica del cambio de estado.
 - Incluye consecutivo, proyecto, beneficiario, valor, nuevo estado y enlace.
 - Resuelve destinatarios según rol y acceso al proyecto.
+- Conserva el teléfono del destinatario con prefijo `57` y solo dígitos.
 - Evita duplicados por solicitud, transición y destinatario.
 
 ### HU-1904. Enviar notificaciones de forma asíncrona

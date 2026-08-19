@@ -11,6 +11,20 @@ type Destinatario = {
   telefono: string | null;
 };
 
+function normalizarTelefonoDestinatario(telefono: string | null) {
+  if (!telefono) {
+    return null;
+  }
+
+  const soloDigitos = telefono.replace(/\D/g, "");
+
+  if (!soloDigitos) {
+    return null;
+  }
+
+  return soloDigitos.startsWith("57") ? soloDigitos : `57${soloDigitos}`;
+}
+
 function tipoEvento(estadoDestino: TransicionNotificableWhatsApp["estadoDestino"]) {
   const eventos = {
     PENDIENTE_APROBADOR_1: "SOLICITUD_PENDIENTE_APROBADOR_1",
@@ -158,7 +172,9 @@ export async function crearNotificacionesTransicionesRepository(
         solicitud_pago_id: solicitud.id,
         destinatario_usuario_id: destinatario.id,
         destinatario_nombre: destinatario.nombre,
-        telefono_destinatario: destinatario.telefono,
+        telefono_destinatario: normalizarTelefonoDestinatario(
+          destinatario.telefono,
+        ),
         ambiente: process.env.APP_ENV?.trim() || "development",
         tipo_evento: tipoEvento(transicion.estadoDestino),
         estado_origen: transicion.estadoOrigen,
