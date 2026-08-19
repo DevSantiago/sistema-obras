@@ -1642,3 +1642,32 @@ actual, centros de costo y gasto acumulado por línea y fase.
 La visibilidad total se concede a `ADMINISTRADOR`, `AUXILIAR_CONTABLE` y
 `PAGOS`. El `DIRECTOR` queda limitado por sus accesos activos a proyecto y
 línea de negocio.
+
+---
+
+# Webhook de WhatsApp
+
+## Verificar suscripción
+
+```http
+GET /api/v1/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token={token}&hub.challenge={challenge}
+```
+
+Compara el token recibido con `WHATSAPP_VERIFY_TOKEN`. Cuando coincide,
+responde `200` con el valor de `hub.challenge` como texto plano. Una
+verificación inválida responde `403` y una configuración incompleta responde
+`503`.
+
+## Recibir evento
+
+```http
+POST /api/v1/webhooks/whatsapp
+X-Hub-Signature-256: sha256={firma}
+Content-Type: application/json
+```
+
+La firma HMAC SHA-256 se valida sobre el cuerpo crudo utilizando
+`WHATSAPP_APP_SECRET`. Los eventos sin firma válida responden `401`; los
+cuerpos inválidos responden `400` y los superiores a 1 MiB responden `413`.
+Durante HU-1902 los eventos válidos se confirman con `200`, sin modificar
+solicitudes ni persistir estados de entrega.

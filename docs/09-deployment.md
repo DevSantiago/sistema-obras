@@ -433,6 +433,50 @@ Como mínimo incluyen:
 
 ---
 
+## WhatsApp Business Platform
+
+Staging y producción utilizan aplicaciones, números, tokens y plantillas
+independientes. Los valores reales se guardan únicamente en los archivos
+privados `deploy/env/stg.env` y `deploy/env/prod.env` del VPS.
+
+Variables requeridas para la integración:
+
+```text
+WHATSAPP_ENABLED
+WHATSAPP_GRAPH_API_VERSION
+WHATSAPP_WABA_ID
+WHATSAPP_PHONE_NUMBER_ID
+WHATSAPP_BUSINESS_PHONE_NUMBER
+WHATSAPP_APP_ID
+WHATSAPP_APP_SECRET
+WHATSAPP_ACCESS_TOKEN
+WHATSAPP_VERIFY_TOKEN
+WHATSAPP_TEMPLATE_APROBACION_NIVEL_1
+WHATSAPP_TEMPLATE_APROBACION_NIVEL_2
+WHATSAPP_TEMPLATE_DEVOLUCION_APROBADOR_1
+WHATSAPP_TEMPLATE_DEVOLUCION_SOLICITANTE
+WHATSAPP_TEMPLATE_LANGUAGE
+```
+
+`WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN` y `WHATSAPP_VERIFY_TOKEN` son
+secretos. No deben compartirse por mensajes, registrarse en logs ni incluirse
+en Git. El token de verificación se define internamente y debe coincidir con el
+registrado en Meta.
+
+El webhook de staging es:
+
+```text
+https://stg.dimensiones.cloud/api/v1/webhooks/whatsapp
+```
+
+Antes de habilitar producción se deben aceptar los términos vigentes de
+WhatsApp Business, configurar el medio de pago requerido, aprobar las
+plantillas y publicar la aplicación de Meta. En el panel de la aplicación se
+suscriben los campos `messages`; las actualizaciones de estado llegan dentro
+de ese mismo flujo de webhook.
+
+---
+
 ## Servicio OCR
 
 Las funcionalidades de reconocimiento óptico de caracteres utilizan variables de configuración independientes.
