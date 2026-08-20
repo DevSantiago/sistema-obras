@@ -312,3 +312,16 @@ export async function actualizarEstadoUsuarioEnBD(
     include: incluirRolPermisosYAccesos,
   });
 }
+
+export async function actualizarPasswordUsuarioEnBD(
+  id: string,
+  passwordHash: string,
+) {
+  return prisma.usuarios.update({
+    where: { id },
+    data: {
+      password_hash: passwordHash,
+      actualizado_en: new Date(),
+    },
+  });
+}
