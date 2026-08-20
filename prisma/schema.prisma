@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -17,35 +14,829 @@ model prueba_conexion {
 }
 
 model usuarios {
-  id             String           @id @default(uuid())
-  nombre         String
-  correo         String           @unique
-  telefono       String?
-  password_hash  String?
-  estado         String           @default("ACTIVO")
-  creado_en      DateTime         @default(now())
-  actualizado_en DateTime         @updatedAt
+  id               String   @id @default(uuid())
+  tipo_documento   String
+  numero_documento String   @unique
+  nombre           String
+  correo           String   @unique
+  telefono         String?
+  password_hash    String?
+  estado           String   @default("ACTIVO")
+  creado_en        DateTime @default(now())
+  actualizado_en   DateTime @updatedAt
 
   roles usuarios_roles[]
+
+  proyectos_creados           proyectos_base[] @relation("ProyectosBaseCreadoPor")
+  centros_iniciados_ejecucion centros_costo[]  @relation("CentrosCostoInicioEjecucionPor")
+  fondos_creados              fondos[]         @relation("FondosCreadoPor")
+
+  accesos_recibidos accesos_usuario_proyecto[] @relation("AccesosUsuario")
+  accesos_asignados accesos_usuario_proyecto[] @relation("AccesosAsignadoPor")
+  accesos_revocados accesos_usuario_proyecto[] @relation("AccesosRevocadoPor")
+
+  beneficiarios_asociados beneficiarios_pago[] @relation("BeneficiarioUsuarioAsociado")
+
+  solicitudes_creadas                solicitudes_pago[]                @relation("SolicitudesCreadasPor")
+  solicitudes_aprobadas1             solicitudes_pago[]                @relation("SolicitudesAprobadas1Por")
+  solicitudes_aprobadas2             solicitudes_pago[]                @relation("SolicitudesAprobadas2Por")
+  solicitudes_pagadas                solicitudes_pago[]                @relation("SolicitudesPagadasPor")
+  pagos_registrados                  pagos[]                           @relation("PagosRegistradosPor")
+  movimientos_registrados            movimientos_fondo[]               @relation("MovimientosRegistradosPor")
+  operaciones_efectivo_registradas   operaciones_efectivo[]            @relation("OperacionesEfectivoRegistradasPor")
+  reingresos_sobrante_registrados    reingresos_sobrante_efectivo[]    @relation("ReingresosSobranteRegistradosPor")
+  correcciones_efectivo_registradas  correcciones_operacion_efectivo[] @relation("CorreccionesEfectivoRegistradasPor")
+  anticipos_registrados              anticipos[]                       @relation("AnticiposRegistradosPor")
+  prestamos_registrados              prestamos_proyecto[]              @relation("PrestamosRegistradosPor")
+  devoluciones_prestamo_registradas  devoluciones_prestamo[]           @relation("DevolucionesPrestamoRegistradasPor")
+  devoluciones_solicitud_registradas devoluciones_solicitud_pago[]     @relation("DevolucionesSolicitudRegistradasPor")
+  anulaciones_solicitud_registradas  anulaciones_solicitud_pago[]      @relation("AnulacionesSolicitudRegistradasPor")
+  eventos_auditoria_solicitud        eventos_auditoria_solicitud_pago[] @relation("EventosAuditoriaSolicitudRegistradosPor")
+  notificaciones_whatsapp            notificaciones_whatsapp[]          @relation("NotificacionesWhatsAppDestinatario")
+
+  adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
 
 model roles {
-  id             String           @id @default(uuid())
-  nombre         String           @unique
+  id             String   @id @default(uuid())
+  nombre         String   @unique
   descripcion    String?
-  activo         Boolean          @default(true)
-  creado_en      DateTime         @default(now())
-  actualizado_en DateTime         @updatedAt
-  usuariosRoles  usuarios_roles[]
+  activo         Boolean  @default(true)
+  creado_en      DateTime @default(now())
+  actualizado_en DateTime @updatedAt
+
+  usuarios_roles usuarios_roles[]
+  permisos       roles_permisos[]
+  lineas_negocio roles_lineas_negocio[]
 }
 
 model usuarios_roles {
-  id         String               @id @default(uuid())
+  id         String   @id @default(uuid())
   usuario_id String
   rol_id     String
-  creado_en  DateTime             @default(now())
-  usuario usuarios                @relation(fields: [usuario_id], references: [id])
-  rol     roles                   @relation(fields: [rol_id], references: [id])
+  creado_en  DateTime @default(now())
 
-  @@unique([usuario_id, rol_id])
+  usuario usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  rol     roles    @relation(fields: [rol_id], references: [id])
+
+  @@unique([usuario_id])
+  @@index([rol_id])
+}
+
+model permisos {
+  id             String   @id @default(uuid())
+  codigo         String   @unique
+  nombre         String
+  descripcion    String?
+  activo         Boolean  @default(true)
+  creado_en      DateTime @default(now())
+  actualizado_en DateTime @updatedAt
+
+  roles roles_permisos[]
+}
+
+model roles_permisos {
+  id         String   @id @default(uuid())
+  rol_id     String
+  permiso_id String
+  creado_en  DateTime @default(now())
+
+  rol     roles    @relation(fields: [rol_id], references: [id], onDelete: Cascade)
+  permiso permisos @relation(fields: [permiso_id], references: [id], onDelete: Cascade)
+
+  @@unique([rol_id, permiso_id])
+  @@index([rol_id])
+  @@index([permiso_id])
+}
+
+model roles_lineas_negocio {
+  id            String   @id @default(uuid())
+  rol_id        String
+  linea_negocio String
+  creado_en     DateTime @default(now())
+
+  rol roles @relation(fields: [rol_id], references: [id], onDelete: Cascade)
+
+  @@unique([rol_id, linea_negocio])
+  @@index([rol_id])
+  @@index([linea_negocio])
+}
+
+model proyectos_base {
+  id              String   @id @default(uuid())
+  nombre          String
+  descripcion     String?
+  estado_proyecto String   @default("EN_LICITACION")
+  activo          Boolean  @default(true)
+  creado_por      String?
+  creado_en       DateTime @default(now())
+  actualizado_en  DateTime @updatedAt
+
+  creador                 usuarios?                  @relation("ProyectosBaseCreadoPor", fields: [creado_por], references: [id])
+  centros_costo           centros_costo[]
+  fondo                   fondos?
+  accesos                 accesos_usuario_proyecto[]
+  secuencias_documentales secuencias_documentales[]
+
+  solicitudes_pago     solicitudes_pago[]
+  movimientos          movimientos_fondo[]
+  operaciones_efectivo operaciones_efectivo[]
+  anticipos            anticipos[]
+  prestamos_destino    prestamos_proyecto[]   @relation("PrestamoProyectoDestino")
+  prestamos_origen     prestamos_proyecto[]   @relation("PrestamoProyectoOrigen")
+
+  @@index([nombre])
+  @@index([estado_proyecto])
+  @@index([activo])
+}
+
+model centros_costo {
+  id                                  String    @id @default(uuid())
+  proyecto_base_id                    String
+  linea_negocio                       String
+  fase_centro_costo                   String
+  prefijo                             String
+  codigo                              String    @unique
+  nombre                              String
+  descripcion                         String?
+  estado_centro_costo                 String    @default("EN_LICITACION")
+  creado_directamente_en_ejecucion    Boolean   @default(false)
+  motivo_creacion_ejecucion           String?
+  fecha_inicio_ejecucion              DateTime?
+  soporte_inicio_ejecucion_adjunto_id String?
+  observacion_inicio_ejecucion        String?
+  inicio_ejecucion_por                String?
+  inicio_ejecucion_en                 DateTime?
+  activo                              Boolean   @default(true)
+  creado_en                           DateTime  @default(now())
+  actualizado_en                      DateTime  @updatedAt
+
+  proyecto_base            proyectos_base            @relation(fields: [proyecto_base_id], references: [id])
+  usuario_inicio_ejecucion usuarios?                 @relation("CentrosCostoInicioEjecucionPor", fields: [inicio_ejecucion_por], references: [id])
+  secuencias_documentales  secuencias_documentales[]
+
+  solicitudes_pago  solicitudes_pago[]
+  movimientosFondos movimientos_fondo[]
+
+  @@unique([proyecto_base_id, linea_negocio, fase_centro_costo])
+  @@index([proyecto_base_id])
+  @@index([codigo])
+  @@index([linea_negocio])
+  @@index([fase_centro_costo])
+  @@index([estado_centro_costo])
+  @@index([activo])
+}
+
+model fondos {
+  id               String   @id @default(uuid())
+  proyecto_base_id String   @unique
+  nombre           String
+  descripcion      String?
+  saldo_actual     Decimal  @default(0) @db.Decimal(14, 2)
+  activo           Boolean  @default(true)
+  creado_por       String?
+  creado_en        DateTime @default(now())
+  actualizado_en   DateTime @updatedAt
+
+  proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id])
+  creador       usuarios?      @relation("FondosCreadoPor", fields: [creado_por], references: [id])
+
+  solicitudes_pago    solicitudes_pago[]
+  movimientosFondos   movimientos_fondo[]
+  operacionesEfectivo operaciones_efectivo[]
+  anticipos           anticipos[]
+  prestamos_destino   prestamos_proyecto[]   @relation("PrestamoFondoDestino")
+  prestamos_origen    prestamos_proyecto[]   @relation("PrestamoFondoOrigen")
+
+  @@index([activo])
+}
+
+model accesos_usuario_proyecto {
+  id               String    @id @default(uuid())
+  usuario_id       String
+  proyecto_base_id String
+  linea_negocio    String
+  activo           Boolean   @default(true)
+  asignado_por     String?
+  asignado_en      DateTime  @default(now())
+  revocado_por     String?
+  revocado_en      DateTime?
+  creado_en        DateTime  @default(now())
+  actualizado_en   DateTime  @updatedAt
+
+  usuario       usuarios       @relation("AccesosUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
+  proyecto_base proyectos_base @relation(fields: [proyecto_base_id], references: [id], onDelete: Cascade)
+  asignador     usuarios?      @relation("AccesosAsignadoPor", fields: [asignado_por], references: [id])
+  revocador     usuarios?      @relation("AccesosRevocadoPor", fields: [revocado_por], references: [id])
+
+  @@unique([usuario_id, proyecto_base_id, linea_negocio])
+  @@index([usuario_id])
+  @@index([proyecto_base_id])
+  @@index([linea_negocio])
+  @@index([activo])
+}
+
+model proveedores {
+  id                     String   @id @default(uuid())
+  nombre                 String
+  tipo_documento         String
+  numero_documento       String
+  correo                 String?
+  telefono               String?
+  direccion              String?
+  banco                  String?
+  tipo_cuenta_bancaria   String?
+  numero_cuenta_bancaria String?
+  activo                 Boolean  @default(true)
+  creado_en              DateTime @default(now())
+  actualizado_en         DateTime @updatedAt
+
+  beneficiarios beneficiarios_pago[]
+
+  solicitudes_pago solicitudes_pago[]
+
+  @@index([tipo_documento, numero_documento])
+  @@index([numero_documento])
+  @@index([nombre])
+  @@index([activo])
+}
+
+model beneficiarios_pago {
+  id                     String   @id @default(uuid())
+  tipo_beneficiario      String
+  proveedor_id           String?
+  usuario_id             String?
+  nombre                 String
+  tipo_documento         String?
+  numero_documento       String?
+  medio_pago_preferido   String?
+  banco                  String?
+  tipo_cuenta_bancaria   String?
+  numero_cuenta_bancaria String?
+  telefono               String?
+  correo                 String?
+  notas                  String?
+  activo                 Boolean  @default(true)
+  creado_en              DateTime @default(now())
+  actualizado_en         DateTime @updatedAt
+
+  proveedor        proveedores? @relation(fields: [proveedor_id], references: [id])
+  usuario_asociado usuarios?    @relation("BeneficiarioUsuarioAsociado", fields: [usuario_id], references: [id])
+
+  solicitudes_pago solicitudes_pago[]
+
+  detalles_nomina detalles_nomina_solicitud[]
+  anticipos       anticipos[]
+  prestamos       prestamos_proyecto[]
+
+  @@unique([tipo_documento, numero_documento], map: "beneficiarios_pago_tipo_documento_numero_documento_key")
+  @@index([tipo_beneficiario])
+  @@index([usuario_id])
+  @@index([proveedor_id])
+  @@index([tipo_documento, numero_documento])
+  @@index([medio_pago_preferido])
+  @@index([activo])
+}
+
+model secuencias_documentales {
+  id               String   @id @default(uuid())
+  tipo_secuencia   String
+  proyecto_base_id String?
+  centro_costo_id  String?
+  clave_contexto   String
+  prefijo          String
+  anio             Int
+  valor_actual     Int      @default(0)
+  creado_en        DateTime @default(now())
+  actualizado_en   DateTime @updatedAt
+
+  proyecto_base proyectos_base? @relation(fields: [proyecto_base_id], references: [id])
+  centro_costo  centros_costo?  @relation(fields: [centro_costo_id], references: [id])
+
+  @@unique([tipo_secuencia, clave_contexto, anio])
+  @@index([proyecto_base_id])
+  @@index([centro_costo_id])
+  @@index([tipo_secuencia])
+  @@index([clave_contexto])
+}
+
+model solicitudes_pago {
+  id                        String    @id @default(uuid())
+  numero_solicitud          String?   @unique @db.VarChar(100)
+  tipo_solicitud            String    @default("PAGO_PROVEEDOR")
+  modalidad_nomina          String?
+  periodo_nomina            String?   @db.VarChar(7)
+  proyecto_base_id          String
+  fondo_id                  String
+  centro_costo_id           String
+  beneficiario_id           String?
+  proveedor_id              String?
+  categoria_gasto           String?
+  categoria_reembolso       String?
+  concepto_nomina           String?
+  tipo_impuesto             String?
+  periodo_impuesto          String?   @db.VarChar(7)
+  medio_pago                String?
+  adjunto_archivo_origen_id String?
+  descripcion               String
+  valor_bruto               Decimal   @db.Decimal(14, 2)
+  valor_retenciones         Decimal   @default(0) @map("valor_impuestos_retenciones") @db.Decimal(14, 2)
+  valor_descuentos          Decimal   @default(0) @db.Decimal(14, 2)
+  valor_neto                Decimal   @db.Decimal(14, 2)
+  valor_pagado              Decimal?  @db.Decimal(14, 2)
+  valor_reservado           Decimal?  @db.Decimal(14, 2)
+  estado_actual             String    @default("BORRADOR")
+  creado_por                String?
+  aprobado_1_por            String?
+  aprobado_2_por            String?
+  pagado_por                String?
+  enviado_en                DateTime?
+  aprobado_1_en             DateTime?
+  aprobado_2_en             DateTime?
+  devuelto_aprobador_1_en   DateTime?
+  devuelto_solicitante_en   DateTime?
+  pagado_en                 DateTime?
+  creado_en                 DateTime  @default(now())
+  actualizado_en            DateTime  @updatedAt
+
+  proyecto_base proyectos_base      @relation(fields: [proyecto_base_id], references: [id])
+  fondo         fondos              @relation(fields: [fondo_id], references: [id])
+  centro_costo  centros_costo       @relation(fields: [centro_costo_id], references: [id])
+  beneficiario  beneficiarios_pago? @relation(fields: [beneficiario_id], references: [id])
+  proveedor     proveedores?        @relation(fields: [proveedor_id], references: [id])
+
+  creador    usuarios? @relation("SolicitudesCreadasPor", fields: [creado_por], references: [id])
+  aprobador1 usuarios? @relation("SolicitudesAprobadas1Por", fields: [aprobado_1_por], references: [id])
+  aprobador2 usuarios? @relation("SolicitudesAprobadas2Por", fields: [aprobado_2_por], references: [id])
+  pagador    usuarios? @relation("SolicitudesPagadasPor", fields: [pagado_por], references: [id])
+
+  adjuntos                 adjuntos[]                    @relation("AdjuntosSolicitudPago")
+  archivo_origen           adjuntos?                     @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
+  detalles_nomina          detalles_nomina_solicitud[]
+  pagos                    pagos?
+  movimientosFondos        movimientos_fondo[]
+  detalleOperacionEfectivo detalles_operacion_efectivo?
+  devoluciones             devoluciones_solicitud_pago[]
+  anulaciones              anulaciones_solicitud_pago[]
+  eventos_auditoria        eventos_auditoria_solicitud_pago[]
+  notificaciones_whatsapp  notificaciones_whatsapp[]
+
+  @@index([numero_solicitud])
+  @@index([proyecto_base_id])
+  @@index([fondo_id])
+  @@index([centro_costo_id])
+  @@index([beneficiario_id])
+  @@index([proveedor_id])
+  @@index([tipo_solicitud])
+  @@index([estado_actual])
+  @@index([medio_pago])
+  @@index([categoria_gasto])
+  @@index([categoria_reembolso])
+  @@index([concepto_nomina])
+  @@index([periodo_nomina])
+  @@index([tipo_impuesto])
+  @@index([periodo_impuesto])
+  @@index([proyecto_base_id, centro_costo_id, beneficiario_id, concepto_nomina, periodo_nomina, estado_actual], map: "indice_solicitudes_nomina_individual_duplicados")
+  @@index([creado_por])
+  @@index([pagado_por])
+  @@index([creado_en])
+  @@index([pagado_en])
+}
+
+model devoluciones_solicitud_pago {
+  id                String   @id @default(uuid())
+  solicitud_pago_id String
+  estado_origen     String
+  estado_destino    String
+  motivo            String   @db.VarChar(500)
+  devuelto_por      String
+  creado_en         DateTime @default(now())
+
+  solicitud solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  usuario   usuarios         @relation("DevolucionesSolicitudRegistradasPor", fields: [devuelto_por], references: [id])
+
+  @@index([solicitud_pago_id, creado_en])
+  @@index([devuelto_por])
+}
+
+model anulaciones_solicitud_pago {
+  id                String   @id @default(uuid())
+  solicitud_pago_id String
+  estado_origen     String
+  motivo            String   @db.VarChar(500)
+  anulado_por       String
+  creado_en         DateTime @default(now())
+
+  solicitud solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  usuario   usuarios         @relation("AnulacionesSolicitudRegistradasPor", fields: [anulado_por], references: [id])
+
+  @@index([solicitud_pago_id, creado_en])
+  @@index([anulado_por])
+}
+
+model eventos_auditoria_solicitud_pago {
+  id                String   @id @default(uuid())
+  solicitud_pago_id String?
+  solicitud_ref_id  String
+  numero_solicitud  String?  @db.VarChar(100)
+  accion            String   @db.VarChar(80)
+  estado_anterior   String?
+  estado_nuevo      String?
+  descripcion       String   @db.VarChar(500)
+  cambios           Json?
+  registrado_por    String?
+  creado_en         DateTime @default(now())
+
+  solicitud solicitudes_pago? @relation(fields: [solicitud_pago_id], references: [id], onDelete: SetNull)
+  usuario   usuarios?         @relation("EventosAuditoriaSolicitudRegistradosPor", fields: [registrado_por], references: [id], onDelete: SetNull)
+
+  @@index([solicitud_pago_id, creado_en])
+  @@index([solicitud_ref_id, creado_en])
+  @@index([registrado_por])
+  @@index([accion])
+}
+
+model notificaciones_whatsapp {
+  id                       String    @id @default(uuid())
+  evento_transicion_id     String
+  solicitud_pago_id        String
+  destinatario_usuario_id  String?
+  destinatario_nombre      String    @db.VarChar(150)
+  telefono_destinatario    String?
+  ambiente                 String    @db.VarChar(30)
+  tipo_evento              String    @db.VarChar(80)
+  estado_origen            String
+  estado_destino           String
+  plantilla                String?   @db.VarChar(150)
+  idioma                   String    @default("es_CO") @db.VarChar(10)
+  contenido                Json
+  estado                   String    @default("PENDIENTE") @db.VarChar(30)
+  intentos                 Int       @default(0)
+  meta_mensaje_id          String?   @unique @db.VarChar(255)
+  bsuid_destinatario       String?   @db.VarChar(255)
+  ultimo_error             String?   @db.Text
+  respuesta_proveedor      Json?
+  creado_en                DateTime  @default(now())
+  actualizado_en           DateTime  @updatedAt
+  enviado_en               DateTime?
+  entregado_en             DateTime?
+  leido_en                 DateTime?
+
+  solicitud       solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  destinatario    usuarios?        @relation("NotificacionesWhatsAppDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: SetNull)
+  eventos_webhook eventos_webhook_whatsapp[]
+
+  @@unique([evento_transicion_id, solicitud_pago_id, destinatario_usuario_id], map: "notificaciones_whatsapp_evento_solicitud_destinatario_key")
+  @@index([solicitud_pago_id, creado_en])
+  @@index([destinatario_usuario_id, creado_en])
+  @@index([estado, creado_en])
+  @@index([tipo_evento])
+}
+
+model eventos_webhook_whatsapp {
+  id                    String    @id @default(uuid())
+  clave_evento          String    @unique @db.VarChar(255)
+  notificacion_id       String?
+  meta_mensaje_id       String?   @db.VarChar(255)
+  tipo_evento           String    @db.VarChar(50)
+  estado_meta           String?   @db.VarChar(30)
+  telefono_destinatario String?
+  bsuid_destinatario    String?   @db.VarChar(255)
+  resultado             String    @db.VarChar(30)
+  error                 String?   @db.Text
+  payload               Json
+  recibido_en           DateTime  @default(now())
+  procesado_en          DateTime?
+
+  notificacion notificaciones_whatsapp? @relation(fields: [notificacion_id], references: [id], onDelete: SetNull)
+
+  @@index([notificacion_id, recibido_en])
+  @@index([meta_mensaje_id])
+  @@index([tipo_evento, recibido_en])
+}
+
+model adjuntos {
+  id                String   @id @default(uuid())
+  solicitud_pago_id String?
+  nombre_archivo    String   @db.VarChar(255)
+  ruta_archivo      String
+  nombre_bucket     String   @db.VarChar(150)
+  tipo_mime         String?  @db.VarChar(100)
+  tamano_archivo    BigInt?
+  subido_por        String?
+  subido_en         DateTime @default(now())
+  estado_ocr        String   @default("NO_PROCESADO") @db.VarChar(50)
+  texto_ocr         String?
+  json_ocr          Json?
+
+  solicitud_pago             solicitudes_pago?              @relation("AdjuntosSolicitudPago", fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  solicitudes_archivo_origen solicitudes_pago[]             @relation("SolicitudPagoArchivoOrigen")
+  usuario_subio              usuarios?                      @relation("AdjuntosSubidosPor", fields: [subido_por], references: [id])
+  soporte_pago               pagos?
+  soportes_retiro            operaciones_efectivo[]         @relation("SoporteRetiroOperacion")
+  soportes_detalle_efectivo  detalles_operacion_efectivo[]  @relation("SoporteDetalleOperacion")
+  soportes_reingreso         reingresos_sobrante_efectivo[] @relation("SoporteReingresoSobrante")
+  soportes_anticipo          anticipos[]                    @relation("SoporteAnticipo")
+  soportes_prestamo          prestamos_proyecto[]           @relation("SoportePrestamo")
+  soportes_devolucion        devoluciones_prestamo[]        @relation("SoporteDevolucionPrestamo")
+
+  @@index([solicitud_pago_id])
+  @@index([subido_por])
+  @@index([estado_ocr])
+  @@index([subido_en])
+}
+
+model pagos {
+  id                 String   @id @default(uuid())
+  solicitud_pago_id  String   @unique
+  adjunto_soporte_id String   @unique
+  fecha_pago         DateTime
+  medio_pago         String
+  numero_comprobante String   @db.VarChar(150)
+  observacion        String?
+  valor_pagado       Decimal  @db.Decimal(14, 2)
+  registrado_por     String
+  registrado_en      DateTime @default(now())
+
+  solicitud_pago solicitudes_pago   @relation(fields: [solicitud_pago_id], references: [id])
+  soporte        adjuntos           @relation(fields: [adjunto_soporte_id], references: [id])
+  registrador    usuarios           @relation("PagosRegistradosPor", fields: [registrado_por], references: [id])
+  movimiento     movimientos_fondo?
+
+  @@index([fecha_pago])
+  @@index([medio_pago])
+  @@index([numero_comprobante])
+  @@index([registrado_por])
+}
+
+model operaciones_efectivo {
+  id                   String   @id @default(uuid())
+  proyecto_base_id     String
+  fondo_id             String
+  adjunto_retiro_id    String   @unique
+  fecha_retiro         DateTime
+  valor_requerido      Decimal  @db.Decimal(14, 2)
+  valor_retirado       Decimal  @db.Decimal(14, 2)
+  valor_pagado         Decimal  @db.Decimal(14, 2)
+  valor_sobrante       Decimal  @db.Decimal(14, 2)
+  sobrante_reintegrado Boolean  @default(false)
+  estado               String   @default("ACTIVA")
+  observacion          String?
+  registrado_por       String
+  registrado_en        DateTime @default(now())
+
+  proyecto_base  proyectos_base                    @relation(fields: [proyecto_base_id], references: [id])
+  fondo          fondos                            @relation(fields: [fondo_id], references: [id])
+  soporte_retiro adjuntos                          @relation("SoporteRetiroOperacion", fields: [adjunto_retiro_id], references: [id])
+  registrador    usuarios                          @relation("OperacionesEfectivoRegistradasPor", fields: [registrado_por], references: [id])
+  detalles       detalles_operacion_efectivo[]
+  movimientos    movimientos_fondo[]
+  reingresos     reingresos_sobrante_efectivo[]
+  correcciones   correcciones_operacion_efectivo[]
+
+  @@index([proyecto_base_id])
+  @@index([fondo_id])
+  @@index([fecha_retiro])
+  @@index([registrado_por])
+}
+
+model correcciones_operacion_efectivo {
+  id                    String   @id @default(uuid())
+  operacion_efectivo_id String
+  referencia_sistema    String   @unique @db.VarChar(150)
+  tipo                  String
+  direccion             String?
+  valor                 Decimal? @db.Decimal(14, 2)
+  pendiente_anterior    Decimal? @db.Decimal(14, 2)
+  pendiente_nuevo       Decimal? @db.Decimal(14, 2)
+  motivo                String   @db.VarChar(250)
+  observacion           String?
+  registrado_por        String
+  registrado_en         DateTime @default(now())
+
+  operacion   operaciones_efectivo @relation(fields: [operacion_efectivo_id], references: [id])
+  registrador usuarios             @relation("CorreccionesEfectivoRegistradasPor", fields: [registrado_por], references: [id])
+  movimiento  movimientos_fondo?
+
+  @@index([operacion_efectivo_id])
+  @@index([tipo])
+  @@index([registrado_por])
+  @@index([registrado_en])
+}
+
+model detalles_operacion_efectivo {
+  id                    String   @id @default(uuid())
+  operacion_efectivo_id String
+  solicitud_pago_id     String   @unique
+  adjunto_soporte_id    String   @unique
+  medio_pago            String
+  valor_pagado          Decimal  @db.Decimal(14, 2)
+  numero_comprobante    String?  @db.VarChar(150)
+  observacion           String?
+  creado_en             DateTime @default(now())
+
+  operacion_efectivo operaciones_efectivo @relation(fields: [operacion_efectivo_id], references: [id])
+  solicitud_pago     solicitudes_pago     @relation(fields: [solicitud_pago_id], references: [id])
+  soporte            adjuntos             @relation("SoporteDetalleOperacion", fields: [adjunto_soporte_id], references: [id])
+
+  @@index([operacion_efectivo_id])
+  @@index([medio_pago])
+}
+
+model reingresos_sobrante_efectivo {
+  id                    String   @id @default(uuid())
+  operacion_efectivo_id String
+  adjunto_soporte_id    String   @unique
+  referencia_sistema    String   @unique @db.VarChar(150)
+  valor                 Decimal  @db.Decimal(14, 2)
+  pendiente_anterior    Decimal  @db.Decimal(14, 2)
+  pendiente_nuevo       Decimal  @db.Decimal(14, 2)
+  fecha_reingreso       DateTime
+  observacion           String?
+  registrado_por        String
+  registrado_en         DateTime @default(now())
+
+  operacion   operaciones_efectivo @relation(fields: [operacion_efectivo_id], references: [id])
+  soporte     adjuntos             @relation("SoporteReingresoSobrante", fields: [adjunto_soporte_id], references: [id])
+  registrador usuarios             @relation("ReingresosSobranteRegistradosPor", fields: [registrado_por], references: [id])
+  movimiento  movimientos_fondo?
+
+  @@index([operacion_efectivo_id])
+  @@index([fecha_reingreso])
+  @@index([registrado_por])
+}
+
+model movimientos_fondo {
+  id                     String   @id @default(uuid())
+  fondo_id               String
+  proyecto_base_id       String
+  centro_costo_id        String?
+  solicitud_pago_id      String?
+  pago_id                String?  @unique
+  operacion_efectivo_id  String?
+  anticipo_id            String?  @unique
+  prestamo_proyecto_id   String?
+  devolucion_prestamo_id String?
+  reingreso_sobrante_id  String?  @unique
+  correccion_efectivo_id String?  @unique
+  tipo_movimiento        String
+  direccion              String
+  valor                  Decimal  @db.Decimal(14, 2)
+  saldo_anterior         Decimal  @db.Decimal(14, 2)
+  saldo_nuevo            Decimal  @db.Decimal(14, 2)
+  referencia_sistema     String?  @db.VarChar(150)
+  descripcion            String?
+  registrado_por         String?
+  registrado_en          DateTime @default(now())
+
+  fondo               fondos                           @relation(fields: [fondo_id], references: [id])
+  proyecto_base       proyectos_base                   @relation(fields: [proyecto_base_id], references: [id])
+  centro_costo        centros_costo?                   @relation(fields: [centro_costo_id], references: [id])
+  solicitud_pago      solicitudes_pago?                @relation(fields: [solicitud_pago_id], references: [id])
+  pago                pagos?                           @relation(fields: [pago_id], references: [id])
+  operacion_efectivo  operaciones_efectivo?            @relation(fields: [operacion_efectivo_id], references: [id])
+  anticipo            anticipos?                       @relation(fields: [anticipo_id], references: [id])
+  prestamo_proyecto   prestamos_proyecto?              @relation(fields: [prestamo_proyecto_id], references: [id])
+  devolucion_prestamo devoluciones_prestamo?           @relation(fields: [devolucion_prestamo_id], references: [id])
+  reingreso_sobrante  reingresos_sobrante_efectivo?    @relation(fields: [reingreso_sobrante_id], references: [id])
+  correccion_efectivo correcciones_operacion_efectivo? @relation(fields: [correccion_efectivo_id], references: [id])
+  registrador         usuarios?                        @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
+
+  @@index([fondo_id])
+  @@index([proyecto_base_id])
+  @@index([centro_costo_id])
+  @@index([solicitud_pago_id])
+  @@index([operacion_efectivo_id])
+  @@index([prestamo_proyecto_id])
+  @@index([devolucion_prestamo_id])
+  @@index([tipo_movimiento])
+  @@index([direccion])
+  @@index([registrado_en])
+}
+
+model anticipos {
+  id                       String   @id @default(uuid())
+  proyecto_base_id         String
+  fondo_id                 String
+  entidad_id               String?
+  adjunto_soporte_id       String   @unique
+  referencia_sistema       String   @unique @db.VarChar(150)
+  entidad_nombre           String   @db.VarChar(200)
+  entidad_tipo_documento   String   @db.VarChar(30)
+  entidad_numero_documento String   @db.VarChar(50)
+  valor                    Decimal  @db.Decimal(14, 2)
+  fecha_anticipo           DateTime
+  observacion              String?
+  registrado_por           String
+  registrado_en            DateTime @default(now())
+
+  proyecto_base proyectos_base      @relation(fields: [proyecto_base_id], references: [id])
+  fondo         fondos              @relation(fields: [fondo_id], references: [id])
+  entidad       beneficiarios_pago? @relation(fields: [entidad_id], references: [id])
+  soporte       adjuntos            @relation("SoporteAnticipo", fields: [adjunto_soporte_id], references: [id])
+  registrador   usuarios            @relation("AnticiposRegistradosPor", fields: [registrado_por], references: [id])
+  movimiento    movimientos_fondo?
+
+  @@index([proyecto_base_id])
+  @@index([fondo_id])
+  @@index([entidad_id])
+  @@index([fecha_anticipo])
+  @@index([entidad_numero_documento])
+  @@index([registrado_por])
+}
+
+model prestamos_proyecto {
+  id                        String   @id @default(uuid())
+  tipo_prestamo             String
+  proyecto_destino_id       String
+  fondo_destino_id          String
+  proyecto_origen_id        String?
+  fondo_origen_id           String?
+  acreedor_id               String?
+  adjunto_soporte_id        String   @unique
+  referencia_sistema        String   @unique @db.VarChar(150)
+  acreedor_nombre           String?  @db.VarChar(200)
+  acreedor_tipo_documento   String?  @db.VarChar(30)
+  acreedor_numero_documento String?  @db.VarChar(50)
+  valor_original            Decimal  @db.Decimal(14, 2)
+  saldo_pendiente           Decimal  @db.Decimal(14, 2)
+  fecha_prestamo            DateTime
+  estado                    String   @default("ACTIVO") @db.VarChar(30)
+  observacion               String?
+  registrado_por            String
+  registrado_en             DateTime @default(now())
+
+  proyecto_destino proyectos_base          @relation("PrestamoProyectoDestino", fields: [proyecto_destino_id], references: [id])
+  fondo_destino    fondos                  @relation("PrestamoFondoDestino", fields: [fondo_destino_id], references: [id])
+  proyecto_origen  proyectos_base?         @relation("PrestamoProyectoOrigen", fields: [proyecto_origen_id], references: [id])
+  fondo_origen     fondos?                 @relation("PrestamoFondoOrigen", fields: [fondo_origen_id], references: [id])
+  acreedor         beneficiarios_pago?     @relation(fields: [acreedor_id], references: [id])
+  soporte          adjuntos                @relation("SoportePrestamo", fields: [adjunto_soporte_id], references: [id])
+  registrador      usuarios                @relation("PrestamosRegistradosPor", fields: [registrado_por], references: [id])
+  movimientos      movimientos_fondo[]
+  devoluciones     devoluciones_prestamo[]
+
+  @@index([proyecto_destino_id])
+  @@index([fondo_destino_id])
+  @@index([proyecto_origen_id])
+  @@index([fondo_origen_id])
+  @@index([acreedor_id])
+  @@index([fecha_prestamo])
+  @@index([estado])
+  @@index([registrado_por])
+}
+
+model devoluciones_prestamo {
+  id                   String   @id @default(uuid())
+  prestamo_proyecto_id String
+  adjunto_soporte_id   String   @unique
+  referencia_sistema   String   @unique @db.VarChar(150)
+  valor                Decimal  @db.Decimal(14, 2)
+  saldo_anterior       Decimal  @db.Decimal(14, 2)
+  saldo_nuevo          Decimal  @db.Decimal(14, 2)
+  fecha_devolucion     DateTime
+  observacion          String?
+  registrado_por       String
+  registrado_en        DateTime @default(now())
+
+  prestamo    prestamos_proyecto  @relation(fields: [prestamo_proyecto_id], references: [id])
+  soporte     adjuntos            @relation("SoporteDevolucionPrestamo", fields: [adjunto_soporte_id], references: [id])
+  registrador usuarios            @relation("DevolucionesPrestamoRegistradasPor", fields: [registrado_por], references: [id])
+  movimientos movimientos_fondo[]
+
+  @@index([prestamo_proyecto_id])
+  @@index([fecha_devolucion])
+  @@index([registrado_por])
+}
+
+model detalles_nomina_solicitud {
+  id                     String   @id @default(uuid())
+  solicitud_pago_id      String
+  numero_fila            Int
+  beneficiario_id        String?
+  tipo_documento         String
+  numero_documento       String
+  nombre_trabajador      String
+  concepto_nomina        String
+  medio_pago             String
+  banco                  String?
+  tipo_cuenta_bancaria   String?
+  numero_cuenta_bancaria String?
+  valor_bruto            Decimal  @db.Decimal(14, 2)
+  valor_retenciones      Decimal  @default(0) @db.Decimal(14, 2)
+  valor_descuentos       Decimal  @default(0) @db.Decimal(14, 2)
+  valor_neto             Decimal  @db.Decimal(14, 2)
+  estado_validacion      String   @default("VALIDO")
+  errores_validacion     Json?
+  creado_en              DateTime @default(now())
+  actualizado_en         DateTime @updatedAt
+
+  solicitud_pago solicitudes_pago    @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  beneficiario   beneficiarios_pago? @relation(fields: [beneficiario_id], references: [id])
+
+  @@unique([solicitud_pago_id, numero_fila])
+  @@index([solicitud_pago_id])
+  @@index([beneficiario_id])
+  @@index([tipo_documento, numero_documento])
+  @@index([estado_validacion])
 }

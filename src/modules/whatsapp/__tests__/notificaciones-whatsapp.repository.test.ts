@@ -1,0 +1,283 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { crearNotificacionesTransicionesRepository } from "../notificaciones-whatsapp.repository";
+
+const appBaseUrlOriginal = process.env.APP_BASE_URL;
+const plantillaOriginal = process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1;
+const enabledOriginal = process.env.WHATSAPP_ENABLED;
+
+function crearTransaccionMock() {
+  return {
+    solicitudes_pago: {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({
+        id: "solicitud-1",
+        numero_solicitud: "SOL-2026-000001",
+        proyecto_base_id: "proyecto-1",
+        creado_por: "solicitante-1",
+        aprobado_1_por: "aprobador-1",
+        valor_neto: 250000,
+        proyecto_base: { nombre: "Proyecto prueba" },
+        centro_costo: { linea_negocio: "OBRA" },
+        beneficiario: { nombre: "Beneficiario prueba" },
+        proveedor: null,
+      }),
+    },
+    usuarios: {
+      findMany: vi.fn(),
+    },
+    notificaciones_whatsapp: {
+      createMany: vi.fn().mockImplementation(({ data }) => ({
+        count: data.length,
+      })),
+    },
+  };
+}
+
+describe("notificaciones-whatsapp.repository", () => {
+  beforeEach(() => {
+    process.env.WHATSAPP_ENABLED = "true";
+    process.env.APP_BASE_URL = "https://stg.dimensiones.cloud/";
+    process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1 = "aprobacion_nivel_1";
+  });
+
+  afterEach(() => {
+    delete process.env.WHATSAPP_TEMPLATE_PROGRAMADA_PAGO;
+
+    if (appBaseUrlOriginal === undefined) {
+      delete process.env.APP_BASE_URL;
+    } else {
+      process.env.APP_BASE_URL = appBaseUrlOriginal;
+    }
+
+    if (plantillaOriginal === undefined) {
+      delete process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1;
+    } else {
+      process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1 = plantillaOriginal;
+    }
+
+    if (enabledOriginal === undefined) {
+      delete process.env.WHATSAPP_ENABLED;
+    } else {
+      process.env.WHATSAPP_ENABLED = enabledOriginal;
+    }
+  });
+
+  it("no crea ni consulta notificaciones cuando WhatsApp está deshabilitado", async () => {
+    process.env.WHATSAPP_ENABLED = "false";
+    const tx = crearTransaccionMock();
+
+    const resultado = await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "BORRADOR",
+            estadoDestino: "PENDIENTE_APROBADOR_1",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(resultado).toEqual({ count: 0 });
+    expect(tx.solicitudes_pago.findUniqueOrThrow).not.toHaveBeenCalled();
+    expect(tx.usuarios.findMany).not.toHaveBeenCalled();
+    expect(tx.notificaciones_whatsapp.createMany).not.toHaveBeenCalled();
+  });
+
+  it("crea una notificación para cada aprobador autorizado del proyecto", async () => {
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([
+      { id: "aprobador-1", nombre: "Aprobador Uno", telefono: "300 111 1111" },
+      { id: "aprobador-2", nombre: "Aprobador Dos", telefono: null },
+    ]);
+
+    const resultado = await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "BORRADOR",
+            estadoDestino: "PENDIENTE_APROBADOR_1",
+          },
+        ],
+        fecha: new Date("2026-08-18T12:00:00.000Z"),
+      },
+      tx as never,
+    );
+
+    expect(resultado.count).toBe(2);
+    expect(tx.usuarios.findMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        roles: { some: { rol: { nombre: "APROBADOR_1", activo: true } } },
+        accesos_recibidos: {
+          some: {
+            proyecto_base_id: "proyecto-1",
+            linea_negocio: "OBRA",
+            activo: true,
+          },
+        },
+      }),
+      select: { id: true, nombre: true, telefono: true },
+    });
+    const datos = tx.notificaciones_whatsapp.createMany.mock.calls[0][0].data;
+    expect(datos).toHaveLength(2);
+    expect(datos[0]).toMatchObject({
+      destinatario_usuario_id: "aprobador-1",
+      destinatario_nombre: "Aprobador Uno",
+      telefono_destinatario: "573001111111",
+      plantilla: "aprobacion_nivel_1",
+      contenido: {
+        numero_solicitud: "SOL-2026-000001",
+        proyecto: "Proyecto prueba",
+        beneficiario: "Beneficiario prueba",
+        valor: 250000,
+        estado_nuevo: "PENDIENTE_APROBADOR_1",
+        enlace:
+          "https://stg.dimensiones.cloud/solicitudes-pago?solicitud_id=solicitud-1",
+      },
+    });
+    expect(datos[0].evento_transicion_id).toBe(datos[1].evento_transicion_id);
+  });
+
+  it("conserva el prefijo 57 sin duplicarlo", async () => {
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([
+      { id: "aprobador-1", nombre: "Aprobador Uno", telefono: "+57 300-111-1111" },
+    ]);
+
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "BORRADOR",
+            estadoDestino: "PENDIENTE_APROBADOR_1",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(
+      tx.notificaciones_whatsapp.createMany.mock.calls[0][0].data[0]
+        .telefono_destinatario,
+    ).toBe("573001111111");
+  });
+
+  it("dirige la devolución de nivel 2 al aprobador de nivel 1 responsable", async () => {
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([
+      { id: "aprobador-1", nombre: "Aprobador Uno", telefono: "+573001111111" },
+    ]);
+
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "PENDIENTE_APROBADOR_2",
+            estadoDestino: "DEVUELTA_APROBADOR_1",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(tx.usuarios.findMany).toHaveBeenCalledWith({
+      where: { id: "aprobador-1", estado: "ACTIVO" },
+      select: { id: true, nombre: true, telefono: true },
+    });
+  });
+
+  it("notifica a los usuarios activos con rol PAGOS cuando queda programada", async () => {
+    process.env.WHATSAPP_TEMPLATE_PROGRAMADA_PAGO = "solicitud_programada_pago";
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([
+      { id: "pagos-1", nombre: "Usuario Pagos", telefono: "3002222222" },
+    ]);
+
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "PENDIENTE_APROBADOR_2",
+            estadoDestino: "PROGRAMADA_PAGO",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(tx.usuarios.findMany).toHaveBeenCalledWith({
+      where: {
+        estado: "ACTIVO",
+        roles: { some: { rol: { nombre: "PAGOS", activo: true } } },
+      },
+      select: { id: true, nombre: true, telefono: true },
+    });
+    expect(
+      tx.notificaciones_whatsapp.createMany.mock.calls[0][0].data[0],
+    ).toMatchObject({
+      tipo_evento: "SOLICITUD_PROGRAMADA_PAGO",
+      estado_destino: "PROGRAMADA_PAGO",
+      plantilla: "solicitud_programada_pago",
+      contenido: { enlace: "https://stg.dimensiones.cloud/pagos" },
+    });
+  });
+
+  it("conserva el evento pendiente aunque el destinatario no tenga teléfono", async () => {
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([
+      { id: "solicitante-1", nombre: "Solicitante", telefono: null },
+    ]);
+
+    const resultado = await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "PENDIENTE_APROBADOR_1",
+            estadoDestino: "DEVUELTA_SOLICITANTE",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(resultado.count).toBe(1);
+    expect(
+      tx.notificaciones_whatsapp.createMany.mock.calls[0][0].data[0],
+    ).toMatchObject({
+      destinatario_usuario_id: "solicitante-1",
+      telefono_destinatario: null,
+    });
+  });
+
+  it("no interrumpe la transición cuando no existe un destinatario activo", async () => {
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([]);
+
+    const resultado = await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "BORRADOR",
+            estadoDestino: "PENDIENTE_APROBADOR_1",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(resultado.count).toBe(0);
+    expect(tx.notificaciones_whatsapp.createMany).not.toHaveBeenCalled();
+  });
+});

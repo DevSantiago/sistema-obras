@@ -1,0 +1,38 @@
+.header {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  color: #111827;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.description {
+  max-width: 760px;
+  margin: 0;
+  color: #6b7280;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .header {
+    margin-bottom: 18px;
+  }
+
+  .title {
+    font-size: 25px;
+  }
+}

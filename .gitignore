@@ -36,6 +36,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+/deploy/env/*.env
 
 # example env file should be committed
 !.env.example
@@ -48,3 +49,10 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+
+# folders
+
+/storage
+/docs
+/queries

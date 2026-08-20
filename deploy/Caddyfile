@@ -1,0 +1,9 @@
+{$STG_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy app-stg:3000
+}
+
+{$PROD_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy app-prod:3000
+}
