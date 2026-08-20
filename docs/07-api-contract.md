@@ -1669,8 +1669,19 @@ Content-Type: application/json
 La firma HMAC SHA-256 se valida sobre el cuerpo crudo utilizando
 `WHATSAPP_APP_SECRET`. Los eventos sin firma válida responden `401`; los
 cuerpos inválidos responden `400` y los superiores a 1 MiB responden `413`.
-Durante HU-1902 los eventos válidos se confirman con `200`, sin modificar
-solicitudes ni persistir estados de entrega.
+Los eventos válidos se confirman con `200` e informan las cantidades procesadas,
+duplicadas e ignoradas.
+
+Los estados `sent`, `delivered`, `read` y `failed` se correlacionan con
+`notificaciones_whatsapp.meta_mensaje_id` mediante el `wamid`. Cada evento se
+persiste con una clave idempotente antes de actualizar la notificación. Los
+eventos repetidos no se procesan nuevamente y los estados confirmados no
+retroceden.
+
+El contrato admite `recipient_id` o `wa_id` como teléfono y
+`recipient_user_id`, `user_id` o `contacts[].user_id` como `BSUID`. Ninguno de
+los dos identificadores se exige cuando Meta no lo incluye; los eventos
+desconocidos se conservan como ignorados sin modificar solicitudes.
 
 ## Procesar notificaciones pendientes
 

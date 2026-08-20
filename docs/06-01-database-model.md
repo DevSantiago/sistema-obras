@@ -157,6 +157,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 | correcciones_operacion_efectivo | ✅ |
 | eventos_auditoria_solicitud_pago | ✅ |
 | notificaciones_whatsapp | ✅ |
+| eventos_webhook_whatsapp | ✅ |
 
 `correcciones_operacion_efectivo` conserva `pendiente_anterior` y
 `pendiente_nuevo` para conciliar los ajustes del valor retirado con los
@@ -175,6 +176,13 @@ HU-1904 utiliza `estado`, `intentos`, `ultimo_error`, `respuesta_proveedor`,
 `meta_mensaje_id` y `enviado_en` para procesar la cola sin reenviar mensajes ya
 confirmados. Los registros `ENVIANDO` vencidos se recuperan tras el tiempo
 límite configurado.
+
+HU-1905 incorpora `bsuid_destinatario` como identificador complementario del
+teléfono. `eventos_webhook_whatsapp` conserva cada estado o mensaje recibido de
+Meta con una `clave_evento` única, el `wamid`, los identificadores disponibles,
+el payload y el resultado del procesamiento. La relación opcional con
+`notificaciones_whatsapp` permite auditar eventos no reconocidos o recibidos
+antes de encontrar una notificación asociada sin perder el contenido original.
 
 ---
 

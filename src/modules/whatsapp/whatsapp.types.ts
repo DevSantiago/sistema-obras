@@ -13,3 +13,13 @@ export type RecibirWebhookWhatsAppInput = {
   contenido: string;
   firma: string | null;
 };
+
+export type EventoWebhookWhatsApp = {
+  claveEvento: string;
+  metaMensajeId: string | null;
+  tipoEvento: "ESTADO" | "MENSAJE" | "NO_RECONOCIDO";
+  estadoMeta: string | null;
+  telefonoDestinatario: string | null;
+  bsuidDestinatario: string | null;
+  payload: Record<string, unknown>;
+};

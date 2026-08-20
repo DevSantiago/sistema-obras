@@ -41,7 +41,7 @@ describe("/api/v1/webhooks/whatsapp", () => {
   });
 
   it("entrega al servicio el cuerpo crudo y la firma", async () => {
-    recibirMock.mockReturnValue({
+    recibirMock.mockResolvedValue({
       status: 200,
       body: { ok: true, message: "Recibido" },
     });
