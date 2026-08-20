@@ -446,6 +446,22 @@ Criterios:
 - La interfaz fue validada funcionalmente.
 - Auditoría queda identificada como pendiente técnico transversal si no se implementa en esta iteración.
 
+### HU-0211. Cambiar contraseña propia
+
+Como usuario autenticado, quiero reemplazar mi contraseña temporal por una
+contraseña personal, para mantener la confidencialidad de mi acceso.
+
+Criterios:
+
+- La opción está disponible para cualquier usuario con sesión activa.
+- Solicita la contraseña actual, la nueva contraseña y su confirmación.
+- Verifica que la contraseña actual sea correcta.
+- Exige una nueva contraseña de mínimo ocho caracteres y diferente de la actual.
+- Rechaza la operación cuando la confirmación no coincide.
+- Almacena únicamente el hash seguro de la nueva contraseña.
+- No requiere permisos administrativos ni permite modificar la contraseña de otro usuario.
+- Incluye una interfaz responsive dentro del layout privado.
+
 ---
 
 # Épica 3. Proyectos base, centros de costo y fondo general

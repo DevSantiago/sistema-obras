@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
-import { iniciarSesion, obtenerUsuarioAutenticado } from "../auth.service";
 import {
+  cambiarContrasena,
+  iniciarSesion,
+  obtenerUsuarioAutenticado,
+} from "../auth.service";
+import {
+  actualizarPasswordUsuarioEnBD,
   buscarUsuarioPorCorreoConRoles,
   buscarUsuarioPorIdConRoles,
 } from "@/modules/usuarios/usuarios.repository";
 
 vi.mock("@/modules/usuarios/usuarios.repository", () => ({
+  actualizarPasswordUsuarioEnBD: vi.fn(),
   buscarUsuarioPorCorreoConRoles: vi.fn(),
   buscarUsuarioPorIdConRoles: vi.fn(),
 }));
@@ -15,6 +21,7 @@ vi.mock("@/modules/usuarios/usuarios.repository", () => ({
 vi.mock("bcryptjs", () => ({
   default: {
     compare: vi.fn(),
+    hash: vi.fn(),
   },
 }));
 
@@ -335,5 +342,93 @@ describe("auth.service - obtenerUsuarioAutenticado", () => {
     expect(resultado.body.message).toBe("Sesión inválida.");
 
     expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
+  });
+});
+
+describe("auth.service - cambiarContrasena", () => {
+  const usuarioAutenticado = {
+    id: "usuario-1",
+    nombre: "Usuario Activo",
+    correo: "activo@test.com",
+    telefono: null,
+    estado: "ACTIVO",
+    roles: ["SOLICITANTE"],
+    permisos: [],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe rechazar campos incompletos", async () => {
+    const resultado = await cambiarContrasena(usuarioAutenticado, {
+      password_actual: "Temporal123*",
+    });
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "Todos los campos de contraseña son obligatorios.",
+    );
+    expect(buscarUsuarioPorIdConRoles).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar una confirmación diferente", async () => {
+    const resultado = await cambiarContrasena(usuarioAutenticado, {
+      password_actual: "Temporal123*",
+      password_nuevo: "NuevaClave123*",
+      confirmar_password: "OtraClave123*",
+    });
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "La confirmación no coincide con la nueva contraseña.",
+    );
+  });
+
+  it("debe rechazar una contraseña actual incorrecta", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      crearUsuarioMock() as never,
+    );
+    vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+
+    const resultado = await cambiarContrasena(usuarioAutenticado, {
+      password_actual: "Incorrecta123*",
+      password_nuevo: "NuevaClave123*",
+      confirmar_password: "NuevaClave123*",
+    });
+
+    expect(resultado.status).toBe(401);
+    expect(resultado.body.message).toBe(
+      "La contraseña actual es incorrecta.",
+    );
+    expect(actualizarPasswordUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe actualizar la contraseña con un hash seguro", async () => {
+    vi.mocked(buscarUsuarioPorIdConRoles).mockResolvedValue(
+      crearUsuarioMock() as never,
+    );
+    vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+    vi.mocked(bcrypt.hash).mockResolvedValue("hash-nuevo" as never);
+
+    const resultado = await cambiarContrasena(usuarioAutenticado, {
+      password_actual: "Temporal123*",
+      password_nuevo: "NuevaClave123*",
+      confirmar_password: "NuevaClave123*",
+    });
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.message).toBe(
+      "Contraseña actualizada correctamente.",
+    );
+    expect(bcrypt.compare).toHaveBeenCalledWith(
+      "Temporal123*",
+      "hash-secreto",
+    );
+    expect(bcrypt.hash).toHaveBeenCalledWith("NuevaClave123*", 10);
+    expect(actualizarPasswordUsuarioEnBD).toHaveBeenCalledWith(
+      "usuario-1",
+      "hash-nuevo",
+    );
   });
 });

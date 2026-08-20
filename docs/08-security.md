@@ -163,6 +163,12 @@ El sistema almacena únicamente el valor resultante de aplicar un algoritmo de h
 
 Durante el inicio de sesión, la contraseña ingresada se compara contra el hash almacenado.
 
+Cada usuario autenticado puede cambiar su propia contraseña desde el layout
+privado. La operación exige verificar la contraseña actual, confirmar la nueva
+contraseña y utilizar un valor diferente de mínimo ocho caracteres. El backend
+identifica al usuario mediante la sesión activa; por tanto, el cliente no puede
+indicar ni modificar la contraseña de otro usuario.
+
 ---
 
 ## Sesión de usuario
