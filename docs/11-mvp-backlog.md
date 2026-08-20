@@ -1981,6 +1981,9 @@ máquina de estados del sistema.
 - Los envíos usan plantillas aprobadas por Meta cuando corresponda.
 - Los webhooks validan el token de verificación y la firma de Meta.
 - Los eventos repetidos se procesan de forma idempotente.
+- La integración admite destinatarios identificados por teléfono o por
+  Business-Scoped User ID (`BSUID`) sin depender de que Meta siempre entregue
+  el número telefónico en el webhook.
 
 ## Destinatarios por transición
 
@@ -2067,6 +2070,16 @@ Criterios:
 - Ignora eventos ya procesados.
 - Actualiza los estados de entrega sin retroceder estados confirmados.
 - Registra eventos inválidos o no reconocidos sin afectar el servicio.
+- Correlaciona los estados `sent`, `delivered`, `read` y `failed` con la
+  notificación mediante el identificador de mensaje Meta (`wamid`).
+- Admite `recipient_id` o `wa_id` como teléfono cuando estén disponibles y
+  `recipient_user_id` o `user_id` como `BSUID`.
+- Conserva el teléfono y el `BSUID` como identificadores complementarios, sin
+  exigir que ambos estén presentes en el mismo evento.
+- Admite `contacts[].user_id` para mensajes entrantes y no falla cuando Meta
+  omite el número debido al uso de nombres de usuario de WhatsApp.
+- Mantiene compatibilidad con los webhooks anteriores que solo informan el
+  número telefónico.
 
 ### HU-1906. Consultar y reintentar notificaciones
 
