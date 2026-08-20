@@ -1,5 +1,6 @@
 "use client";
 
+import { ChangePasswordButton } from "@/components/auth/ChangePasswordButton";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import Link from "next/link";
 import { useState } from "react";
@@ -187,6 +188,7 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
           <p className={styles.userName}>{usuario.nombre}</p>
           <p className={styles.userEmail}>{usuario.correo}</p>
 
+          <ChangePasswordButton />
           <LogoutButton />
         </div>
       </aside>

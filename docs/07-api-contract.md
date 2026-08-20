@@ -399,6 +399,7 @@ a centros de costo pertenecientes a sus proyectos y líneas autorizadas.
 POST /api/v1/auth/login
 GET /api/v1/auth/me
 POST /api/v1/auth/logout
+PUT /api/v1/auth/cambiar-contrasena
 ```
 
 ---
@@ -463,6 +464,39 @@ POST /api/v1/auth/logout
 ```
 
 Finaliza la sesión eliminando la cookie de autenticación.
+
+---
+
+## Cambiar contraseña propia
+
+```http
+PUT /api/v1/auth/cambiar-contrasena
+```
+
+Requiere una sesión activa y solo actualiza la contraseña del usuario
+autenticado.
+
+### Cuerpo
+
+```json
+{
+  "password_actual": "Temporal123*",
+  "password_nuevo": "NuevaClave123*",
+  "confirmar_password": "NuevaClave123*"
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "ok": true,
+  "message": "Contraseña actualizada correctamente."
+}
+```
+
+La nueva contraseña debe contener al menos ocho caracteres, coincidir con su
+confirmación y ser diferente de la contraseña actual.
 
 ---
 

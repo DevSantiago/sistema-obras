@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
 import { jwtVerify, SignJWT } from "jose";
 import {
+  actualizarPasswordUsuarioEnBD,
   buscarUsuarioPorCorreoConRoles,
   buscarUsuarioPorIdConRoles,
 } from "@/modules/usuarios/usuarios.repository";
 import type {
+  CambiarContrasenaInput,
   LoginInput,
   ServiceResponse,
   UsuarioSesion,
@@ -209,6 +211,91 @@ export async function obtenerUsuarioAutenticado(
       data: {
         usuario: construirUsuarioSesion(usuario),
       },
+    },
+  };
+}
+
+export async function cambiarContrasena(
+  usuarioAutenticado: UsuarioSesion,
+  input: CambiarContrasenaInput,
+): Promise<ServiceResponse<never>> {
+  const { password_actual, password_nuevo, confirmar_password } = input;
+
+  if (!password_actual || !password_nuevo || !confirmar_password) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Todos los campos de contraseña son obligatorios.",
+      },
+    };
+  }
+
+  if (password_nuevo.length < 8) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La nueva contraseña debe tener al menos 8 caracteres.",
+      },
+    };
+  }
+
+  if (password_nuevo !== confirmar_password) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La confirmación no coincide con la nueva contraseña.",
+      },
+    };
+  }
+
+  if (password_actual === password_nuevo) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La nueva contraseña debe ser diferente de la actual.",
+      },
+    };
+  }
+
+  const usuario = await buscarUsuarioPorIdConRoles(usuarioAutenticado.id);
+
+  if (!usuario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "Usuario no encontrado.",
+      },
+    };
+  }
+
+  const passwordActualValida = await bcrypt.compare(
+    password_actual,
+    usuario.password_hash ?? "",
+  );
+
+  if (!passwordActualValida) {
+    return {
+      status: 401,
+      body: {
+        ok: false,
+        message: "La contraseña actual es incorrecta.",
+      },
+    };
+  }
+
+  const passwordHash = await bcrypt.hash(password_nuevo, 10);
+  await actualizarPasswordUsuarioEnBD(usuarioAutenticado.id, passwordHash);
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Contraseña actualizada correctamente.",
     },
   };
 }
