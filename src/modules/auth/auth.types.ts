@@ -3,6 +3,12 @@ export type LoginInput = {
   password?: string;
 };
 
+export type CambiarContrasenaInput = {
+  password_actual?: string;
+  password_nuevo?: string;
+  confirmar_password?: string;
+};
+
 export type UsuarioSesion = {
   id: string;
   nombre: string;
