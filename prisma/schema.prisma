@@ -473,6 +473,7 @@ model notificaciones_whatsapp {
   estado                   String    @default("PENDIENTE") @db.VarChar(30)
   intentos                 Int       @default(0)
   meta_mensaje_id          String?   @unique @db.VarChar(255)
+  bsuid_destinatario       String?   @db.VarChar(255)
   ultimo_error             String?   @db.Text
   respuesta_proveedor      Json?
   creado_en                DateTime  @default(now())
@@ -481,14 +482,37 @@ model notificaciones_whatsapp {
   entregado_en             DateTime?
   leido_en                 DateTime?
 
-  solicitud   solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
-  destinatario usuarios?        @relation("NotificacionesWhatsAppDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: SetNull)
+  solicitud       solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  destinatario    usuarios?        @relation("NotificacionesWhatsAppDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: SetNull)
+  eventos_webhook eventos_webhook_whatsapp[]
 
   @@unique([evento_transicion_id, solicitud_pago_id, destinatario_usuario_id], map: "notificaciones_whatsapp_evento_solicitud_destinatario_key")
   @@index([solicitud_pago_id, creado_en])
   @@index([destinatario_usuario_id, creado_en])
   @@index([estado, creado_en])
   @@index([tipo_evento])
+}
+
+model eventos_webhook_whatsapp {
+  id                    String    @id @default(uuid())
+  clave_evento          String    @unique @db.VarChar(255)
+  notificacion_id       String?
+  meta_mensaje_id       String?   @db.VarChar(255)
+  tipo_evento           String    @db.VarChar(50)
+  estado_meta           String?   @db.VarChar(30)
+  telefono_destinatario String?
+  bsuid_destinatario    String?   @db.VarChar(255)
+  resultado             String    @db.VarChar(30)
+  error                 String?   @db.Text
+  payload               Json
+  recibido_en           DateTime  @default(now())
+  procesado_en          DateTime?
+
+  notificacion notificaciones_whatsapp? @relation(fields: [notificacion_id], references: [id], onDelete: SetNull)
+
+  @@index([notificacion_id, recibido_en])
+  @@index([meta_mensaje_id])
+  @@index([tipo_evento, recibido_en])
 }
 
 model adjuntos {

@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const resultado = recibirWebhookWhatsAppService({
+    const resultado = await recibirWebhookWhatsAppService({
       contenido,
       firma: request.headers.get("x-hub-signature-256"),
     });

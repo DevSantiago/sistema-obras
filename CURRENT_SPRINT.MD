@@ -2,24 +2,20 @@
 
 ## Objetivo
 
-Continuar la Épica 19 enviando de forma asíncrona las notificaciones pendientes
-sin bloquear el flujo de aprobación.
-
-Antes de iniciar HU-1905 se ajustan las plantillas funcionales con parámetros
-nombrados y se incorpora la notificación al rol `PAGOS` cuando una solicitud
-queda `PROGRAMADA_PAGO`.
+Continuar la Épica 19 procesando de forma idempotente los estados enviados por
+el webhook de Meta y conservando trazabilidad de teléfono y `BSUID`.
 
 ---
 
 ## Alcance autorizado
 
-Implementar HU-1904:
+Implementar HU-1905:
 
-- reclamar notificaciones pendientes sin concurrencia duplicada;
-- enviar plantillas mediante WhatsApp Business Platform;
-- registrar intentos, errores, respuesta e identificador de Meta;
-- reintentar fallos de forma controlada;
-- ejecutar el procesador periódicamente desde el VPS.
+- persistir cada evento recibido con una clave idempotente;
+- correlacionar estados de entrega mediante el identificador `wamid`;
+- procesar `sent`, `delivered`, `read` y `failed` sin retroceder estados;
+- admitir teléfono y Business-Scoped User ID (`BSUID`);
+- conservar eventos duplicados, desconocidos o sin notificación asociada.
 
 ---
 
@@ -29,44 +25,48 @@ Implementar HU-1904:
 - Preparación del VPS, PostgreSQL, HTTPS y Amazon S3 terminada.
 - Staging operativo en `https://stg.dimensiones.cloud`.
 - Carga y consulta de adjuntos en S3 validada desde staging.
-- HU-1901, HU-1902 y HU-1903 cerradas y fusionadas en `dev`.
-- Webhook de Meta verificado y número de prueba conectado en staging.
+- HU-1901 a HU-1904 cerradas y fusionadas en `dev`.
+- Webhook de Meta verificado y envío asíncrono probado en staging.
+- Plantillas funcionales creadas en Meta y pendientes de aprobación.
 
 ---
 
 ## Historias del sprint
 
-### HU-1904. Enviar notificaciones de forma asíncrona
+### HU-1905. Procesar estados e idempotencia del webhook
 
-- Procesa registros `PENDIENTE`, `FALLIDA` y bloqueos `ENVIANDO` vencidos.
-- Envía plantillas con los datos persistidos por HU-1903.
-- Registra intentos, errores, respuesta e identificador `wamid`.
-- No selecciona nuevamente mensajes confirmados por Meta.
+- Registra estados y mensajes recibidos antes de aplicar cambios.
+- Ignora eventos repetidos mediante una clave determinística.
+- Actualiza la notificación asociada al `wamid`.
+- Conserva `recipient_id`, `wa_id`, `recipient_user_id` y `user_id` cuando
+  estén disponibles.
+- No depende de que Meta siempre informe el número telefónico.
 
 ---
 
 ## Orden obligatorio
 
-1. Implementar el reclamo atómico de notificaciones procesables.
-2. Integrar el envío de plantillas con timeout y respuesta de Meta.
-3. Implementar fallos y reintentos controlados.
-4. Proteger y programar el disparador interno del VPS.
-5. Ejecutar pruebas, lint y `npm run build`.
+1. Incorporar la persistencia de eventos y `BSUID` mediante una migración nueva.
+2. Extraer estados y mensajes del payload validado por firma.
+3. Implementar correlación por `wamid` y avance monotónico de estados.
+4. Cubrir duplicados, eventos desconocidos y formatos con o sin teléfono.
+5. Ejecutar migración, pruebas, lint y `npm run build`.
 
 ---
 
 ## Fuera de alcance
 
-- No procesar estados de entrega ni webhooks idempotentes en esta rama.
-- No implementar la bandeja administrativa ni el reintento manual.
+- No implementar la bandeja administrativa ni el reintento manual de HU-1906.
+- No responder mensajes entrantes desde el webhook.
 - No modificar la máquina de estados de solicitudes.
+- No sustituir los teléfonos existentes por `BSUID` en el envío actual.
 
 ---
 
 ## Criterio de finalización
 
-- Cada registro se reclama una sola vez por ejecución concurrente.
-- Los mensajes confirmados guardan identificador de Meta y estado `ENVIADA`.
-- Los fallos registran el error y se reintentan hasta el límite configurado.
-- La indisponibilidad de WhatsApp no afecta el estado de la solicitud.
+- Cada evento repetido se procesa una sola vez.
+- Los estados se correlacionan por `wamid` y nunca retroceden.
+- Teléfono y `BSUID` se conservan como identificadores complementarios.
+- Los eventos desconocidos no afectan el servicio ni las solicitudes.
 - Las pruebas, lint y build finalizan sin errores.

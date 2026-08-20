@@ -140,6 +140,10 @@ separados para que una indisponibilidad de Meta no revierta el flujo funcional.
 Desde HU-1904 un endpoint interno protegido dispara lotes pequeños; el servicio
 construye y envía las plantillas, mientras el repositorio reclama cada registro
 de forma atómica y conserva intentos, errores y confirmaciones de Meta.
+Desde HU-1905 el webhook convierte cada estado o mensaje recibido en un evento
+persistente con clave idempotente. El repositorio correlaciona los estados por
+`wamid`, conserva teléfono y `BSUID` cuando están disponibles y actualiza la
+notificación sin permitir regresiones desde `ENTREGADA` o `LEIDA`.
 
 El historial de cada solicitud se compone en el servicio de
 `solicitudes-pago`. Reutiliza las fuentes operativas existentes para creación,

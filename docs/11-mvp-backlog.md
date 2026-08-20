@@ -1961,7 +1961,7 @@ Criterios:
 
 ## Estado
 
-**EN DESARROLLO — HU-1901, HU-1902 y HU-1903 terminadas; HU-1904 en ejecución.**
+**EN DESARROLLO — HU-1901 a HU-1904 terminadas; HU-1905 en ejecución.**
 
 ## Objetivo
 
@@ -2046,7 +2046,7 @@ Criterios:
 
 ### HU-1904. Enviar notificaciones de forma asíncrona
 
-**Estado: EN DESARROLLO.**
+**Estado: TERMINADA Y FUSIONADA EN `dev`.**
 
 Como sistema, quiero reintentar los envíos sin bloquear aprobaciones, para
 mantener el flujo operativo disponible.
@@ -2060,6 +2060,8 @@ Criterios:
 - Una falla de WhatsApp no revierte el estado de la solicitud.
 
 ### HU-1905. Procesar estados e idempotencia del webhook
+
+**Estado: EN DESARROLLO.**
 
 Como administrador, quiero trazabilidad de recepción y entrega, para diagnosticar
 mensajes que no llegaron.
