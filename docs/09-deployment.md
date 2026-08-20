@@ -463,6 +463,7 @@ WHATSAPP_TEMPLATE_APROBACION_NIVEL_1
 WHATSAPP_TEMPLATE_APROBACION_NIVEL_2
 WHATSAPP_TEMPLATE_DEVOLUCION_APROBADOR_1
 WHATSAPP_TEMPLATE_DEVOLUCION_SOLICITANTE
+WHATSAPP_TEMPLATE_PROGRAMADA_PAGO
 WHATSAPP_TEMPLATE_LANGUAGE
 ```
 
@@ -484,9 +485,11 @@ La tarea procesa lotes pequeños, recupera registros que permanezcan en
 `ENVIANDO` después del tiempo límite y reintenta estados `FALLIDA` sin bloquear
 el flujo de aprobaciones.
 
-Las plantillas funcionales definen seis parámetros de cuerpo en este orden:
-número de solicitud, proyecto, beneficiario, valor, estado nuevo y enlace. La
-plantilla de prueba estándar `hello_world` se envía sin parámetros.
+Todas las plantillas funcionales reciben `destinatario` en el encabezado y los
+parámetros de cuerpo `numero_solicitud`, `proyecto`, `beneficiario`, `valor` y
+`estado`. Las devoluciones agregan `aprobador_uno` o `aprobador_dos` según el
+origen, y la plantilla de pagos incluye ambos. Los botones utilizan URL estática.
+La plantilla de prueba estándar `hello_world` se envía sin parámetros.
 
 El webhook de staging es:
 

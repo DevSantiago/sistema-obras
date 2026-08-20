@@ -1992,6 +1992,7 @@ máquina de estados del sistema.
 | `DEVUELTA_APROBADOR_1` → `PENDIENTE_APROBADOR_2` | Aprobadores nivel 2 autorizados para el proyecto |
 | `PENDIENTE_APROBADOR_1` → `DEVUELTA_SOLICITANTE` | Usuario solicitante |
 | `DEVUELTA_SOLICITANTE` → `PENDIENTE_APROBADOR_1` | Aprobadores nivel 1 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_2` → `PROGRAMADA_PAGO` | Usuarios activos con rol `PAGOS` |
 
 ## Historias
 
@@ -2037,6 +2038,7 @@ Criterios:
 - Incluye consecutivo, proyecto, beneficiario, valor, nuevo estado y enlace.
 - Resuelve destinatarios según rol y acceso al proyecto.
 - Conserva el teléfono del destinatario con prefijo `57` y solo dígitos.
+- Notifica al rol `PAGOS` cuando la solicitud queda `PROGRAMADA_PAGO`.
 - Evita duplicados por solicitud, transición y destinatario.
 
 ### HU-1904. Enviar notificaciones de forma asíncrona

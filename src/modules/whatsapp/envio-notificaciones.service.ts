@@ -94,27 +94,66 @@ function construirPlantilla(notificacion: NotificacionWhatsAppPendiente) {
     name: string;
     language: { code: string };
     components?: Array<{
-      type: "body";
-      parameters: Array<{ type: "text"; text: string }>;
+      type: "header" | "body";
+      parameters: Array<{
+        type: "text";
+        parameter_name: string;
+        text: string;
+      }>;
     }>;
   };
 
   if (notificacion.plantilla !== "hello_world") {
     const contenido = obtenerContenido(notificacion);
-    const valores = [
-      contenido.numero_solicitud,
-      contenido.proyecto,
-      contenido.beneficiario,
-      contenido.valor,
-      contenido.estado_nuevo,
-      contenido.enlace,
+    const valores: Array<[string, Prisma.JsonValue | string]> = [
+      ["numero_solicitud", contenido.numero_solicitud],
+      ["proyecto", contenido.proyecto],
+      ["beneficiario", contenido.beneficiario],
+      [
+        "valor",
+        new Intl.NumberFormat("es-CO", {
+          style: "currency",
+          currency: "COP",
+          maximumFractionDigits: 0,
+        }).format(Number(contenido.valor ?? 0)),
+      ],
+      [
+        "estado",
+        String(contenido.estado_nuevo ?? "").replaceAll("_", " "),
+      ],
     ];
+
+    if (notificacion.estado_destino === "DEVUELTA_APROBADOR_1") {
+      valores.unshift(["aprobador_dos", contenido.aprobador_dos]);
+    }
+
+    if (notificacion.estado_destino === "DEVUELTA_SOLICITANTE") {
+      valores.unshift(["aprobador_uno", contenido.aprobador_uno]);
+    }
+
+    if (notificacion.estado_destino === "PROGRAMADA_PAGO") {
+      valores.unshift(
+        ["aprobador_dos", contenido.aprobador_dos],
+        ["aprobador_uno", contenido.aprobador_uno],
+      );
+    }
 
     plantilla.components = [
       {
+        type: "header",
+        parameters: [
+          {
+            type: "text",
+            parameter_name: "destinatario",
+            text: notificacion.destinatario_nombre,
+          },
+        ],
+      },
+      {
         type: "body",
-        parameters: valores.map((valor) => ({
+        parameters: valores.map(([nombre, valor]) => ({
           type: "text" as const,
+          parameter_name: String(nombre),
           text: String(valor ?? ""),
         })),
       },

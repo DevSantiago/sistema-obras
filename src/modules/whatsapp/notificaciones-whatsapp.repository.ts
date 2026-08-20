@@ -31,6 +31,7 @@ function tipoEvento(estadoDestino: TransicionNotificableWhatsApp["estadoDestino"
     PENDIENTE_APROBADOR_2: "SOLICITUD_PENDIENTE_APROBADOR_2",
     DEVUELTA_APROBADOR_1: "SOLICITUD_DEVUELTA_APROBADOR_1",
     DEVUELTA_SOLICITANTE: "SOLICITUD_DEVUELTA_SOLICITANTE",
+    PROGRAMADA_PAGO: "SOLICITUD_PROGRAMADA_PAGO",
   } as const;
 
   return eventos[estadoDestino];
@@ -42,14 +43,21 @@ function plantillaEvento(estadoDestino: TransicionNotificableWhatsApp["estadoDes
     PENDIENTE_APROBADOR_2: "WHATSAPP_TEMPLATE_APROBACION_NIVEL_2",
     DEVUELTA_APROBADOR_1: "WHATSAPP_TEMPLATE_DEVOLUCION_APROBADOR_1",
     DEVUELTA_SOLICITANTE: "WHATSAPP_TEMPLATE_DEVOLUCION_SOLICITANTE",
+    PROGRAMADA_PAGO: "WHATSAPP_TEMPLATE_PROGRAMADA_PAGO",
   } as const;
 
   return process.env[variables[estadoDestino]]?.trim() || null;
 }
 
-function construirEnlaceSolicitud(solicitudId: string) {
+function construirEnlaceSolicitud(
+  solicitudId: string,
+  estadoDestino: TransicionNotificableWhatsApp["estadoDestino"],
+) {
   const base = process.env.APP_BASE_URL?.trim().replace(/\/$/, "");
-  const ruta = `/solicitudes-pago?solicitud_id=${encodeURIComponent(solicitudId)}`;
+  const ruta =
+    estadoDestino === "PROGRAMADA_PAGO"
+      ? "/pagos"
+      : `/solicitudes-pago?solicitud_id=${encodeURIComponent(solicitudId)}`;
 
   return base ? `${base}${ruta}` : ruta;
 }
@@ -115,6 +123,27 @@ async function obtenerDestinatarios(
     );
   }
 
+  if (transicion.estadoDestino === "PROGRAMADA_PAGO") {
+    return tx.usuarios.findMany({
+      where: {
+        estado: "ACTIVO",
+        roles: {
+          some: {
+            rol: {
+              nombre: "PAGOS",
+              activo: true,
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        telefono: true,
+      },
+    });
+  }
+
   const destinatarioId =
     transicion.estadoDestino === "DEVUELTA_APROBADOR_1"
       ? solicitud.aprobado_1_por
@@ -152,7 +181,10 @@ export async function crearNotificacionesTransicionesRepository(
         proyecto_base_id: true,
         creado_por: true,
         aprobado_1_por: true,
+        aprobado_2_por: true,
         valor_neto: true,
+        aprobador1: { select: { nombre: true } },
+        aprobador2: { select: { nombre: true } },
         proyecto_base: { select: { nombre: true } },
         centro_costo: { select: { linea_negocio: true } },
         beneficiario: { select: { nombre: true } },
@@ -191,7 +223,12 @@ export async function crearNotificacionesTransicionesRepository(
             "Sin beneficiario",
           valor: Number(solicitud.valor_neto),
           estado_nuevo: transicion.estadoDestino,
-          enlace: construirEnlaceSolicitud(solicitud.id),
+          aprobador_uno: solicitud.aprobador1?.nombre ?? "Sin registrar",
+          aprobador_dos: solicitud.aprobador2?.nombre ?? "Sin registrar",
+          enlace: construirEnlaceSolicitud(
+            solicitud.id,
+            transicion.estadoDestino,
+          ),
         },
         creado_en: input.fecha,
         actualizado_en: input.fecha,

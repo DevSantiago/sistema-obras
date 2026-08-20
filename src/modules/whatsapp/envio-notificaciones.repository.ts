@@ -28,10 +28,12 @@ export async function obtenerNotificacionesProcesablesRepository(input: {
     take: input.limite,
     select: {
       id: true,
+      destinatario_nombre: true,
       telefono_destinatario: true,
       plantilla: true,
       idioma: true,
       contenido: true,
+      estado_destino: true,
       estado: true,
       intentos: true,
       actualizado_en: true,

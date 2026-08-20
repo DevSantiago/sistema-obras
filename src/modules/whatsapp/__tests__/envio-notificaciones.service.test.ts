@@ -23,6 +23,7 @@ const variablesOriginales = { ...process.env };
 function notificacion(overrides: Record<string, unknown> = {}) {
   return {
     id: "notificacion-1",
+    destinatario_nombre: "Aprobador Uno",
     telefono_destinatario: "573001111111",
     plantilla: "aprobacion_nivel_1",
     idioma: "es_CO",
@@ -33,7 +34,10 @@ function notificacion(overrides: Record<string, unknown> = {}) {
       valor: 250000,
       estado_nuevo: "PENDIENTE_APROBADOR_1",
       enlace: "https://stg.dimensiones.cloud/solicitudes-pago",
+      aprobador_uno: "Aprobador Uno",
+      aprobador_dos: "Aprobador Dos",
     },
+    estado_destino: "PENDIENTE_APROBADOR_1",
     estado: "PENDIENTE",
     intentos: 0,
     actualizado_en: new Date("2026-08-18T12:00:00.000Z"),
@@ -87,7 +91,33 @@ describe("envio-notificaciones.service", () => {
     );
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.to).toBe("573001111111");
-    expect(body.template.components[0].parameters).toHaveLength(6);
+    expect(body.template.components[0]).toEqual({
+      type: "header",
+      parameters: [
+        {
+          type: "text",
+          parameter_name: "destinatario",
+          text: "Aprobador Uno",
+        },
+      ],
+    });
+    expect(body.template.components[1].parameters).toHaveLength(5);
+    expect(body.template.components[1].parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          parameter_name: "numero_solicitud",
+          text: "SOL-2026-000001",
+        }),
+        expect.objectContaining({
+          parameter_name: "valor",
+          text: expect.stringContaining("250.000"),
+        }),
+        expect.objectContaining({
+          parameter_name: "estado",
+          text: "PENDIENTE APROBADOR 1",
+        }),
+      ]),
+    );
     expect(marcarNotificacionEnviadaRepository).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "notificacion-1",
@@ -116,6 +146,36 @@ describe("envio-notificaciones.service", () => {
       }),
     );
     expect(marcarNotificacionEnviadaRepository).not.toHaveBeenCalled();
+  });
+
+  it("envía los dos aprobadores en la plantilla destinada a PAGOS", async () => {
+    vi.mocked(obtenerNotificacionesProcesablesRepository).mockResolvedValue([
+      notificacion({
+        plantilla: "solicitud_programada_pago",
+        estado_destino: "PROGRAMADA_PAGO",
+      }),
+    ] as never);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ messages: [{ id: "wamid.pagos" }] }), {
+        status: 200,
+      }),
+    );
+
+    await procesarNotificacionesWhatsAppService(fetchMock as typeof fetch);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.template.components[1].parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          parameter_name: "aprobador_uno",
+          text: "Aprobador Uno",
+        }),
+        expect.objectContaining({
+          parameter_name: "aprobador_dos",
+          text: "Aprobador Dos",
+        }),
+      ]),
+    );
   });
 
   it("no duplica una notificación reclamada por otro procesador", async () => {
