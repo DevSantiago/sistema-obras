@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import styles from "./LogoutButton.module.css";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -25,7 +26,12 @@ export function LogoutButton() {
   }
 
   return (
-    <button type="button" onClick={manejarLogout} disabled={cerrandoSesion}>
+    <button
+      className={styles.logoutButton}
+      type="button"
+      onClick={manejarLogout}
+      disabled={cerrandoSesion}
+    >
       {cerrandoSesion ? "Cerrando sesión..." : "Cerrar sesión"}
     </button>
   );
