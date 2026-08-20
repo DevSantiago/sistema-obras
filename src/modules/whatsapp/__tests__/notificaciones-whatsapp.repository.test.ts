@@ -3,6 +3,7 @@ import { crearNotificacionesTransicionesRepository } from "../notificaciones-wha
 
 const appBaseUrlOriginal = process.env.APP_BASE_URL;
 const plantillaOriginal = process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1;
+const enabledOriginal = process.env.WHATSAPP_ENABLED;
 
 function crearTransaccionMock() {
   return {
@@ -33,6 +34,7 @@ function crearTransaccionMock() {
 
 describe("notificaciones-whatsapp.repository", () => {
   beforeEach(() => {
+    process.env.WHATSAPP_ENABLED = "true";
     process.env.APP_BASE_URL = "https://stg.dimensiones.cloud/";
     process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1 = "aprobacion_nivel_1";
   });
@@ -51,6 +53,36 @@ describe("notificaciones-whatsapp.repository", () => {
     } else {
       process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1 = plantillaOriginal;
     }
+
+    if (enabledOriginal === undefined) {
+      delete process.env.WHATSAPP_ENABLED;
+    } else {
+      process.env.WHATSAPP_ENABLED = enabledOriginal;
+    }
+  });
+
+  it("no crea ni consulta notificaciones cuando WhatsApp está deshabilitado", async () => {
+    process.env.WHATSAPP_ENABLED = "false";
+    const tx = crearTransaccionMock();
+
+    const resultado = await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "BORRADOR",
+            estadoDestino: "PENDIENTE_APROBADOR_1",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(resultado).toEqual({ count: 0 });
+    expect(tx.solicitudes_pago.findUniqueOrThrow).not.toHaveBeenCalled();
+    expect(tx.usuarios.findMany).not.toHaveBeenCalled();
+    expect(tx.notificaciones_whatsapp.createMany).not.toHaveBeenCalled();
   });
 
   it("crea una notificación para cada aprobador autorizado del proyecto", async () => {

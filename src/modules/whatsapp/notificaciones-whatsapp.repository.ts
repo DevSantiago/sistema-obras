@@ -170,6 +170,10 @@ export async function crearNotificacionesTransicionesRepository(
   input: CrearNotificacionesTransicionesInput,
   tx: Prisma.TransactionClient,
 ) {
+  if (process.env.WHATSAPP_ENABLED?.trim().toLowerCase() !== "true") {
+    return { count: 0 };
+  }
+
   let cantidadCreada = 0;
 
   for (const transicion of input.transiciones) {

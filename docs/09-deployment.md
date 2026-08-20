@@ -475,6 +475,10 @@ registrado en Meta.
 `WHATSAPP_PROCESSOR_TOKEN` protege el endpoint interno que procesa la cola y
 debe ser un secreto aleatorio diferente en staging y producción. El VPS debe
 invocar el procesador periódicamente sin incluir ese secreto en el repositorio.
+Cuando `WHATSAPP_ENABLED=false` o la variable no existe, el sistema no crea
+notificaciones pendientes, no habilita el webhook ni permite ejecutar el
+procesador. Las solicitudes y sus transiciones continúan funcionando con
+normalidad. El cron solo debe configurarse después de habilitar la integración.
 Para staging se puede programar cada minuto desde el host con:
 
 ```cron

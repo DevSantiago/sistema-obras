@@ -2432,6 +2432,11 @@ Las transiciones cubiertas por la Épica 19 generan una notificación persistent
 para cada responsable. La creación ocurre dentro de la misma transacción que
 actualiza la solicitud, pero el envío a Meta se ejecuta posteriormente.
 
+Cuando `WHATSAPP_ENABLED` no está configurado en `true`, las transiciones se
+ejecutan normalmente y no crean registros pendientes de WhatsApp. Esto permite
+operar un ambiente sin integración activa y evita enviar eventos históricos al
+habilitarla posteriormente.
+
 Los aprobadores se resuelven por rol, acceso activo al proyecto y línea de
 negocio de la solicitud. Las devoluciones de nivel 2 se dirigen al aprobador de
 nivel 1 que atendió la solicitud; las devoluciones al solicitante utilizan el
