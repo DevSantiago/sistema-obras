@@ -1688,7 +1688,9 @@ Los registros `FALLIDA` se vuelven a intentar después del intervalo configurado
 hasta `WHATSAPP_MAX_ATTEMPTS`. Los registros confirmados con identificador de
 Meta no vuelven a seleccionarse.
 
-Las plantillas funcionales reciben parámetros nombrados: `numero_solicitud`,
-`proyecto`, `beneficiario`, `valor`, `estado` y `enlace`. La transición a
-`PROGRAMADA_PAGO` utiliza `WHATSAPP_TEMPLATE_PROGRAMADA_PAGO` y se dirige a los
-usuarios activos con rol `PAGOS`.
+Las plantillas funcionales reciben `destinatario` en el encabezado y parámetros
+nombrados en el cuerpo. Todas incluyen `numero_solicitud`, `proyecto`,
+`beneficiario`, `valor` y `estado`; las devoluciones y pagos agregan los nombres
+de los aprobadores requeridos. La transición a `PROGRAMADA_PAGO` utiliza
+`WHATSAPP_TEMPLATE_PROGRAMADA_PAGO` y se dirige a usuarios activos con rol
+`PAGOS`.

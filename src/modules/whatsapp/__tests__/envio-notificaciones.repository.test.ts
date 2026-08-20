@@ -60,10 +60,12 @@ describe("envio-notificaciones.repository", () => {
     const reclamada = await reclamarNotificacionRepository(
       {
         id: "notificacion-1",
+        destinatario_nombre: "Aprobador Uno",
         telefono_destinatario: "573001111111",
         plantilla: "aprobacion_nivel_1",
         idioma: "es_CO",
         contenido: {},
+        estado_destino: "PENDIENTE_APROBADOR_1",
         estado: "PENDIENTE",
         intentos: 0,
         actualizado_en: actualizadoEn,
@@ -96,10 +98,12 @@ describe("envio-notificaciones.repository", () => {
     const reclamada = await reclamarNotificacionRepository(
       {
         id: "notificacion-1",
+        destinatario_nombre: "Aprobador Uno",
         telefono_destinatario: "573001111111",
         plantilla: "aprobacion_nivel_1",
         idioma: "es_CO",
         contenido: {},
+        estado_destino: "PENDIENTE_APROBADOR_1",
         estado: "PENDIENTE",
         intentos: 0,
         actualizado_en: new Date(),

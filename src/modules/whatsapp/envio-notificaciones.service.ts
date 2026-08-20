@@ -94,7 +94,7 @@ function construirPlantilla(notificacion: NotificacionWhatsAppPendiente) {
     name: string;
     language: { code: string };
     components?: Array<{
-      type: "body";
+      type: "header" | "body";
       parameters: Array<{
         type: "text";
         parameter_name: string;
@@ -105,7 +105,7 @@ function construirPlantilla(notificacion: NotificacionWhatsAppPendiente) {
 
   if (notificacion.plantilla !== "hello_world") {
     const contenido = obtenerContenido(notificacion);
-    const valores = [
+    const valores: Array<[string, Prisma.JsonValue | string]> = [
       ["numero_solicitud", contenido.numero_solicitud],
       ["proyecto", contenido.proyecto],
       ["beneficiario", contenido.beneficiario],
@@ -121,10 +121,34 @@ function construirPlantilla(notificacion: NotificacionWhatsAppPendiente) {
         "estado",
         String(contenido.estado_nuevo ?? "").replaceAll("_", " "),
       ],
-      ["enlace", contenido.enlace],
     ];
 
+    if (notificacion.estado_destino === "DEVUELTA_APROBADOR_1") {
+      valores.unshift(["aprobador_dos", contenido.aprobador_dos]);
+    }
+
+    if (notificacion.estado_destino === "DEVUELTA_SOLICITANTE") {
+      valores.unshift(["aprobador_uno", contenido.aprobador_uno]);
+    }
+
+    if (notificacion.estado_destino === "PROGRAMADA_PAGO") {
+      valores.unshift(
+        ["aprobador_dos", contenido.aprobador_dos],
+        ["aprobador_uno", contenido.aprobador_uno],
+      );
+    }
+
     plantilla.components = [
+      {
+        type: "header",
+        parameters: [
+          {
+            type: "text",
+            parameter_name: "destinatario",
+            text: notificacion.destinatario_nombre,
+          },
+        ],
+      },
       {
         type: "body",
         parameters: valores.map(([nombre, valor]) => ({

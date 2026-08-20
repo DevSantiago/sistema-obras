@@ -485,8 +485,10 @@ La tarea procesa lotes pequeños, recupera registros que permanezcan en
 `ENVIANDO` después del tiempo límite y reintenta estados `FALLIDA` sin bloquear
 el flujo de aprobaciones.
 
-Las plantillas funcionales definen seis parámetros de cuerpo con nombre:
-`numero_solicitud`, `proyecto`, `beneficiario`, `valor`, `estado` y `enlace`.
+Todas las plantillas funcionales reciben `destinatario` en el encabezado y los
+parámetros de cuerpo `numero_solicitud`, `proyecto`, `beneficiario`, `valor` y
+`estado`. Las devoluciones agregan `aprobador_uno` o `aprobador_dos` según el
+origen, y la plantilla de pagos incluye ambos. Los botones utilizan URL estática.
 La plantilla de prueba estándar `hello_world` se envía sin parámetros.
 
 El webhook de staging es:
