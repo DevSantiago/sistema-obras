@@ -5,6 +5,10 @@
 Continuar la Épica 19 enviando de forma asíncrona las notificaciones pendientes
 sin bloquear el flujo de aprobación.
 
+Antes de iniciar HU-1905 se ajustan las plantillas funcionales con parámetros
+nombrados y se incorpora la notificación al rol `PAGOS` cuando una solicitud
+queda `PROGRAMADA_PAGO`.
+
 ---
 
 ## Alcance autorizado

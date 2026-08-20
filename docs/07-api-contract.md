@@ -1687,3 +1687,8 @@ inválido responde `401` y una configuración incompleta responde `503`.
 Los registros `FALLIDA` se vuelven a intentar después del intervalo configurado
 hasta `WHATSAPP_MAX_ATTEMPTS`. Los registros confirmados con identificador de
 Meta no vuelven a seleccionarse.
+
+Las plantillas funcionales reciben parámetros nombrados: `numero_solicitud`,
+`proyecto`, `beneficiario`, `valor`, `estado` y `enlace`. La transición a
+`PROGRAMADA_PAGO` utiliza `WHATSAPP_TEMPLATE_PROGRAMADA_PAGO` y se dirige a los
+usuarios activos con rol `PAGOS`.

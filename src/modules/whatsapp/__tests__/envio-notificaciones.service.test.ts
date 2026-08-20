@@ -88,6 +88,22 @@ describe("envio-notificaciones.service", () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.to).toBe("573001111111");
     expect(body.template.components[0].parameters).toHaveLength(6);
+    expect(body.template.components[0].parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          parameter_name: "numero_solicitud",
+          text: "SOL-2026-000001",
+        }),
+        expect.objectContaining({
+          parameter_name: "valor",
+          text: expect.stringContaining("250.000"),
+        }),
+        expect.objectContaining({
+          parameter_name: "estado",
+          text: "PENDIENTE APROBADOR 1",
+        }),
+      ]),
+    );
     expect(marcarNotificacionEnviadaRepository).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "notificacion-1",

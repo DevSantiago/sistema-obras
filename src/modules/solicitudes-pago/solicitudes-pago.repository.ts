@@ -1006,6 +1006,18 @@ export async function aprobarSolicitudesNivel2Repository(
       cantidadActualizada += resultado.count;
     }
 
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: solicitudIds.map((solicitudId) => ({
+          solicitudId,
+          estadoOrigen: "PENDIENTE_APROBADOR_2" as const,
+          estadoDestino: "PROGRAMADA_PAGO" as const,
+        })),
+        fecha: fechaAprobacion,
+      },
+      tx,
+    );
+
     return {
       count: cantidadActualizada,
     };

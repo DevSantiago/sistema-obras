@@ -95,26 +95,41 @@ function construirPlantilla(notificacion: NotificacionWhatsAppPendiente) {
     language: { code: string };
     components?: Array<{
       type: "body";
-      parameters: Array<{ type: "text"; text: string }>;
+      parameters: Array<{
+        type: "text";
+        parameter_name: string;
+        text: string;
+      }>;
     }>;
   };
 
   if (notificacion.plantilla !== "hello_world") {
     const contenido = obtenerContenido(notificacion);
     const valores = [
-      contenido.numero_solicitud,
-      contenido.proyecto,
-      contenido.beneficiario,
-      contenido.valor,
-      contenido.estado_nuevo,
-      contenido.enlace,
+      ["numero_solicitud", contenido.numero_solicitud],
+      ["proyecto", contenido.proyecto],
+      ["beneficiario", contenido.beneficiario],
+      [
+        "valor",
+        new Intl.NumberFormat("es-CO", {
+          style: "currency",
+          currency: "COP",
+          maximumFractionDigits: 0,
+        }).format(Number(contenido.valor ?? 0)),
+      ],
+      [
+        "estado",
+        String(contenido.estado_nuevo ?? "").replaceAll("_", " "),
+      ],
+      ["enlace", contenido.enlace],
     ];
 
     plantilla.components = [
       {
         type: "body",
-        parameters: valores.map((valor) => ({
+        parameters: valores.map(([nombre, valor]) => ({
           type: "text" as const,
+          parameter_name: String(nombre),
           text: String(valor ?? ""),
         })),
       },

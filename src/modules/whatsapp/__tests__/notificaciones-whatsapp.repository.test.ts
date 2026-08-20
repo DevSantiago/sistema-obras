@@ -38,6 +38,8 @@ describe("notificaciones-whatsapp.repository", () => {
   });
 
   afterEach(() => {
+    delete process.env.WHATSAPP_TEMPLATE_PROGRAMADA_PAGO;
+
     if (appBaseUrlOriginal === undefined) {
       delete process.env.APP_BASE_URL;
     } else {
@@ -155,6 +157,44 @@ describe("notificaciones-whatsapp.repository", () => {
     expect(tx.usuarios.findMany).toHaveBeenCalledWith({
       where: { id: "aprobador-1", estado: "ACTIVO" },
       select: { id: true, nombre: true, telefono: true },
+    });
+  });
+
+  it("notifica a los usuarios activos con rol PAGOS cuando queda programada", async () => {
+    process.env.WHATSAPP_TEMPLATE_PROGRAMADA_PAGO = "solicitud_programada_pago";
+    const tx = crearTransaccionMock();
+    tx.usuarios.findMany.mockResolvedValue([
+      { id: "pagos-1", nombre: "Usuario Pagos", telefono: "3002222222" },
+    ]);
+
+    await crearNotificacionesTransicionesRepository(
+      {
+        transiciones: [
+          {
+            solicitudId: "solicitud-1",
+            estadoOrigen: "PENDIENTE_APROBADOR_2",
+            estadoDestino: "PROGRAMADA_PAGO",
+          },
+        ],
+        fecha: new Date(),
+      },
+      tx as never,
+    );
+
+    expect(tx.usuarios.findMany).toHaveBeenCalledWith({
+      where: {
+        estado: "ACTIVO",
+        roles: { some: { rol: { nombre: "PAGOS", activo: true } } },
+      },
+      select: { id: true, nombre: true, telefono: true },
+    });
+    expect(
+      tx.notificaciones_whatsapp.createMany.mock.calls[0][0].data[0],
+    ).toMatchObject({
+      tipo_evento: "SOLICITUD_PROGRAMADA_PAGO",
+      estado_destino: "PROGRAMADA_PAGO",
+      plantilla: "solicitud_programada_pago",
+      contenido: { enlace: "https://stg.dimensiones.cloud/pagos" },
     });
   });
 
