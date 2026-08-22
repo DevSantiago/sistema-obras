@@ -21,6 +21,7 @@ import type {
   ServiceResponse,
   UsuarioListado,
 } from "./usuarios.types";
+import { esCorreoPermitido } from "./usuarios.constants";
 
 const LINEAS_NEGOCIO_VALIDAS: LineaNegocioAcceso[] = [
   "OBRA",
@@ -244,13 +245,20 @@ export async function crearUsuario(
     rol,
   } = input;
 
-  if (!tipo_documento || !numero_documento || !nombre || !correo || !password) {
+  if (
+    !tipo_documento ||
+    !numero_documento ||
+    !nombre ||
+    !correo ||
+    !telefono?.trim() ||
+    !password
+  ) {
     return {
       status: 400,
       body: {
         ok: false,
         message:
-          "Tipo de documento, número de documento, nombre, correo y contraseña son obligatorios.",
+          "Tipo de documento, número de documento, nombre, correo, teléfono y contraseña son obligatorios.",
       },
     };
   }
@@ -261,6 +269,27 @@ export async function crearUsuario(
       body: {
         ok: false,
         message: "Debe asignar un rol al usuario.",
+      },
+    };
+  }
+
+  if (!esCorreoPermitido(correo)) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Ingrese un correo válido de un proveedor permitido.",
+      },
+    };
+  }
+
+  if (!/^3\d{9}$/.test(telefono.trim())) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message:
+          "El número de celular debe tener 10 dígitos y comenzar por 3.",
       },
     };
   }
@@ -376,7 +405,7 @@ export async function crearUsuario(
     numero_documento: documentoNormalizado,
     nombre: nombre.trim(),
     correo: correoNormalizado,
-    telefono: telefono?.trim() || null,
+    telefono: telefono.trim(),
     password_hash: passwordHash,
     estado: estadoUsuario,
     rol_id: rolEncontrado.id,
