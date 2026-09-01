@@ -200,7 +200,7 @@ function crearInputUsuario(
     tipo_documento: "CC",
     numero_documento: "1000000001",
     nombre: "Usuario Nuevo",
-    correo: "nuevo@test.com",
+    correo: "nuevo@gmail.com",
     telefono: "3001234567",
     password: "Usuario123*",
     estado: "ACTIVO",
@@ -285,6 +285,69 @@ describe("usuarios.service - crearUsuario", () => {
 
     expect(resultado.status).toBe(400);
     expect(resultado.body.message).toContain("son obligatorios");
+  });
+
+  it("debe exigir el teléfono al crear un usuario", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ telefono: "   " }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toContain("teléfono");
+    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar un número de celular con formato inválido", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ telefono: "305" }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "El número de celular debe tener 10 dígitos y comenzar por 3.",
+    );
+    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar letras en el número de celular", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ telefono: "30574A8956" }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "El número de celular debe tener 10 dígitos y comenzar por 3.",
+    );
+    expect(crearUsuarioEnBD).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar un correo con dominio no permitido", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ correo: "usuario@dominio-inventado.com" }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "Ingrese un correo válido de un proveedor permitido.",
+    );
+    expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar un correo sin formato válido", async () => {
+    const resultado = await crearUsuario(
+      usuarioAdministrador,
+      crearInputUsuario({ correo: "usuario.gmail.com" }),
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "Ingrese un correo válido de un proveedor permitido.",
+    );
+    expect(buscarUsuarioPorCorreo).not.toHaveBeenCalled();
   });
 
   it("debe exigir un único rol", async () => {
@@ -438,7 +501,7 @@ describe("usuarios.service - crearUsuario", () => {
       usuarioAdministrador,
       crearInputUsuario({
         nombre: "  Usuario Nuevo  ",
-        correo: "  NUEVO@TEST.COM  ",
+        correo: "  NUEVO@GMAIL.COM  ",
         rol: " solicitante ",
       }),
     );
@@ -449,7 +512,7 @@ describe("usuarios.service - crearUsuario", () => {
       tipo_documento: "CC",
       numero_documento: "1000000001",
       nombre: "Usuario Nuevo",
-      correo: "nuevo@test.com",
+      correo: "nuevo@gmail.com",
       telefono: "3001234567",
       password_hash: "hash-generado",
       estado: "ACTIVO",

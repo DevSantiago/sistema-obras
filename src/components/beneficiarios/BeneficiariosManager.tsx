@@ -4,6 +4,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { formatearNombrePropio } from "@/lib/text-format";
 import { BANCOS_COLOMBIA } from "@/modules/beneficiarios/bancos.constants";
 import type {
   BeneficiarioListado,
@@ -814,7 +815,7 @@ export function BeneficiariosManager({
                     <tr key={beneficiario.id}>
                       <td>
                         <strong className={styles.beneficiaryName}>
-                          {beneficiario.nombre}
+                          {formatearNombrePropio(beneficiario.nombre)}
                         </strong>
 
                         <span className={styles.document}>
@@ -878,7 +879,7 @@ export function BeneficiariosManager({
                 >
                   <div className={styles.mobileHeader}>
                     <div>
-                      <h3>{beneficiario.nombre}</h3>
+                      <h3>{formatearNombrePropio(beneficiario.nombre)}</h3>
 
                       <p>
                         {beneficiario.tipo_documento}{" "}

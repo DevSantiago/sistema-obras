@@ -11,6 +11,7 @@ import {
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import { CATEGORIAS_GASTO, MEDIOS_PAGO } from "@/components/solicitudes-pago/solicitudes-pago.utils";
 import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
+import { formatearNombrePropio } from "@/lib/text-format";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import styles from "./AprobacionesManager.module.css";
 
@@ -192,7 +193,7 @@ export default function EdicionAprobadorNivel1Form({
                 <option value="">Seleccionar</option>
                 {beneficiariosPermitidos.map((beneficiario) => (
                   <option key={beneficiario.id} value={beneficiario.id}>
-                    {beneficiario.nombre} · {beneficiario.numero_documento ?? "Sin documento"}
+                    {formatearNombrePropio(beneficiario.nombre)} · {beneficiario.numero_documento ?? "Sin documento"}
                   </option>
                 ))}
               </select>

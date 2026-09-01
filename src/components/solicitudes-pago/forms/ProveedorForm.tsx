@@ -1,5 +1,6 @@
 "use client";
 import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
+import { formatearNombrePropio } from "@/lib/text-format";
 import type { CrearSolicitudProveedorPayload } from "@/components/solicitudes-pago/solicitudes-pago.types";
 import type {
   SolicitudPagoListado,
@@ -442,7 +443,7 @@ export default function ProveedorForm({
                             disabled={guardando}
                           >
                             <strong className={styles.comboboxOptionName}>
-                              {beneficiario.nombre}
+                              {formatearNombrePropio(beneficiario.nombre)}
                             </strong>
 
                             <span className={styles.comboboxOptionDocument}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatearNombrePropio } from "@/lib/text-format";
 import type { PrestamoPendiente } from "@/modules/prestamos/prestamos.types";
 import { formatearValorEntrada } from "@/components/solicitudes-pago/solicitudes-pago.utils";
 import styles from "./PrestamoForm.module.css";
@@ -140,9 +141,9 @@ export default function DevolucionPrestamoForm() {
             <option value="">Seleccione un préstamo</option>
             {prestamos.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.referencia_sistema} ·{" "}
-                {item.tipo_prestamo === "PERSONA_A_PROYECTO"
-                  ? `${item.acreedor_nombre} → ${item.proyecto_destino_nombre}`
+                  {item.referencia_sistema} ·{" "}
+                  {item.tipo_prestamo === "PERSONA_A_PROYECTO"
+                    ? `${item.acreedor_nombre ? formatearNombrePropio(item.acreedor_nombre) : "Persona acreedora"} → ${item.proyecto_destino_nombre}`
                   : `${item.proyecto_origen_nombre} → ${item.proyecto_destino_nombre}`}
                 {" · Pendiente "}
                 {item.saldo_pendiente.toLocaleString("es-CO")}
@@ -172,6 +173,8 @@ export default function DevolucionPrestamoForm() {
               <strong>
                 {prestamo.tipo_prestamo === "PERSONA_A_PROYECTO"
                   ? prestamo.acreedor_nombre
+                    ? formatearNombrePropio(prestamo.acreedor_nombre)
+                    : "Persona acreedora"
                   : prestamo.proyecto_origen_nombre}
               </strong>
             </div>

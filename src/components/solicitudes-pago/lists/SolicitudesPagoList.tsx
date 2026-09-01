@@ -2,6 +2,7 @@ import type {
   SolicitudPagoListado,
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
+import { formatearNombrePropio } from "@/lib/text-format";
 import { useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
@@ -294,7 +295,9 @@ export default function SolicitudesPagoList({
 
                       <td>
                         <strong className={styles.primaryText}>
-                          {solicitud.beneficiario?.nombre ?? "Sin beneficiario"}
+                          {solicitud.beneficiario?.nombre
+                            ? formatearNombrePropio(solicitud.beneficiario.nombre)
+                            : "Sin beneficiario"}
                         </strong>
 
                         <span className={styles.muted}>
@@ -446,7 +449,9 @@ export default function SolicitudesPagoList({
                     <div>
                       <dt>Beneficiario</dt>
                       <dd>
-                        {solicitud.beneficiario?.nombre ?? "Sin beneficiario"}
+                        {solicitud.beneficiario?.nombre
+                          ? formatearNombrePropio(solicitud.beneficiario.nombre)
+                          : "Sin beneficiario"}
                       </dd>
                     </div>
 
