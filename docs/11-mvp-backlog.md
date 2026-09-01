@@ -630,6 +630,9 @@ Criterios:
 - Permite medio de pago preferido.
 - Permite datos bancarios.
 - Permite dejar usuario asociado como nulo.
+- Permite al rol `AUXILIAR_CONTABLE` acceder al módulo y crear beneficiarios.
+- Presenta los nombres con capitalización legible sin alterar su forma canónica
+  en base de datos.
 - Registra auditoría.
 
 ### HU-0402. Editar beneficiario
@@ -769,11 +772,11 @@ Criterios:
 
 ### HU-0603. Crear solicitud de nómina individual
 
-Como Director, quiero crear una solicitud de nómina individual, para pagar a un trabajador de un proyecto.
+Como Director o Aprobador nivel 1 autorizado, quiero crear una solicitud de nómina individual, para pagar a un trabajador de un proyecto.
 
 Criterios:
 
-- Operativamente, `DIRECTOR` crea y administra esta solicitud de nómina.
+- Operativamente, `DIRECTOR` y `APROBADOR_1` crean y administran esta solicitud de nómina cuando tienen `CREAR_SOLICITUDES`.
 - `ADMINISTRADOR`, como superadministrador, conserva acceso transversal al módulo.
 - Tipo `PAGO_NOMINA`.
 - Modalidad `INDIVIDUAL`.
@@ -789,11 +792,11 @@ Criterios:
 
 ### HU-0604. Crear solicitud de nómina agrupada por Excel
 
-Como Director, quiero cargar nómina agrupada, para pagar varios trabajadores de un proyecto asignado.
+Como Director o Aprobador nivel 1 autorizado, quiero cargar nómina agrupada, para pagar varios trabajadores de un proyecto asignado.
 
 Criterios:
 
-- Operativamente, `DIRECTOR` crea y administra esta solicitud de nómina.
+- Operativamente, `DIRECTOR` y `APROBADOR_1` crean y administran esta solicitud de nómina cuando tienen `CREAR_SOLICITUDES`.
 - `ADMINISTRADOR`, como superadministrador, conserva acceso transversal al módulo.
 - Modalidad `AGRUPADA_EXCEL`.
 - Registra periodo de nómina mediante un selector con los meses disponibles del año vigente hasta el mes actual.

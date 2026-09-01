@@ -59,6 +59,16 @@ const usuarioAdministrador: UsuarioSesion = {
   permisos: ["CONSULTAR_TODO"],
 };
 
+const usuarioAprobador1: UsuarioSesion = {
+  id: "aprobador-1",
+  nombre: "Aprobador 1",
+  correo: "aprobador1@test.com",
+  telefono: null,
+  estado: "ACTIVO",
+  roles: ["APROBADOR_1"],
+  permisos: ["APROBAR_NIVEL_1", "CREAR_SOLICITUDES"],
+};
+
 const usuarioSinPermiso: UsuarioSesion = {
   id: "usuario-1",
   nombre: "Usuario",
@@ -621,6 +631,30 @@ describe("nomina-grupal.service - creación", () => {
     );
     expect(resultado.body.data?.solicitud.modalidad_nomina).toBe(
       "AGRUPADA_EXCEL",
+    );
+  });
+
+  it("debe permitir al aprobador nivel 1 crear nómina grupal", async () => {
+    configurarContextoValido();
+    vi.mocked(obtenerAdjuntoNominaGrupalPorIdRepository).mockResolvedValue({
+      ...adjuntoMock,
+      subido_por: "aprobador-1",
+    } as never);
+    vi.mocked(crearSolicitudNominaGrupalRepository).mockResolvedValue({
+      solicitud: solicitudCreadaMock(),
+      beneficiarios_creados: [],
+    } as never);
+
+    const resultado = await crearNominaGrupalService(
+      usuarioAprobador1,
+      inputBase,
+    );
+
+    expect(resultado.status).toBe(201);
+    expect(crearSolicitudNominaGrupalRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creado_por: "aprobador-1",
+      }),
     );
   });
 

@@ -6,6 +6,7 @@ import type {
   SolicitudPagoFormularioState,
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
+import { formatearNombrePropio } from "@/lib/text-format";
 
 export type ValoresSolicitudPago = {
   valorBruto: number;
@@ -218,10 +219,11 @@ export function obtenerEtiquetaBeneficiario(
   beneficiario: BeneficiarioSolicitudCatalogo,
 ): string {
   const documento = obtenerDocumentoBeneficiario(beneficiario);
+  const nombre = formatearNombrePropio(beneficiario.nombre);
 
   return documento
-    ? `${beneficiario.nombre} · ${documento}`
-    : beneficiario.nombre;
+    ? `${nombre} · ${documento}`
+    : nombre;
 }
 
 export function buscarBeneficiarioPorEtiqueta(

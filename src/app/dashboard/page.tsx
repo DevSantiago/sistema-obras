@@ -1,4 +1,5 @@
 import { PrivateLayout } from "@/components/layout/PrivateLayout";
+import { formatearNombrePropio } from "@/lib/text-format";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -22,15 +23,17 @@ export default async function DashboardPage() {
         <p className={styles.eyebrow}>Panel principal</p>
         <h1 className={styles.title}>Dashboard</h1>
         <p className={styles.description}>
-          Bienvenido, {usuario.nombre}. Desde este panel podrá acceder a los
-          módulos principales del sistema.
+          Bienvenido, {formatearNombrePropio(usuario.nombre)}. Desde este panel
+          podrá acceder a los módulos principales del sistema.
         </p>
       </section>
 
       <section className={styles.grid}>
         <article className={styles.card}>
           <p className={styles.cardLabel}>Usuario</p>
-          <h2 className={styles.cardValue}>{usuario.nombre}</h2>
+          <h2 className={styles.cardValue}>
+            {formatearNombrePropio(usuario.nombre)}
+          </h2>
           <p className={styles.cardText}>{usuario.correo}</p>
         </article>
 

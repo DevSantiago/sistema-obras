@@ -1,5 +1,6 @@
 "use client";
 
+import { formatearNombrePropio } from "@/lib/text-format";
 import type {
   BeneficiariosSolicitudResponseData,
   BeneficiarioSolicitudCatalogo,
@@ -99,7 +100,8 @@ function usuarioPuedeCrearNomina(
   }
 
   return (
-    usuario.roles.includes("DIRECTOR") &&
+    (usuario.roles.includes("DIRECTOR") ||
+      usuario.roles.includes("APROBADOR_1")) &&
     usuarioTienePermiso(usuario, "CREAR_SOLICITUDES")
   );
 }
@@ -1024,7 +1026,7 @@ export default function SolicitudesPagoManager({
               <dl className={styles.detailGrid}>
                 <div><dt>Proyecto</dt><dd>{solicitudDetalle.proyecto_base?.nombre ?? "—"}</dd></div>
                 <div><dt>Centro de costo</dt><dd>{solicitudDetalle.centro_costo?.nombre ?? "—"}</dd></div>
-                <div><dt>Beneficiario</dt><dd>{solicitudDetalle.beneficiario?.nombre ?? "—"}</dd></div>
+                <div><dt>Beneficiario</dt><dd>{solicitudDetalle.beneficiario?.nombre ? formatearNombrePropio(solicitudDetalle.beneficiario.nombre) : "—"}</dd></div>
                 <div><dt>Medio de pago</dt><dd>{formatearTextoDominio(solicitudDetalle.medio_pago)}</dd></div>
                 {solicitudDetalle.categoria_gasto ? <div><dt>Categoría</dt><dd>{formatearTextoDominio(solicitudDetalle.categoria_gasto)}</dd></div> : null}
                 {solicitudDetalle.categoria_reembolso ? <div><dt>Categoría</dt><dd>{formatearTextoDominio(solicitudDetalle.categoria_reembolso)}</dd></div> : null}

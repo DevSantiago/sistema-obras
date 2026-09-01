@@ -160,7 +160,7 @@ function usuarioPuedeCrearNominaGrupal(usuario: UsuarioSesion): boolean {
   }
 
   return (
-    usuarioEsDirector(usuario) &&
+    (usuarioEsDirector(usuario) || usuarioTieneRol(usuario, "APROBADOR_1")) &&
     usuarioTienePermiso(usuario, "CREAR_SOLICITUDES")
   );
 }
@@ -744,7 +744,7 @@ export async function validarNominaGrupalService(
       body: {
         ok: false,
         message:
-          "Solo un Director autorizado o un Administrador puede validar solicitudes de nómina grupal.",
+          "Solo un Director, Aprobador nivel 1 autorizado o un Administrador puede validar solicitudes de nómina grupal.",
       },
     };
   }
@@ -909,7 +909,7 @@ export async function crearNominaGrupalService(
       body: {
         ok: false,
         message:
-          "Solo un Director autorizado o un Administrador puede crear solicitudes de nómina grupal.",
+          "Solo un Director, Aprobador nivel 1 autorizado o un Administrador puede crear solicitudes de nómina grupal.",
       },
     };
   }
@@ -1107,7 +1107,7 @@ export async function actualizarNominaGrupalService(
       body: {
         ok: false,
         message:
-          "Solo un Director autorizado o un Administrador puede modificar solicitudes de nómina grupal.",
+          "Solo un Director, Aprobador nivel 1 autorizado o un Administrador puede modificar solicitudes de nómina grupal.",
       },
     };
   }

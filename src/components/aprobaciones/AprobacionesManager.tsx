@@ -1,5 +1,6 @@
 "use client";
 
+import { formatearNombrePropio } from "@/lib/text-format";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import type {
   AprobarSolicitudesNivel1Data,
@@ -940,7 +941,7 @@ const mensajeSinSolicitudes =
                     <dl className={styles.detailGrid}>
                       <div><dt>Proyecto</dt><dd>{solicitudDetalle.proyecto_base?.nombre ?? "—"}</dd></div>
                       <div><dt>Centro de costo</dt><dd>{solicitudDetalle.centro_costo?.nombre ?? "—"}</dd></div>
-                      <div><dt>Beneficiario</dt><dd>{solicitudDetalle.beneficiario?.nombre ?? "—"}</dd></div>
+                      <div><dt>Beneficiario</dt><dd>{solicitudDetalle.beneficiario?.nombre ? formatearNombrePropio(solicitudDetalle.beneficiario.nombre) : "—"}</dd></div>
                       <div><dt>Medio de pago</dt><dd>{solicitudDetalle.medio_pago?.replaceAll("_", " ") ?? "—"}</dd></div>
                       {solicitudDetalle.categoria_gasto ? <div><dt>Categoría de gasto</dt><dd>{solicitudDetalle.categoria_gasto.replaceAll("_", " ")}</dd></div> : null}
                       {solicitudDetalle.categoria_reembolso ? <div><dt>Categoría de reembolso</dt><dd>{solicitudDetalle.categoria_reembolso.replaceAll("_", " ")}</dd></div> : null}
