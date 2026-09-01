@@ -1,6 +1,7 @@
 "use client";
 
 import type { SolicitudPagoListado } from "@/modules/solicitudes-pago/solicitudes-pago.types";
+import { formatearNombrePropio } from "@/lib/text-format";
 import styles from "./AprobacionesManager.module.css";
 
 interface SolicitudesAprobacionListProps {
@@ -163,7 +164,9 @@ export default function SolicitudesAprobacionList({
                 </td>
 
                 <td>
-                  {solicitud.beneficiario?.nombre ?? "—"}
+                  {solicitud.beneficiario?.nombre
+                    ? formatearNombrePropio(solicitud.beneficiario.nombre)
+                    : "—"}
                 </td>
 
                 <td>{solicitud.descripcion}</td>

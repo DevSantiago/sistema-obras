@@ -7,6 +7,7 @@ import type {
   LineaNegocioAcceso,
   UsuarioListado,
 } from "@/modules/usuarios/usuarios.types";
+import { esCorreoPermitido } from "@/modules/usuarios/usuarios.constants";
 import styles from "./UserForm.module.css";
 
 const ROLES_DISPONIBLES = [
@@ -149,6 +150,13 @@ export function UserForm({
 
     if (!rolSeleccionado) {
       setMensajeError("Seleccione un rol para el usuario.");
+      return;
+    }
+
+    if (!esEdicion && !esCorreoPermitido(correo)) {
+      setMensajeError(
+        "Ingrese un correo válido de un proveedor permitido.",
+      );
       return;
     }
 
@@ -300,10 +308,26 @@ export function UserForm({
             <input
               className={styles.input}
               id="telefono"
-              type="text"
+              type="tel"
               value={telefono}
-              onChange={(event) => setTelefono(event.target.value)}
-              placeholder="Opcional"
+              onChange={(event) =>
+                setTelefono(
+                  esEdicion
+                    ? event.target.value
+                    : event.target.value.replace(/\D/g, "").slice(0, 10),
+                )
+              }
+              placeholder={esEdicion ? "Teléfono" : "Ej. 3057418956"}
+              inputMode="numeric"
+              pattern={esEdicion ? undefined : "3[0-9]{9}"}
+              minLength={esEdicion ? undefined : 10}
+              maxLength={esEdicion ? undefined : 10}
+              title={
+                esEdicion
+                  ? undefined
+                  : "Ingrese un número de celular de 10 dígitos que comience por 3."
+              }
+              required={!esEdicion}
             />
           </div>
 

@@ -273,6 +273,7 @@ Su función principal consiste en verificar que la solicitud sea coherente desde
 
 ### Responsabilidades
 
+- Crear cualquier tipo de solicitud de pago habilitado por el sistema.
 - Revisar las solicitudes pendientes de primer nivel.
 - Aprobar, devolver o anular solicitudes pendientes de primer nivel.
 - Registrar observaciones durante el proceso de revisión.
@@ -285,7 +286,8 @@ Su función principal consiste en verificar que la solicitud sea coherente desde
 - Anular una o varias solicitudes en `PENDIENTE_APROBADOR_1`, con motivo
   obligatorio y trazabilidad.
 - Consultar las solicitudes sobre las cuales tenga competencia.
-- Crear solicitudes cuando corresponda.
+- Crear solicitudes de proveedor, nómina individual, nómina agrupada,
+  reembolso e impuestos.
 
 ### Restricciones
 
@@ -340,7 +342,7 @@ Su participación se concentra en los procesos contables y financieros definidos
 ### Permisos principales
 
 - Crear solicitudes cuando corresponda.
-- Gestionar beneficiarios según los permisos asignados.
+- Acceder al módulo de beneficiarios y crear o actualizar sus registros.
 - Registrar operaciones financieras autorizadas para su rol.
 - Registrar anticipos de entidades al fondo general de un proyecto.
 - Registrar préstamos de persona al fondo general de un proyecto.
@@ -431,7 +433,7 @@ No puede:
 | Administrar proyectos | ✓ | Según permisos | Según permisos | — | — | — | — |
 | Gestionar beneficiarios | ✓ | Según permisos | Según permisos | Según permisos | Según permisos | — | ✓ |
 | Crear solicitudes | ✓ | ✓ | ✓ | — | ✓ | — | ✓ |
-| Crear nómina individual y agrupada | Acceso transversal | ✓ | — | — | — | — | — |
+| Crear nómina individual y agrupada | Acceso transversal | ✓ | ✓ | — | — | — | — |
 | Aprobar nivel 1 | ✓ | — | ✓ | — | — | — | — |
 | Aprobar nivel 2 | ✓ | — | — | ✓ | — | — | — |
 | Registrar pagos | ✓ | — | — | — | — | ✓ | — |

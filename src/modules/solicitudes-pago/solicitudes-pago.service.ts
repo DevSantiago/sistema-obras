@@ -341,7 +341,7 @@ function usuarioPuedeCrearNominaIndividual(usuario: UsuarioSesion): boolean {
   }
 
   return (
-    usuarioEsDirector(usuario) &&
+    (usuarioEsDirector(usuario) || usuarioTieneRol(usuario, "APROBADOR_1")) &&
     usuarioTienePermiso(usuario, "CREAR_SOLICITUDES")
   );
 }
@@ -2725,7 +2725,7 @@ export async function crearSolicitudNominaIndividualService(
       body: {
         ok: false,
         message:
-          "Solo un Director autorizado o un Administrador puede crear solicitudes de nómina individual.",
+          "Solo un Director, Aprobador nivel 1 autorizado o un Administrador puede crear solicitudes de nómina individual.",
       },
     };
   }
@@ -2931,7 +2931,7 @@ export async function actualizarSolicitudNominaIndividualService(
       body: {
         ok: false,
         message:
-          "Solo un Director autorizado o un Administrador puede modificar solicitudes de nómina individual.",
+          "Solo un Director, Aprobador nivel 1 autorizado o un Administrador puede modificar solicitudes de nómina individual.",
       },
     };
   }

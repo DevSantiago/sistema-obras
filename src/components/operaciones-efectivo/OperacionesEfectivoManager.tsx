@@ -1,6 +1,7 @@
 "use client";
 
 import SelectorSoporteConCamara from "@/components/adjuntos/SelectorSoporteConCamara";
+import { formatearNombrePropio } from "@/lib/text-format";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ConsultarOperacionesEfectivoData,
@@ -202,7 +203,9 @@ export default function OperacionesEfectivoManager({
         detalle.numero_solicitud ?? "Sin consecutivo",
         detalle.tipo_solicitud,
         `${detalle.centro_costo_codigo} - ${detalle.centro_costo_nombre}`,
-        detalle.beneficiario_nombre ?? "No aplica",
+        detalle.beneficiario_nombre
+          ? formatearNombrePropio(detalle.beneficiario_nombre)
+          : "No aplica",
         operacion.valor_requerido,
         operacion.valor_retirado,
         detalle.valor_pagado,
@@ -648,7 +651,7 @@ export default function OperacionesEfectivoManager({
                     <strong>{MONEDA.format(detalle.valor_pagado)}</strong>
                   </header>
                   <dl>
-                    <div><dt>Beneficiario</dt><dd>{detalle.beneficiario_nombre ?? "No aplica"}</dd></div>
+                    <div><dt>Beneficiario</dt><dd>{detalle.beneficiario_nombre ? formatearNombrePropio(detalle.beneficiario_nombre) : "No aplica"}</dd></div>
                     <div><dt>Centro</dt><dd>{detalle.centro_costo_codigo} · {detalle.centro_costo_nombre}</dd></div>
                     <div><dt>Medio</dt><dd>{detalle.medio_pago}</dd></div>
                     <div><dt>Comprobante</dt><dd>{detalle.numero_comprobante ?? "No aplica"}</dd></div>

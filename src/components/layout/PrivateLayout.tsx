@@ -1,5 +1,6 @@
 "use client";
 
+import { formatearNombrePropio } from "@/lib/text-format";
 import { ChangePasswordButton } from "@/components/auth/ChangePasswordButton";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import Link from "next/link";
@@ -49,6 +50,7 @@ const MENU_ITEMS: MenuItem[] = [
       "DIRECTOR",
       "APROBADOR_1",
       "SOLICITANTE",
+      "AUXILIAR_CONTABLE",
     ],
   },
   {
@@ -185,7 +187,9 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
         </nav>
 
         <div className={styles.sidebarFooter}>
-          <p className={styles.userName}>{usuario.nombre}</p>
+          <p className={styles.userName}>
+            {formatearNombrePropio(usuario.nombre)}
+          </p>
           <p className={styles.userEmail}>{usuario.correo}</p>
 
           <ChangePasswordButton />
@@ -208,7 +212,9 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
 
           <div>
             <p className={styles.topbarLabel}>Sesión activa</p>
-            <p className={styles.topbarUser}>{usuario.nombre}</p>
+            <p className={styles.topbarUser}>
+              {formatearNombrePropio(usuario.nombre)}
+            </p>
           </div>
 
           <div className={styles.roles}>
