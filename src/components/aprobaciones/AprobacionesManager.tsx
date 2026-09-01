@@ -19,6 +19,7 @@ import {
   useState,
 } from "react";
 import SolicitudesAprobacionList from "./SolicitudesAprobacionList";
+import HistorialAprobacionesList from "./HistorialAprobacionesList";
 import EdicionAprobadorNivel1Form from "./EdicionAprobadorNivel1Form";
 import HistorialSolicitud from "@/components/solicitudes-pago/shared/HistorialSolicitud";
 import styles from "./AprobacionesManager.module.css";
@@ -118,6 +119,9 @@ export default function AprobacionesManager({
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [solicitudEdicion, setSolicitudEdicion] =
     useState<SolicitudPagoListado | null>(null);
+  const [historialAprobaciones, setHistorialAprobaciones] = useState<
+    SolicitudPagoListado[]
+  >([]);
 
   const permisoRequerido =
     nivel === 1
@@ -176,6 +180,7 @@ const mensajeSinSolicitudes =
         body.data?.proyectos ?? [];
 
       setProyectos(proyectosPendientes);
+      setHistorialAprobaciones(body.data?.historial ?? []);
       setIdsSeleccionados(new Set());
       setEstadoCarga("LISTO");
     } catch (error) {
@@ -185,6 +190,7 @@ const mensajeSinSolicitudes =
           : "No fue posible consultar las solicitudes pendientes.";
 
       setProyectos([]);
+      setHistorialAprobaciones([]);
       setIdsSeleccionados(new Set());
       setMensajeError(mensaje);
       setEstadoCarga("ERROR");
@@ -1045,6 +1051,13 @@ const mensajeSinSolicitudes =
             </div>
           </>
         )}
+
+      {estadoCarga === "LISTO" ? (
+        <HistorialAprobacionesList
+          solicitudes={historialAprobaciones}
+          nivel={nivel}
+        />
+      ) : null}
     </section>
   );
 }

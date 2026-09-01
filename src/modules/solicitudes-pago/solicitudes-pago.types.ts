@@ -127,6 +127,7 @@ export type ProyectoPendienteAprobacionNivel1 = {
 
 export type ConsultarAprobacionesNivel1Data = {
   proyectos: ProyectoPendienteAprobacionNivel1[];
+  historial: SolicitudPagoListado[];
 };
 
 export type AprobarSolicitudesNivel2Input = {
@@ -207,6 +208,7 @@ export type ProyectoPendienteAprobacionNivel2 = {
 
 export type ConsultarAprobacionesNivel2Data = {
   proyectos: ProyectoPendienteAprobacionNivel2[];
+  historial: SolicitudPagoListado[];
 };
 
 export type CrearSolicitudReembolsoInput = {

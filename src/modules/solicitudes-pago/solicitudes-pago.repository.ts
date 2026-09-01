@@ -531,6 +531,23 @@ export async function listarSolicitudesPagoRepository(input: {
   });
 }
 
+export async function listarSolicitudesAprobadasPorUsuarioRepository(input: {
+  nivel: 1 | 2;
+  usuario_id: string;
+}) {
+  return prisma.solicitudes_pago.findMany({
+    where:
+      input.nivel === 1
+        ? { aprobado_1_por: input.usuario_id }
+        : { aprobado_2_por: input.usuario_id },
+    include: solicitudPagoInclude,
+    orderBy:
+      input.nivel === 1
+        ? { aprobado_1_en: "desc" }
+        : { aprobado_2_en: "desc" },
+  });
+}
+
 export async function obtenerSolicitudPagoPorIdRepository(id: string) {
   return prisma.solicitudes_pago.findUnique({
     where: {
