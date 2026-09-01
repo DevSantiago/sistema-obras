@@ -14,6 +14,7 @@ import {
   crearSolicitudPagoRepository,
   enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
+  listarSolicitudesAprobadasPorUsuarioRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerAccesoActivoUsuarioProyectoRepository,
   obtenerBeneficiarioActivoRepository,
@@ -1921,7 +1922,7 @@ export async function consultarAprobacionesNivel1Service(
   const visibilidad =
     construirVisibilidadSolicitudesPago(usuarioAutenticado);
 
-  const [pendientesNivel1, devueltasDesdeNivel2] = await Promise.all([
+  const [pendientesNivel1, devueltasDesdeNivel2, historial] = await Promise.all([
     listarSolicitudesPagoRepository({
       filters: { estado_actual: "PENDIENTE_APROBADOR_1" },
       visibilidad,
@@ -1929,6 +1930,10 @@ export async function consultarAprobacionesNivel1Service(
     listarSolicitudesPagoRepository({
       filters: { estado_actual: "DEVUELTA_APROBADOR_1" },
       visibilidad,
+    }),
+    listarSolicitudesAprobadasPorUsuarioRepository({
+      nivel: 1,
+      usuario_id: usuarioAutenticado.id,
     }),
   ]);
   const solicitudes = [
@@ -1944,6 +1949,7 @@ export async function consultarAprobacionesNivel1Service(
         message: "No existen solicitudes pendientes.",
         data: {
           proyectos: [],
+          historial: historial.map(convertirSolicitudPago),
         },
       },
     };
@@ -2027,6 +2033,7 @@ export async function consultarAprobacionesNivel1Service(
       message: "Aprobaciones consultadas correctamente.",
       data: {
         proyectos: Array.from(proyectos.values()),
+        historial: historial.map(convertirSolicitudPago),
       },
     },
   };
@@ -2049,14 +2056,19 @@ export async function consultarAprobacionesNivel2Service(
   const visibilidad =
     construirVisibilidadSolicitudesPago(usuarioAutenticado);
 
-  const solicitudes = (
-    await listarSolicitudesPagoRepository({
+  const [solicitudesPendientes, historial] = await Promise.all([
+    listarSolicitudesPagoRepository({
       filters: {
         estado_actual: "PENDIENTE_APROBADOR_2",
       },
       visibilidad,
-    })
-  ).map(convertirSolicitudPago);
+    }),
+    listarSolicitudesAprobadasPorUsuarioRepository({
+      nivel: 2,
+      usuario_id: usuarioAutenticado.id,
+    }),
+  ]);
+  const solicitudes = solicitudesPendientes.map(convertirSolicitudPago);
 
   if (solicitudes.length === 0) {
     return {
@@ -2067,6 +2079,7 @@ export async function consultarAprobacionesNivel2Service(
           "No existen solicitudes pendientes de aprobación en nivel 2.",
         data: {
           proyectos: [],
+          historial: historial.map(convertirSolicitudPago),
         },
       },
     };
@@ -2152,6 +2165,7 @@ export async function consultarAprobacionesNivel2Service(
         "Aprobaciones de nivel 2 consultadas correctamente.",
       data: {
         proyectos: Array.from(proyectos.values()),
+        historial: historial.map(convertirSolicitudPago),
       },
     },
   };
