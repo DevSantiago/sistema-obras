@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import Link from "next/link";
+import { formatearNombrePropio } from "@/lib/text-format";
 import type { BeneficiarioListado } from "@/modules/beneficiarios/beneficiarios.types";
 import styles from "./TerceroSelector.module.css";
 
@@ -13,7 +14,7 @@ type Props = {
 };
 
 function etiquetaTercero(tercero: BeneficiarioListado) {
-  return `${tercero.nombre} · ${tercero.tipo_documento} ${tercero.numero_documento}`;
+  return `${formatearNombrePropio(tercero.nombre)} · ${tercero.tipo_documento} ${tercero.numero_documento}`;
 }
 
 export default function TerceroSelector({
@@ -88,7 +89,7 @@ export default function TerceroSelector({
                     setAbierto(false);
                   }}
                 >
-                  <strong>{tercero.nombre}</strong>
+                  <strong>{formatearNombrePropio(tercero.nombre)}</strong>
                   <span>
                     {tercero.tipo_documento}{" "}
                     {tercero.numero_documento}

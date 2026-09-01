@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { formatearNombrePropio } from "@/lib/text-format";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import {
   actualizarEstadoUsuarioEnBD,
@@ -169,7 +170,7 @@ function convertirUsuarioListado(
     id: usuario.id,
     tipo_documento: usuario.tipo_documento,
     numero_documento: usuario.numero_documento,
-    nombre: usuario.nombre,
+    nombre: formatearNombrePropio(usuario.nombre),
     correo: usuario.correo,
     telefono: usuario.telefono,
     estado: usuario.estado,
@@ -403,7 +404,7 @@ export async function crearUsuario(
   const usuarioCreado = await crearUsuarioEnBD({
     tipo_documento: tipo_documento.trim().toUpperCase(),
     numero_documento: documentoNormalizado,
-    nombre: nombre.trim(),
+    nombre: formatearNombrePropio(nombre),
     correo: correoNormalizado,
     telefono: telefono.trim(),
     password_hash: passwordHash,
@@ -708,7 +709,7 @@ export async function actualizarUsuario(
   }
 
   const usuarioActualizado = await actualizarUsuarioEnBD(id, {
-    nombre: nombre?.trim(),
+    nombre: nombre === undefined ? undefined : formatearNombrePropio(nombre),
     correo: correoNormalizado,
     telefono: telefono === undefined ? undefined : telefono?.trim() || null,
     rol_id: rol === undefined ? undefined : rolEncontrado?.id,

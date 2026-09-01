@@ -143,7 +143,7 @@ const usuarioAprobador1: UsuarioSesion = {
   telefono: null,
   estado: "ACTIVO",
   roles: ["APROBADOR_1"],
-  permisos: ["APROBAR_NIVEL_1"],
+  permisos: ["APROBAR_NIVEL_1", "CREAR_SOLICITUDES"],
 };
 
 const usuarioAuxiliarContable: UsuarioSesion = {
@@ -1398,7 +1398,7 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
 
     expect(resultado.status).toBe(403);
     expect(resultado.body.message).toBe(
-      "Solo un Director autorizado o un Administrador puede crear solicitudes de nómina individual.",
+      "Solo un Director, Aprobador nivel 1 autorizado o un Administrador puede crear solicitudes de nómina individual.",
     );
     expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
   });
@@ -1411,7 +1411,7 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
 
     expect(resultado.status).toBe(403);
     expect(resultado.body.message).toBe(
-      "Solo un Director autorizado o un Administrador puede crear solicitudes de nómina individual.",
+      "Solo un Director, Aprobador nivel 1 autorizado o un Administrador puede crear solicitudes de nómina individual.",
     );
     expect(crearSolicitudPagoRepository).not.toHaveBeenCalled();
   });
@@ -1753,6 +1753,24 @@ describe("solicitudes-pago.service - crearSolicitudNominaIndividualService", () 
       estado_actual: "BORRADOR",
       creado_por: "director-1",
     });
+  });
+
+  it("debe permitir al aprobador nivel 1 crear nómina individual", async () => {
+    prepararMocksNomina();
+
+    const resultado = await crearSolicitudNominaIndividualService(
+      usuarioAprobador1,
+      inputNominaBase,
+    );
+
+    expect(resultado.status).toBe(201);
+    expect(crearSolicitudPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo_solicitud: "PAGO_NOMINA",
+        modalidad_nomina: "INDIVIDUAL",
+        creado_por: "aprobador-1",
+      }),
+    );
   });
 });
 

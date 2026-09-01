@@ -1,6 +1,7 @@
 "use client";
 
 import SelectorSoporteConCamara from "@/components/adjuntos/SelectorSoporteConCamara";
+import { formatearNombrePropio } from "@/lib/text-format";
 import type {
   MedioPagoSolicitud,
   SolicitudProgramadaPago,
@@ -54,15 +55,16 @@ function formatearFecha(valor: string | Date | null | undefined): string {
 }
 
 function obtenerBeneficiario(solicitud: SolicitudProgramadaPago): string {
-  return (
+  const nombre =
     solicitud.beneficiario?.nombre ??
     solicitud.proveedor?.nombre ??
     (solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
       ? "Trabajadores de nómina"
       : solicitud.tipo_solicitud === "PAGO_IMPUESTO"
         ? "Entidad recaudadora"
-        : "—")
-  );
+        : "—");
+
+  return nombre === "—" ? nombre : formatearNombrePropio(nombre);
 }
 
 function obtenerTipo(solicitud: SolicitudProgramadaPago): string {

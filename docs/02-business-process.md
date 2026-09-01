@@ -522,6 +522,17 @@ Los beneficiarios administrados por el sistema podrán clasificarse como:
 
 El sistema validará las reglas correspondientes para cada tipo de beneficiario, incluyendo restricciones sobre el tipo de documento permitido, unicidad del documento de identificación, normalización de la información registrada y control de beneficiarios activos e inactivos.
 
+La normalización se aplica según la naturaleza de cada campo: nombres, bancos y
+códigos se conservan en una forma canónica en mayúsculas; los correos se
+almacenan en minúsculas; teléfonos, documentos y cuentas mantienen su valor
+numérico; y los textos libres eliminan espacios sobrantes sin alterar su
+contenido. En la interfaz, los nombres se presentan con capitalización legible
+sin modificar el valor persistido ni perder siglas empresariales.
+
+Los roles `ADMINISTRADOR`, `DIRECTOR`, `APROBADOR_1`, `SOLICITANTE` y
+`AUXILIAR_CONTABLE` pueden acceder al módulo y gestionar beneficiarios cuando
+cuenten con el permiso operativo correspondiente.
+
 Cuando un beneficiario previamente inactivo sea registrado nuevamente con la misma identificación, el sistema podrá reactivarlo conservando su historial.
 
 Todo pago realizado por el sistema debe tener asociado un beneficiario.
@@ -1126,6 +1137,12 @@ El sistema soporta dos modalidades de solicitudes de nómina:
 Las solicitudes de nómina individual corresponden al pago de un único trabajador.
 
 Las solicitudes de nómina grupal permiten registrar múltiples trabajadores mediante la carga de una plantilla en formato Excel, la cual constituye el documento origen de la solicitud.
+
+`DIRECTOR`, `APROBADOR_1` y `ADMINISTRADOR` pueden crear solicitudes de
+nómina individual y grupal cuando cuenten con el permiso
+`CREAR_SOLICITUDES`. El `APROBADOR_1` puede crear además todos los demás tipos
+de solicitud habilitados por el sistema, sin que esto altere su responsabilidad
+en el flujo de aprobación de primer nivel.
 
 Cada solicitud registra el período de nómina correspondiente y los conceptos asociados definidos por las reglas de negocio implementadas por el sistema.
 
