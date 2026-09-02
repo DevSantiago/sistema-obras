@@ -36,6 +36,8 @@ jobs:
           cache: npm
 
       - name: Run automated tests
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
         run: |
           npm ci
           npx prisma generate
