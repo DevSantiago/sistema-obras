@@ -75,10 +75,19 @@ jobs:
           VPS_PORT: ${{ secrets.VPS_PORT }}
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
         run: |
+          test -n "$VPS_HOST"
+          [[ "$VPS_PORT" =~ ^[0-9]+$ ]]
+          test -n "$VPS_SSH_PRIVATE_KEY"
           install -m 700 -d ~/.ssh
           printf '%s\n' "$VPS_SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null
+          host_key='AAAAC3NzaC1lZDI1NTE5AAAAIHBmspSbKLErZbEEaKJ4/StJwAid4YVJ+UWR3MOFFf+u'
+          printf '%s ssh-ed25519 %s\n[%s]:%s ssh-ed25519 %s\n' \
+            "$VPS_HOST" "$host_key" \
+            "$VPS_HOST" "$VPS_PORT" "$host_key" \
+            > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Transfer deployment files
         env:
