@@ -19,7 +19,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sistema-obras:${APP_VERSION:-latest}
+    image: ${STG_IMAGE:-sistema-obras:${APP_VERSION:-latest}}
     restart: unless-stopped
     env_file:
       - deploy/env/stg.env
@@ -40,7 +40,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sistema-obras:${APP_VERSION:-latest}
+    image: ${PROD_IMAGE:-sistema-obras:${APP_VERSION:-latest}}
     restart: unless-stopped
     env_file:
       - deploy/env/prod.env

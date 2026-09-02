@@ -904,6 +904,11 @@ Puede visualizar:
 
 Desde la tabla podrá consultar sus solicitudes pendientes de aprobación utilizando el filtro **Pendientes de mi aprobación**.
 
+La bandeja de aprobación nivel 1 incluye una tabla histórica independiente con
+las solicitudes aprobadas por el usuario autenticado en ese nivel. El listado
+muestra el estado actual de cada solicitud aunque posteriormente haya avanzado,
+sido devuelta, anulada o pagada.
+
 No puede visualizar borradores creados por otros usuarios.
 
 ---
@@ -916,6 +921,10 @@ Puede visualizar:
 - solicitudes en estado `PENDIENTE_APROBADOR_2`.
 
 Desde la tabla podrá consultar sus solicitudes pendientes utilizando el filtro **Pendientes de mi aprobación**.
+
+La bandeja de aprobación nivel 2 incluye una tabla histórica independiente con
+las solicitudes aprobadas por el usuario autenticado en ese nivel. Esta tabla no
+mezcla aprobaciones realizadas por otros usuarios.
 
 No participa en las solicitudes que aún no han sido aprobadas por el primer nivel.
 

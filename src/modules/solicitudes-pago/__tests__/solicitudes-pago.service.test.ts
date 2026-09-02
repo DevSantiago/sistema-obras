@@ -15,6 +15,7 @@ import {
   obtenerSolicitudesPagoPorIdsRepository,
   enviarSolicitudPagoRepository,
   listarSolicitudesPagoRepository,
+  listarSolicitudesAprobadasPorUsuarioRepository,
   registrarOperacionEfectivoRepository,
   registrarTransferenciasRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
@@ -47,6 +48,8 @@ import {
   devolverSolicitudesPagoService,
   anularSolicitudesPagoService,
   editarSolicitudAprobadorNivel1Service,
+  consultarAprobacionesNivel1Service,
+  consultarAprobacionesNivel2Service,
 } from "../solicitudes-pago.service";
 
 vi.mock("@/modules/secuencias/secuencias.service", () => ({
@@ -78,6 +81,7 @@ vi.mock("../solicitudes-pago.repository", () => ({
   editarSolicitudAprobadorNivel1Repository: vi.fn(),
   enviarSolicitudPagoRepository: vi.fn(),
   listarSolicitudesPagoRepository: vi.fn(),
+  listarSolicitudesAprobadasPorUsuarioRepository: vi.fn(),
   registrarOperacionEfectivoRepository: vi.fn(),
   registrarTransferenciasRepository: vi.fn(),
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
@@ -483,6 +487,69 @@ const solicitudProveedorBorrador = {
     correo: "solicitante@test.com",
   },
 };
+
+describe("solicitudes-pago.service - historial de aprobaciones", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(listarSolicitudesPagoRepository).mockResolvedValue([]);
+  });
+
+  it("debe listar únicamente las solicitudes aprobadas por el usuario en nivel 1", async () => {
+    vi.mocked(
+      listarSolicitudesAprobadasPorUsuarioRepository,
+    ).mockResolvedValue([
+      {
+        ...solicitudProveedorBorrador,
+        numero_solicitud: "SOL-001",
+        estado_actual: "PAGADA",
+        aprobado_1_por: usuarioAprobador1.id,
+        aprobado_1_en: fechaMock,
+      },
+    ] as never);
+
+    const resultado =
+      await consultarAprobacionesNivel1Service(usuarioAprobador1);
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.historial).toHaveLength(1);
+    expect(resultado.body.data?.historial[0].estado_actual).toBe("PAGADA");
+    expect(
+      listarSolicitudesAprobadasPorUsuarioRepository,
+    ).toHaveBeenCalledWith({
+      nivel: 1,
+      usuario_id: usuarioAprobador1.id,
+    });
+  });
+
+  it("debe listar únicamente las solicitudes aprobadas por el usuario en nivel 2", async () => {
+    vi.mocked(
+      listarSolicitudesAprobadasPorUsuarioRepository,
+    ).mockResolvedValue([
+      {
+        ...solicitudProveedorBorrador,
+        numero_solicitud: "SOL-002",
+        estado_actual: "PROGRAMADA_PAGO",
+        aprobado_2_por: usuarioAprobador2.id,
+        aprobado_2_en: fechaMock,
+      },
+    ] as never);
+
+    const resultado =
+      await consultarAprobacionesNivel2Service(usuarioAprobador2);
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.historial).toHaveLength(1);
+    expect(resultado.body.data?.historial[0].estado_actual).toBe(
+      "PROGRAMADA_PAGO",
+    );
+    expect(
+      listarSolicitudesAprobadasPorUsuarioRepository,
+    ).toHaveBeenCalledWith({
+      nivel: 2,
+      usuario_id: usuarioAprobador2.id,
+    });
+  });
+});
 
 function prepararMocksNomina() {
   vi.mocked(obtenerProyectoBaseActivoRepository).mockResolvedValue(

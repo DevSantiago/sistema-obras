@@ -1144,6 +1144,27 @@ Registrar completamente el historial documental y funcional de las solicitudes d
 
 ---
 
+### HU-0810. Historial personal en bandejas de aprobación
+
+**Estado:** ✅ Terminada
+
+**Descripción**
+
+Permitir que cada aprobador consulte, desde su bandeja de nivel, las solicitudes
+que él mismo aprobó.
+
+**Incluye**
+
+- Tabla independiente del listado de solicitudes pendientes.
+- Historial de nivel 1 filtrado por `aprobado_1_por`.
+- Historial de nivel 2 filtrado por `aprobado_2_por`.
+- Fecha de aprobación correspondiente al nivel.
+- Estado actual de la solicitud.
+- Datos de solicitud, proyecto, centro de costo, beneficiario y valor neto.
+- El historial no incluye aprobaciones realizadas por otros usuarios.
+
+---
+
 ### Flujo funcional de la Épica
 
 ```text

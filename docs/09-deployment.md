@@ -149,6 +149,50 @@ Producción
 
 Cada transición requiere que la versión haya superado las validaciones técnicas y funcionales definidas para el ambiente correspondiente.
 
+## Despliegue automatizado desde GitHub
+
+La publicación en el VPS se ejecuta mediante el workflow
+`.github/workflows/deploy-vps.yml`. Cada imagen se identifica con el SHA exacto
+del commit y se conserva en GitHub Container Registry (`ghcr.io`), evitando
+reconstrucciones manuales o versiones ambiguas en el servidor.
+
+Las ramas y ambientes autorizados son:
+
+| Rama | Ambiente GitHub | Servicio Docker | URL |
+| --- | --- | --- | --- |
+| `stg` | `staging` | `app-stg` | `https://stg.dimensiones.cloud` |
+| `main` | `production` | `app-prod` | `https://dimensiones.cloud` |
+
+El ambiente `production` requiere aprobación manual en GitHub antes de que el
+job reciba acceso a los secretos y continúe. El ambiente `staging` se despliega
+automáticamente después de actualizar la rama `stg`.
+
+El workflow realiza, en orden:
+
+1. ejecución de las pruebas automatizadas;
+2. construcción de la imagen Docker, incluido el build de producción;
+3. publicación de la imagen inmutable en GHCR;
+4. transferencia segura de la imagen y archivos de despliegue al VPS;
+5. ejecución de `prisma migrate deploy` sobre la base del ambiente;
+6. recreación exclusiva del servicio correspondiente;
+7. comprobación de salud interna y del endpoint HTTPS público.
+
+Si el nuevo contenedor no alcanza el estado `healthy`, el script restaura la
+imagen que estaba ejecutándose. Las migraciones deben continuar siendo
+incrementales y compatibles hacia atrás, ya que una reversión de aplicación no
+revierte automáticamente el esquema de base de datos.
+
+Los siguientes secretos se administran como secretos del repositorio y no se
+guardan en el código:
+
+- `VPS_HOST`;
+- `VPS_PORT`;
+- `VPS_USER`;
+- `VPS_SSH_PRIVATE_KEY`.
+
+Las credenciales funcionales, de base de datos, S3 y WhatsApp permanecen
+únicamente en los archivos `deploy/env/stg.env` y `deploy/env/prod.env` del VPS.
+
 ---
 
 # Ambientes
