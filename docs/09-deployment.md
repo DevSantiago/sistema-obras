@@ -192,6 +192,10 @@ guardan en el código:
 
 Las credenciales funcionales, de base de datos, S3 y WhatsApp permanecen
 únicamente en los archivos `deploy/env/stg.env` y `deploy/env/prod.env` del VPS.
+La clave pública `ed25519` del host SSH se encuentra fijada en el workflow para
+validar la identidad del VPS sin depender de una consulta `ssh-keyscan` durante
+cada despliegue. Si el VPS es reinstalado o cambia su clave de host, este valor
+debe actualizarse antes de reactivar los despliegues.
 
 ---
 
