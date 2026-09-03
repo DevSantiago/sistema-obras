@@ -34,6 +34,8 @@ export default function OperacionesEfectivoManager({
   const [operacionDetalle, setOperacionDetalle] =
     useState<OperacionEfectivoConsulta | null>(null);
   const [proyectoId, setProyectoId] = useState("");
+  const [centroCosto, setCentroCosto] = useState("");
+  const [numeroSolicitud, setNumeroSolicitud] = useState("");
   const [fondoId, setFondoId] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
@@ -160,22 +162,56 @@ export default function OperacionesEfectivoManager({
       ),
     [operaciones, proyectoId],
   );
+  const centrosCosto = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          operaciones.flatMap((operacion) =>
+            operacion.detalles.map((detalle) => [
+              `${detalle.centro_costo_codigo}::${detalle.centro_costo_nombre}`,
+              {
+                id: `${detalle.centro_costo_codigo}::${detalle.centro_costo_nombre}`,
+                nombre: `${detalle.centro_costo_codigo} - ${detalle.centro_costo_nombre}`,
+              },
+            ]),
+          ),
+        ).values(),
+      ).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [operaciones],
+  );
+  const operacionesFiltradas = useMemo(() => {
+    const numeroBuscado = numeroSolicitud.trim().toLocaleLowerCase("es");
+
+    return operaciones.filter((operacion) =>
+      operacion.detalles.some((detalle) => {
+        const centroDetalle =
+          `${detalle.centro_costo_codigo}::${detalle.centro_costo_nombre}`;
+        return (
+          (!centroCosto || centroDetalle === centroCosto) &&
+          (!numeroBuscado ||
+            detalle.numero_solicitud
+              ?.toLocaleLowerCase("es")
+              .includes(numeroBuscado))
+        );
+      }),
+    );
+  }, [centroCosto, numeroSolicitud, operaciones]);
   const resumen = useMemo(
     () => ({
-      retiros: operaciones.length,
+      retiros: operacionesFiltradas.length,
       proyectos: new Set(
-        operaciones.map((operacion) => operacion.proyecto_base_id),
+        operacionesFiltradas.map((operacion) => operacion.proyecto_base_id),
       ).size,
       fondos: new Set(
-        operaciones.map((operacion) => operacion.fondo_id),
+        operacionesFiltradas.map((operacion) => operacion.fondo_id),
       ).size,
-      pendiente: operaciones.reduce(
+      pendiente: operacionesFiltradas.reduce(
         (total, operacion) =>
           total + operacion.valor_pendiente_reintegro,
         0,
       ),
     }),
-    [operaciones],
+    [operacionesFiltradas],
   );
 
   function exportarPendientes() {
@@ -195,7 +231,7 @@ export default function OperacionesEfectivoManager({
     ];
     const escapar = (valor: string | number) =>
       `"${String(valor).replaceAll('"', '""')}"`;
-    const filas = operaciones.flatMap((operacion) =>
+    const filas = operacionesFiltradas.flatMap((operacion) =>
       operacion.detalles.map((detalle) => [
         new Date(operacion.fecha_retiro).toLocaleDateString("es-CO"),
         operacion.proyecto_nombre,
@@ -394,18 +430,42 @@ export default function OperacionesEfectivoManager({
     <section className={styles.container}>
       <div className={styles.filters}>
         <label>
+          <span>Número de solicitud</span>
+          <input
+            type="search"
+            value={numeroSolicitud}
+            onChange={(event) => setNumeroSolicitud(event.target.value)}
+            placeholder="Buscar por número"
+          />
+        </label>
+        <label>
           <span>Proyecto</span>
           <select
             value={proyectoId}
             onChange={(event) => {
               setProyectoId(event.target.value);
               setFondoId("");
+              setCentroCosto("");
             }}
           >
             <option value="">Todos los proyectos</option>
             {proyectos.map((proyecto) => (
               <option key={proyecto.id} value={proyecto.id}>
                 {proyecto.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Centro de costo</span>
+          <select
+            value={centroCosto}
+            onChange={(event) => setCentroCosto(event.target.value)}
+          >
+            <option value="">Todos los centros</option>
+            {centrosCosto.map((centro) => (
+              <option key={centro.id} value={centro.id}>
+                {centro.nombre}
               </option>
             ))}
           </select>
@@ -456,7 +516,9 @@ export default function OperacionesEfectivoManager({
         <button
           type="button"
           onClick={() => {
+            setNumeroSolicitud("");
             setProyectoId("");
+            setCentroCosto("");
             setFondoId("");
             setFechaDesde("");
             setFechaHasta("");
@@ -471,7 +533,7 @@ export default function OperacionesEfectivoManager({
 
       {cargando ? (
         <p className={styles.empty}>Consultando retiros...</p>
-      ) : operaciones.length === 0 ? (
+      ) : operacionesFiltradas.length === 0 ? (
         <p className={styles.empty}>
           No existen retiros que coincidan con los filtros.
         </p>
@@ -500,7 +562,7 @@ export default function OperacionesEfectivoManager({
                 </tr>
               </thead>
               <tbody>
-                {operaciones.map((operacion) => (
+                {operacionesFiltradas.map((operacion) => (
                   <tr
                     key={operacion.id}
                     tabIndex={0}
@@ -542,7 +604,7 @@ export default function OperacionesEfectivoManager({
             </table>
           </div>
           <div className={styles.cards}>
-            {operaciones.map((operacion) => (
+            {operacionesFiltradas.map((operacion) => (
               <article key={operacion.id}>
                 <header>
                   <div>
