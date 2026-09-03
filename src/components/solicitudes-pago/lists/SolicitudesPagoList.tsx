@@ -3,6 +3,7 @@ import type {
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import { formatearNombrePropio } from "@/lib/text-format";
+import { descargarTablaPdf } from "@/lib/pdf-export";
 import { useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
@@ -110,6 +111,7 @@ export default function SolicitudesPagoList({
 }: SolicitudesPagoListProps) {
   const [proyectoFiltro, setProyectoFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
+  const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
 
   const proyectosFiltro = useMemo(() => {
     const proyectos = new Map<string, string>();
@@ -139,13 +141,20 @@ export default function SolicitudesPagoList({
   }, [proyectoFiltro, solicitudes]);
 
   const solicitudesFiltradas = useMemo(
-    () =>
-      solicitudes.filter(
+    () => {
+      const numeroBuscado = numeroSolicitudFiltro.trim().toLocaleLowerCase("es");
+
+      return solicitudes.filter(
         (solicitud) =>
+          (!numeroBuscado ||
+            solicitud.numero_solicitud
+              ?.toLocaleLowerCase("es")
+              .includes(numeroBuscado)) &&
           (!proyectoFiltro || solicitud.proyecto_base_id === proyectoFiltro) &&
           (!centroFiltro || solicitud.centro_costo_id === centroFiltro),
-      ),
-    [centroFiltro, proyectoFiltro, solicitudes],
+      );
+    },
+    [centroFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes],
   );
 
   function manejarEnvio(solicitud: SolicitudPagoListado) {
@@ -154,6 +163,30 @@ export default function SolicitudesPagoList({
     }
 
     void onEnviar(solicitud.id);
+  }
+
+  function exportarPdf() {
+    const proyecto = proyectosFiltro.find((opcion) => opcion.id === proyectoFiltro);
+    const centro = centrosFiltro.find((opcion) => opcion.id === centroFiltro);
+    descargarTablaPdf({
+      titulo: "Resumen de solicitudes de pago",
+      nombreArchivo: "solicitudes-filtradas.pdf",
+      filas: solicitudesFiltradas,
+      filtros: [
+        numeroSolicitudFiltro.trim() && `Número: ${numeroSolicitudFiltro.trim()}`,
+        proyecto && `Proyecto: ${proyecto.nombre}`,
+        centro && `Centro de costo: ${centro.nombre}`,
+      ].filter(Boolean) as string[],
+      columnas: [
+        { titulo: "Solicitud", ancho: 18, valor: (fila) => fila.numero_solicitud },
+        { titulo: "Proyecto", ancho: 16, valor: (fila) => fila.proyecto_base?.nombre },
+        { titulo: "Centro de costo", ancho: 16, valor: (fila) => fila.centro_costo?.nombre },
+        { titulo: "Beneficiario", ancho: 17, valor: (fila) => fila.beneficiario?.nombre },
+        { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Estado", ancho: 12, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
+        { titulo: "Valor neto", ancho: 10, valor: (fila) => formatearMoneda(fila.valor_neto) },
+      ],
+    });
   }
 
   return (
@@ -172,6 +205,16 @@ export default function SolicitudesPagoList({
       </div>
 
       <div className={styles.listFilters}>
+        <label>
+          <span>Número de solicitud</span>
+          <input
+            type="search"
+            value={numeroSolicitudFiltro}
+            onChange={(event) => setNumeroSolicitudFiltro(event.target.value)}
+            placeholder="Buscar por número"
+          />
+        </label>
+
         <label>
           <span>Proyecto</span>
           <select
@@ -205,18 +248,29 @@ export default function SolicitudesPagoList({
           </select>
         </label>
 
-        {(proyectoFiltro || centroFiltro) ? (
+        <div className={styles.filterActions}>
+          {(numeroSolicitudFiltro || proyectoFiltro || centroFiltro) ? (
+            <button
+              className={styles.clearFiltersButton}
+              type="button"
+              onClick={() => {
+                setNumeroSolicitudFiltro("");
+                setProyectoFiltro("");
+                setCentroFiltro("");
+              }}
+            >
+              Limpiar filtros
+            </button>
+          ) : null}
           <button
-            className={styles.clearFiltersButton}
+            className={styles.secondaryButton}
             type="button"
-            onClick={() => {
-              setProyectoFiltro("");
-              setCentroFiltro("");
-            }}
+            onClick={exportarPdf}
+            disabled={solicitudesFiltradas.length === 0}
           >
-            Limpiar filtros
+            Exportar PDF ({solicitudesFiltradas.length})
           </button>
-        ) : null}
+        </div>
       </div>
 
       {cargando ? (
