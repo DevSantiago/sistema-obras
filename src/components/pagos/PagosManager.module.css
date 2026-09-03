@@ -139,8 +139,58 @@
 
 .table {
   width: 100%;
-  min-width: 1050px;
+  min-width: 1200px;
   border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.selectionColumn {
+  width: 64px;
+}
+
+.selectionHeader {
+  text-align: center !important;
+}
+
+.selectionHeader input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.table tbody td:first-child {
+  text-align: center;
+}
+
+.requestColumn {
+  width: 170px;
+}
+
+.beneficiaryColumn {
+  width: 170px;
+}
+
+.projectColumn,
+.costCenterColumn {
+  width: 150px;
+}
+
+.typeColumn {
+  width: 130px;
+}
+
+.paymentMethodColumn {
+  width: 115px;
+}
+
+.approvalDateColumn {
+  width: 135px;
+}
+
+.amountColumn {
+  width: 150px;
 }
 
 .table th,
@@ -149,6 +199,13 @@
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.table td strong {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .table th {
@@ -158,10 +215,15 @@
   text-transform: uppercase;
 }
 
-.money {
+.table td.money,
+.amountHeader {
   text-align: right !important;
-  white-space: nowrap;
+  white-space: nowrap !important;
+}
+
+.table td.money {
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .table tfoot td {
@@ -183,7 +245,8 @@
 .totalValue,
 .selectedTotalValue {
   text-align: right !important;
-  white-space: nowrap;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums;
 }
 
 .selectedTotalValue {
