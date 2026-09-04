@@ -549,7 +549,7 @@ Un usuario puede crear solicitudes para múltiples beneficiarios.
 
 Un beneficiario incluso puede no tener usuario asociado.
 
-Los beneficiarios tipo `PROVEEDOR` funcionan además como directorio de contacto y datos de pago. Para crearlos o actualizarlos son obligatorios correo, teléfono, banco, tipo de cuenta, número de cuenta y concepto de pago, incluso si su medio sugerido es efectivo.
+Los beneficiarios tipo `PROVEEDOR` funcionan además como directorio de contacto y datos de pago. Para crearlos o actualizarlos son obligatorios correo, teléfono, banco, tipo de cuenta, número de cuenta o convenio y concepto de pago, incluso si su medio sugerido es efectivo. Los tipos de cuenta permitidos son `AHORROS`, `CORRIENTE`, `CONVENIO` y `OTRO`.
 
 El módulo permite cargar proveedores mediante la plantilla Excel oficial. Antes de confirmar, valida campos, formatos, catálogos y documentos duplicados dentro del archivo o existentes en la base de datos. Solo importa filas válidas y nunca actualiza automáticamente proveedores existentes.
 
