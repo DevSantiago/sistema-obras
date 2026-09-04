@@ -1,13 +1,14 @@
 "use client";
 
 import SelectorSoporteConCamara from "@/components/adjuntos/SelectorSoporteConCamara";
+import { descargarTablaPdf } from "@/lib/pdf-export";
 import { formatearNombrePropio } from "@/lib/text-format";
 import type {
   MedioPagoSolicitud,
   SolicitudProgramadaPago,
   SolicitudesPagoApiResponse,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./PagosManager.module.css";
 
 type FiltrosPagos = {
@@ -112,6 +113,7 @@ export default function PagosManager() {
   const [filtros, setFiltros] = useState(FILTROS_INICIALES);
   const [cargando, setCargando] = useState(true);
   const [mensajeError, setMensajeError] = useState("");
+  const seleccionarTodosRef = useRef<HTMLInputElement>(null);
 
   const cargarSolicitudes = useCallback(async () => {
     setCargando(true);
@@ -284,6 +286,54 @@ export default function PagosManager() {
     [idsSeleccionados, solicitudes],
   );
 
+  const solicitudesSeleccionablesVisibles = useMemo(() => {
+    const referencia =
+      solicitudes.find((solicitud) => idsSeleccionados.has(solicitud.id)) ??
+      solicitudesFiltradas[0];
+
+    if (!referencia) return [];
+
+    const tipoReferencia =
+      referencia.medio_pago === "TRANSFERENCIA" ||
+      referencia.medio_pago === "PSE" ||
+      referencia.medio_pago === "PORTAL"
+        ? "TRANSFERENCIAS"
+        : "RETIRO";
+
+    return solicitudesFiltradas.filter((solicitud) => {
+      const tipoSolicitud =
+        solicitud.medio_pago === "TRANSFERENCIA" ||
+        solicitud.medio_pago === "PSE" ||
+        solicitud.medio_pago === "PORTAL"
+          ? "TRANSFERENCIAS"
+          : "RETIRO";
+
+      if (tipoSolicitud !== tipoReferencia) return false;
+      return (
+        tipoSolicitud === "TRANSFERENCIAS" ||
+        (solicitud.proyecto_base_id === referencia.proyecto_base_id &&
+          solicitud.fondo_id === referencia.fondo_id)
+      );
+    });
+  }, [idsSeleccionados, solicitudes, solicitudesFiltradas]);
+
+  const todasVisiblesSeleccionadas =
+    solicitudesSeleccionablesVisibles.length > 0 &&
+    solicitudesSeleccionablesVisibles.every((solicitud) =>
+      idsSeleccionados.has(solicitud.id),
+    );
+  const algunasVisiblesSeleccionadas =
+    !todasVisiblesSeleccionadas &&
+    solicitudesSeleccionablesVisibles.some((solicitud) =>
+      idsSeleccionados.has(solicitud.id),
+    );
+
+  useEffect(() => {
+    if (seleccionarTodosRef.current) {
+      seleccionarTodosRef.current.indeterminate = algunasVisiblesSeleccionadas;
+    }
+  }, [algunasVisiblesSeleccionadas]);
+
   const resumenProyectos = useMemo(() => {
     const resumen = new Map<
       string,
@@ -406,6 +456,35 @@ export default function PagosManager() {
 
       if (nuevos.size === 0) {
         setTipoSeleccion(null);
+      }
+
+      return nuevos;
+    });
+  }
+
+  function alternarSeleccionVisibles() {
+    setIdsSeleccionados((actuales) => {
+      const nuevos = new Set(actuales);
+
+      solicitudesSeleccionablesVisibles.forEach((solicitud) => {
+        if (todasVisiblesSeleccionadas) {
+          nuevos.delete(solicitud.id);
+        } else {
+          nuevos.add(solicitud.id);
+        }
+      });
+
+      if (nuevos.size === 0) {
+        setTipoSeleccion(null);
+      } else if (!tipoSeleccion && solicitudesSeleccionablesVisibles[0]) {
+        const primera = solicitudesSeleccionablesVisibles[0];
+        setTipoSeleccion(
+          primera.medio_pago === "TRANSFERENCIA" ||
+          primera.medio_pago === "PSE" ||
+          primera.medio_pago === "PORTAL"
+            ? "TRANSFERENCIAS"
+            : "RETIRO",
+        );
       }
 
       return nuevos;
@@ -642,6 +721,37 @@ export default function PagosManager() {
     );
   }
 
+  function descargarRelacionPdf() {
+    const proyecto = proyectos.find(
+      (opcion) => opcion.id === filtros.proyecto_base_id,
+    );
+    const centro = centrosCosto.find(
+      (opcion) => opcion.id === filtros.centro_costo_id,
+    );
+    descargarTablaPdf({
+      titulo: "Solicitudes programadas para pago",
+      nombreArchivo: "pagos-filtrados.pdf",
+      filas: solicitudesFiltradas,
+      filtros: [
+        filtros.busqueda.trim() && `Búsqueda: ${filtros.busqueda.trim()}`,
+        proyecto && `Proyecto: ${proyecto.nombre}`,
+        centro && `Centro de costo: ${centro.nombre}`,
+        filtros.medio_pago && `Medio de pago: ${filtros.medio_pago}`,
+        vistaOperacion !== "TODOS" && `Operación: ${vistaOperacion}`,
+      ].filter(Boolean) as string[],
+      columnas: [
+        { titulo: "Solicitud", ancho: 17, valor: (fila) => fila.numero_solicitud },
+        { titulo: "Beneficiario", ancho: 17, valor: obtenerBeneficiario },
+        { titulo: "Proyecto", ancho: 15, valor: (fila) => fila.proyecto_base?.nombre },
+        { titulo: "Centro de costo", ancho: 15, valor: (fila) => fila.centro_costo?.nombre },
+        { titulo: "Tipo", ancho: 12, valor: obtenerTipo },
+        { titulo: "Medio", ancho: 9, valor: (fila) => fila.medio_pago },
+        { titulo: "Aprobación", ancho: 9, valor: (fila) => formatearFecha(fila.aprobado_2_en) },
+        { titulo: "Valor neto", ancho: 10, valor: (fila) => FORMATEADOR_MONEDA.format(fila.valor_neto) },
+      ],
+    });
+  }
+
   return (
     <section className={styles.container}>
       <div className={styles.operationTabs} aria-label="Tipo de operación">
@@ -768,6 +878,14 @@ export default function PagosManager() {
             Descargar relación Excel
           </button>
           <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={descargarRelacionPdf}
+            disabled={solicitudesFiltradas.length === 0}
+          >
+            Descargar relación PDF
+          </button>
+          <button
             className={styles.primaryButton}
             type="button"
             disabled={idsSeleccionados.size === 0}
@@ -794,9 +912,30 @@ export default function PagosManager() {
         <>
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
+              <colgroup>
+                <col className={styles.selectionColumn} />
+                <col className={styles.requestColumn} />
+                <col className={styles.beneficiaryColumn} />
+                <col className={styles.projectColumn} />
+                <col className={styles.costCenterColumn} />
+                <col className={styles.typeColumn} />
+                <col className={styles.paymentMethodColumn} />
+                <col className={styles.approvalDateColumn} />
+                <col className={styles.amountColumn} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>Seleccionar</th>
+                  <th className={styles.selectionHeader}>
+                    <input
+                      ref={seleccionarTodosRef}
+                      type="checkbox"
+                      aria-label="Seleccionar todas las solicitudes visibles compatibles"
+                      title="Seleccionar todas las solicitudes visibles compatibles"
+                      checked={todasVisiblesSeleccionadas}
+                      disabled={solicitudesSeleccionablesVisibles.length === 0}
+                      onChange={alternarSeleccionVisibles}
+                    />
+                  </th>
                   <th>Número</th>
                   <th>Beneficiario</th>
                   <th>Proyecto base</th>
@@ -804,7 +943,7 @@ export default function PagosManager() {
                   <th>Tipo</th>
                   <th>Medio de pago</th>
                   <th>Fecha de aprobación</th>
-                  <th>Valor neto</th>
+                  <th className={styles.amountHeader}>Valor neto</th>
                 </tr>
               </thead>
               <tbody>

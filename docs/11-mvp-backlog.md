@@ -212,6 +212,25 @@ Criterios:
 - Permite crear obra ya adjudicada.
 - Permite gestionar líneas de negocio y fases operativas.
 
+### HU-0005. Estandarizar filtros en tablas de resumen
+
+**Estado:** ✅ Terminada
+
+Como usuario operativo, quiero filtrar las tablas que resumen solicitudes, para
+ubicar rápidamente los registros asociados a un proyecto, centro de costo o
+número de solicitud.
+
+Criterios:
+
+- Las tablas de solicitudes creadas, aprobaciones, historial de aprobaciones,
+  pagos y operaciones de efectivo conservan filtros por proyecto y centro de
+  costo cuando contienen solicitudes.
+- Permite buscar coincidencias parciales por número de solicitud.
+- Al cambiar el proyecto se limpia el centro de costo seleccionado.
+- Los números de solicitud y textos extensos se ajustan dentro de su celda sin
+  ampliar innecesariamente la tabla.
+- Los filtros se adaptan a escritorio y dispositivos móviles.
+
 ---
 
 # Épica 1. Configuración base del proyecto

@@ -448,6 +448,8 @@
 
 .table td {
   color: #4b5563;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .table tbody tr:last-child td {
@@ -504,6 +506,8 @@
   margin-bottom: 5px;
   color: #111827;
   font-weight: 800;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .primaryText {
@@ -1050,13 +1054,20 @@
 
 .listFilters {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) auto;
+  grid-template-columns: repeat(3, minmax(12rem, 1fr));
   align-items: end;
   gap: 0.75rem;
   padding: 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   background: #f8fafc;
+}
+
+.filterActions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .listFilters label {
@@ -1070,6 +1081,7 @@
   font-weight: 700;
 }
 
+.listFilters input,
 .listFilters select {
   min-height: 2.75rem;
   padding: 0.65rem 0.75rem;
@@ -1080,6 +1092,7 @@
   font: inherit;
 }
 
+.listFilters input:focus,
 .listFilters select:focus {
   border-color: #2563eb;
   outline: 3px solid rgb(37 99 235 / 15%);
@@ -1100,6 +1113,11 @@
 @media (max-width: 48rem) {
   .listFilters {
     grid-template-columns: 1fr;
+  }
+
+  .filterActions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .detailDialog {

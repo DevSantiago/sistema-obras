@@ -1,6 +1,7 @@
 "use client";
 
 import { formatearNombrePropio } from "@/lib/text-format";
+import { descargarTablaPdf } from "@/lib/pdf-export";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import type {
   AprobarSolicitudesNivel1Data,
@@ -23,6 +24,10 @@ import HistorialAprobacionesList from "./HistorialAprobacionesList";
 import EdicionAprobadorNivel1Form from "./EdicionAprobadorNivel1Form";
 import HistorialSolicitud from "@/components/solicitudes-pago/shared/HistorialSolicitud";
 import styles from "./AprobacionesManager.module.css";
+import {
+  formatearEstadoSolicitud,
+  formatearTextoDominio,
+} from "@/components/solicitudes-pago/solicitudes-pago.utils";
 
 type NivelAprobacion = 1 | 2;
 
@@ -122,6 +127,9 @@ export default function AprobacionesManager({
   const [historialAprobaciones, setHistorialAprobaciones] = useState<
     SolicitudPagoListado[]
   >([]);
+  const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
+  const [proyectoFiltro, setProyectoFiltro] = useState("");
+  const [centroFiltro, setCentroFiltro] = useState("");
 
   const permisoRequerido =
     nivel === 1
@@ -151,6 +159,81 @@ const mensajeSinSolicitudes =
       ),
     [proyectos],
   );
+
+  const proyectosFiltro = useMemo(
+    () =>
+      proyectos
+        .map((proyecto) => ({
+          id: proyecto.proyecto_base_id,
+          nombre: proyecto.proyecto_base_nombre,
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [proyectos],
+  );
+
+  const centrosFiltro = useMemo(() => {
+    const centros = new Map<string, string>();
+    solicitudes.forEach((solicitud) => {
+      if (proyectoFiltro && solicitud.proyecto_base_id !== proyectoFiltro) return;
+      centros.set(
+        solicitud.centro_costo_id,
+        solicitud.centro_costo?.nombre ?? "Centro sin nombre",
+      );
+    });
+    return Array.from(centros, ([id, nombre]) => ({ id, nombre })).sort(
+      (a, b) => a.nombre.localeCompare(b.nombre, "es"),
+    );
+  }, [proyectoFiltro, solicitudes]);
+
+  const proyectosVisibles = useMemo(() => {
+    const numeroBuscado = numeroSolicitudFiltro.trim().toLocaleLowerCase("es");
+    return proyectos
+      .filter(
+        (proyecto) =>
+          !proyectoFiltro || proyecto.proyecto_base_id === proyectoFiltro,
+      )
+      .map((proyecto) => ({
+        ...proyecto,
+        solicitudes: proyecto.solicitudes.filter(
+          (solicitud) =>
+            (!numeroBuscado ||
+              solicitud.numero_solicitud
+                ?.toLocaleLowerCase("es")
+                .includes(numeroBuscado)) &&
+            (!centroFiltro || solicitud.centro_costo_id === centroFiltro),
+        ),
+      }))
+      .filter((proyecto) => proyecto.solicitudes.length > 0);
+  }, [centroFiltro, numeroSolicitudFiltro, proyectoFiltro, proyectos]);
+
+  const solicitudesPendientesVisibles = useMemo(
+    () => proyectosVisibles.flatMap((proyecto) => proyecto.solicitudes),
+    [proyectosVisibles],
+  );
+
+  function exportarPendientesPdf() {
+    const proyecto = proyectosFiltro.find((opcion) => opcion.id === proyectoFiltro);
+    const centro = centrosFiltro.find((opcion) => opcion.id === centroFiltro);
+    descargarTablaPdf({
+      titulo: `Solicitudes pendientes de aprobación nivel ${nivel}`,
+      nombreArchivo: `aprobaciones-nivel-${nivel}-filtradas.pdf`,
+      filas: solicitudesPendientesVisibles,
+      filtros: [
+        numeroSolicitudFiltro.trim() && `Número: ${numeroSolicitudFiltro.trim()}`,
+        proyecto && `Proyecto: ${proyecto.nombre}`,
+        centro && `Centro de costo: ${centro.nombre}`,
+      ].filter(Boolean) as string[],
+      columnas: [
+        { titulo: "Solicitud", ancho: 19, valor: (fila) => fila.numero_solicitud },
+        { titulo: "Proyecto", ancho: 17, valor: (fila) => fila.proyecto_base?.nombre },
+        { titulo: "Centro de costo", ancho: 17, valor: (fila) => fila.centro_costo?.nombre },
+        { titulo: "Beneficiario", ancho: 18, valor: (fila) => fila.beneficiario?.nombre },
+        { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Estado", ancho: 10, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
+        { titulo: "Valor neto", ancho: 10, valor: (fila) => formatearMoneda(fila.valor_neto) },
+      ],
+    });
+  }
 
   const cargarSolicitudes = useCallback(async () => {
     setEstadoCarga("CARGANDO");
@@ -564,6 +647,76 @@ const mensajeSinSolicitudes =
       {estadoCarga === "LISTO" &&
         solicitudes.length > 0 && (
           <>
+            <div className={styles.summaryFilters}>
+              <label>
+                <span>Número de solicitud</span>
+                <input
+                  type="search"
+                  value={numeroSolicitudFiltro}
+                  onChange={(event) => {
+                    setNumeroSolicitudFiltro(event.target.value);
+                    setIdsSeleccionados(new Set());
+                  }}
+                  placeholder="Buscar por número"
+                />
+              </label>
+              <label>
+                <span>Proyecto</span>
+                <select
+                  value={proyectoFiltro}
+                  onChange={(event) => {
+                    setProyectoFiltro(event.target.value);
+                    setCentroFiltro("");
+                    setIdsSeleccionados(new Set());
+                  }}
+                >
+                  <option value="">Todos los proyectos</option>
+                  {proyectosFiltro.map((proyecto) => (
+                    <option key={proyecto.id} value={proyecto.id}>
+                      {proyecto.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Centro de costo</span>
+                <select
+                  value={centroFiltro}
+                  onChange={(event) => {
+                    setCentroFiltro(event.target.value);
+                    setIdsSeleccionados(new Set());
+                  }}
+                >
+                  <option value="">Todos los centros</option>
+                  {centrosFiltro.map((centro) => (
+                    <option key={centro.id} value={centro.id}>
+                      {centro.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className={styles.summaryFilterActions}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNumeroSolicitudFiltro("");
+                    setProyectoFiltro("");
+                    setCentroFiltro("");
+                    setIdsSeleccionados(new Set());
+                  }}
+                >
+                  Limpiar filtros
+                </button>
+                <button
+                  type="button"
+                  onClick={exportarPendientesPdf}
+                  disabled={solicitudesPendientesVisibles.length === 0}
+                >
+                  Exportar PDF ({solicitudesPendientesVisibles.length})
+                </button>
+              </div>
+            </div>
+
             <div className={styles.selectionSummary}>
               <div className={styles.summaryValues}>
                 <span>
@@ -584,7 +737,13 @@ const mensajeSinSolicitudes =
               </div>
             </div>
 
-            {proyectos.map((proyecto) => {
+            {proyectosVisibles.length === 0 ? (
+              <div className={styles.estado}>
+                No hay solicitudes pendientes que coincidan con los filtros.
+              </div>
+            ) : null}
+
+            {proyectosVisibles.map((proyecto) => {
               const valorSeleccionado =
                 obtenerValorSeleccionadoProyecto(
                   proyecto,
