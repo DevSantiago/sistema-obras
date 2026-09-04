@@ -749,7 +749,7 @@ Campos:
 - `archivo`: archivo `.xlsx` de máximo 10 MB y 1.000 filas.
 - `accion`: `VALIDAR` o `IMPORTAR`.
 
-Todos los proveedores se crean activos y con tipo `PROVEEDOR`. Correo, teléfono, medio de pago, banco, tipo de cuenta, número de cuenta y concepto de pago son obligatorios. Los documentos duplicados se rechazan y los proveedores existentes no se actualizan.
+Todos los proveedores se crean activos y con tipo `PROVEEDOR`. Correo, teléfono, medio de pago, banco, tipo de cuenta, número de cuenta o convenio y concepto de pago son obligatorios. Los tipos de cuenta válidos son `AHORROS`, `CORRIENTE`, `CONVENIO` y `OTRO`. Los documentos duplicados se rechazan y los proveedores existentes no se actualizan.
 
 ### Respuesta
 

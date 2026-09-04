@@ -39,6 +39,7 @@ const MEDIOS_PAGO_VALIDOS: MedioPagoPreferido[] = [
 const TIPOS_CUENTA_VALIDOS: TipoCuentaBancaria[] = [
   "AHORROS",
   "CORRIENTE",
+  "CONVENIO",
   "OTRO",
 ];
 
@@ -480,12 +481,12 @@ export async function crearBeneficiarioService(
 
     validarCampoObligatorio(
       input.numero_cuenta_bancaria,
-      "El número de cuenta bancaria es obligatorio.",
+      "El número de cuenta o convenio es obligatorio.",
     );
 
     validarSoloNumeros(
       input.numero_cuenta_bancaria ?? "",
-      "El número de cuenta bancaria debe contener solo números.",
+      "El número de cuenta o convenio debe contener solo números.",
     );
 
     if (
@@ -589,12 +590,12 @@ export async function crearBeneficiarioService(
 
         validarCampoObligatorio(
           input.proveedor.numero_cuenta_bancaria,
-          "El número de cuenta bancaria del proveedor es obligatorio.",
+          "El número de cuenta o convenio del proveedor es obligatorio.",
         );
 
         validarSoloNumeros(
           input.proveedor.numero_cuenta_bancaria ?? "",
-          "El número de cuenta bancaria del proveedor debe contener solo números.",
+          "El número de cuenta o convenio del proveedor debe contener solo números.",
         );
 
         if (
@@ -696,7 +697,7 @@ export async function validarCargaMasivaProveedoresService(
       [fila.medio_pago_preferido, "Medio de pago sugerido"],
       [fila.banco, "Banco"],
       [fila.tipo_cuenta_bancaria, "Tipo de cuenta"],
-      [fila.numero_cuenta_bancaria, "Número de cuenta"],
+      [fila.numero_cuenta_bancaria, "Número de cuenta o convenio"],
       [fila.concepto_pago, "Concepto de pago"],
     ];
     for (const [valor, nombreCampo] of obligatorios) {
@@ -723,7 +724,7 @@ export async function validarCargaMasivaProveedoresService(
       errores.push("Tipo de cuenta no válido.");
     }
     if (fila.numero_cuenta_bancaria && !/^\d+$/.test(fila.numero_cuenta_bancaria.trim())) {
-      errores.push("El número de cuenta debe contener solo números.");
+      errores.push("El número de cuenta o convenio debe contener solo números.");
     }
 
     const claveDocumento = `${tipoDocumento}:${numeroDocumento}`;

@@ -427,6 +427,30 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
     });
   });
 
+  it("debe permitir convenio como tipo de cuenta", async () => {
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
+    vi.mocked(crearBeneficiarioRepository).mockResolvedValue({
+      ...beneficiarioMock,
+      tipo_cuenta_bancaria: "CONVENIO",
+      numero_cuenta_bancaria: "987654",
+    } as never);
+
+    await crearBeneficiarioService(usuarioAutorizado, {
+      ...inputBase,
+      tipo_cuenta_bancaria: "CONVENIO",
+      numero_cuenta_bancaria: " 987654 ",
+    });
+
+    expect(crearBeneficiarioRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        beneficiario: expect.objectContaining({
+          tipo_cuenta_bancaria: "CONVENIO",
+          numero_cuenta_bancaria: "987654",
+        }),
+      }),
+    );
+  });
+
   it("debe lanzar error si se envía proveedor_id y proveedor nuevo al mismo tiempo", async () => {
     vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
 
