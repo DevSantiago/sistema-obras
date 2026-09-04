@@ -111,12 +111,12 @@ export async function generarPlantillaProveedoresExcel(): Promise<Buffer> {
 
   const catalogos = workbook.addWorksheet("Catálogos");
   catalogos.addRow(["TIPO_IDENTIFICACION", "MEDIO_PAGO", "TIPO_CUENTA", "BANCOS"]);
-  const maximo = Math.max(BANCOS_COLOMBIA.length, 3);
+  const maximo = Math.max(BANCOS_COLOMBIA.length, 4);
   for (let indice = 0; indice < maximo; indice += 1) {
     catalogos.addRow([
       ["NIT", "CC", "CE"][indice] ?? "",
       ["TRANSFERENCIA", "CONSIGNACION", "EFECTIVO"][indice] ?? "",
-      ["AHORROS", "CORRIENTE", "OTRO"][indice] ?? "",
+      ["AHORROS", "CORRIENTE", "CONVENIO", "OTRO"][indice] ?? "",
       BANCOS_COLOMBIA[indice] ?? "",
     ]);
   }

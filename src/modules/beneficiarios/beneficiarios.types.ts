@@ -9,7 +9,11 @@ export type MedioPagoPreferido =
   | "CONSIGNACION"
   | "EFECTIVO";
 
-export type TipoCuentaBancaria = "AHORROS" | "CORRIENTE" | "OTRO";
+export type TipoCuentaBancaria =
+  | "AHORROS"
+  | "CORRIENTE"
+  | "CONVENIO"
+  | "OTRO";
 
 export type EstadoBeneficiario = "ACTIVO" | "INACTIVO";
 
