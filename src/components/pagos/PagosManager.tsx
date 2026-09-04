@@ -1429,7 +1429,7 @@ export default function PagosManager() {
               <div><span>Documento</span><strong>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</strong></div>
               <div><span>Banco</span><strong>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</strong></div>
               <div><span>Tipo de cuenta</span><strong>{solicitudSeleccionada.beneficiario?.tipo_cuenta_bancaria ?? "No registrado"}</strong></div>
-              <div className={styles.fullWidth}><span>Número de cuenta</span><strong>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</strong></div>
+              <div className={styles.fullWidth}><span>Número de cuenta o convenio</span><strong>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</strong></div>
             </div>
 
             <div className={styles.values}>

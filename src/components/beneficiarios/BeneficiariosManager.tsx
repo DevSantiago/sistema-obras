@@ -657,6 +657,7 @@ export function BeneficiariosManager({
 
                 <option value="AHORROS">Ahorros</option>
                 <option value="CORRIENTE">Corriente</option>
+                <option value="CONVENIO">Convenio</option>
 
                 {tipoCuentaBancaria === "OTRO" && (
                   <option value="OTRO">Otro</option>
@@ -666,7 +667,7 @@ export function BeneficiariosManager({
 
             <label className={styles.field}>
               <span className={styles.label}>
-                Número de cuenta
+                Número de cuenta o Convenio
                 {requiereBanco && (
                   <>
                     {" "}
@@ -684,7 +685,7 @@ export function BeneficiariosManager({
                 onChange={(event) =>
                   setNumeroCuentaBancaria(soloNumeros(event.target.value))
                 }
-                placeholder="Número de cuenta"
+                placeholder="Número de cuenta o convenio"
                 disabled={!requiereBanco}
                 required={requiereBanco}
               />
