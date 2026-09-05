@@ -56,10 +56,14 @@ export function construirEnlaceSolicitud(
   estadoDestino: TransicionNotificableWhatsApp["estadoDestino"],
 ) {
   const base = process.env.APP_BASE_URL?.trim().replace(/\/$/, "");
-  const ruta =
-    estadoDestino === "PROGRAMADA_PAGO"
-      ? "/pagos"
-      : `/solicitudes-pago?solicitud_id=${encodeURIComponent(solicitudId)}`;
+  const rutas = {
+    PENDIENTE_APROBADOR_1: "/aprobaciones/nivel-1",
+    PENDIENTE_APROBADOR_2: "/aprobaciones/nivel-2",
+    DEVUELTA_APROBADOR_1: "/aprobaciones/nivel-1",
+    DEVUELTA_SOLICITANTE: "/solicitudes-pago",
+    PROGRAMADA_PAGO: "/pagos",
+  } as const;
+  const ruta = `${rutas[estadoDestino]}?solicitud_id=${encodeURIComponent(solicitudId)}`;
 
   return base ? `${base}${ruta}` : ruta;
 }
