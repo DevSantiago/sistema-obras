@@ -15,6 +15,7 @@ function txMock() {
     solicitudes_pago: {
       findUniqueOrThrow: vi.fn(async () => ({
         id: "sol-1",
+        numero_solicitud: "SOL-2026-000001",
         proyecto_base_id: "proyecto-1",
         creado_por: "solicitante-1",
         aprobado_1_por: null,
@@ -70,7 +71,7 @@ describe("notificaciones-push.repository", () => {
     expect(datos[0]).toMatchObject({
       suscripcion_push_id: "suscripcion-1",
       destinatario_usuario_id: "usuario-1",
-      titulo: "Sistema Obras",
+      titulo: "Solicitud SOL-2026-000001",
       mensaje: "Tienes una solicitud pendiente de aprobación nivel 1.",
       enlace: "/solicitudes-pago?solicitud_id=sol-1",
     });

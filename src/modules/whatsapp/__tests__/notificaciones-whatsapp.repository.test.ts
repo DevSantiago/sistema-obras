@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { crearNotificacionesTransicionesRepository } from "../notificaciones-whatsapp.repository";
+import {
+  construirEnlaceSolicitud,
+  crearNotificacionesTransicionesRepository,
+} from "../notificaciones-whatsapp.repository";
 
 const appBaseUrlOriginal = process.env.APP_BASE_URL;
 const plantillaOriginal = process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1;
@@ -37,6 +40,18 @@ describe("notificaciones-whatsapp.repository", () => {
     process.env.WHATSAPP_ENABLED = "true";
     process.env.APP_BASE_URL = "https://stg.dimensiones.cloud/";
     process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1 = "aprobacion_nivel_1";
+  });
+
+  it.each([
+    ["PENDIENTE_APROBADOR_1", "/aprobaciones/nivel-1"],
+    ["PENDIENTE_APROBADOR_2", "/aprobaciones/nivel-2"],
+    ["DEVUELTA_APROBADOR_1", "/aprobaciones/nivel-1"],
+    ["DEVUELTA_SOLICITANTE", "/solicitudes-pago"],
+    ["PROGRAMADA_PAGO", "/pagos"],
+  ] as const)("dirige %s al módulo autorizado", (estado, ruta) => {
+    expect(construirEnlaceSolicitud("solicitud-1", estado)).toBe(
+      `https://stg.dimensiones.cloud${ruta}?solicitud_id=solicitud-1`,
+    );
   });
 
   afterEach(() => {
@@ -134,7 +149,7 @@ describe("notificaciones-whatsapp.repository", () => {
         valor: 250000,
         estado_nuevo: "PENDIENTE_APROBADOR_1",
         enlace:
-          "https://stg.dimensiones.cloud/solicitudes-pago?solicitud_id=solicitud-1",
+          "https://stg.dimensiones.cloud/aprobaciones/nivel-1?solicitud_id=solicitud-1",
       },
     });
     expect(datos[0].evento_transicion_id).toBe(datos[1].evento_transicion_id);
@@ -236,7 +251,9 @@ describe("notificaciones-whatsapp.repository", () => {
       tipo_evento: "SOLICITUD_PROGRAMADA_PAGO",
       estado_destino: "PROGRAMADA_PAGO",
       plantilla: "solicitud_programada_pago",
-      contenido: { enlace: "https://stg.dimensiones.cloud/pagos" },
+      contenido: {
+        enlace: "https://stg.dimensiones.cloud/pagos?solicitud_id=solicitud-1",
+      },
     });
   });
 

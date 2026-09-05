@@ -31,6 +31,7 @@ export async function crearNotificacionesPushTransicionesRepository(
       where: { id: transicion.solicitudId },
       select: {
         id: true,
+        numero_solicitud: true,
         proyecto_base_id: true,
         creado_por: true,
         aprobado_1_por: true,
@@ -72,7 +73,7 @@ export async function crearNotificacionesPushTransicionesRepository(
         tipo_evento: tipoEventoNotificacion(transicion.estadoDestino),
         estado_origen: transicion.estadoOrigen,
         estado_destino: transicion.estadoDestino,
-        titulo: "Sistema Obras",
+        titulo: `Solicitud ${solicitud.numero_solicitud}`,
         mensaje: MENSAJES_ESTADO[transicion.estadoDestino],
         enlace: construirEnlaceSolicitud(
           solicitud.id,
