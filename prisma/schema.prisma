@@ -53,6 +53,7 @@ model usuarios {
   anulaciones_solicitud_registradas  anulaciones_solicitud_pago[]      @relation("AnulacionesSolicitudRegistradasPor")
   eventos_auditoria_solicitud        eventos_auditoria_solicitud_pago[] @relation("EventosAuditoriaSolicitudRegistradosPor")
   notificaciones_whatsapp            notificaciones_whatsapp[]          @relation("NotificacionesWhatsAppDestinatario")
+  suscripciones_push                 suscripciones_push[]               @relation("SuscripcionesPushUsuario")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
 }
@@ -491,6 +492,26 @@ model notificaciones_whatsapp {
   @@index([destinatario_usuario_id, creado_en])
   @@index([estado, creado_en])
   @@index([tipo_evento])
+}
+
+model suscripciones_push {
+  id             String    @id @default(uuid())
+  usuario_id     String
+  ambiente       String    @db.VarChar(30)
+  endpoint       String    @db.Text
+  endpoint_hash  String    @db.VarChar(64)
+  clave_p256dh   String    @db.Text
+  clave_auth     String    @db.Text
+  agente_usuario String?   @db.VarChar(500)
+  estado         String    @default("ACTIVA") @db.VarChar(20)
+  creado_en      DateTime  @default(now())
+  actualizado_en DateTime  @updatedAt
+  revocado_en    DateTime?
+
+  usuario usuarios @relation("SuscripcionesPushUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@unique([endpoint_hash, ambiente])
+  @@index([usuario_id, ambiente, estado])
 }
 
 model eventos_webhook_whatsapp {

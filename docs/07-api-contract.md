@@ -1739,3 +1739,69 @@ nombrados en el cuerpo. Todas incluyen `numero_solicitud`, `proyecto`,
 de los aprobadores requeridos. La transición a `PROGRAMADA_PAGO` utiliza
 `WHATSAPP_TEMPLATE_PROGRAMADA_PAGO` y se dirige a usuarios activos con rol
 `PAGOS`.
+
+---
+
+# Suscripciones Push
+
+Todos los endpoints requieren una sesión autenticada. Las respuestas nunca
+exponen el endpoint ni las claves criptográficas de una suscripción.
+
+## Consultar estado
+
+```http
+GET /api/v1/push/suscripciones
+X-Push-Endpoint-Hash: {sha256_opcional_del_endpoint_actual}
+```
+
+Retorna la cantidad de dispositivos activos del usuario en el ambiente actual
+y si el endpoint identificado por el hash pertenece al usuario autenticado.
+
+```json
+{
+  "ok": true,
+  "message": "Estado de notificaciones consultado.",
+  "data": {
+    "cantidad_dispositivos": 2,
+    "activa_en_este_dispositivo": true
+  }
+}
+```
+
+## Activar en un dispositivo
+
+```http
+POST /api/v1/push/suscripciones
+Content-Type: application/json
+```
+
+```json
+{
+  "endpoint": "https://servicio-push.example/suscripcion",
+  "keys": {
+    "p256dh": "clave-publica-del-dispositivo",
+    "auth": "secreto-de-autenticacion-del-dispositivo"
+  }
+}
+```
+
+El backend deriva el usuario desde la sesión y el ambiente desde `APP_ENV`.
+Solo acepta endpoints HTTPS y claves con formato Base64 URL seguro. Un endpoint
+existente se reactiva y queda asociado al usuario que ejecutó explícitamente la
+activación.
+
+## Desactivar en el dispositivo actual
+
+```http
+DELETE /api/v1/push/suscripciones
+Content-Type: application/json
+```
+
+```json
+{
+  "endpoint": "https://servicio-push.example/suscripcion"
+}
+```
+
+La revocación solo afecta una suscripción activa que pertenezca al usuario y al
+ambiente actuales.

@@ -2161,7 +2161,7 @@ Criterios:
 
 ## Estado
 
-**PENDIENTE — planificada para homologar y sustituir progresivamente las notificaciones por WhatsApp.**
+**EN DESARROLLO — homologación progresiva de las notificaciones por WhatsApp.**
 
 ## Objetivo
 
@@ -2220,7 +2220,7 @@ y la entrega de notificaciones Push en dispositivos reales.
 
 ### HU-2001. Preparar la aplicación web instalable
 
-**Estado: EN PRUEBAS.**
+**Estado: APROBADA.** Validada en staging sobre Android y iOS.
 
 Como usuario móvil, quiero instalar el sistema en mi pantalla de inicio, para
 usarlo como aplicación y habilitar las capacidades Push del dispositivo.
@@ -2234,6 +2234,8 @@ Criterios:
 - No altera el funcionamiento normal del sistema desde el navegador.
 
 ### HU-2002. Registrar suscripciones Push por usuario y dispositivo
+
+**Estado: EN PRUEBAS.**
 
 Como usuario autenticado, quiero activar o desactivar notificaciones en cada
 dispositivo, para controlar dónde recibo los avisos.
