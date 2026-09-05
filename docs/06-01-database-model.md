@@ -121,6 +121,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 
 - notificaciones_whatsapp.
 - suscripciones_push.
+- notificaciones_push.
 
 ---
 
@@ -160,6 +161,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 | notificaciones_whatsapp | ✅ |
 | eventos_webhook_whatsapp | ✅ |
 | suscripciones_push | ✅ |
+| notificaciones_push | ✅ |
 
 `correcciones_operacion_efectivo` conserva `pendiente_anterior` y
 `pendiente_nuevo` para conciliar los ajustes del valor retirado con los
@@ -193,6 +195,12 @@ autenticado. Los campos `endpoint`, `clave_p256dh` y `clave_auth` son datos
 técnicos privados que no se retornan desde la API. Al revocar una suscripción
 se limpian esos valores, se conserva el hash para idempotencia y se registra la
 fecha de revocación.
+
+`notificaciones_push` conserva una entrega por transición, destinatario y
+suscripción activa. El contenido incluye únicamente título, mensaje operativo
+y enlace interno, sin valores ni información bancaria. Sus estados e intentos
+permiten entregar fuera de la transacción de la solicitud, evitar duplicados y
+desactivar la suscripción cuando el proveedor responde que expiró.
 
 ---
 

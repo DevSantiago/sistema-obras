@@ -572,6 +572,14 @@ El resultado se almacena únicamente en el archivo privado del ambiente:
 NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY
 WEB_PUSH_VAPID_PRIVATE_KEY
 WEB_PUSH_VAPID_SUBJECT
+PUSH_ENABLED
+PUSH_PROCESSOR_TOKEN
+PUSH_MAX_ATTEMPTS
+PUSH_BATCH_SIZE
+PUSH_RETRY_MINUTES
+PUSH_SENDING_TIMEOUT_MINUTES
+PUSH_REQUEST_TIMEOUT_MS
+PUSH_TTL_SECONDS
 ```
 
 La clave pública se entrega al navegador para crear la suscripción. La clave
@@ -583,6 +591,18 @@ la imagen, porque Next.js incorpora la clave pública durante el build.
 HU-2002 utiliza únicamente la clave pública para registrar dispositivos. La
 clave privada se reserva para el envío que implementarán las historias
 posteriores.
+
+`PUSH_ENABLED=true` habilita la creación y entrega de avisos en el ambiente.
+`PUSH_PROCESSOR_TOKEN` debe ser un secreto aleatorio e independiente para
+staging y producción. El host procesa la cola sin exponerlo mediante una tarea
+periódica, por ejemplo para staging:
+
+```cron
+* * * * * cd /opt/sistema-obras/app && docker compose -f docker-compose.vps.yml exec -T app-stg node -e "fetch('http://127.0.0.1:3000/api/v1/push/notificaciones/procesar',{method:'POST',headers:{authorization:'Bearer '+process.env.PUSH_PROCESSOR_TOKEN}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+```
+
+La tarea usa lotes pequeños y una falla del proveedor Push no bloquea ni
+revierte la transición de la solicitud.
 
 ---
 
