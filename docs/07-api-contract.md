@@ -1805,3 +1805,30 @@ Content-Type: application/json
 
 La revocación solo afecta una suscripción activa que pertenezca al usuario y al
 ambiente actuales.
+
+## Procesar notificaciones Push pendientes
+
+```http
+POST /api/v1/push/notificaciones/procesar
+Authorization: Bearer {PUSH_PROCESSOR_TOKEN}
+```
+
+Endpoint interno para procesar un lote del ambiente actual. No utiliza la
+sesión de un usuario y exige el secreto exclusivo del procesador. La respuesta
+resume registros revisados, enviados, fallidos, omitidos y suscripciones
+desactivadas. Las respuestas `404` y `410` del proveedor marcan la suscripción
+como expirada y eliminan sus secretos técnicos.
+
+```json
+{
+  "ok": true,
+  "message": "Cola Push procesada correctamente.",
+  "data": {
+    "revisadas": 2,
+    "enviadas": 2,
+    "fallidas": 0,
+    "omitidas": 0,
+    "suscripcionesDesactivadas": 0
+  }
+}
+```

@@ -2235,7 +2235,7 @@ Criterios:
 
 ### HU-2002. Registrar suscripciones Push por usuario y dispositivo
 
-**Estado: EN PRUEBAS.**
+**Estado: APROBADA.** Validada en staging y producción sobre Android e iOS.
 
 Como usuario autenticado, quiero activar o desactivar notificaciones en cada
 dispositivo, para controlar dónde recibo los avisos.
@@ -2250,6 +2250,8 @@ Criterios:
 - No registra como activa una suscripción cuyo permiso fue rechazado.
 
 ### HU-2003. Enviar Push para las transiciones de solicitudes
+
+**Estado: EN DESARROLLO.**
 
 Como responsable del proceso, quiero recibir una notificación Push cuando una
 solicitud requiera mi atención, para ingresar oportunamente al sistema.

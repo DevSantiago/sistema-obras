@@ -187,7 +187,17 @@ describe("notificaciones-whatsapp.repository", () => {
     );
 
     expect(tx.usuarios.findMany).toHaveBeenCalledWith({
-      where: { id: "aprobador-1", estado: "ACTIVO" },
+      where: {
+        id: "aprobador-1",
+        estado: "ACTIVO",
+        accesos_recibidos: {
+          some: {
+            proyecto_base_id: "proyecto-1",
+            linea_negocio: "OBRA",
+            activo: true,
+          },
+        },
+      },
       select: { id: true, nombre: true, telefono: true },
     });
   });
