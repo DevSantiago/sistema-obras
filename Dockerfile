@@ -5,8 +5,10 @@ RUN npm ci
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
+ARG NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
+ENV NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
