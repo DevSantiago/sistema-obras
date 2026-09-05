@@ -6,7 +6,7 @@ import {
 } from "@/modules/fondos/movimientos-fondo.repository";
 import type { RegistrarMovimientoFondoInput } from "@/modules/fondos/movimientos-fondo.types";
 import { generarSecuenciaDocumentalRepository } from "@/modules/secuencias/secuencias.repository";
-import { crearNotificacionesTransicionesRepository } from "@/modules/whatsapp/notificaciones-whatsapp.repository";
+import { crearNotificacionesTransicionesRepository } from "@/modules/notificaciones/notificaciones-transiciones.repository";
 import type {
   ActualizarSolicitudPagoRepositoryInput,
   BuscarDuplicadoNominaIndividualInput,

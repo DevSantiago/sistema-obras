@@ -105,6 +105,10 @@ El módulo `push` registra y revoca las suscripciones por usuario, dispositivo y
 ambiente mediante el patrón `route → service → repository`. Los endpoints y
 claves de cada suscripción permanecen en backend; la interfaz solo recibe el
 estado del dispositivo actual y la cantidad de dispositivos activos.
+Desde HU-2003, el coordinador de transiciones reutiliza la resolución de
+destinatarios de WhatsApp para crear una entrega Push por suscripción activa.
+El envío se ejecuta mediante un procesador interno separado de la transacción
+funcional y el service worker abre únicamente rutas del mismo origen.
 
 ---
 
