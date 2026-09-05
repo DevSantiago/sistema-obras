@@ -2220,7 +2220,7 @@ y la entrega de notificaciones Push en dispositivos reales.
 
 ### HU-2001. Preparar la aplicación web instalable
 
-**Estado: EN PRUEBAS.**
+**Estado: APROBADA.** Validada en staging sobre Android y iOS.
 
 Como usuario móvil, quiero instalar el sistema en mi pantalla de inicio, para
 usarlo como aplicación y habilitar las capacidades Push del dispositivo.
