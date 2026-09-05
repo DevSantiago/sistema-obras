@@ -1,6 +1,6 @@
 # 05. Arquitectura
 
-> Última actualización funcional: 28 de julio de 2026.
+> Última actualización funcional: 4 de septiembre de 2026.
 
 Este documento describe la arquitectura de software utilizada para el Sistema de Gestión de Solicitudes de Pago.
 
@@ -51,6 +51,8 @@ Las tecnologías utilizadas durante el desarrollo del MVP son:
 ```text
 Next.js (App Router)
 
+Progressive Web App (manifiesto y service worker)
+
 TypeScript
 
 Prisma ORM
@@ -93,6 +95,12 @@ Database
 Cada capa posee una responsabilidad específica y únicamente puede interactuar con las capas inmediatamente inferiores.
 
 La comunicación directa entre el frontend y la base de datos no está permitida.
+
+El frontend publica un manifiesto web y registra un service worker para permitir
+la instalación del sistema en iPhone, Android y navegadores compatibles. La
+primera fase no intercepta ni almacena solicitudes en caché, por lo que conserva
+el comportamiento en línea y evita servir información operativa desactualizada.
+Esta base se reutilizará para las suscripciones Web Push de la Épica 20.
 
 ---
 
