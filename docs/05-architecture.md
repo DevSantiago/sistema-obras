@@ -101,6 +101,10 @@ la instalación del sistema en iPhone, Android y navegadores compatibles. La
 primera fase no intercepta ni almacena solicitudes en caché, por lo que conserva
 el comportamiento en línea y evita servir información operativa desactualizada.
 Esta base se reutilizará para las suscripciones Web Push de la Épica 20.
+El módulo `push` registra y revoca las suscripciones por usuario, dispositivo y
+ambiente mediante el patrón `route → service → repository`. Los endpoints y
+claves de cada suscripción permanecen en backend; la interfaz solo recibe el
+estado del dispositivo actual y la cantidad de dispositivos activos.
 
 ---
 

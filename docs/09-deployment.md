@@ -557,6 +557,35 @@ de ese mismo flujo de webhook.
 
 ---
 
+## Web Push
+
+Cada ambiente debe utilizar un juego VAPID independiente. Para generarlo se
+ejecuta localmente:
+
+```bash
+npm run push:generate-keys
+```
+
+El resultado se almacena únicamente en el archivo privado del ambiente:
+
+```text
+NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY
+WEB_PUSH_VAPID_PRIVATE_KEY
+WEB_PUSH_VAPID_SUBJECT
+```
+
+La clave pública se entrega al navegador para crear la suscripción. La clave
+privada nunca debe exponerse en variables `NEXT_PUBLIC_*`, logs, GitHub ni
+respuestas HTTP. `WEB_PUSH_VAPID_SUBJECT` debe ser un correo o URL de contacto
+administrativo válido. Después de modificar estas variables se debe reconstruir
+la imagen, porque Next.js incorpora la clave pública durante el build.
+
+HU-2002 utiliza únicamente la clave pública para registrar dispositivos. La
+clave privada se reserva para el envío que implementarán las historias
+posteriores.
+
+---
+
 ## Servicio OCR
 
 Las funcionalidades de reconocimiento óptico de caracteres utilizan variables de configuración independientes.

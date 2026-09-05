@@ -4,8 +4,9 @@ import { formatearNombrePropio } from "@/lib/text-format";
 import { ChangePasswordButton } from "@/components/auth/ChangePasswordButton";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
+import { PushNotificationsButton } from "@/components/pwa/PushNotificationsButton";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./PrivateLayout.module.css";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 
@@ -141,6 +142,21 @@ function obtenerEtiquetaRol(rol: string): string {
 export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
 
+  useEffect(() => {
+    if (!menuAbierto) return;
+
+    const overflowHtmlOriginal = document.documentElement.style.overflow;
+    const overflowBodyOriginal = document.body.style.overflow;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.documentElement.style.overflow = overflowHtmlOriginal;
+      document.body.style.overflow = overflowBodyOriginal;
+    };
+  }, [menuAbierto]);
+
   const menuVisible = MENU_ITEMS.filter((item) =>
     menuItemEsVisible(item, usuario),
   );
@@ -194,6 +210,7 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
           <p className={styles.userEmail}>{usuario.correo}</p>
 
           <InstallAppButton />
+          <PushNotificationsButton />
           <ChangePasswordButton />
           <LogoutButton />
         </div>
