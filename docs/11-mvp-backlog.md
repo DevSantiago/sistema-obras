@@ -1,6 +1,6 @@
 # 11. Backlog MVP
 
-> Última actualización funcional: 13 de agosto de 2026.
+> Última actualización funcional: 4 de septiembre de 2026.
 
 ## Objetivo
 
@@ -104,6 +104,7 @@ Cada historia debe tener criterios de aceptación verificables. Cuando una histo
 | 17 | Seguridad y hardening | MUST | Validaciones, permisos y protección básica aplicadas en backend y frontend |
 | 18 | OCR futuro | COULD | Base para procesamiento posterior de soportes con validación humana futura |
 | 19 | Notificaciones por WhatsApp | MUST | Avisos trazables ante transiciones del flujo de aprobación mediante WhatsApp Business Platform |
+| 20 | Homologación de notificaciones Push | MUST | Sustituir progresivamente el uso de WhatsApp como canal de avisos por notificaciones Push trazables para iPhone y Android |
 
 ## Criterio transversal de entrega incremental
 
@@ -2153,3 +2154,154 @@ Criterios:
 - Muestra intentos y último error sin exponer secretos.
 - Permite reintentar únicamente notificaciones fallidas.
 - La acción exige permiso administrativo y queda auditada.
+
+---
+
+# Épica 20. Homologación de notificaciones Push
+
+## Estado
+
+**PENDIENTE — planificada para homologar y sustituir progresivamente las notificaciones por WhatsApp.**
+
+## Objetivo
+
+Implementar notificaciones Push web para homologar los eventos, destinatarios,
+trazabilidad y reglas que actualmente se atienden mediante WhatsApp. El nuevo
+canal debe operar en iPhone y Android, mantener aislados los ambientes y reducir
+la dependencia de WhatsApp Business Platform para los avisos transaccionales
+del sistema.
+
+WhatsApp y Push podrán coexistir durante una transición controlada. WhatsApp no
+se desactivará hasta comprobar la cobertura funcional, la adopción de usuarios
+y la entrega de notificaciones Push en dispositivos reales.
+
+## Criterios de aceptación de la épica
+
+- Implementa la aplicación web instalable mediante manifiesto, iconos y service
+  worker.
+- Usa Web Push estándar y claves VAPID independientes para local, staging y
+  producción.
+- Permite activar y desactivar notificaciones únicamente mediante una acción
+  explícita del usuario.
+- Documenta que en iPhone y iPad la aplicación debe instalarse en la pantalla de
+  inicio para recibir notificaciones Push.
+- Admite múltiples suscripciones por usuario para cubrir teléfono, tableta y
+  computador.
+- Replica la matriz de transiciones y destinatarios definida en la Épica 19.
+- Una falla de entrega Push no revierte ni bloquea el cambio de estado de una
+  solicitud.
+- Cada envío conserva usuario, dispositivo, evento, estado, intentos, último
+  error y fechas de procesamiento.
+- Evita duplicados por solicitud, transición, destinatario y suscripción.
+- Elimina o desactiva suscripciones expiradas, revocadas o rechazadas por el
+  servicio Push.
+- Al pulsar una notificación, abre la solicitud relacionada y exige una sesión
+  válida.
+- El contenido visible en la pantalla bloqueada no expone valores, cuentas
+  bancarias, beneficiarios ni otros datos financieros sensibles.
+- Permite controlar por ambiente si el evento se envía por `WHATSAPP`, `PUSH` o
+  ambos durante la homologación.
+- La desactivación de WhatsApp requiere evidencia de pruebas en iPhone y
+  Android, cobertura de usuarios y estabilidad del canal Push.
+
+## Eventos que deben homologarse
+
+| Transición | Destinatario |
+|---|---|
+| `BORRADOR` → `PENDIENTE_APROBADOR_1` | Aprobadores nivel 1 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_1` → `PENDIENTE_APROBADOR_2` | Aprobadores nivel 2 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_2` → `DEVUELTA_APROBADOR_1` | Aprobador nivel 1 responsable |
+| `DEVUELTA_APROBADOR_1` → `PENDIENTE_APROBADOR_2` | Aprobadores nivel 2 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_1` → `DEVUELTA_SOLICITANTE` | Usuario solicitante |
+| `DEVUELTA_SOLICITANTE` → `PENDIENTE_APROBADOR_1` | Aprobadores nivel 1 autorizados para el proyecto |
+| `PENDIENTE_APROBADOR_2` → `PROGRAMADA_PAGO` | Usuarios activos con rol `PAGOS` |
+
+## Historias
+
+### HU-2001. Preparar la aplicación web instalable
+
+**Estado: EN PRUEBAS.**
+
+Como usuario móvil, quiero instalar el sistema en mi pantalla de inicio, para
+usarlo como aplicación y habilitar las capacidades Push del dispositivo.
+
+Criterios:
+
+- Publica un manifiesto con nombre, identificador, iconos, color y URL inicial.
+- Configura visualización `standalone` y conserva las rutas actuales.
+- Registra un service worker compatible con las actualizaciones de la aplicación.
+- Muestra instrucciones específicas de instalación para iPhone y Android.
+- No altera el funcionamiento normal del sistema desde el navegador.
+
+### HU-2002. Registrar suscripciones Push por usuario y dispositivo
+
+Como usuario autenticado, quiero activar o desactivar notificaciones en cada
+dispositivo, para controlar dónde recibo los avisos.
+
+Criterios:
+
+- Solicita permiso únicamente después de pulsar `Activar notificaciones`.
+- Relaciona cada suscripción con el usuario autenticado y el ambiente.
+- Admite más de una suscripción activa por usuario.
+- Protege endpoint, claves y datos de suscripción contra acceso no autorizado.
+- Permite revocar la suscripción desde la interfaz.
+- No registra como activa una suscripción cuyo permiso fue rechazado.
+
+### HU-2003. Enviar Push para las transiciones de solicitudes
+
+Como responsable del proceso, quiero recibir una notificación Push cuando una
+solicitud requiera mi atención, para ingresar oportunamente al sistema.
+
+Criterios:
+
+- Reutiliza los eventos de negocio y la resolución de destinatarios de la Épica
+  19 sin modificar la máquina de estados.
+- Cubre todas las transiciones de la matriz de homologación.
+- Usa un mensaje breve que no expone información financiera sensible.
+- Incluye un enlace interno a la solicitud relacionada.
+- Exige autenticación y autorización al abrir el enlace.
+- No envía avisos a usuarios inactivos o sin acceso al proyecto.
+
+### HU-2004. Procesar envíos Push de forma asíncrona
+
+Como sistema, quiero procesar y reintentar notificaciones Push sin bloquear la
+operación, para mantener disponible el flujo de solicitudes.
+
+Criterios:
+
+- Procesa los envíos fuera de la transacción principal de negocio.
+- Registra estados `PENDIENTE`, `ENVIANDO`, `ENVIADA` y `FALLIDA`.
+- Aplica reintentos controlados ante errores temporales.
+- Desactiva suscripciones que respondan como expiradas o inexistentes.
+- Evita envíos duplicados y conserva el último error técnico.
+
+### HU-2005. Consultar preferencias y trazabilidad Push
+
+Como administrador, quiero consultar la configuración y los resultados de las
+notificaciones Push, para dar soporte a los usuarios y medir su cobertura.
+
+Criterios:
+
+- Permite consultar usuarios con y sin al menos una suscripción activa.
+- Permite filtrar envíos por usuario, solicitud, evento, ambiente, fecha y
+  estado.
+- No expone endpoints ni claves completas de las suscripciones.
+- Permite reintentar únicamente envíos fallidos sobre suscripciones vigentes.
+- Registra las acciones administrativas en auditoría.
+
+### HU-2006. Homologar y migrar el canal WhatsApp a Push
+
+Como administrador del sistema, quiero controlar la transición de WhatsApp a
+Push, para retirar la dependencia del canal anterior sin perder notificaciones.
+
+Criterios:
+
+- Permite configurar por ambiente los canales `WHATSAPP`, `PUSH` o ambos.
+- Ejecuta un periodo de convivencia para comparar destinatarios, eventos y
+  resultados de entrega.
+- Valida el flujo completo en dispositivos iPhone y Android reales.
+- Identifica usuarios sin suscripción Push antes de desactivar WhatsApp.
+- Documenta el procedimiento de activación, soporte y recuperación de permisos.
+- Desactiva WhatsApp como canal predeterminado únicamente después de la
+  aceptación funcional de Push.
+- Conserva el historial previo de notificaciones WhatsApp para auditoría.
