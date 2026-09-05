@@ -64,8 +64,12 @@ jobs:
       - name: Build and publish immutable image
         env:
           IMAGE_REF: ${{ steps.settings.outputs.image_ref }}
+          NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY }}
         run: |
-          docker build --tag "$IMAGE_REF" .
+          test -n "$NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY"
+          docker build \
+            --build-arg NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY="$NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY" \
+            --tag "$IMAGE_REF" .
           docker push "$IMAGE_REF"
           docker save "$IMAGE_REF" | gzip > /tmp/sistema-obras-image.tar.gz
 
