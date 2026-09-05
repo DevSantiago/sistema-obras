@@ -3,6 +3,7 @@
 import { formatearNombrePropio } from "@/lib/text-format";
 import { ChangePasswordButton } from "@/components/auth/ChangePasswordButton";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import Link from "next/link";
 import { useState } from "react";
 import styles from "./PrivateLayout.module.css";
@@ -192,6 +193,7 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
           </p>
           <p className={styles.userEmail}>{usuario.correo}</p>
 
+          <InstallAppButton />
           <ChangePasswordButton />
           <LogoutButton />
         </div>
