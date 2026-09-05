@@ -2197,6 +2197,10 @@ y la entrega de notificaciones Push en dispositivos reales.
   servicio Push.
 - Al pulsar una notificación, abre la solicitud relacionada y exige una sesión
   válida.
+- El enlace abre el módulo autorizado según el estado: aprobación nivel 1,
+  aprobación nivel 2, solicitudes del solicitante o pagos.
+- El título visible identifica el número de la solicitud sin exponer información
+  financiera ni datos del beneficiario.
 - El contenido visible en la pantalla bloqueada no expone valores, cuentas
   bancarias, beneficiarios ni otros datos financieros sensibles.
 - Permite controlar por ambiente si el evento se envía por `WHATSAPP`, `PUSH` o
