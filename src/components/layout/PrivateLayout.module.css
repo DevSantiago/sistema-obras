@@ -148,9 +148,24 @@
     inset: 0 auto 0 0;
     z-index: 50;
     width: min(82vw, 320px);
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     box-shadow: 20px 0 40px rgba(15, 23, 42, 0.25);
+  }
+
+  .brand,
+  .nav,
+  .sidebarFooter {
+    flex-shrink: 0;
   }
 
   .sidebarOpen {
@@ -165,6 +180,7 @@
     border: 0;
     background: rgba(15, 23, 42, 0.45);
     cursor: pointer;
+    touch-action: none;
   }
 
   .topbar {

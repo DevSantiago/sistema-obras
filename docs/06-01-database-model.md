@@ -120,6 +120,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 ## Notificaciones
 
 - notificaciones_whatsapp.
+- suscripciones_push.
 
 ---
 
@@ -158,6 +159,7 @@ El modelo se encuentra organizado en los siguientes módulos.
 | eventos_auditoria_solicitud_pago | ✅ |
 | notificaciones_whatsapp | ✅ |
 | eventos_webhook_whatsapp | ✅ |
+| suscripciones_push | ✅ |
 
 `correcciones_operacion_efectivo` conserva `pendiente_anterior` y
 `pendiente_nuevo` para conciliar los ajustes del valor retirado con los
@@ -183,6 +185,14 @@ Meta con una `clave_evento` única, el `wamid`, los identificadores disponibles,
 el payload y el resultado del procesamiento. La relación opcional con
 `notificaciones_whatsapp` permite auditar eventos no reconocidos o recibidos
 antes de encontrar una notificación asociada sin perder el contenido original.
+
+`suscripciones_push` conserva las suscripciones Web Push de cada usuario por
+ambiente. La combinación de `endpoint_hash` y `ambiente` evita duplicados y
+permite reasignar de forma explícita un dispositivo cuando cambia el usuario
+autenticado. Los campos `endpoint`, `clave_p256dh` y `clave_auth` son datos
+técnicos privados que no se retornan desde la API. Al revocar una suscripción
+se limpian esos valores, se conserva el hash para idempotencia y se registra la
+fecha de revocación.
 
 ---
 
