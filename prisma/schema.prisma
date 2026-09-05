@@ -53,6 +53,7 @@ model usuarios {
   anulaciones_solicitud_registradas  anulaciones_solicitud_pago[]      @relation("AnulacionesSolicitudRegistradasPor")
   eventos_auditoria_solicitud        eventos_auditoria_solicitud_pago[] @relation("EventosAuditoriaSolicitudRegistradosPor")
   notificaciones_whatsapp            notificaciones_whatsapp[]          @relation("NotificacionesWhatsAppDestinatario")
+  notificaciones_push                notificaciones_push[]              @relation("NotificacionesPushDestinatario")
   suscripciones_push                 suscripciones_push[]               @relation("SuscripcionesPushUsuario")
 
   adjuntos_subidos adjuntos[] @relation("AdjuntosSubidosPor")
@@ -381,6 +382,7 @@ model solicitudes_pago {
   anulaciones              anulaciones_solicitud_pago[]
   eventos_auditoria        eventos_auditoria_solicitud_pago[]
   notificaciones_whatsapp  notificaciones_whatsapp[]
+  notificaciones_push      notificaciones_push[]
 
   @@index([numero_solicitud])
   @@index([proyecto_base_id])
@@ -509,9 +511,43 @@ model suscripciones_push {
   revocado_en    DateTime?
 
   usuario usuarios @relation("SuscripcionesPushUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
+  notificaciones notificaciones_push[]
 
   @@unique([endpoint_hash, ambiente])
   @@index([usuario_id, ambiente, estado])
+}
+
+model notificaciones_push {
+  id                      String    @id @default(uuid())
+  evento_transicion_id    String
+  solicitud_pago_id       String
+  destinatario_usuario_id String
+  suscripcion_push_id     String
+  ambiente                String    @db.VarChar(30)
+  tipo_evento             String    @db.VarChar(80)
+  estado_origen           String
+  estado_destino          String
+  titulo                  String    @db.VarChar(120)
+  mensaje                 String    @db.VarChar(200)
+  enlace                  String    @db.VarChar(500)
+  estado                  String    @default("PENDIENTE") @db.VarChar(30)
+  intentos                Int       @default(0)
+  ultimo_error            String?   @db.Text
+  respuesta_proveedor     Json?
+  creado_en               DateTime  @default(now())
+  actualizado_en          DateTime  @updatedAt
+  enviado_en              DateTime?
+
+  solicitud    solicitudes_pago  @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  destinatario usuarios          @relation("NotificacionesPushDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: Cascade)
+  suscripcion  suscripciones_push @relation(fields: [suscripcion_push_id], references: [id], onDelete: Cascade)
+
+  @@unique([evento_transicion_id, solicitud_pago_id, destinatario_usuario_id, suscripcion_push_id], map: "notificaciones_push_evento_destino_suscripcion_key")
+  @@index([solicitud_pago_id, creado_en])
+  @@index([destinatario_usuario_id, creado_en])
+  @@index([suscripcion_push_id, creado_en])
+  @@index([estado, creado_en])
+  @@index([tipo_evento])
 }
 
 model eventos_webhook_whatsapp {

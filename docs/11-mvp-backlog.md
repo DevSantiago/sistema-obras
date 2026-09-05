@@ -2197,6 +2197,10 @@ y la entrega de notificaciones Push en dispositivos reales.
   servicio Push.
 - Al pulsar una notificación, abre la solicitud relacionada y exige una sesión
   válida.
+- El enlace abre el módulo autorizado según el estado: aprobación nivel 1,
+  aprobación nivel 2, solicitudes del solicitante o pagos.
+- El título visible identifica el número de la solicitud sin exponer información
+  financiera ni datos del beneficiario.
 - El contenido visible en la pantalla bloqueada no expone valores, cuentas
   bancarias, beneficiarios ni otros datos financieros sensibles.
 - Permite controlar por ambiente si el evento se envía por `WHATSAPP`, `PUSH` o
@@ -2235,7 +2239,7 @@ Criterios:
 
 ### HU-2002. Registrar suscripciones Push por usuario y dispositivo
 
-**Estado: EN PRUEBAS.**
+**Estado: APROBADA.** Validada en staging y producción sobre Android e iOS.
 
 Como usuario autenticado, quiero activar o desactivar notificaciones en cada
 dispositivo, para controlar dónde recibo los avisos.
@@ -2250,6 +2254,8 @@ Criterios:
 - No registra como activa una suscripción cuyo permiso fue rechazado.
 
 ### HU-2003. Enviar Push para las transiciones de solicitudes
+
+**Estado: EN DESARROLLO.**
 
 Como responsable del proceso, quiero recibir una notificación Push cuando una
 solicitud requiera mi atención, para ingresar oportunamente al sistema.

@@ -5,7 +5,7 @@ import type {
   TransicionNotificableWhatsApp,
 } from "./notificaciones-whatsapp.types";
 
-type Destinatario = {
+export type DestinatarioNotificacion = {
   id: string;
   nombre: string;
   telefono: string | null;
@@ -25,7 +25,9 @@ function normalizarTelefonoDestinatario(telefono: string | null) {
   return soloDigitos.startsWith("57") ? soloDigitos : `57${soloDigitos}`;
 }
 
-function tipoEvento(estadoDestino: TransicionNotificableWhatsApp["estadoDestino"]) {
+export function tipoEventoNotificacion(
+  estadoDestino: TransicionNotificableWhatsApp["estadoDestino"],
+) {
   const eventos = {
     PENDIENTE_APROBADOR_1: "SOLICITUD_PENDIENTE_APROBADOR_1",
     PENDIENTE_APROBADOR_2: "SOLICITUD_PENDIENTE_APROBADOR_2",
@@ -49,15 +51,19 @@ function plantillaEvento(estadoDestino: TransicionNotificableWhatsApp["estadoDes
   return process.env[variables[estadoDestino]]?.trim() || null;
 }
 
-function construirEnlaceSolicitud(
+export function construirEnlaceSolicitud(
   solicitudId: string,
   estadoDestino: TransicionNotificableWhatsApp["estadoDestino"],
 ) {
   const base = process.env.APP_BASE_URL?.trim().replace(/\/$/, "");
-  const ruta =
-    estadoDestino === "PROGRAMADA_PAGO"
-      ? "/pagos"
-      : `/solicitudes-pago?solicitud_id=${encodeURIComponent(solicitudId)}`;
+  const rutas = {
+    PENDIENTE_APROBADOR_1: "/aprobaciones/nivel-1",
+    PENDIENTE_APROBADOR_2: "/aprobaciones/nivel-2",
+    DEVUELTA_APROBADOR_1: "/aprobaciones/nivel-1",
+    DEVUELTA_SOLICITANTE: "/solicitudes-pago",
+    PROGRAMADA_PAGO: "/pagos",
+  } as const;
+  const ruta = `${rutas[estadoDestino]}?solicitud_id=${encodeURIComponent(solicitudId)}`;
 
   return base ? `${base}${ruta}` : ruta;
 }
@@ -67,7 +73,7 @@ async function obtenerAprobadores(
   rol: "APROBADOR_1" | "APROBADOR_2",
   proyectoBaseId: string,
   lineaNegocio: string,
-): Promise<Destinatario[]> {
+): Promise<DestinatarioNotificacion[]> {
   return tx.usuarios.findMany({
     where: {
       estado: "ACTIVO",
@@ -95,7 +101,7 @@ async function obtenerAprobadores(
   });
 }
 
-async function obtenerDestinatarios(
+export async function obtenerDestinatariosNotificacion(
   tx: Prisma.TransactionClient,
   transicion: TransicionNotificableWhatsApp,
   solicitud: {
@@ -104,7 +110,7 @@ async function obtenerDestinatarios(
     aprobado_1_por: string | null;
     centro_costo: { linea_negocio: string };
   },
-): Promise<Destinatario[]> {
+): Promise<DestinatarioNotificacion[]> {
   if (transicion.estadoDestino === "PENDIENTE_APROBADOR_1") {
     return obtenerAprobadores(
       tx,
@@ -157,6 +163,13 @@ async function obtenerDestinatarios(
     where: {
       id: destinatarioId,
       estado: "ACTIVO",
+      accesos_recibidos: {
+        some: {
+          proyecto_base_id: solicitud.proyecto_base_id,
+          linea_negocio: solicitud.centro_costo.linea_negocio,
+          activo: true,
+        },
+      },
     },
     select: {
       id: true,
@@ -166,7 +179,7 @@ async function obtenerDestinatarios(
   });
 }
 
-export async function crearNotificacionesTransicionesRepository(
+export async function crearNotificacionesWhatsAppTransicionesRepository(
   input: CrearNotificacionesTransicionesInput,
   tx: Prisma.TransactionClient,
 ) {
@@ -195,7 +208,11 @@ export async function crearNotificacionesTransicionesRepository(
         proveedor: { select: { nombre: true } },
       },
     });
-    const destinatarios = await obtenerDestinatarios(tx, transicion, solicitud);
+    const destinatarios = await obtenerDestinatariosNotificacion(
+      tx,
+      transicion,
+      solicitud,
+    );
     const eventoTransicionId = randomUUID();
 
     if (destinatarios.length === 0) {
@@ -212,7 +229,7 @@ export async function crearNotificacionesTransicionesRepository(
           destinatario.telefono,
         ),
         ambiente: process.env.APP_ENV?.trim() || "development",
-        tipo_evento: tipoEvento(transicion.estadoDestino),
+        tipo_evento: tipoEventoNotificacion(transicion.estadoDestino),
         estado_origen: transicion.estadoOrigen,
         estado_destino: transicion.estadoDestino,
         plantilla: plantillaEvento(transicion.estadoDestino),
@@ -245,3 +262,6 @@ export async function crearNotificacionesTransicionesRepository(
 
   return { count: cantidadCreada };
 }
+
+export const crearNotificacionesTransicionesRepository =
+  crearNotificacionesWhatsAppTransicionesRepository;
