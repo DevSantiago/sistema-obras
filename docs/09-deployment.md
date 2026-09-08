@@ -601,6 +601,12 @@ periódica, por ejemplo para staging:
 * * * * * cd /opt/sistema-obras/app && docker compose -f docker-compose.vps.yml exec -T app-stg node -e "fetch('http://127.0.0.1:3000/api/v1/push/notificaciones/procesar',{method:'POST',headers:{authorization:'Bearer '+process.env.PUSH_PROCESSOR_TOKEN}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 ```
 
+En producción, usar el procesador dedicado transferido por el despliegue:
+
+```cron
+* * * * * /opt/sistema-obras/app/process-push-prod.sh >/dev/null 2>&1
+```
+
 La tarea usa lotes pequeños y una falla del proveedor Push no bloquea ni
 revierte la transición de la solicitud.
 
