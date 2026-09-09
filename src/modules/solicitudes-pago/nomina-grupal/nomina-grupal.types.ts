@@ -24,9 +24,7 @@ export type FilaExcelNominaGrupalRaw = {
   banco?: unknown;
   tipo_cuenta_bancaria?: unknown;
   numero_cuenta_bancaria?: unknown;
-  valor_bruto?: unknown;
-  valor_retenciones?: unknown;
-  valor_descuentos?: unknown;
+  valor_total?: unknown;
 };
 
 export type FilaNominaGrupalNormalizada = {
@@ -39,10 +37,7 @@ export type FilaNominaGrupalNormalizada = {
   banco: string | null;
   tipo_cuenta_bancaria: string | null;
   numero_cuenta_bancaria: string | null;
-  valor_bruto: number;
-  valor_retenciones: number;
-  valor_descuentos: number;
-  valor_neto: number;
+  valor_total: number;
 };
 
 export type FilaNominaGrupalValidada = FilaNominaGrupalNormalizada & {
@@ -56,10 +51,7 @@ export type ResumenValidacionNominaGrupal = {
   filas_validas: number;
   filas_invalidas: number;
   filas_pendientes_beneficiario: number;
-  valor_bruto_total: number;
-  valor_retenciones_total: number;
-  valor_descuentos_total: number;
-  valor_neto_total: number;
+  valor_total: number;
 };
 
 export type ResultadoLecturaExcelNominaGrupal = {
@@ -215,15 +207,13 @@ export const COLUMNAS_OBLIGATORIAS_NOMINA_GRUPAL = [
   "nombre_trabajador",
   "concepto_nomina",
   "medio_pago",
-  "valor_bruto",
+  "valor_total",
 ] as const;
 
 export const COLUMNAS_OPCIONALES_NOMINA_GRUPAL = [
   "banco",
   "tipo_cuenta_bancaria",
   "numero_cuenta_bancaria",
-  "valor_retenciones",
-  "valor_descuentos",
 ] as const;
 
 export type ColumnaObligatoriaNominaGrupal =
