@@ -514,6 +514,20 @@ export default function NominaGrupalForm({
               ? "Actualice los datos generales y cargue el Excel completo corregido. El archivo reemplazará la nómina anterior después de validar nuevamente todas sus filas."
               : "Seleccione el proyecto, el centro de costo y el periodo. Después cargue el archivo Excel para validar los trabajadores y valores antes de crear la solicitud."}
           </p>
+
+          <div className={styles.actions}>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() =>
+                window.location.assign(
+                  "/api/v1/solicitudes-pago/nomina-grupal",
+                )
+              }
+            >
+              Descargar plantilla Excel
+            </button>
+          </div>
         </header>
 
         <div className={styles.grid}>
@@ -733,16 +747,9 @@ export default function NominaGrupalForm({
               </div>
 
               <div className={styles.netBox}>
-                <span className={styles.netLabel}>Valor bruto total</span>
+                <span className={styles.netLabel}>Valor total</span>
                 <strong className={styles.net}>
-                  {formatearMoneda(resumen.valor_bruto_total)}
-                </strong>
-              </div>
-
-              <div className={styles.netBox}>
-                <span className={styles.netLabel}>Valor neto total</span>
-                <strong className={styles.net}>
-                  {formatearMoneda(resumen.valor_neto_total)}
+                  {formatearMoneda(resumen.valor_total)}
                 </strong>
               </div>
             </div>
@@ -779,10 +786,7 @@ export default function NominaGrupalForm({
                   <th>Documento</th>
                   <th>Concepto</th>
                   <th>Medio de pago</th>
-                  <th>Valor bruto</th>
-                  <th>Retenciones</th>
-                  <th>Descuentos</th>
-                  <th>Valor neto</th>
+                  <th>Valor total</th>
                   <th>Validación</th>
                 </tr>
               </thead>
@@ -811,13 +815,7 @@ export default function NominaGrupalForm({
 
                     <td>{fila.medio_pago || "—"}</td>
 
-                    <td>{formatearMoneda(fila.valor_bruto)}</td>
-
-                    <td>{formatearMoneda(fila.valor_retenciones)}</td>
-
-                    <td>{formatearMoneda(fila.valor_descuentos)}</td>
-
-                    <td>{formatearMoneda(fila.valor_neto)}</td>
+                    <td>{formatearMoneda(fila.valor_total)}</td>
 
                     <td>
                       <span className={styles.status}>

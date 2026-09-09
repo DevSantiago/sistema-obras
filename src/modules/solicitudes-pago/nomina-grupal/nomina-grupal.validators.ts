@@ -9,7 +9,7 @@ import type {
   ResultadoValidacionNominaGrupal,
 } from "./nomina-grupal.types";
 
-const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
+export const MEDIOS_PAGO_NOMINA_GRUPAL: MedioPagoSolicitud[] = [
   "TRANSFERENCIA",
   "PSE",
   "PORTAL",
@@ -17,16 +17,20 @@ const MEDIOS_PAGO_VALIDOS: MedioPagoSolicitud[] = [
   "EFECTIVO",
 ];
 
-const TIPOS_DOCUMENTO_VALIDOS = [
+export const TIPOS_DOCUMENTO_NOMINA_GRUPAL = [
   "CC",
   "CE",
   "OTRO",
 ] as const;
 
-const TIPOS_CUENTA_VALIDOS = ["AHORROS", "CORRIENTE", "OTRO"] as const;
+export const TIPOS_CUENTA_NOMINA_GRUPAL = [
+  "AHORROS",
+  "CORRIENTE",
+  "OTRO",
+] as const;
 
-type TipoDocumentoValido = (typeof TIPOS_DOCUMENTO_VALIDOS)[number];
-type TipoCuentaValido = (typeof TIPOS_CUENTA_VALIDOS)[number];
+type TipoDocumentoValido = (typeof TIPOS_DOCUMENTO_NOMINA_GRUPAL)[number];
+type TipoCuentaValido = (typeof TIPOS_CUENTA_NOMINA_GRUPAL)[number];
 
 function normalizarTexto(valor: unknown): string {
   if (valor === null || valor === undefined) {
@@ -128,32 +132,26 @@ function agregarError(
 function medioPagoEsValido(
   medioPago: string,
 ): medioPago is MedioPagoSolicitud {
-  return MEDIOS_PAGO_VALIDOS.includes(medioPago as MedioPagoSolicitud);
+  return MEDIOS_PAGO_NOMINA_GRUPAL.includes(medioPago as MedioPagoSolicitud);
 }
 
 function tipoDocumentoEsValido(
   tipoDocumento: string,
 ): tipoDocumento is TipoDocumentoValido {
-  return TIPOS_DOCUMENTO_VALIDOS.includes(
+  return TIPOS_DOCUMENTO_NOMINA_GRUPAL.includes(
     tipoDocumento as TipoDocumentoValido,
   );
 }
 
 function tipoCuentaEsValido(tipoCuenta: string): tipoCuenta is TipoCuentaValido {
-  return TIPOS_CUENTA_VALIDOS.includes(tipoCuenta as TipoCuentaValido);
+  return TIPOS_CUENTA_NOMINA_GRUPAL.includes(tipoCuenta as TipoCuentaValido);
 }
 
 export function normalizarFilaNominaGrupal(
   fila: FilaExcelNominaGrupalRaw,
   numeroFila: number,
 ): FilaNominaGrupalNormalizada {
-  const valorBruto = convertirNumero(fila.valor_bruto);
-  const valorRetenciones = convertirNumero(fila.valor_retenciones);
-  const valorDescuentos = convertirNumero(fila.valor_descuentos);
-
-  const valorBrutoNormalizado = valorBruto ?? 0;
-  const valorRetencionesNormalizado = valorRetenciones ?? 0;
-  const valorDescuentosNormalizado = valorDescuentos ?? 0;
+  const valorTotal = convertirNumero(fila.valor_total);
 
   return {
     numero_fila: numeroFila,
@@ -170,13 +168,7 @@ export function normalizarFilaNominaGrupal(
     numero_cuenta_bancaria: normalizarTextoOpcional(
       fila.numero_cuenta_bancaria,
     ),
-    valor_bruto: valorBrutoNormalizado,
-    valor_retenciones: valorRetencionesNormalizado,
-    valor_descuentos: valorDescuentosNormalizado,
-    valor_neto:
-      valorBrutoNormalizado -
-      valorRetencionesNormalizado -
-      valorDescuentosNormalizado,
+    valor_total: valorTotal ?? 0,
   };
 }
 
@@ -247,64 +239,21 @@ export function validarFilaNominaGrupal(input: {
     );
   }
 
-  const valorBrutoOriginal = convertirNumero(filaRaw.valor_bruto);
-  const valorRetencionesOriginal = convertirNumero(filaRaw.valor_retenciones);
-  const valorDescuentosOriginal = convertirNumero(filaRaw.valor_descuentos);
+  const valorTotalOriginal = convertirNumero(filaRaw.valor_total);
 
-  if (valorBrutoOriginal === null) {
+  if (valorTotalOriginal === null) {
     agregarError(
       errores,
-      "valor_bruto",
-      "VALOR_BRUTO_INVALIDO",
-      "El valor bruto debe ser numérico.",
+      "valor_total",
+      "VALOR_TOTAL_INVALIDO",
+      "El valor total debe ser numérico.",
     );
-  } else if (filaNormalizada.valor_bruto <= 0) {
+  } else if (filaNormalizada.valor_total <= 0) {
     agregarError(
       errores,
-      "valor_bruto",
-      "VALOR_BRUTO_NO_POSITIVO",
-      "El valor bruto debe ser mayor a cero.",
-    );
-  }
-
-  if (valorRetencionesOriginal === null) {
-    agregarError(
-      errores,
-      "valor_retenciones",
-      "VALOR_RETENCIONES_INVALIDO",
-      "El valor de las retenciones debe ser numérico.",
-    );
-  } else if (filaNormalizada.valor_retenciones < 0) {
-    agregarError(
-      errores,
-      "valor_retenciones",
-      "VALOR_RETENCIONES_NEGATIVO",
-      "El valor de las retenciones no puede ser negativo.",
-    );
-  }
-
-  if (valorDescuentosOriginal === null) {
-    agregarError(
-      errores,
-      "valor_descuentos",
-      "VALOR_DESCUENTOS_INVALIDO",
-      "El valor de los descuentos debe ser numérico.",
-    );
-  } else if (filaNormalizada.valor_descuentos < 0) {
-    agregarError(
-      errores,
-      "valor_descuentos",
-      "VALOR_DESCUENTOS_NEGATIVO",
-      "El valor de los descuentos no puede ser negativo.",
-    );
-  }
-
-  if (filaNormalizada.valor_neto < 0) {
-    agregarError(
-      errores,
-      "valor_neto",
-      "VALOR_NETO_NEGATIVO",
-      "El valor neto no puede ser negativo.",
+      "valor_total",
+      "VALOR_TOTAL_NO_POSITIVO",
+      "El valor total debe ser mayor a cero.",
     );
   }
 
@@ -485,10 +434,7 @@ export function construirResumenNominaGrupal(
         resumen.filas_pendientes_beneficiario += 1;
       }
 
-      resumen.valor_bruto_total += fila.valor_bruto;
-      resumen.valor_retenciones_total += fila.valor_retenciones;
-      resumen.valor_descuentos_total += fila.valor_descuentos;
-      resumen.valor_neto_total += fila.valor_neto;
+      resumen.valor_total += fila.valor_total;
 
       return resumen;
     },
@@ -497,10 +443,7 @@ export function construirResumenNominaGrupal(
       filas_validas: 0,
       filas_invalidas: 0,
       filas_pendientes_beneficiario: 0,
-      valor_bruto_total: 0,
-      valor_retenciones_total: 0,
-      valor_descuentos_total: 0,
-      valor_neto_total: 0,
+      valor_total: 0,
     },
   );
 }

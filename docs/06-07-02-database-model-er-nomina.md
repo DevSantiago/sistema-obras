@@ -153,23 +153,22 @@ Los campos bancarios son opcionales.
 
 # Valores financieros
 
-Los valores registrados por cada trabajador son:
+En el contrato funcional de nómina agrupada cada trabajador registra un único
+`valor_total`, suministrado directamente en la plantilla. No se reciben ni se
+calculan retenciones o descuentos por fila.
+
+Para mantener compatibilidad con el modelo financiero común y con los
+registros históricos, el valor se persiste de la siguiente manera:
 
 ```text
-valor_bruto
-valor_retenciones
-valor_descuentos
-valor_neto
+valor_bruto = valor_total
+valor_retenciones = 0
+valor_descuentos = 0
+valor_neto = valor_total
 ```
 
-Los campos:
-
-```text
-valor_retenciones
-valor_descuentos
-```
-
-tienen valor predeterminado de cero.
+Las columnas físicas existentes no se eliminan porque también sostienen la
+compatibilidad del flujo general de solicitudes y los datos históricos.
 
 ---
 

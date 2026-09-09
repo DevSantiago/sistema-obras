@@ -344,6 +344,10 @@ El valor neto debe conservar coherencia con el desglose aplicable:
 valor_neto = valor_bruto - valor_impuestos_retenciones - valor_descuentos
 ```
 
+La nómina agrupada no utiliza este desglose por trabajador. Cada fila recibe
+directamente un `valor_total`, sin campos de retenciones ni descuentos, y ese
+valor constituye el monto que se pagará.
+
 ## Nómina
 
 ### Nómina individual

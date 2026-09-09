@@ -936,6 +936,7 @@ GET   /api/v1/solicitudes-pago/{id}
 POST  /api/v1/solicitudes-pago/{id}/enviar
 GET   /api/v1/solicitudes-pago/{id}/archivo
 
+GET   /api/v1/solicitudes-pago/nomina-grupal
 POST  /api/v1/solicitudes-pago/nomina-grupal
 POST  /api/v1/solicitudes-pago/reembolsos
 ```
@@ -1095,7 +1096,18 @@ Actualmente este endpoint retorna un archivo binario utilizando los encabezados 
 
 # Nómina grupal
 
-## Endpoint
+## Descargar plantilla
+
+```http
+GET /api/v1/solicitudes-pago/nomina-grupal
+```
+
+Descarga la plantilla oficial `.xlsx` con las columnas procesadas por el
+sistema, instrucciones de diligenciamiento y listas para los valores
+controlados. Cada fila recibe directamente `valor_total`; la plantilla no
+incluye columnas de retenciones ni descuentos. Requiere una sesión autenticada.
+
+## Procesar nómina grupal
 
 ```http
 POST /api/v1/solicitudes-pago/nomina-grupal
@@ -1125,6 +1137,31 @@ El endpoint:
 - valida el formato;
 - procesa las filas;
 - retorna la información normalizada para su revisión.
+
+Cada fila utiliza el siguiente contrato:
+
+```json
+{
+  "tipo_documento": "CC",
+  "numero_documento": "1000123456",
+  "nombre_trabajador": "TRABAJADOR DE PRUEBA",
+  "concepto_nomina": "SALARIO",
+  "medio_pago": "EFECTIVO",
+  "banco": null,
+  "tipo_cuenta_bancaria": null,
+  "numero_cuenta_bancaria": null,
+  "valor_total": 1500000
+}
+```
+
+`valor_total` es obligatorio, numérico y mayor que cero. El servidor no
+calcula deducciones para nómina agrupada. Al persistir, conserva el mismo monto
+como valor bruto y neto, con retenciones y descuentos en cero.
+
+En la consulta del detalle de una nómina agrupada, cada elemento de
+`detalles_nomina` expone `valor_total`. Los campos físicos `valor_bruto`,
+`valor_retenciones`, `valor_descuentos` y `valor_neto` no forman parte del
+contrato público del detalle.
 
 ---
 
