@@ -77,6 +77,7 @@ export default function FondosManager() {
   const [tipoMovimiento, setTipoMovimiento] = useState("");
   const [cargandoMovimientos, setCargandoMovimientos] = useState(false);
   const [errorMovimientos, setErrorMovimientos] = useState("");
+  const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
 
   const cargarFondos = useCallback(async () => {
     setCargando(true);
@@ -313,7 +314,26 @@ export default function FondosManager() {
       <section className={styles.container}>
         {selectorVista}
 
-        <div className={styles.movementFilters}>
+        <button
+          type="button"
+          className={styles.mobileFiltersToggle}
+          aria-expanded={filtrosMovilesVisibles}
+          aria-controls="filtros-movimientos-fondos"
+          onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
+        >
+          <span>Filtros</span>
+          <span>
+            {[proyectoMovimiento, centroMovimiento, lineaMovimiento, faseMovimiento, direccionMovimiento, tipoMovimiento].filter(Boolean).length > 0
+              ? `${[proyectoMovimiento, centroMovimiento, lineaMovimiento, faseMovimiento, direccionMovimiento, tipoMovimiento].filter(Boolean).length} activos`
+              : "Mostrar"}
+          </span>
+        </button>
+        <div
+          id="filtros-movimientos-fondos"
+          className={`${styles.movementFilters} ${
+            filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
+          }`}
+        >
           <label className={styles.field}>
             <span>Proyecto base</span>
             <select
@@ -545,6 +565,12 @@ export default function FondosManager() {
                       ? `${movimiento.centro_costo_codigo} · ${movimiento.centro_costo_nombre}`
                       : "Movimiento general del fondo"}
                   </p>
+                  <div className={styles.mobilePrimaryAmount}>
+                    <span>
+                      {FORMATEADOR_FECHA.format(new Date(movimiento.registrado_en))}
+                    </span>
+                    <strong>{FORMATEADOR_MONEDA.format(movimiento.valor)}</strong>
+                  </div>
                   {movimiento.tipo_movimiento ===
                     "EGRESO_RETIRO_EFECTIVO" &&
                   movimiento.operacion_efectivo_id ? (
@@ -555,38 +581,27 @@ export default function FondosManager() {
                       Ver detalle operativo
                     </Link>
                   ) : null}
-                  <dl>
-                    <div>
-                      <dt>Fecha</dt>
-                      <dd>
-                        {FORMATEADOR_FECHA.format(
-                          new Date(movimiento.registrado_en),
-                        )}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Valor</dt>
-                      <dd>
-                        {FORMATEADOR_MONEDA.format(movimiento.valor)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Saldo anterior</dt>
-                      <dd>
-                        {FORMATEADOR_MONEDA.format(
-                          movimiento.saldo_anterior,
-                        )}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Saldo nuevo</dt>
-                      <dd>
-                        {FORMATEADOR_MONEDA.format(
-                          movimiento.saldo_nuevo,
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
+                  <details className={styles.mobileDisclosure}>
+                    <summary>Ver impacto en el saldo</summary>
+                    <dl>
+                      <div>
+                        <dt>Saldo anterior</dt>
+                        <dd>
+                          {FORMATEADOR_MONEDA.format(
+                            movimiento.saldo_anterior,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Saldo nuevo</dt>
+                        <dd>
+                          {FORMATEADOR_MONEDA.format(
+                            movimiento.saldo_nuevo,
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
+                  </details>
                 </article>
               ))}
             </div>
@@ -599,7 +614,26 @@ export default function FondosManager() {
   return (
     <section className={styles.container}>
       {selectorVista}
-      <div className={styles.filters}>
+      <button
+        type="button"
+        className={styles.mobileFiltersToggle}
+        aria-expanded={filtrosMovilesVisibles}
+        aria-controls="filtros-fondos"
+        onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
+      >
+        <span>Filtros</span>
+        <span>
+          {[busqueda, linea, fase].filter(Boolean).length > 0
+            ? `${[busqueda, linea, fase].filter(Boolean).length} activos`
+            : "Mostrar"}
+        </span>
+      </button>
+      <div
+        id="filtros-fondos"
+        className={`${styles.filters} ${
+          filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
+        }`}
+      >
         <label className={styles.field}>
           <span>Buscar</span>
           <input
@@ -746,12 +780,18 @@ export default function FondosManager() {
                   <article key={centro.id}>
                     <strong>{centro.codigo}</strong>
                     <span>{centro.nombre}</span>
-                    <dl>
-                      <div><dt>Línea</dt><dd>{formatearEtiqueta(centro.linea_negocio)}</dd></div>
-                      <div><dt>Fase</dt><dd>{formatearEtiqueta(centro.fase_centro_costo)}</dd></div>
-                      <div><dt>Estado</dt><dd>{formatearEtiqueta(centro.estado_centro_costo)}</dd></div>
-                      <div><dt>Gasto</dt><dd>{FORMATEADOR_MONEDA.format(centro.gasto_acumulado)}</dd></div>
-                    </dl>
+                    <div className={styles.mobilePrimaryAmount}>
+                      <span>Gasto acumulado</span>
+                      <strong>{FORMATEADOR_MONEDA.format(centro.gasto_acumulado)}</strong>
+                    </div>
+                    <details className={styles.mobileDisclosure}>
+                      <summary>Ver clasificación</summary>
+                      <dl>
+                        <div><dt>Línea</dt><dd>{formatearEtiqueta(centro.linea_negocio)}</dd></div>
+                        <div><dt>Fase</dt><dd>{formatearEtiqueta(centro.fase_centro_costo)}</dd></div>
+                        <div><dt>Estado</dt><dd>{formatearEtiqueta(centro.estado_centro_costo)}</dd></div>
+                      </dl>
+                    </details>
                   </article>
                 ))}
               </div>

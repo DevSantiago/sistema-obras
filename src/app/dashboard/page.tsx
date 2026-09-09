@@ -49,6 +49,31 @@ export default async function DashboardPage() {
           <p className={styles.cardText}>Sesión validada correctamente.</p>
         </article>
       </section>
+
+      <article className={styles.mobileSummary}>
+        <div className={styles.mobileSummaryHeader}>
+          <div>
+            <p className={styles.cardLabel}>Sesión activa</p>
+            <h2 className={styles.cardValue}>
+              {formatearNombrePropio(usuario.nombre)}
+            </h2>
+          </div>
+          <span>{usuario.estado}</span>
+        </div>
+        <details>
+          <summary>Ver información de la sesión</summary>
+          <dl>
+            <div>
+              <dt>Correo</dt>
+              <dd>{usuario.correo}</dd>
+            </div>
+            <div>
+              <dt>Roles</dt>
+              <dd>{usuario.roles.join(", ")}</dd>
+            </div>
+          </dl>
+        </details>
+      </article>
     </PrivateLayout>
   );
 }

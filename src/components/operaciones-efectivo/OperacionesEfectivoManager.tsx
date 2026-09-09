@@ -40,6 +40,7 @@ export default function OperacionesEfectivoManager({
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [soloPendientes, setSoloPendientes] = useState(false);
+  const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [valorReingreso, setValorReingreso] = useState("");
@@ -428,7 +429,26 @@ export default function OperacionesEfectivoManager({
 
   return (
     <section className={styles.container}>
-      <div className={styles.filters}>
+      <button
+        type="button"
+        className={styles.mobileFiltersToggle}
+        aria-expanded={filtrosMovilesVisibles}
+        aria-controls="filtros-retiros"
+        onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
+      >
+        <span>Filtros</span>
+        <span>
+          {[numeroSolicitud, proyectoId, centroCosto, fondoId, fechaDesde, fechaHasta, soloPendientes ? "pendientes" : ""].filter(Boolean).length > 0
+            ? `${[numeroSolicitud, proyectoId, centroCosto, fondoId, fechaDesde, fechaHasta, soloPendientes ? "pendientes" : ""].filter(Boolean).length} activos`
+            : "Mostrar"}
+        </span>
+      </button>
+      <div
+        id="filtros-retiros"
+        className={`${styles.filters} ${
+          filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
+        }`}
+      >
         <label>
           <span>Número de solicitud</span>
           <input
@@ -625,12 +645,18 @@ export default function OperacionesEfectivoManager({
                     {etiquetaEstado(operacion.estado_seguimiento)}
                   </span>
                 </header>
-                <dl>
-                  <div><dt>Retirado</dt><dd>{MONEDA.format(operacion.valor_retirado)}</dd></div>
-                  <div><dt>Pagado</dt><dd>{MONEDA.format(operacion.valor_pagado)}</dd></div>
-                  <div><dt>Reintegrado</dt><dd>{MONEDA.format(operacion.valor_reintegrado)}</dd></div>
-                  <div><dt>Pendiente</dt><dd>{MONEDA.format(operacion.valor_pendiente_reintegro)}</dd></div>
-                </dl>
+                <div className={styles.mobilePrimaryData}>
+                  <span>Valor pendiente</span>
+                  <strong>{MONEDA.format(operacion.valor_pendiente_reintegro)}</strong>
+                </div>
+                <details className={styles.mobileDisclosure}>
+                  <summary>Ver distribución del retiro</summary>
+                  <dl>
+                    <div><dt>Retirado</dt><dd>{MONEDA.format(operacion.valor_retirado)}</dd></div>
+                    <div><dt>Pagado</dt><dd>{MONEDA.format(operacion.valor_pagado)}</dd></div>
+                    <div><dt>Reintegrado</dt><dd>{MONEDA.format(operacion.valor_reintegrado)}</dd></div>
+                  </dl>
+                </details>
                 <button
                   type="button"
                   onClick={() => setOperacionDetalle(operacion)}

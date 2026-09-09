@@ -1125,6 +1125,12 @@
   gap: 0.75rem;
 }
 
+.mobileProjectSummary,
+.mobileStickyAction,
+.mobileFiltersToggle {
+  display: none;
+}
+
 .summarySection,
 .simulationSection {
   padding: 0.875rem;
@@ -1181,6 +1187,12 @@
   line-height: 1.4;
 }
 
+.paymentProjection {
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid #bfdbfe;
+}
+
 .summaryLabel {
   display: block;
   margin-bottom: 0.35rem;
@@ -1207,10 +1219,19 @@
   text-transform: none;
 }
 
+.summaryCalculation {
+  display: block;
+  margin-top: 0.45rem;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 @media (max-width: 48rem) {
   .panel {
     gap: 1.25rem;
-    padding: 1rem;
+    padding: 1rem 1rem 7rem;
   }
 
   .toolbar {
@@ -1225,14 +1246,37 @@
     grid-template-columns: 1fr;
   }
 
+  .mobileFiltersToggle {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--color-border, #d9dee7);
+    border-radius: 0.625rem;
+    background: #ffffff;
+    color: #1e293b;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
+  .mobileFiltersToggle span:last-child {
+    color: #2563eb;
+    font-size: 0.75rem;
+  }
+
+  .summaryFilters.mobileFiltersCollapsed {
+    display: none;
+  }
+
   .summaryFilterActions {
     align-items: stretch;
     flex-direction: column;
   }
 
   .selectionSummary {
-    align-items: flex-start;
-    flex-direction: column;
+    display: none;
   }
 
   .summaryValues {
@@ -1240,7 +1284,202 @@
   }
 
   .projectSummary {
-    grid-template-columns: 1fr;
+    display: none;
+  }
+
+  .mobileProjectSummary {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .mobileKeyFigures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+  }
+
+  .mobileKeyFigures > div,
+  .mobileApprovalResult {
+    min-width: 0;
+    padding: 0.875rem;
+    border: 1px solid var(--color-border, #d9dee7);
+    border-radius: 0.625rem;
+    background: var(--color-surface-secondary, #f8fafc);
+  }
+
+  .mobileMainValue {
+    color: #1d4ed8;
+    font-size: 1.15rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .mobileKeyFigures .summaryValue {
+    overflow-wrap: anywhere;
+  }
+
+  .mobileApprovalResult {
+    border-color: #93c5fd;
+    background: #eff6ff;
+  }
+
+  .mobileApprovalResult strong,
+  .mobileApprovalResult small {
+    display: block;
+  }
+
+  .mobileApprovalResult strong {
+    color: #1d4ed8;
+    line-height: 1.35;
+  }
+
+  .mobileApprovalResult small {
+    margin-top: 0.35rem;
+    color: #475569;
+    line-height: 1.4;
+  }
+
+  .mobileDisclosure {
+    border: 1px solid var(--color-border, #d9dee7);
+    border-radius: 0.625rem;
+    background: #ffffff;
+  }
+
+  .mobileDisclosure summary {
+    display: flex;
+    min-height: 2.875rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.875rem;
+    color: #1e293b;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobileDisclosure summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileDisclosure summary::after {
+    content: "+";
+    color: #2563eb;
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .mobileDisclosure[open] summary::after {
+    content: "−";
+  }
+
+  .mobileFinancialList {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0 0.875rem 0.75rem;
+  }
+
+  .mobileFinancialList > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.625rem 0;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .mobileFinancialList dt {
+    color: #475569;
+    font-size: 0.78rem;
+  }
+
+  .mobileFinancialList dd {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.875rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .mobileFinancialList .mobileFinancialTotal {
+    border-top-color: #93c5fd;
+  }
+
+  .mobileFinancialTotal dt,
+  .mobileFinancialTotal dd {
+    color: #1d4ed8;
+    font-weight: 800;
+  }
+
+  .mobileTotalValue {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .mobileTotalValue small {
+    color: #475569;
+    font-size: 0.68rem;
+    font-weight: 600;
+  }
+
+  .mobileCalculation {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0 0.875rem 0.875rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .mobileCalculation span,
+  .mobileCalculation small {
+    color: #475569;
+    font-size: 0.78rem;
+  }
+
+  .mobileCalculation strong {
+    color: #1d4ed8;
+    font-size: 1rem;
+  }
+
+  .mobileStickyAction {
+    position: fixed;
+    z-index: 20;
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    left: 0.75rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 0.875rem;
+    background: rgb(255 255 255 / 96%);
+    box-shadow: 0 0.75rem 2rem rgb(15 23 42 / 18%);
+    backdrop-filter: blur(0.5rem);
+  }
+
+  .mobileStickyAction .approveButton {
+    width: auto;
+    min-width: 7.5rem;
+  }
+
+  .mobileStickySummary {
+    display: grid;
+    min-width: 0;
+    gap: 0.125rem;
+    color: #64748b;
+    font-size: 0.72rem;
+  }
+
+  .mobileStickySummary strong {
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
   }
 
   .actions {
@@ -1255,6 +1494,10 @@
     width: 100%;
     min-width: 0;
     margin: 0;
+  }
+
+  .actions .approveButton {
+    display: none;
   }
 
   .detailGrid {
