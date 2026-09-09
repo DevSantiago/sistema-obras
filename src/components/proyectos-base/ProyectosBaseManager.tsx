@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import styles from "./ProyectosBaseManager.module.css";
 
 type LineaNegocioCentroCosto = "OBRA" | "INTERVENTORIA";
@@ -138,7 +139,11 @@ async function cargarProyectos() {
   return result.data as ProyectoBase[];
 }
 
-export function ProyectosBaseManager() {
+type ProyectosBaseManagerProps = {
+  usuario: UsuarioSesion;
+};
+
+export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
   const [proyectos, setProyectos] = useState<ProyectoBase[]>([]);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -324,7 +329,18 @@ export function ProyectosBaseManager() {
   }
 
   function renderCentroCosto(proyecto: ProyectoBase, centroCosto: CentroCosto) {
-    const textoAccion = obtenerTextoAccionCentroCosto(centroCosto);
+    const esAdministrador = usuario.roles.includes("ADMINISTRADOR");
+    const puedeAvanzarLicitacion = usuario.roles.some((rol) =>
+      ["DIRECTOR", "APROBADOR_1"].includes(rol),
+    );
+    const esTransicionAEjecucion =
+      centroCosto.fase_centro_costo === "LICITACION" &&
+      centroCosto.estado_centro_costo === "EN_LICITACION";
+    const puedeCambiarEstado =
+      esAdministrador || (puedeAvanzarLicitacion && esTransicionAEjecucion);
+    const textoAccion = puedeCambiarEstado
+      ? obtenerTextoAccionCentroCosto(centroCosto)
+      : null;
 
     return (
       <div className={styles.costCenter} key={centroCosto.id}>

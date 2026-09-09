@@ -18,7 +18,7 @@ export default async function ProyectosBasePage() {
 
   return (
     <PrivateLayout usuario={usuario}>
-      <ProyectosBaseManager />
+      <ProyectosBaseManager usuario={usuario} />
     </PrivateLayout>
   );
 }

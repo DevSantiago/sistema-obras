@@ -163,6 +163,11 @@ SOLICITANTE
 
 Cada uno de estos roles podrá operar únicamente sobre los proyectos y líneas de negocio para los cuales tenga accesos activos.
 
+Los roles `DIRECTOR` y `APROBADOR_1` pueden promover centros de costo de
+licitación a ejecución (`PRO-OBRA` a `OBRA` y `PRO-INT` a `INT`) dentro de esos
+accesos. La finalización posterior de centros en ejecución continúa reservada
+al `ADMINISTRADOR`.
+
 Las responsabilidades de cada rol se describen en las siguientes secciones.
 
 ---

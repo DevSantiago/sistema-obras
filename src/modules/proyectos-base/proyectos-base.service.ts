@@ -3,6 +3,7 @@ import {
   cambiarEstadoCentroCostoRepository,
   crearProyectoBaseConCentroCostoRepository,
   existeProyectoBasePorNombreRepository,
+  listarAccesosActivosUsuarioProyectoBaseRepository,
   listarProyectosBasePorAccesosUsuarioRepository,
   listarProyectosBaseRepository,
   obtenerCentroCostoPorProyectoRepository,
@@ -236,7 +237,7 @@ export async function crearProyectoBaseService(input: CrearProyectoBaseInput) {
 type CambiarEstadoCentroCostoInput = {
   estado_centro_costo: EstadoCentroCosto;
   observacion?: string;
-  usuario_id: string;
+  usuario: UsuarioSesion;
 };
 
 export async function cambiarEstadoCentroCostoService(
@@ -252,7 +253,7 @@ export async function cambiarEstadoCentroCostoService(
     throw new Error("El ID del centro de costo es obligatorio.");
   }
 
-  if (!input.usuario_id) {
+  if (!input.usuario?.id) {
     throw new Error("El usuario que realiza el cambio es obligatorio.");
   }
 
@@ -285,9 +286,43 @@ export async function cambiarEstadoCentroCostoService(
     );
   }
 
+  const esAdministrador = usuarioEsAdministrador(input.usuario);
+  const puedeAvanzarLicitacion = input.usuario.roles.some((rol) =>
+    ["DIRECTOR", "APROBADOR_1"].includes(rol),
+  );
+
+  if (!esAdministrador && !puedeAvanzarLicitacion) {
+    throw new Error("No tiene permisos para cambiar estados de centros de costo.");
+  }
+
+  if (!esAdministrador) {
+    if (
+      centroCosto.fase_centro_costo !== "LICITACION" ||
+      input.estado_centro_costo !== "EN_EJECUCION"
+    ) {
+      throw new Error(
+        "Solo el administrador puede finalizar centros de costo en ejecución.",
+      );
+    }
+
+    const accesos =
+      await listarAccesosActivosUsuarioProyectoBaseRepository(input.usuario.id);
+    const tieneAcceso = accesos.some(
+      (acceso) =>
+        acceso.proyecto_base_id === proyectoBaseId &&
+        acceso.linea_negocio === centroCosto.linea_negocio,
+    );
+
+    if (!tieneAcceso) {
+      throw new Error(
+        "No tiene acceso activo al proyecto y línea de negocio del centro de costo.",
+      );
+    }
+  }
+
   return cambiarEstadoCentroCostoRepository(proyectoBaseId, centroCostoId, {
     estado_centro_costo: input.estado_centro_costo,
     observacion: input.observacion?.trim() || undefined,
-    usuario_id: input.usuario_id,
+    usuario_id: input.usuario.id,
   });
 }
