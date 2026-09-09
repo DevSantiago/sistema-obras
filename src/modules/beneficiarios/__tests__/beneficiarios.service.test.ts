@@ -104,6 +104,37 @@ describe("beneficiarios.service - carga masiva", () => {
     );
   });
 
+  it("permite un proveedor en efectivo sin datos bancarios", async () => {
+    const resultado = await validarCargaMasivaProveedoresService(
+      usuarioAutorizado,
+      [
+        {
+          fila: 2,
+          tipo_documento: "NIT",
+          numero_documento: "900123456",
+          nombre: "Proveedor Efectivo SAS",
+          correo: "contacto@proveedor.com",
+          telefono: "3001234567",
+          medio_pago_preferido: "EFECTIVO",
+          banco: "",
+          tipo_cuenta_bancaria: "",
+          numero_cuenta_bancaria: "",
+          concepto_pago: "Materiales",
+        },
+      ],
+    );
+
+    expect(resultado.validos).toBe(1);
+    expect(resultado.filas[0]).toEqual(
+      expect.objectContaining({
+        valido: true,
+        banco: "",
+        tipo_cuenta_bancaria: "",
+        numero_cuenta_bancaria: "",
+      }),
+    );
+  });
+
   it("rechaza documentos repetidos dentro del archivo", async () => {
     const fila = {
       fila: 2,
@@ -569,6 +600,57 @@ describe("beneficiarios.service - crearBeneficiarioService", () => {
       },
     });
   });
+
+  it("debe crear un proveedor en efectivo sin datos bancarios", async () => {
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(null);
+    vi.mocked(obtenerProveedorPorDocumentoRepository).mockResolvedValue(null);
+    vi.mocked(crearBeneficiarioRepository).mockResolvedValue({
+      ...beneficiarioMock,
+      tipo_beneficiario: "PROVEEDOR",
+      medio_pago_preferido: "EFECTIVO",
+      banco: null,
+      tipo_cuenta_bancaria: null,
+      numero_cuenta_bancaria: null,
+    } as never);
+
+    await crearBeneficiarioService(usuarioAutorizado, {
+      tipo_beneficiario: "PROVEEDOR",
+      nombre: "Proveedor Efectivo SAS",
+      tipo_documento: "NIT",
+      numero_documento: "900123456",
+      medio_pago_preferido: "EFECTIVO",
+      banco: null,
+      tipo_cuenta_bancaria: null,
+      numero_cuenta_bancaria: null,
+      telefono: "3001234567",
+      correo: "contacto@proveedor.com",
+      notas: "Suministro de materiales",
+      proveedor: {
+        nombre: "Proveedor Efectivo SAS",
+        tipo_documento: "NIT",
+        numero_documento: "900123456",
+        correo: "contacto@proveedor.com",
+        telefono: "3001234567",
+        banco: null,
+        tipo_cuenta_bancaria: null,
+        numero_cuenta_bancaria: null,
+      },
+    });
+
+    expect(crearBeneficiarioRepository).toHaveBeenCalledWith({
+      beneficiario: expect.objectContaining({
+        medio_pago_preferido: "EFECTIVO",
+        banco: null,
+        tipo_cuenta_bancaria: null,
+        numero_cuenta_bancaria: null,
+      }),
+      proveedor: expect.objectContaining({
+        banco: null,
+        tipo_cuenta_bancaria: null,
+        numero_cuenta_bancaria: null,
+      }),
+    });
+  });
 });
 
 describe("beneficiarios.service - actualizarBeneficiarioService", () => {
@@ -770,6 +852,51 @@ describe("beneficiarios.service - actualizarBeneficiarioService", () => {
         banco: "BBVA",
         tipo_cuenta_bancaria: "AHORROS",
         numero_cuenta_bancaria: "12345",
+      },
+    );
+  });
+
+  it("debe permitir cambiar un proveedor a efectivo y limpiar datos bancarios", async () => {
+    const proveedorExistente = {
+      ...beneficiarioMock,
+      tipo_beneficiario: "PROVEEDOR",
+      proveedor_id: "proveedor-1",
+      tipo_documento: "NIT",
+      numero_documento: "900123456",
+      correo: "contacto@proveedor.com",
+      telefono: "3001234567",
+      notas: "Suministro de materiales",
+    };
+    vi.mocked(obtenerBeneficiarioPorIdRepository).mockResolvedValue(
+      proveedorExistente as never,
+    );
+    vi.mocked(existeBeneficiarioPorDocumentoRepository).mockResolvedValue(
+      proveedorExistente as never,
+    );
+    vi.mocked(obtenerProveedorPorDocumentoRepository).mockResolvedValue({
+      id: "proveedor-1",
+    } as never);
+    vi.mocked(actualizarBeneficiarioRepository).mockResolvedValue({
+      ...proveedorExistente,
+      medio_pago_preferido: "EFECTIVO",
+      banco: null,
+      tipo_cuenta_bancaria: null,
+      numero_cuenta_bancaria: null,
+    } as never);
+
+    await actualizarBeneficiarioService(
+      usuarioAutorizado,
+      "beneficiario-1",
+      { medio_pago_preferido: "EFECTIVO" },
+    );
+
+    expect(actualizarBeneficiarioRepository).toHaveBeenCalledWith(
+      "beneficiario-1",
+      {
+        medio_pago_preferido: "EFECTIVO",
+        banco: null,
+        tipo_cuenta_bancaria: null,
+        numero_cuenta_bancaria: null,
       },
     );
   });
