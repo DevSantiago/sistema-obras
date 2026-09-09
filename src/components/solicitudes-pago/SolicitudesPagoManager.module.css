@@ -131,6 +131,10 @@
   color: #4b5563;
 }
 
+.mobileTypeSelector {
+  display: none;
+}
+
 .form {
   display: grid;
   gap: 18px;
@@ -615,11 +619,87 @@
     font-size: 12px;
   }
 
+  .mobilePrimaryData {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .mobilePrimaryData > div {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .mobilePrimaryData > div:last-child {
+    text-align: right;
+  }
+
+  .mobilePrimaryData span,
+  .mobileReturnReason span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .mobilePrimaryData strong,
+  .mobileReturnReason strong {
+    color: #0f172a;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .mobileReturnReason {
+    display: grid;
+    gap: 4px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    background: #fff7ed;
+  }
+
+  .mobileDisclosure {
+    margin-top: 8px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .mobileDisclosure summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobileDisclosure summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileDisclosure summary::after {
+    content: "+";
+    color: #2563eb;
+    font-size: 20px;
+  }
+
+  .mobileDisclosure[open] summary::after {
+    content: "−";
+  }
+
   .mobileDetails {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    margin: 16px 0 0;
+    margin: 4px 0 0;
   }
 
   .mobileDetails div {
@@ -656,11 +736,30 @@
   }
 
   .typeSelectorGrid {
-    grid-template-columns: 1fr;
+    display: none;
   }
 
-  .typeSelectorCard {
-    min-height: auto;
+  .mobileTypeSelector {
+    display: grid;
+    gap: 7px;
+  }
+
+  .mobileTypeSelector span {
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .mobileTypeSelector select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+    font-size: 16px;
   }
 
   .form {
@@ -1063,6 +1162,10 @@
   background: #f8fafc;
 }
 
+.mobileFiltersToggle {
+  display: none;
+}
+
 .filterActions {
   display: flex;
   grid-column: 1 / -1;
@@ -1111,8 +1214,33 @@
 }
 
 @media (max-width: 48rem) {
+  .mobileFiltersToggle {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 1rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.625rem;
+    background: #ffffff;
+    color: #1e293b;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
+  .mobileFiltersToggle span:last-child {
+    color: #2563eb;
+    font-size: 0.75rem;
+  }
+
   .listFilters {
     grid-template-columns: 1fr;
+  }
+
+  .listFilters.mobileFiltersCollapsed {
+    display: none;
   }
 
   .filterActions {

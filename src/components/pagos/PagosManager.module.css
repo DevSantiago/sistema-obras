@@ -47,6 +47,10 @@
   background: #ffffff;
 }
 
+.mobileFiltersToggle {
+  display: none;
+}
+
 .field {
   display: grid;
   gap: 7px;
@@ -573,9 +577,33 @@
 }
 
 @media (max-width: 700px) {
+  .mobileFiltersToggle {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .mobileFiltersToggle span:last-child {
+    color: #2563eb;
+    font-size: 12px;
+  }
+
   .filters {
     grid-template-columns: 1fr;
     padding: 14px;
+  }
+
+  .filters.mobileFiltersCollapsed {
+    display: none;
   }
 
   .field input,
@@ -630,10 +658,74 @@
     border-bottom: 1px solid #e5e7eb;
   }
 
+  .mobilePrimaryData {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .mobilePrimaryData > div {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .mobilePrimaryData > div:last-child {
+    text-align: right;
+  }
+
+  .mobilePrimaryData span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .mobilePrimaryData strong {
+    color: #0f172a;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  .mobileDisclosure {
+    margin-top: 8px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .mobileDisclosure summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobileDisclosure summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileDisclosure summary::after {
+    content: "+";
+    color: #2563eb;
+    font-size: 20px;
+  }
+
+  .mobileDisclosure[open] summary::after {
+    content: "−";
+  }
+
   .card dl {
     display: grid;
     gap: 10px;
-    margin: 14px 0 0;
+    margin: 4px 0 0;
   }
 
   .card dl div {
