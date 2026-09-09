@@ -14,6 +14,7 @@ import {
 } from "../nomina-grupal.repository";
 import {
   crearNominaGrupalService,
+  obtenerDetalleNominaGrupalService,
   validarNominaGrupalService,
 } from "../nomina-grupal.service";
 import type {
@@ -186,10 +187,7 @@ const filasValidas: FilaNominaGrupalNormalizada[] = [
     banco: "BANCOLOMBIA",
     tipo_cuenta_bancaria: "AHORROS",
     numero_cuenta_bancaria: "111111",
-    valor_bruto: 2000000,
-    valor_retenciones: 200000,
-    valor_descuentos: 100000,
-    valor_neto: 1700000,
+    valor_total: 1700000,
   },
   {
     numero_fila: 3,
@@ -201,10 +199,7 @@ const filasValidas: FilaNominaGrupalNormalizada[] = [
     banco: null,
     tipo_cuenta_bancaria: null,
     numero_cuenta_bancaria: null,
-    valor_bruto: 1000000,
-    valor_retenciones: 100000,
-    valor_descuentos: 0,
-    valor_neto: 900000,
+    valor_total: 900000,
   },
 ];
 
@@ -259,9 +254,9 @@ function solicitudCreadaMock() {
     medio_pago: null,
     adjunto_archivo_origen_id: "adjunto-1",
     descripcion: "Nómina grupal de julio de 2026",
-    valor_bruto: 3000000,
-    valor_retenciones: 300000,
-    valor_descuentos: 100000,
+    valor_bruto: 2600000,
+    valor_retenciones: 0,
+    valor_descuentos: 0,
     valor_neto: 2600000,
     estado_actual: "BORRADOR",
     creado_por: "director-1",
@@ -430,11 +425,37 @@ describe("nomina-grupal.service - validación de filas", () => {
       filas_validas: 2,
       filas_invalidas: 0,
       filas_pendientes_beneficiario: 0,
-      valor_bruto_total: 3000000,
-      valor_retenciones_total: 300000,
-      valor_descuentos_total: 100000,
-      valor_neto_total: 2600000,
+      valor_total: 2600000,
     });
+  });
+
+  it("debe rechazar un valor total no positivo", async () => {
+    configurarContextoValido();
+
+    const resultado = await validarNominaGrupalService(
+      usuarioDirector,
+      {
+        ...inputBase,
+        filas: [
+          {
+            ...filasValidas[0],
+            valor_total: 0,
+          },
+        ],
+      },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.validacion.resumen.filas_invalidas).toBe(1);
+    expect(
+      resultado.body.data?.validacion.filas[0].errores_validacion,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          codigo: "VALOR_TOTAL_NO_POSITIVO",
+        }),
+      ]),
+    );
   });
 
   it("debe marcar como inválida una combinación documento y concepto duplicada", async () => {
@@ -561,6 +582,61 @@ describe("nomina-grupal.service - validación de filas", () => {
   });
 });
 
+describe("nomina-grupal.service - consulta", () => {
+  it("debe exponer un único valor total por detalle", async () => {
+    vi.mocked(
+      obtenerNominaGrupalPorSolicitudIdRepository,
+    ).mockResolvedValue({
+      ...solicitudCreadaMock(),
+      enviado_en: null,
+      archivo_origen: {
+        ...adjuntoMock,
+        tamano_archivo: BigInt(1024),
+      },
+      detalles_nomina: [
+        {
+          id: "detalle-1",
+          numero_fila: 2,
+          beneficiario_id: "trabajador-1",
+          tipo_documento: "CC",
+          numero_documento: "1001",
+          nombre_trabajador: "JUAN PEREZ",
+          concepto_nomina: "SALARIO",
+          medio_pago: "TRANSFERENCIA",
+          banco: "BANCOLOMBIA",
+          tipo_cuenta_bancaria: "AHORROS",
+          numero_cuenta_bancaria: "111111",
+          valor_bruto: 1700000,
+          valor_retenciones: 0,
+          valor_descuentos: 0,
+          valor_neto: 1700000,
+          estado_validacion: "VALIDO",
+          errores_validacion: null,
+          creado_en: fechaMock,
+          actualizado_en: fechaMock,
+        },
+      ],
+    } as never);
+
+    const resultado = await obtenerDetalleNominaGrupalService(
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.solicitud.detalles_nomina[0]).toEqual(
+      expect.objectContaining({
+        valor_total: 1700000,
+      }),
+    );
+    expect(
+      resultado.body.data?.solicitud.detalles_nomina[0],
+    ).not.toHaveProperty("valor_retenciones");
+    expect(
+      resultado.body.data?.solicitud.detalles_nomina[0],
+    ).not.toHaveProperty("valor_descuentos");
+  });
+});
+
 describe("nomina-grupal.service - creación", () => {
   it("debe impedir crear cuando hay trabajadores pendientes", async () => {
     configurarContextoValido();
@@ -602,9 +678,9 @@ describe("nomina-grupal.service - creación", () => {
       periodo_nomina: "2026-07",
       descripcion: "Nómina grupal de julio de 2026",
       adjunto_archivo_origen_id: "adjunto-1",
-      valor_bruto: 3000000,
-      valor_retenciones: 300000,
-      valor_descuentos: 100000,
+      valor_bruto: 2600000,
+      valor_retenciones: 0,
+      valor_descuentos: 0,
       valor_neto: 2600000,
       creado_por: "director-1",
       beneficiarios_faltantes: [],
@@ -613,6 +689,9 @@ describe("nomina-grupal.service - creación", () => {
           numero_fila: 2,
           beneficiario_id: "trabajador-1",
           concepto_nomina: "SALARIO",
+          valor_bruto: 1700000,
+          valor_retenciones: 0,
+          valor_descuentos: 0,
           valor_neto: 1700000,
           estado_validacion: "VALIDO",
         }),
@@ -620,13 +699,16 @@ describe("nomina-grupal.service - creación", () => {
           numero_fila: 3,
           beneficiario_id: "trabajador-2",
           concepto_nomina: "HONORARIOS",
+          valor_bruto: 900000,
+          valor_retenciones: 0,
+          valor_descuentos: 0,
           valor_neto: 900000,
           estado_validacion: "VALIDO",
         }),
       ],
     });
 
-    expect(resultado.body.data?.resumen.valor_neto_total).toBe(
+    expect(resultado.body.data?.resumen.valor_total).toBe(
       2600000,
     );
     expect(resultado.body.data?.solicitud.modalidad_nomina).toBe(

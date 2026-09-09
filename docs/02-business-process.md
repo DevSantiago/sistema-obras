@@ -1145,7 +1145,7 @@ El sistema soporta dos modalidades de solicitudes de nómina:
 
 Las solicitudes de nómina individual corresponden al pago de un único trabajador.
 
-Las solicitudes de nómina grupal permiten registrar múltiples trabajadores mediante la carga de una plantilla en formato Excel, la cual constituye el documento origen de la solicitud.
+Las solicitudes de nómina grupal permiten registrar múltiples trabajadores mediante la carga de una plantilla oficial en formato Excel, descargable desde el formulario de creación, la cual constituye el documento origen de la solicitud.
 
 `DIRECTOR`, `APROBADOR_1` y `ADMINISTRADOR` pueden crear solicitudes de
 nómina individual y grupal cuando cuenten con el permiso
@@ -1854,6 +1854,10 @@ Su objetivo es facilitar el procesamiento masivo de la información sin perder l
 
 La creación de una nómina grupal podrá realizarse mediante el cargue de una plantilla definida por el sistema.
 
+Cada fila de la plantilla registra directamente el valor total que se pagará
+al trabajador. La nómina agrupada no solicita ni calcula retenciones o
+descuentos por fila.
+
 Durante el proceso de carga, el sistema valida cada registro antes de crear
 la solicitud consolidada.
 
@@ -1863,9 +1867,9 @@ La carga exitosa genera:
 - una fila en `detalles_nomina_solicitud` por trabajador y concepto;
 - el archivo Excel como documento de origen.
 
-La cabecera conserva el valor consolidado, el período, el estado y el flujo
-de aprobaciones. Cada detalle conserva la identificación del trabajador y
-sus valores. El consecutivo de la cabecera permanece nulo en `BORRADOR` y se
+La cabecera conserva el valor total consolidado, el período, el estado y el flujo
+de aprobaciones. Cada detalle conserva la identificación del trabajador y su
+valor total. El consecutivo de la cabecera permanece nulo en `BORRADOR` y se
 asigna al enviarla a aprobación de nivel 1.
 
 ---

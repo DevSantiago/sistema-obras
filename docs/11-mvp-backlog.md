@@ -821,6 +821,8 @@ Criterios:
 - Operativamente, `DIRECTOR` y `APROBADOR_1` crean y administran esta solicitud de nómina cuando tienen `CREAR_SOLICITUDES`.
 - `ADMINISTRADOR`, como superadministrador, conserva acceso transversal al módulo.
 - Modalidad `AGRUPADA_EXCEL`.
+- Permite descargar desde el formulario la plantilla Excel oficial requerida por el sistema.
+- Cada fila recibe directamente un `valor_total` mayor que cero y no incluye campos de retenciones o descuentos.
 - Registra periodo de nómina mediante un selector con los meses disponibles del año vigente hasta el mes actual.
 - Carga archivo.
 - Valida filas.

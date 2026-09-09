@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
-import { leerExcelNominaGrupal } from "@/modules/solicitudes-pago/nomina-grupal/nomina-grupal.excel";
+import {
+  generarPlantillaNominaGrupalExcel,
+  leerExcelNominaGrupal,
+} from "@/modules/solicitudes-pago/nomina-grupal/nomina-grupal.excel";
 import {
   crearAdjuntoNominaGrupalRepository,
   eliminarAdjuntoNominaGrupalRepository,
@@ -237,6 +240,52 @@ async function eliminarAdjuntoTemporal(input: {
   await unlink(input.rutaAbsoluta).catch(
     () => undefined,
   );
+}
+
+export async function GET() {
+  try {
+    const resultadoAutenticacion =
+      await obtenerUsuarioSesionDesdeCookie();
+
+    if (
+      !resultadoAutenticacion.body.ok ||
+      !resultadoAutenticacion.body.data
+    ) {
+      return Response.json(
+        resultadoAutenticacion.body,
+        {
+          status: resultadoAutenticacion.status,
+        },
+      );
+    }
+
+    const contenido = await generarPlantillaNominaGrupalExcel();
+
+    return new Response(new Uint8Array(contenido), {
+      status: 200,
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition":
+          'attachment; filename="plantilla-nomina-grupal.xlsx"',
+        "Content-Length": String(contenido.byteLength),
+        "Cache-Control": "private, no-store, max-age=0",
+      },
+    });
+  } catch (error) {
+    return Response.json(
+      {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "No fue posible generar la plantilla de nómina grupal.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
 }
 
 export async function POST(request: Request) {
