@@ -1,18 +1,10 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
 import { obtenerSolicitudPagoPorIdService } from "@/modules/solicitudes-pago/solicitudes-pago.service";
+import { storageService } from "@/modules/storage/storage.service";
 import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
-
-const DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO = path.join(
-  process.cwd(),
-  "storage",
-  "nomina-grupal",
-);
-
-const PREFIJO_RUTA_NOMINA_GRUPAL = "storage/nomina-grupal/";
 
 type RouteContext = {
   params: Promise<{
@@ -52,30 +44,6 @@ function construirContentDisposition(nombreArchivo: string): string {
     `attachment; filename="${nombreSeguro}"`,
     `filename*=UTF-8''${encodeURIComponent(nombreSeguro)}`,
   ].join("; ");
-}
-
-function resolverRutaArchivo(rutaRegistrada: string): string | null {
-  const rutaNormalizada = rutaRegistrada
-    .trim()
-    .replaceAll("\\", "/");
-
-  if (
-    !rutaNormalizada ||
-    !rutaNormalizada.startsWith(PREFIJO_RUTA_NOMINA_GRUPAL)
-  ) {
-    return null;
-  }
-
-  const nombreFisico = path.basename(rutaNormalizada);
-
-  if (!nombreFisico || nombreFisico === "." || nombreFisico === "..") {
-    return null;
-  }
-
-  return path.join(
-    DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
-    nombreFisico,
-  );
 }
 
 export async function GET(
@@ -132,27 +100,12 @@ export async function GET(
       );
     }
 
-    const rutaAbsoluta = resolverRutaArchivo(
-      archivoOrigen.ruta_archivo,
-    );
-
-    if (!rutaAbsoluta) {
-      return Response.json(
-        {
-          ok: false,
-          message:
-            "La ruta registrada para el archivo no es válida.",
-        },
-        {
-          status: 500,
-        },
-      );
-    }
-
     let contenido: Buffer;
 
     try {
-      contenido = await readFile(rutaAbsoluta);
+      contenido = await storageService.obtenerArchivo(
+        archivoOrigen.ruta_archivo,
+      );
     } catch (error) {
       console.error(
         "No fue posible leer el archivo de nómina grupal:",

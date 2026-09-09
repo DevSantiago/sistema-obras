@@ -884,6 +884,24 @@ export async function obtenerDetalleNominaGrupalService(
                 ),
         }
       : null,
+    detalles_nomina: solicitud.detalles_nomina.map((detalle) => ({
+      id: detalle.id,
+      numero_fila: detalle.numero_fila,
+      beneficiario_id: detalle.beneficiario_id,
+      tipo_documento: detalle.tipo_documento,
+      numero_documento: detalle.numero_documento,
+      nombre_trabajador: detalle.nombre_trabajador,
+      concepto_nomina: detalle.concepto_nomina,
+      medio_pago: detalle.medio_pago,
+      banco: detalle.banco,
+      tipo_cuenta_bancaria: detalle.tipo_cuenta_bancaria,
+      numero_cuenta_bancaria: detalle.numero_cuenta_bancaria,
+      valor_total: convertirDecimalANumero(detalle.valor_neto),
+      estado_validacion: detalle.estado_validacion,
+      errores_validacion: detalle.errores_validacion,
+      creado_en: detalle.creado_en,
+      actualizado_en: detalle.actualizado_en,
+    })),
   };
 
   return {
@@ -1044,10 +1062,10 @@ export async function crearNominaGrupalService(
         banco: fila.banco,
         tipo_cuenta_bancaria: fila.tipo_cuenta_bancaria,
         numero_cuenta_bancaria: fila.numero_cuenta_bancaria,
-        valor_bruto: fila.valor_bruto,
-        valor_retenciones: fila.valor_retenciones,
-        valor_descuentos: fila.valor_descuentos,
-        valor_neto: fila.valor_neto,
+        valor_bruto: fila.valor_total,
+        valor_retenciones: 0,
+        valor_descuentos: 0,
+        valor_neto: fila.valor_total,
         estado_validacion: "VALIDO",
         errores_validacion: null,
       };
@@ -1063,12 +1081,10 @@ export async function crearNominaGrupalService(
       descripcion: entrada.data.descripcion,
       adjunto_archivo_origen_id:
         entrada.data.adjuntoArchivoOrigenId,
-      valor_bruto: validacion.resumen.valor_bruto_total,
-      valor_retenciones:
-        validacion.resumen.valor_retenciones_total,
-      valor_descuentos:
-        validacion.resumen.valor_descuentos_total,
-      valor_neto: validacion.resumen.valor_neto_total,
+      valor_bruto: validacion.resumen.valor_total,
+      valor_retenciones: 0,
+      valor_descuentos: 0,
+      valor_neto: validacion.resumen.valor_total,
       creado_por: usuarioAutenticado.id,
       beneficiarios_faltantes: beneficiariosFaltantes,
       detalles,
@@ -1285,10 +1301,10 @@ export async function actualizarNominaGrupalService(
         tipo_cuenta_bancaria: fila.tipo_cuenta_bancaria,
         numero_cuenta_bancaria:
           fila.numero_cuenta_bancaria,
-        valor_bruto: fila.valor_bruto,
-        valor_retenciones: fila.valor_retenciones,
-        valor_descuentos: fila.valor_descuentos,
-        valor_neto: fila.valor_neto,
+        valor_bruto: fila.valor_total,
+        valor_retenciones: 0,
+        valor_descuentos: 0,
+        valor_neto: fila.valor_total,
         estado_validacion: "VALIDO",
         errores_validacion: null,
       };
@@ -1305,12 +1321,10 @@ export async function actualizarNominaGrupalService(
       descripcion: entrada.data.descripcion,
       adjunto_archivo_origen_id:
         entrada.data.adjuntoArchivoOrigenId,
-      valor_bruto: validacion.resumen.valor_bruto_total,
-      valor_retenciones:
-        validacion.resumen.valor_retenciones_total,
-      valor_descuentos:
-        validacion.resumen.valor_descuentos_total,
-      valor_neto: validacion.resumen.valor_neto_total,
+      valor_bruto: validacion.resumen.valor_total,
+      valor_retenciones: 0,
+      valor_descuentos: 0,
+      valor_neto: validacion.resumen.valor_total,
       creado_por: usuarioAutenticado.id,
       beneficiarios_faltantes: beneficiariosFaltantes,
       detalles,
