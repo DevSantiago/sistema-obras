@@ -2313,3 +2313,107 @@ Criterios:
 - Desactiva WhatsApp como canal predeterminado únicamente después de la
   aceptación funcional de Push.
 - Conserva el historial previo de notificaciones WhatsApp para auditoría.
+
+---
+
+# Épica 21. Experiencia responsiva y consistencia UX/UI
+
+## Estado
+
+**EN DESARROLLO.**
+
+## Objetivo
+
+Homologar la experiencia del sistema en móvil, tableta y escritorio, corrigiendo
+los problemas responsivos sin alterar reglas de negocio. La interfaz debe
+mantener una jerarquía visual consistente, absorber la complejidad inevitable
+del proceso y presentar únicamente las opciones necesarias para cada contexto.
+
+## Principios de diseño
+
+- **Efecto de estética-usabilidad:** mantener jerarquía, espaciado, tipografía,
+  estados y controles coherentes en todos los módulos.
+- **Ley de Tesler:** conservar la complejidad del proceso en el sistema mediante
+  valores predeterminados, validaciones y presentación progresiva.
+- **Sobrecarga de opciones:** agrupar acciones relacionadas y mostrar únicamente
+  módulos y opciones disponibles para el rol y el momento de la tarea.
+
+## Criterios de aceptación de la épica
+
+- La navegación funciona correctamente con teclado y tacto y muestra la ruta
+  activa.
+- Los controles táctiles principales tienen un área mínima de 44 por 44 píxeles.
+- Los modales respetan el alto dinámico y las áreas seguras de iOS y Android.
+- Las tablas operativas ofrecen una presentación móvil legible sin depender de
+  desplazamientos horizontales extensos.
+- Los números de solicitud, nombres y estados se ajustan sin romper el diseño.
+- Los filtros y acciones mantienen el mismo orden y comportamiento entre
+  módulos.
+- Los formularios largos presentan la información por grupos comprensibles.
+- La interfaz se valida en móvil, tableta y escritorio antes de promoverse.
+
+## Historias
+
+### HU-2101. Homologar navegación y fundamentos responsivos
+
+**Estado: EN DESARROLLO.**
+
+Como usuario, quiero navegar con claridad desde cualquier dispositivo, para
+identificar mi ubicación y acceder a las acciones de cuenta sin errores de
+desplazamiento.
+
+Criterios:
+
+- Muestra el módulo activo en el menú.
+- Separa visualmente navegación y acciones de cuenta.
+- Mantiene el desplazamiento dentro del menú móvil.
+- Respeta áreas seguras y alto dinámico del dispositivo.
+- Homologa el tamaño mínimo de los controles táctiles principales.
+
+### HU-2102. Adaptar tablas operativas y tablas de resumen
+
+Como usuario, quiero consultar y operar las tablas desde pantallas pequeñas,
+para completar mis tareas sin desplazamientos horizontales excesivos.
+
+Criterios:
+
+- Adapta prioritariamente las tablas de aprobaciones y pagos.
+- Mantiene filtros, búsqueda, selección y exportación disponibles.
+- Aplica ajuste de texto a números de solicitud y contenido extenso.
+- Conserva jerarquía visual entre estado actual y datos secundarios.
+
+### HU-2103. Homologar formularios, selectores y modales
+
+Como usuario, quiero diligenciar formularios en móvil sin perder acciones ni
+contexto, para registrar información con menos errores.
+
+Criterios:
+
+- Adapta modales al teclado virtual, alto dinámico y áreas seguras.
+- Evita que los selectores queden fuera de la pantalla.
+- Agrupa campos y acciones según la tarea.
+- Mantiene validaciones y contratos existentes.
+
+### HU-2104. Reducir sobrecarga de opciones por contexto
+
+Como usuario, quiero ver únicamente las opciones relevantes para mi rol y tarea,
+para tomar decisiones con mayor rapidez.
+
+Criterios:
+
+- Oculta opciones que el usuario no puede ejecutar cuando no aporten contexto.
+- Agrupa acciones secundarias sin ocultar el flujo principal.
+- Mantiene visibles los estados y restricciones necesarios para comprender el
+  proceso.
+
+### HU-2105. Validar experiencia responsiva transversal
+
+Como responsable del producto, quiero una validación sistemática por dispositivo,
+para promover cambios responsivos con evidencia.
+
+Criterios:
+
+- Valida iPhone, Android, tableta y escritorio.
+- Cubre navegación, tablas, formularios, modales y acciones críticas.
+- Registra hallazgos y criterios de aceptación por módulo.
+- No promueve la épica mientras existan bloqueos de operación en móvil.

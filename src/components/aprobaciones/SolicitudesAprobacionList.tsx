@@ -88,7 +88,8 @@ export default function SolicitudesAprobacionList({
   const totalSolicitudes = calcularTotalSolicitudes(solicitudes);
 
   return (
-    <div className={styles.tableWrapper}>
+    <>
+    <div className={`${styles.tableWrapper} ${styles.approvalDesktop}`}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -213,5 +214,99 @@ export default function SolicitudesAprobacionList({
         </tfoot>
       </table>
     </div>
+    <div className={styles.approvalMobileList}>
+      <div className={styles.approvalMobileSummary}>
+        <label className={styles.selectAll}>
+          <input
+            type="checkbox"
+            checked={todasSeleccionadas}
+            disabled={deshabilitado || solicitudes.length === 0}
+            onChange={onCambiarSeleccionTodas}
+          />
+          Seleccionar todas
+        </label>
+        <strong>{formatearMoneda(totalSolicitudes)}</strong>
+      </div>
+
+      {solicitudes.map((solicitud) => {
+        const seleccionada = idsSeleccionados.has(solicitud.id);
+
+        return (
+          <article
+            key={solicitud.id}
+            className={`${styles.approvalMobileCard} ${
+              seleccionada ? styles.selectedRow : ""
+            }`}
+            onClick={() => onVerDetalle(solicitud)}
+          >
+            <div className={styles.approvalMobileHeader}>
+              <label onClick={(event) => event.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={seleccionada}
+                  disabled={deshabilitado}
+                  onChange={() => onCambiarSeleccion(solicitud.id)}
+                  aria-label={`Seleccionar solicitud ${solicitud.numero_solicitud}`}
+                />
+              </label>
+              <strong className={styles.approvalRequestNumber}>
+                {solicitud.numero_solicitud}
+              </strong>
+              <strong className={styles.approvalMobileValue}>
+                {formatearMoneda(solicitud.valor_neto)}
+              </strong>
+            </div>
+
+            <dl className={styles.approvalMobileDetails}>
+              <div>
+                <dt>Tipo</dt>
+                <dd>{obtenerNombreTipoSolicitud(solicitud)}</dd>
+              </div>
+              <div>
+                <dt>Centro de costo</dt>
+                <dd>{solicitud.centro_costo?.nombre ?? "—"}</dd>
+              </div>
+              <div>
+                <dt>Beneficiario</dt>
+                <dd>
+                  {solicitud.beneficiario?.nombre
+                    ? formatearNombrePropio(solicitud.beneficiario.nombre)
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Descripción</dt>
+                <dd>{solicitud.descripcion}</dd>
+              </div>
+            </dl>
+
+            <div
+              className={styles.approvalMobileActions}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {onEditar && solicitud.modalidad_nomina !== "AGRUPADA_EXCEL" ? (
+                <button
+                  className={styles.editButton}
+                  disabled={deshabilitado}
+                  type="button"
+                  onClick={() => onEditar(solicitud)}
+                >
+                  Editar
+                </button>
+              ) : null}
+              <button
+                className={styles.returnButton}
+                disabled={deshabilitado}
+                type="button"
+                onClick={() => onDevolver(solicitud)}
+              >
+                Devolver
+              </button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+    </>
   );
 }

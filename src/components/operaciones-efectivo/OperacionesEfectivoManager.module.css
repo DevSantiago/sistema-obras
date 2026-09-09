@@ -127,3 +127,67 @@
     width: 100%;
   }
 }
+
+/* Evita que los controles de fecha conserven su ancho intrínseco en Safari móvil. */
+.container,
+.filters,
+.filters label {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.filters input,
+.filters select,
+.filters button {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.filters input[type="date"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  inline-size: 100%;
+  min-inline-size: 0;
+  height: 24px;
+  min-height: 24px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.filters .dateControl {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 9px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+}
+
+.filters .dateControl:focus-within {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 15%);
+}
+
+.filters input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.filters input[type="date"]::-webkit-datetime-edit {
+  min-width: 0;
+  overflow: hidden;
+}

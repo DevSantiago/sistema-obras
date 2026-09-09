@@ -6,6 +6,7 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import { PushNotificationsButton } from "@/components/pwa/PushNotificationsButton";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import styles from "./PrivateLayout.module.css";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
@@ -141,6 +142,7 @@ function obtenerEtiquetaRol(rol: string): string {
 
 export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!menuAbierto) return;
@@ -191,12 +193,22 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
         </div>
 
         <nav className={styles.nav} aria-label="Menú principal">
+          <p className={styles.sectionLabel}>Navegación</p>
           {menuVisible.map((item) => (
             <Link
               key={item.href}
-              className={styles.navLink}
+              className={`${styles.navLink} ${
+                pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  ? styles.navLinkActive
+                  : ""
+              }`}
               href={item.href}
               onClick={cerrarMenu}
+              aria-current={
+                pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  ? "page"
+                  : undefined
+              }
             >
               {item.label}
             </Link>
@@ -204,6 +216,7 @@ export function PrivateLayout({ children, usuario }: PrivateLayoutProps) {
         </nav>
 
         <div className={styles.sidebarFooter}>
+          <p className={styles.sectionLabel}>Cuenta</p>
           <p className={styles.userName}>
             {formatearNombrePropio(usuario.nombre)}
           </p>
