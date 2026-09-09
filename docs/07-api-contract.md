@@ -726,10 +726,18 @@ POST /api/v1/beneficiarios
 {
   "tipo_beneficiario": "PROVEEDOR",
   "nombre": "Proveedor SAS",
+  "tipo_documento": "NIT",
   "numero_documento": "900123456",
-  "correo": "contacto@proveedor.com"
+  "correo": "contacto@proveedor.com",
+  "telefono": "3001234567",
+  "medio_pago_preferido": "EFECTIVO",
+  "notas": "Suministro de materiales"
 }
 ```
+
+`banco`, `tipo_cuenta_bancaria` y `numero_cuenta_bancaria` son obligatorios
+únicamente cuando `medio_pago_preferido` es `TRANSFERENCIA` o `CONSIGNACION`.
+Para `EFECTIVO`, el servicio almacena estos campos como `null`.
 
 ## Carga masiva de proveedores
 
@@ -749,7 +757,12 @@ Campos:
 - `archivo`: archivo `.xlsx` de máximo 10 MB y 1.000 filas.
 - `accion`: `VALIDAR` o `IMPORTAR`.
 
-Todos los proveedores se crean activos y con tipo `PROVEEDOR`. Correo, teléfono, medio de pago, banco, tipo de cuenta, número de cuenta o convenio y concepto de pago son obligatorios. Los tipos de cuenta válidos son `AHORROS`, `CORRIENTE`, `CONVENIO` y `OTRO`. Los documentos duplicados se rechazan y los proveedores existentes no se actualizan.
+Todos los proveedores se crean activos y con tipo `PROVEEDOR`. Correo, teléfono,
+medio de pago y concepto de pago son obligatorios. Banco, tipo de cuenta y
+número de cuenta o convenio son obligatorios únicamente para `TRANSFERENCIA` o
+`CONSIGNACION`; deben quedar vacíos para `EFECTIVO`. Los tipos de cuenta válidos
+son `AHORROS`, `CORRIENTE`, `CONVENIO` y `OTRO`. Los documentos duplicados se
+rechazan y los proveedores existentes no se actualizan.
 
 ### Respuesta
 
