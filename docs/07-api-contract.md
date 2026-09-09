@@ -887,6 +887,12 @@ PATCH /api/v1/proyectos-base/{id}/centros-costo/{centroCostoId}/estado
 
 Actualiza el estado de un centro de costo perteneciente a un proyecto base.
 
+El rol `ADMINISTRADOR` puede ejecutar las transiciones vigentes. Los roles
+`DIRECTOR` y `APROBADOR_1` pueden pasar `PRO-OBRA` a `OBRA` y `PRO-INT` a
+`INT`, únicamente cuando tienen acceso activo al proyecto y a la línea de
+negocio correspondiente. La finalización de centros `OBRA` o `INT` permanece
+restringida al administrador.
+
 ### Parámetros de ruta
 
 | Parámetro | Tipo |

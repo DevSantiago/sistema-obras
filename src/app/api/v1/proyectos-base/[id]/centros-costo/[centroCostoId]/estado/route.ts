@@ -25,7 +25,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       });
     }
 
-    if (!usuario.roles.includes("ADMINISTRADOR")) {
+    const tieneRolAutorizado = usuario.roles.some((rol) =>
+      ["ADMINISTRADOR", "DIRECTOR", "APROBADOR_1"].includes(rol),
+    );
+
+    if (!tieneRolAutorizado) {
       return NextResponse.json(
         {
           ok: false,
@@ -46,7 +50,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       {
         estado_centro_costo: body.estado_centro_costo,
         observacion: body.observacion,
-        usuario_id: usuario.id,
+        usuario,
       },
     );
 
