@@ -550,14 +550,16 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
                     )}
                   </div>
 
-                  <div className={styles.mobileSection}>
-                    <p className={styles.mobileLabel}>Centros de costo</p>
+                  <details className={styles.mobileDisclosure}>
+                    <summary>
+                      Centros de costo ({proyecto.centros_costo.length})
+                    </summary>
                     <div className={styles.costCenters}>
                       {proyecto.centros_costo.map((centroCosto) =>
                         renderCentroCosto(proyecto, centroCosto),
                       )}
                     </div>
-                  </div>
+                  </details>
                 </article>
               ))}
             </section>

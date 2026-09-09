@@ -130,6 +130,7 @@ export default function AprobacionesManager({
   const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
   const [proyectoFiltro, setProyectoFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
+  const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
 
   const permisoRequerido =
     nivel === 1
@@ -647,7 +648,26 @@ const mensajeSinSolicitudes =
       {estadoCarga === "LISTO" &&
         solicitudes.length > 0 && (
           <>
-            <div className={styles.summaryFilters}>
+            <button
+              type="button"
+              className={styles.mobileFiltersToggle}
+              aria-expanded={filtrosMovilesVisibles}
+              aria-controls={`filtros-aprobaciones-nivel-${nivel}`}
+              onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
+            >
+              <span>Filtros</span>
+              <span>
+                {[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length > 0
+                  ? `${[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length} activos`
+                  : "Mostrar"}
+              </span>
+            </button>
+            <div
+              id={`filtros-aprobaciones-nivel-${nivel}`}
+              className={`${styles.summaryFilters} ${
+                filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
+              }`}
+            >
               <label>
                 <span>Número de solicitud</span>
                 <input
@@ -737,6 +757,23 @@ const mensajeSinSolicitudes =
               </div>
             </div>
 
+            <div className={styles.mobileStickyAction}>
+              <div className={styles.mobileStickySummary}>
+                <span>
+                  {solicitudesSeleccionadas.length} {solicitudesSeleccionadas.length === 1 ? "seleccionada" : "seleccionadas"}
+                </span>
+                <strong>{formatearMoneda(valorTotalSeleccionado)}</strong>
+              </div>
+              <button
+                type="button"
+                className={styles.approveButton}
+                onClick={() => void aprobarSeleccionadas()}
+                disabled={aprobando || idsSeleccionados.size === 0}
+              >
+                {aprobando ? "Aprobando..." : `Aprobar (${idsSeleccionados.size})`}
+              </button>
+            </div>
+
             {proyectosVisibles.length === 0 ? (
               <div className={styles.estado}>
                 No hay solicitudes pendientes que coincidan con los filtros.
@@ -793,6 +830,117 @@ const mensajeSinSolicitudes =
                       {proyecto.proyecto_base_nombre}
                     </h3>
 
+                    <div className={styles.mobileProjectSummary}>
+                      <div className={styles.mobileKeyFigures}>
+                        <div>
+                          <span className={styles.summaryLabel}>Disponible ahora</span>
+                          <strong className={styles.mobileMainValue}>
+                            {formatearMoneda(proyecto.saldo_disponible)}
+                          </strong>
+                        </div>
+                        <div>
+                          <span className={styles.summaryLabel}>Seleccionado</span>
+                          <strong className={styles.summaryValue}>
+                            {formatearMoneda(valorSeleccionado)}
+                          </strong>
+                          <small className={styles.summaryDescription}>
+                            {cantidadSeleccionadaProyecto} {cantidadSeleccionadaProyecto === 1 ? "solicitud" : "solicitudes"}
+                          </small>
+                        </div>
+                      </div>
+
+                      <div className={styles.mobileApprovalResult}>
+                        <span className={styles.summaryLabel}>Resultado al aprobar</span>
+                        <strong>
+                          {valorSeleccionado === 0
+                            ? "Selecciona una solicitud"
+                            : nivel === 1
+                              ? `Quedarían ${formatearMoneda(saldoProyectado)} disponibles`
+                              : "Pasa a programación de pago"}
+                        </strong>
+                        <small>
+                          {nivel === 1
+                            ? "La aprobación crea o mantiene la reserva correspondiente."
+                            : "Todavía no se mueve dinero y la reserva se mantiene."}
+                        </small>
+                      </div>
+
+                      <details className={styles.mobileDisclosure}>
+                        <summary>Ver detalle del fondo</summary>
+                        <dl className={styles.mobileFinancialList}>
+                          <div>
+                            <dt>Saldo actual</dt>
+                            <dd>{formatearMoneda(proyecto.saldo_actual)}</dd>
+                          </div>
+                          <div>
+                            <dt>Total reservado</dt>
+                            <dd>{formatearMoneda(proyecto.reservas_existentes)}</dd>
+                          </div>
+                          <div>
+                            <dt>Disponible ahora</dt>
+                            <dd>{formatearMoneda(proyecto.saldo_disponible)}</dd>
+                          </div>
+                        </dl>
+                      </details>
+
+                      <details className={styles.mobileDisclosure}>
+                        <summary>
+                          {nivel === 1
+                            ? "Ver cálculo de la aprobación"
+                            : "Ver proyección del pago"}
+                        </summary>
+                        {nivel === 1 ? (
+                          <div className={styles.mobileCalculation}>
+                            <span>Disponible si se aprueba</span>
+                            <strong>
+                              {valorSeleccionado > 0
+                                ? formatearMoneda(saldoProyectado)
+                                : "—"}
+                            </strong>
+                            <small>
+                              {valorSeleccionado > 0
+                                ? `${formatearMoneda(proyecto.saldo_disponible)} − ${formatearMoneda(valorNuevoPorReservar)}`
+                                : "Selecciona una solicitud para calcularlo."}
+                            </small>
+                          </div>
+                        ) : (
+                          <dl className={styles.mobileFinancialList}>
+                            <div>
+                              <dt>Saldo después del pago</dt>
+                              <dd>
+                                {valorSeleccionado > 0
+                                  ? formatearMoneda(saldoTrasPagarSeleccion)
+                                  : "—"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Otras reservas pendientes</dt>
+                              <dd>
+                                {valorSeleccionado > 0
+                                  ? formatearMoneda(reservaRestante)
+                                  : "—"}
+                              </dd>
+                            </div>
+                            <div className={styles.mobileFinancialTotal}>
+                              <dt>Disponible final</dt>
+                              <dd className={styles.mobileTotalValue}>
+                                <strong>
+                                  {valorSeleccionado > 0
+                                    ? formatearMoneda(saldoProyectado)
+                                    : "—"}
+                                </strong>
+                                <small>
+                                  {valorSeleccionado > 0
+                                    ? `${formatearMoneda(saldoTrasPagarSeleccion)} − ${formatearMoneda(reservaRestante)}`
+                                    : "Selecciona para calcular"}
+                                </small>
+                              </dd>
+                            </div>
+                          </dl>
+                        )}
+                      </details>
+                    </div>
+
                     <div
                       className={styles.projectSummary}
                     >
@@ -843,7 +991,7 @@ const mensajeSinSolicitudes =
                           <div className={styles.summaryCard}>
                             <span className={styles.summaryLabel}>
                               {nivel === 2
-                                ? `Seleccionado ahora (${cantidadSeleccionadaProyecto})`
+                                ? `Seleccionado para aprobar (${cantidadSeleccionadaProyecto})`
                                 : "Seleccionado para aprobar"}
                             </span>
                             <strong className={styles.summaryValue}>{formatearMoneda(valorSeleccionado)}</strong>
@@ -852,54 +1000,93 @@ const mensajeSinSolicitudes =
                             </small>
                           </div>
                           {nivel === 2 ? (
-                            <>
+                            <div className={styles.projectedCard}>
+                              <span className={styles.summaryLabel}>
+                                Resultado de aprobar
+                              </span>
+                              <strong className={styles.projectedValue}>
+                                {valorSeleccionado > 0
+                                  ? "Pasa a programación de pago"
+                                  : "Selecciona una solicitud"}
+                              </strong>
+                              <small className={styles.summaryDescription}>
+                                Todavía no se mueve dinero. La reserva se mantiene hasta registrar el pago.
+                              </small>
+                            </div>
+                          ) : (
+                            <div className={styles.projectedCard}>
+                              <span className={styles.summaryLabel}>
+                                Disponible si se aprueba
+                              </span>
+                              <strong className={styles.projectedValue}>
+                                {valorSeleccionado > 0 ? formatearMoneda(saldoProyectado) : "—"}
+                              </strong>
+                              <small className={styles.summaryDescription}>
+                                Considera las reservas vigentes y la selección actual.
+                              </small>
+                            </div>
+                          )}
+                        </div>
+                        <p className={styles.simulationHelp}>
+                          {nivel === 1
+                            ? "Incluye los compromisos existentes y la selección actual."
+                            : "La aprobación de nivel 2 no descuenta dinero ni libera la reserva."}
+                        </p>
+                        {nivel === 2 ? (
+                          <div className={styles.paymentProjection}>
+                            <span className={styles.summarySectionTitle}>
+                              Cuando se registre el pago
+                            </span>
+                            <div className={styles.summaryCards}>
                               <div className={styles.summaryCard}>
                                 <span className={styles.summaryLabel}>
-                                  Saldo real tras pagar la selección
+                                  Saldo después del pago
                                 </span>
                                 <strong className={styles.summaryValue}>
                                   {valorSeleccionado > 0
                                     ? formatearMoneda(saldoTrasPagarSeleccion)
                                     : "—"}
                                 </strong>
-                                <small className={styles.summaryDescription}>
-                                  Saldo contable después de ejecutar únicamente los pagos seleccionados.
+                                <small className={styles.summaryCalculation}>
+                                  {valorSeleccionado > 0
+                                    ? `${formatearMoneda(proyecto.saldo_actual)} − ${formatearMoneda(valorSeleccionado)}`
+                                    : "Selecciona una solicitud para calcularlo."}
                                 </small>
                               </div>
                               <div className={styles.summaryCard}>
                                 <span className={styles.summaryLabel}>
-                                  Reserva que permanece
+                                  Otras reservas pendientes
                                 </span>
                                 <strong className={styles.summaryValue}>
-                                  {formatearMoneda(reservaRestante)}
+                                  {valorSeleccionado > 0
+                                    ? formatearMoneda(reservaRestante)
+                                    : "—"}
                                 </strong>
                                 <small className={styles.summaryDescription}>
-                                  Compromisos que siguen reservados después de esta selección.
+                                  Valor reservado por otras solicitudes pendientes o programadas para pago en este fondo.
                                 </small>
                               </div>
-                            </>
-                          ) : null}
-                          <div className={styles.projectedCard}>
-                            <span className={styles.summaryLabel}>
-                              {nivel === 1
-                                ? "Disponible si se aprueba"
-                                : "Disponible sin comprometer después del pago"}
-                            </span>
-                            <strong className={styles.projectedValue}>
-                              {valorSeleccionado > 0 ? formatearMoneda(saldoProyectado) : "—"}
-                            </strong>
-                            <small className={styles.summaryDescription}>
-                              {nivel === 1
-                                ? "Considera las reservas vigentes y la selección actual."
-                                : "Saldo libre después del pago y de conservar la reserva restante."}
-                            </small>
+                              <div className={styles.projectedCard}>
+                                <span className={styles.summaryLabel}>
+                                  Disponible final
+                                </span>
+                                <strong className={styles.projectedValue}>
+                                  {valorSeleccionado > 0
+                                    ? formatearMoneda(saldoProyectado)
+                                    : "—"}
+                                </strong>
+                                <small className={styles.summaryCalculation}>
+                                  {valorSeleccionado > 0
+                                    ? `${formatearMoneda(saldoTrasPagarSeleccion)} − ${formatearMoneda(reservaRestante)}`
+                                    : "Selecciona una solicitud para calcularlo."}
+                                </small>
+                              </div>
+                            </div>
+                            <p className={styles.simulationHelp}>
+                              El disponible puede quedar igual al actual: el pago reduce el saldo, pero libera una reserva por el mismo valor.
+                            </p>
                           </div>
-                        </div>
-                        <p className={styles.simulationHelp}>
-                          {nivel === 1
-                            ? "Incluye los compromisos existentes y la selección actual."
-                            : "Separa el saldo contable tras el pago del dinero que continúa disponible sin comprometer."}
-                        </p>
+                        ) : null}
                       </section>
                     </div>
                   </div>

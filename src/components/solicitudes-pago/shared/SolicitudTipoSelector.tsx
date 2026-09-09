@@ -81,6 +81,27 @@ export default function SolicitudTipoSelector({
           );
         })}
       </div>
+
+      <label className={styles.mobileTypeSelector}>
+        <span>Tipo de solicitud</span>
+        <select
+          value={tipoSeleccionado}
+          onChange={(event) =>
+            onChange(event.target.value as TipoSolicitudFormulario)
+          }
+        >
+          {opciones.map((opcion) => (
+            <option
+              key={opcion.id}
+              value={opcion.id}
+              disabled={!opcion.habilitado}
+            >
+              {opcion.titulo}
+              {opcion.etiquetaEstado ? ` · ${opcion.etiquetaEstado}` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
     </section>
   );
 }

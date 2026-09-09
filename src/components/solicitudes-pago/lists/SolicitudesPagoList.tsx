@@ -112,6 +112,7 @@ export default function SolicitudesPagoList({
   const [proyectoFiltro, setProyectoFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
   const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
+  const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
 
   const proyectosFiltro = useMemo(() => {
     const proyectos = new Map<string, string>();
@@ -204,7 +205,26 @@ export default function SolicitudesPagoList({
         </button>
       </div>
 
-      <div className={styles.listFilters}>
+      <button
+        type="button"
+        className={styles.mobileFiltersToggle}
+        aria-expanded={filtrosMovilesVisibles}
+        aria-controls="filtros-solicitudes-creadas"
+        onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
+      >
+        <span>Filtros</span>
+        <span>
+          {[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length > 0
+            ? `${[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length} activos`
+            : "Mostrar"}
+        </span>
+      </button>
+      <div
+        id="filtros-solicitudes-creadas"
+        className={`${styles.listFilters} ${
+          filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
+        }`}
+      >
         <label>
           <span>Número de solicitud</span>
           <input
@@ -474,80 +494,83 @@ export default function SolicitudesPagoList({
                     </span>
                   </div>
 
-                  <dl className={styles.mobileDetails}>
-                    {solicitud.ultima_devolucion ? (
-                      <div>
-                        <dt>Motivo de devolución</dt>
-                        <dd>{solicitud.ultima_devolucion.motivo}</dd>
-                      </div>
-                    ) : null}
-                    <div>
-                      <dt>Tipo</dt>
-                      <dd>
-                        {formatearTextoDominio(solicitud.tipo_solicitud)}
-                      </dd>
+                  {solicitud.ultima_devolucion ? (
+                    <div className={styles.mobileReturnReason}>
+                      <span>Motivo de devolución</span>
+                      <strong>{solicitud.ultima_devolucion.motivo}</strong>
                     </div>
+                  ) : null}
 
+                  <div className={styles.mobilePrimaryData}>
                     <div>
-                      <dt>Proyecto</dt>
-                      <dd>
-                        {solicitud.proyecto_base?.nombre ?? "Sin proyecto"}
-                      </dd>
-                    </div>
-
-                    <div>
-                      <dt>Centro</dt>
-                      <dd>{solicitud.centro_costo?.nombre ?? "Sin centro"}</dd>
-                    </div>
-
-                    <div>
-                      <dt>Beneficiario</dt>
-                      <dd>
+                      <span>Beneficiario</span>
+                      <strong>
                         {solicitud.beneficiario?.nombre
                           ? formatearNombrePropio(solicitud.beneficiario.nombre)
                           : "Sin beneficiario"}
-                      </dd>
+                      </strong>
                     </div>
-
                     <div>
-                      <dt>Categoría</dt>
-                      <dd>
-                        {formatearTextoDominio(
-                          obtenerCategoriaSolicitud(solicitud),
-                        )}
-                      </dd>
+                      <span>Valor a pagar</span>
+                      <strong>{formatearMoneda(solicitud.valor_neto)}</strong>
                     </div>
+                  </div>
 
-                    <div>
-                      <dt>Medio de pago</dt>
-                      <dd>{formatearTextoDominio(solicitud.medio_pago)}</dd>
-                    </div>
+                  <details
+                    className={styles.mobileDisclosure}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <summary>Ver información de la solicitud</summary>
+                    <dl className={styles.mobileDetails}>
+                      <div>
+                        <dt>Tipo</dt>
+                        <dd>
+                          {formatearTextoDominio(solicitud.tipo_solicitud)}
+                        </dd>
+                      </div>
 
-                    <div className={styles.mobileProcessDates}>
-                      <dt>Fechas del proceso</dt>
-                      <dd>
-                        <span>Creación: {formatearFechaHora(solicitud.creado_en)}</span>
-                        <span>Aprobación N1: {formatearFechaHora(solicitud.aprobado_1_en)}</span>
-                        <span>Aprobación N2: {formatearFechaHora(solicitud.aprobado_2_en)}</span>
-                        <span>Pago: {formatearFechaHora(solicitud.pagado_en)}</span>
-                      </dd>
-                    </div>
+                      <div>
+                        <dt>Proyecto</dt>
+                        <dd>
+                          {solicitud.proyecto_base?.nombre ?? "Sin proyecto"}
+                        </dd>
+                      </div>
 
-                    <div>
-                      <dt>Valor bruto</dt>
-                      <dd>{formatearMoneda(solicitud.valor_bruto)}</dd>
-                    </div>
+                      <div>
+                        <dt>Centro</dt>
+                        <dd>{solicitud.centro_costo?.nombre ?? "Sin centro"}</dd>
+                      </div>
 
-                    <div>
-                      <dt>
-                        <strong>Valor a pagar</strong>
-                      </dt>
+                      <div>
+                        <dt>Categoría</dt>
+                        <dd>
+                          {formatearTextoDominio(
+                            obtenerCategoriaSolicitud(solicitud),
+                          )}
+                        </dd>
+                      </div>
 
-                      <dd>
-                        <strong>{formatearMoneda(solicitud.valor_neto)}</strong>
-                      </dd>
-                    </div>
-                  </dl>
+                      <div>
+                        <dt>Medio de pago</dt>
+                        <dd>{formatearTextoDominio(solicitud.medio_pago)}</dd>
+                      </div>
+
+                      <div className={styles.mobileProcessDates}>
+                        <dt>Fechas del proceso</dt>
+                        <dd>
+                          <span>Creación: {formatearFechaHora(solicitud.creado_en)}</span>
+                          <span>Aprobación N1: {formatearFechaHora(solicitud.aprobado_1_en)}</span>
+                          <span>Aprobación N2: {formatearFechaHora(solicitud.aprobado_2_en)}</span>
+                          <span>Pago: {formatearFechaHora(solicitud.pagado_en)}</span>
+                        </dd>
+                      </div>
+
+                      <div>
+                        <dt>Valor bruto</dt>
+                        <dd>{formatearMoneda(solicitud.valor_bruto)}</dd>
+                      </div>
+                    </dl>
+                  </details>
 
                   {puedeEditar || puedeEnviar ? (
                     <div
