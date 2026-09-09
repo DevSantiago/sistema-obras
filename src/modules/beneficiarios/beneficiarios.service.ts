@@ -442,9 +442,9 @@ export async function crearBeneficiarioService(
     tipoDocumento,
   );
 
-  const requiereBanco =
-    input.tipo_beneficiario === "PROVEEDOR" ||
-    requiereDatosBancarios(input.medio_pago_preferido);
+  const requiereBanco = requiereDatosBancarios(
+    input.medio_pago_preferido,
+  );
 
   if (input.tipo_beneficiario === "PROVEEDOR") {
     validarCampoObligatorio(
@@ -686,6 +686,9 @@ export async function validarCargaMasivaProveedoresService(
     const medioPago = normalizarTextoMayuscula(fila.medio_pago_preferido);
     const banco = normalizarTextoMayuscula(fila.banco);
     const tipoCuenta = normalizarTextoMayuscula(fila.tipo_cuenta_bancaria);
+    const requiereBanco = requiereDatosBancarios(
+      medioPago as MedioPagoPreferido,
+    );
     const errores: string[] = [];
 
     const obligatorios = [
@@ -695,11 +698,15 @@ export async function validarCargaMasivaProveedoresService(
       [fila.correo, "Correo"],
       [fila.telefono, "Teléfono"],
       [fila.medio_pago_preferido, "Medio de pago sugerido"],
-      [fila.banco, "Banco"],
-      [fila.tipo_cuenta_bancaria, "Tipo de cuenta"],
-      [fila.numero_cuenta_bancaria, "Número de cuenta o convenio"],
       [fila.concepto_pago, "Concepto de pago"],
     ];
+    if (requiereBanco) {
+      obligatorios.push(
+        [fila.banco, "Banco"],
+        [fila.tipo_cuenta_bancaria, "Tipo de cuenta"],
+        [fila.numero_cuenta_bancaria, "Número de cuenta o convenio"],
+      );
+    }
     for (const [valor, nombreCampo] of obligatorios) {
       if (!valor.trim()) errores.push(`${nombreCampo} es obligatorio.`);
     }
@@ -719,11 +726,21 @@ export async function validarCargaMasivaProveedoresService(
     if (medioPago && !MEDIOS_PAGO_VALIDOS.includes(medioPago as MedioPagoPreferido)) {
       errores.push("Medio de pago sugerido no válido.");
     }
-    if (banco && !esBancoValido(banco)) errores.push("Banco no válido.");
-    if (tipoCuenta && !TIPOS_CUENTA_VALIDOS.includes(tipoCuenta as TipoCuentaBancaria)) {
+    if (requiereBanco && banco && !esBancoValido(banco)) {
+      errores.push("Banco no válido.");
+    }
+    if (
+      requiereBanco &&
+      tipoCuenta &&
+      !TIPOS_CUENTA_VALIDOS.includes(tipoCuenta as TipoCuentaBancaria)
+    ) {
       errores.push("Tipo de cuenta no válido.");
     }
-    if (fila.numero_cuenta_bancaria && !/^\d+$/.test(fila.numero_cuenta_bancaria.trim())) {
+    if (
+      requiereBanco &&
+      fila.numero_cuenta_bancaria &&
+      !/^\d+$/.test(fila.numero_cuenta_bancaria.trim())
+    ) {
       errores.push("El número de cuenta o convenio debe contener solo números.");
     }
 
@@ -753,9 +770,11 @@ export async function validarCargaMasivaProveedoresService(
       correo: fila.correo.trim().toLowerCase(),
       telefono: fila.telefono.trim(),
       medio_pago_preferido: medioPago,
-      banco,
-      tipo_cuenta_bancaria: tipoCuenta,
-      numero_cuenta_bancaria: fila.numero_cuenta_bancaria.trim(),
+      banco: requiereBanco ? banco : "",
+      tipo_cuenta_bancaria: requiereBanco ? tipoCuenta : "",
+      numero_cuenta_bancaria: requiereBanco
+        ? fila.numero_cuenta_bancaria.trim()
+        : "",
       concepto_pago: normalizarTextoMayuscula(fila.concepto_pago),
       valido: errores.length === 0,
       errores,
@@ -845,6 +864,25 @@ export async function actualizarBeneficiarioService(
     inputNormalizado.tipo_documento ?? beneficiarioExistente.tipo_documento;
   const numeroDocumento =
     inputNormalizado.numero_documento ?? beneficiarioExistente.numero_documento;
+  const medioPagoPreferido =
+    inputNormalizado.medio_pago_preferido ??
+    beneficiarioExistente.medio_pago_preferido;
+  if (!medioPagoPreferido || !validarMedioPago(medioPagoPreferido)) {
+    throw new Error("El medio de pago preferido no es válido.");
+  }
+  const requiereBanco = requiereDatosBancarios(medioPagoPreferido);
+  const bancoFinal =
+    inputNormalizado.banco !== undefined
+      ? inputNormalizado.banco
+      : beneficiarioExistente.banco;
+  const tipoCuentaFinal =
+    inputNormalizado.tipo_cuenta_bancaria !== undefined
+      ? inputNormalizado.tipo_cuenta_bancaria
+      : beneficiarioExistente.tipo_cuenta_bancaria;
+  const numeroCuentaFinal =
+    inputNormalizado.numero_cuenta_bancaria !== undefined
+      ? inputNormalizado.numero_cuenta_bancaria
+      : beneficiarioExistente.numero_cuenta_bancaria;
 
   validarCampoObligatorio(
     tipoDocumento,
@@ -868,18 +906,6 @@ export async function actualizarBeneficiarioService(
       inputNormalizado.telefono !== undefined
         ? inputNormalizado.telefono
         : beneficiarioExistente.telefono;
-    const bancoFinal =
-      inputNormalizado.banco !== undefined
-        ? inputNormalizado.banco
-        : beneficiarioExistente.banco;
-    const tipoCuentaFinal =
-      inputNormalizado.tipo_cuenta_bancaria !== undefined
-        ? inputNormalizado.tipo_cuenta_bancaria
-        : beneficiarioExistente.tipo_cuenta_bancaria;
-    const numeroCuentaFinal =
-      inputNormalizado.numero_cuenta_bancaria !== undefined
-        ? inputNormalizado.numero_cuenta_bancaria
-        : beneficiarioExistente.numero_cuenta_bancaria;
     const notasFinales =
       inputNormalizado.notas !== undefined
         ? inputNormalizado.notas
@@ -887,10 +913,30 @@ export async function actualizarBeneficiarioService(
 
     validarCampoObligatorio(correoFinal, "El correo del proveedor es obligatorio.");
     validarCampoObligatorio(telefonoFinal, "El teléfono del proveedor es obligatorio.");
-    validarCampoObligatorio(bancoFinal, "El banco del proveedor es obligatorio.");
-    validarCampoObligatorio(tipoCuentaFinal, "El tipo de cuenta del proveedor es obligatorio.");
-    validarCampoObligatorio(numeroCuentaFinal, "El número de cuenta del proveedor es obligatorio.");
     validarCampoObligatorio(notasFinales, "El concepto de pago del proveedor es obligatorio.");
+  }
+
+  if (requiereBanco) {
+    validarCampoObligatorio(bancoFinal, "El banco es obligatorio.");
+    validarCampoObligatorio(
+      tipoCuentaFinal,
+      "El tipo de cuenta bancaria es obligatorio.",
+    );
+    validarCampoObligatorio(
+      numeroCuentaFinal,
+      "El número de cuenta o convenio es obligatorio.",
+    );
+    validarBanco(
+      bancoFinal ?? "",
+      "El banco seleccionado no es válido.",
+    );
+    validarSoloNumeros(
+      numeroCuentaFinal ?? "",
+      "El número de cuenta o convenio debe contener solo números.",
+    );
+    if (!tipoCuentaFinal || !validarTipoCuenta(tipoCuentaFinal)) {
+      throw new Error("El tipo de cuenta bancaria no es válido.");
+    }
   }
 
   const documentoExistente = await existeBeneficiarioPorDocumentoRepository(
@@ -919,5 +965,15 @@ export async function actualizarBeneficiarioService(
     }
   }
 
-  return actualizarBeneficiarioRepository(id, inputNormalizado);
+  const datosActualizacion =
+    inputNormalizado.medio_pago_preferido !== undefined && !requiereBanco
+      ? {
+          ...inputNormalizado,
+          banco: null,
+          tipo_cuenta_bancaria: null,
+          numero_cuenta_bancaria: null,
+        }
+      : inputNormalizado;
+
+  return actualizarBeneficiarioRepository(id, datosActualizacion);
 }
