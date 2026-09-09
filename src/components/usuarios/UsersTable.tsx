@@ -166,6 +166,9 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                 <p>
                   {usuario.tipo_documento} {usuario.numero_documento}
                 </p>
+                <span className={styles.mobileRole}>
+                  {usuario.rol || "Sin rol"}
+                </span>
               </div>
 
               <span
@@ -179,32 +182,32 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
               </span>
             </div>
 
-            <dl className={styles.mobileDetails}>
-              <div>
-                <dt>Correo</dt>
-                <dd>{usuario.correo}</dd>
-              </div>
+            <details className={styles.mobileDisclosure}>
+              <summary>Ver información y accesos</summary>
+              <div className={styles.mobileDisclosureContent}>
+                <dl className={styles.mobileDetails}>
+                  <div>
+                    <dt>Correo</dt>
+                    <dd>{usuario.correo}</dd>
+                  </div>
 
-              <div>
-                <dt>Teléfono</dt>
-                <dd>{usuario.telefono ?? "Sin teléfono"}</dd>
-              </div>
+                  <div>
+                    <dt>Teléfono</dt>
+                    <dd>{usuario.telefono ?? "Sin teléfono"}</dd>
+                  </div>
 
-              <div>
-                <dt>Rol</dt>
-                <dd>{usuario.rol || "Sin rol"}</dd>
-              </div>
+                  <div>
+                    <dt>Creado</dt>
+                    <dd>{formatearFechaColombia(usuario.creado_en)}</dd>
+                  </div>
+                </dl>
 
-              <div>
-                <dt>Creado</dt>
-                <dd>{formatearFechaColombia(usuario.creado_en)}</dd>
+                <div className={styles.mobileAccesses}>
+                  <p>Accesos</p>
+                  <AccessList usuario={usuario} />
+                </div>
               </div>
-            </dl>
-
-            <div className={styles.mobileAccesses}>
-              <p>Accesos</p>
-              <AccessList usuario={usuario} />
-            </div>
+            </details>
 
             <UserActions
               usuario={usuario}

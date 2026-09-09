@@ -53,6 +53,10 @@
   background: #ffffff;
 }
 
+.mobileFiltersToggle {
+  display: none;
+}
+
 .field {
   display: grid;
   gap: 7px;
@@ -283,10 +287,35 @@
 }
 
 @media (max-width: 700px) {
+  .mobileFiltersToggle {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .mobileFiltersToggle span:last-child {
+    color: #2563eb;
+    font-size: 12px;
+  }
+
   .filters,
   .movementFilters {
     grid-template-columns: 1fr;
     padding: 14px;
+  }
+
+  .filters.mobileFiltersCollapsed,
+  .movementFilters.mobileFiltersCollapsed {
+    display: none;
   }
 
   .field input,
@@ -343,10 +372,64 @@
     font-size: 13px;
   }
 
+  .mobilePrimaryAmount {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    background: #f8fafc;
+  }
+
+  .mobilePrimaryAmount span {
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .mobilePrimaryAmount strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .mobileDisclosure {
+    margin-top: 8px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .mobileDisclosure summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobileDisclosure summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileDisclosure summary::after {
+    content: "+";
+    color: #2563eb;
+    font-size: 20px;
+  }
+
+  .mobileDisclosure[open] summary::after {
+    content: "−";
+  }
+
   .centerCards dl {
     display: grid;
     gap: 8px;
-    margin: 10px 0 0;
+    margin: 4px 0 0;
   }
 
   .centerCards dl div {
@@ -405,7 +488,7 @@
   .movementCards dl {
     display: grid;
     gap: 8px;
-    margin: 0;
+    margin: 4px 0 0;
   }
 
   .movementCards dl div {

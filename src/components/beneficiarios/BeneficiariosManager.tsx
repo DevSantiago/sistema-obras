@@ -89,6 +89,7 @@ export function BeneficiariosManager({
     useState<(ResultadoCargaMasivaProveedores & { creados?: number }) | null>(null);
   const [procesandoMasivo, setProcesandoMasivo] = useState(false);
   const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null);
+  const [cargaMasivaMovilVisible, setCargaMasivaMovilVisible] = useState(false);
 
   const esEdicion = Boolean(beneficiarioEditando);
   const requiereBanco =
@@ -402,7 +403,22 @@ export function BeneficiariosManager({
 
   return (
     <section className={styles.container}>
-      <section className={`${styles.card} ${styles.bulkCard}`}>
+      <button
+        type="button"
+        className={styles.mobileBulkToggle}
+        aria-expanded={cargaMasivaMovilVisible}
+        aria-controls="carga-masiva-proveedores"
+        onClick={() => setCargaMasivaMovilVisible((visible) => !visible)}
+      >
+        <span>Carga masiva de proveedores</span>
+        <span>{cargaMasivaMovilVisible ? "Ocultar" : "Mostrar"}</span>
+      </button>
+      <section
+        id="carga-masiva-proveedores"
+        className={`${styles.card} ${styles.bulkCard} ${
+          cargaMasivaMovilVisible ? "" : styles.mobileBulkCollapsed
+        }`}
+      >
         <header className={styles.bulkHeader}>
           <div>
             <h2>Carga masiva de proveedores</h2>
@@ -891,37 +907,32 @@ export function BeneficiariosManager({
                     {renderEstado(beneficiario)}
                   </div>
 
-                  <dl className={styles.mobileDetails}>
-                    <div>
-                      <dt>Tipo</dt>
-                      <dd>{beneficiario.tipo_beneficiario}</dd>
-                    </div>
+                  <div className={styles.mobilePrimaryData}>
+                    <span>
+                      {beneficiario.tipo_beneficiario} · {beneficiario.medio_pago_preferido}
+                    </span>
+                    <strong>{obtenerTextoCuenta(beneficiario)}</strong>
+                  </div>
 
-                    <div>
-                      <dt>Medio sugerido</dt>
-                      <dd>{beneficiario.medio_pago_preferido}</dd>
-                    </div>
+                  <details className={styles.mobileDisclosure}>
+                    <summary>Ver información de contacto</summary>
+                    <dl className={styles.mobileDetails}>
+                      <div>
+                        <dt>Correo</dt>
+                        <dd>{beneficiario.correo ?? "Sin correo"}</dd>
+                      </div>
 
-                    <div>
-                      <dt>Cuenta</dt>
-                      <dd>{obtenerTextoCuenta(beneficiario)}</dd>
-                    </div>
+                      <div>
+                        <dt>Teléfono</dt>
+                        <dd>{beneficiario.telefono ?? "Sin teléfono"}</dd>
+                      </div>
 
-                    <div>
-                      <dt>Correo</dt>
-                      <dd>{beneficiario.correo ?? "Sin correo"}</dd>
-                    </div>
-
-                    <div>
-                      <dt>Teléfono</dt>
-                      <dd>{beneficiario.telefono ?? "Sin teléfono"}</dd>
-                    </div>
-
-                    <div>
-                      <dt>Creado</dt>
-                      <dd>{beneficiario.creado_en_formateado}</dd>
-                    </div>
-                  </dl>
+                      <div>
+                        <dt>Creado</dt>
+                        <dd>{beneficiario.creado_en_formateado}</dd>
+                      </div>
+                    </dl>
+                  </details>
 
                   <div className={styles.mobileActions}>
                     <button

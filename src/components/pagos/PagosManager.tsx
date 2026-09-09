@@ -111,6 +111,7 @@ export default function PagosManager() {
   const [vistaOperacion, setVistaOperacion] =
     useState<VistaOperacion>("TODOS");
   const [filtros, setFiltros] = useState(FILTROS_INICIALES);
+  const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [mensajeError, setMensajeError] = useState("");
   const seleccionarTodosRef = useRef<HTMLInputElement>(null);
@@ -780,7 +781,26 @@ export default function PagosManager() {
         </button>
       </div>
 
-      <div className={styles.filters}>
+      <button
+        type="button"
+        className={styles.mobileFiltersToggle}
+        aria-expanded={filtrosMovilesVisibles}
+        aria-controls="filtros-pagos"
+        onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
+      >
+        <span>Filtros</span>
+        <span>
+          {Object.values(filtros).filter(Boolean).length > 0
+            ? `${Object.values(filtros).filter(Boolean).length} activos`
+            : "Mostrar"}
+        </span>
+      </button>
+      <div
+        id="filtros-pagos"
+        className={`${styles.filters} ${
+          filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
+        }`}
+      >
         <label className={styles.field}>
           <span>Buscar</span>
           <input
@@ -1039,13 +1059,24 @@ export default function PagosManager() {
                   </label>
                   <span>{solicitud.medio_pago ?? "—"}</span>
                 </div>
-                <dl>
-                  <div><dt>Beneficiario</dt><dd>{obtenerBeneficiario(solicitud)}</dd></div>
-                  <div><dt>Proyecto</dt><dd>{solicitud.proyecto_base?.nombre ?? "—"}</dd></div>
-                  <div><dt>Centro de costo</dt><dd>{solicitud.centro_costo?.nombre ?? "—"}</dd></div>
-                  <div><dt>Fecha de aprobación</dt><dd>{formatearFecha(solicitud.aprobado_2_en)}</dd></div>
-                  <div><dt>Valor neto</dt><dd>{FORMATEADOR_MONEDA.format(solicitud.valor_neto)}</dd></div>
-                </dl>
+                <div className={styles.mobilePrimaryData}>
+                  <div>
+                    <span>Beneficiario</span>
+                    <strong>{obtenerBeneficiario(solicitud)}</strong>
+                  </div>
+                  <div>
+                    <span>Valor neto</span>
+                    <strong>{FORMATEADOR_MONEDA.format(solicitud.valor_neto)}</strong>
+                  </div>
+                </div>
+                <details className={styles.mobileDisclosure}>
+                  <summary>Ver información para el pago</summary>
+                  <dl>
+                    <div><dt>Proyecto</dt><dd>{solicitud.proyecto_base?.nombre ?? "—"}</dd></div>
+                    <div><dt>Centro de costo</dt><dd>{solicitud.centro_costo?.nombre ?? "—"}</dd></div>
+                    <div><dt>Fecha de aprobación</dt><dd>{formatearFecha(solicitud.aprobado_2_en)}</dd></div>
+                  </dl>
+                </details>
                 <button
                   className={styles.detailButton}
                   type="button"

@@ -240,11 +240,54 @@
     font-size: 12px;
   }
 
+  .mobileRole {
+    display: inline-block;
+    margin-top: 7px;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .mobileDisclosure {
+    margin-top: 14px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .mobileDisclosure summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobileDisclosure summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileDisclosure summary::after {
+    content: "+";
+    color: #2563eb;
+    font-size: 20px;
+  }
+
+  .mobileDisclosure[open] summary::after {
+    content: "−";
+  }
+
+  .mobileDisclosureContent {
+    padding-bottom: 2px;
+  }
+
   .mobileDetails {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    margin: 16px 0;
+    margin: 4px 0 16px;
   }
 
   .mobileDetails div {
