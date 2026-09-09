@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { obtenerUsuarioAutenticado } from "@/modules/auth/auth.service";
 import {
@@ -21,22 +19,12 @@ import type {
   CrearNominaGrupalInput,
   FilaNominaGrupalNormalizada,
 } from "@/modules/solicitudes-pago/nomina-grupal/nomina-grupal.types";
+import { storageService } from "@/modules/storage/storage.service";
 import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
 const MAX_TAMANO_ARCHIVO_BYTES = 10 * 1024 * 1024;
-
-const DIRECTORIO_NOMINA_GRUPAL_RELATIVO = path.join(
-  "storage",
-  "nomina-grupal",
-);
-
-const DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO = path.join(
-  process.cwd(),
-  "storage",
-  "nomina-grupal",
-);
 
 const TIPOS_MIME_PERMITIDOS = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -76,20 +64,6 @@ function normalizarAccion(
   }
 
   return null;
-}
-
-function nombreArchivoSeguro(nombreArchivo: string): string {
-  const extension = path.extname(nombreArchivo).toLowerCase();
-
-  const nombreBase = path
-    .basename(nombreArchivo, extension)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9_-]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 100);
-
-  return `${nombreBase || "nomina_grupal"}${extension}`;
 }
 
 function validarArchivoExcel(archivo: File): string | null {
@@ -178,39 +152,22 @@ async function guardarArchivoNominaGrupal(input: {
   const contenido = Buffer.from(
     await input.archivo.arrayBuffer(),
   );
-
-  const idAdjunto = randomUUID();
-  const nombreSeguro = nombreArchivoSeguro(
-    input.archivo.name,
-  );
-  const nombreFisico = `${idAdjunto}-${nombreSeguro}`;
-
-  await mkdir(DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO, {
-    recursive: true,
+  const archivoGuardado = await storageService.guardarArchivo({
+    contenido,
+    nombre_original: input.archivo.name,
+    tipo_mime: input.archivo.type || null,
+    carpeta: "nomina-grupal",
   });
-
-  const rutaAbsoluta = path.join(
-    DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
-    nombreFisico,
-  );
-
-  await writeFile(rutaAbsoluta, contenido);
 
   try {
     const adjunto =
       await crearAdjuntoNominaGrupalRepository({
-        id: idAdjunto,
         solicitud_pago_id: null,
-        nombre_archivo: input.archivo.name,
-        ruta_archivo: path
-          .join(
-            DIRECTORIO_NOMINA_GRUPAL_RELATIVO,
-            nombreFisico,
-          )
-          .replaceAll(path.sep, "/"),
-        nombre_bucket: "LOCAL_NOMINA_GRUPAL",
-        tipo_mime: input.archivo.type || null,
-        tamano_archivo: BigInt(input.archivo.size),
+        nombre_archivo: archivoGuardado.nombre_archivo,
+        ruta_archivo: archivoGuardado.ruta_archivo,
+        nombre_bucket: archivoGuardado.nombre_bucket,
+        tipo_mime: archivoGuardado.tipo_mime,
+        tamano_archivo: archivoGuardado.tamano_archivo,
         subido_por: input.usuarioId,
         estado_ocr: "NO_PROCESADO",
       });
@@ -218,12 +175,11 @@ async function guardarArchivoNominaGrupal(input: {
     return {
       adjunto,
       contenido,
-      rutaAbsoluta,
     };
   } catch (error) {
-    await unlink(rutaAbsoluta).catch(
-      () => undefined,
-    );
+    await storageService
+      .eliminarArchivo(archivoGuardado.ruta_archivo)
+      .catch(() => undefined);
 
     throw error;
   }
@@ -231,15 +187,15 @@ async function guardarArchivoNominaGrupal(input: {
 
 async function eliminarAdjuntoTemporal(input: {
   adjuntoId: string;
-  rutaAbsoluta: string;
+  rutaArchivo: string;
 }) {
   await eliminarAdjuntoNominaGrupalRepository(
     input.adjuntoId,
   ).catch(() => undefined);
 
-  await unlink(input.rutaAbsoluta).catch(
-    () => undefined,
-  );
+  await storageService
+    .eliminarArchivo(input.rutaArchivo)
+    .catch(() => undefined);
 }
 
 export async function GET() {
@@ -407,8 +363,8 @@ export async function POST(request: Request) {
           await eliminarAdjuntoTemporal({
             adjuntoId:
               archivoGuardado.adjunto.id,
-            rutaAbsoluta:
-              archivoGuardado.rutaAbsoluta,
+            rutaArchivo:
+              archivoGuardado.adjunto.ruta_archivo,
           });
 
           return Response.json(
@@ -442,8 +398,8 @@ export async function POST(request: Request) {
         await eliminarAdjuntoTemporal({
           adjuntoId:
             archivoGuardado.adjunto.id,
-          rutaAbsoluta:
-            archivoGuardado.rutaAbsoluta,
+          rutaArchivo:
+            archivoGuardado.adjunto.ruta_archivo,
         });
 
         throw error;
@@ -539,10 +495,7 @@ export async function POST(request: Request) {
         ) {
           await eliminarAdjuntoTemporal({
             adjuntoId: adjuntoArchivoOrigenId,
-            rutaAbsoluta: path.join(
-              DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
-              path.basename(adjuntoNuevo.ruta_archivo),
-            ),
+            rutaArchivo: adjuntoNuevo.ruta_archivo,
           });
         }
 
@@ -556,10 +509,7 @@ export async function POST(request: Request) {
         ) {
           await eliminarAdjuntoTemporal({
             adjuntoId: adjuntoArchivoOrigenId,
-            rutaAbsoluta: path.join(
-              DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
-              path.basename(adjuntoNuevo.ruta_archivo),
-            ),
+            rutaArchivo: adjuntoNuevo.ruta_archivo,
           });
         }
 
@@ -576,12 +526,9 @@ export async function POST(request: Request) {
         solicitudAnterior.adjunto_archivo_origen_id !==
           adjuntoArchivoOrigenId
       ) {
-        await unlink(
-          path.join(
-            DIRECTORIO_NOMINA_GRUPAL_ABSOLUTO,
-            path.basename(rutaArchivoAnterior),
-          ),
-        ).catch(() => undefined);
+        await storageService
+          .eliminarArchivo(rutaArchivoAnterior)
+          .catch(() => undefined);
       }
 
       return Response.json(resultado.body, {

@@ -1090,7 +1090,9 @@ GET /api/v1/solicitudes-pago/{id}/archivo
 
 Permite descargar el archivo de origen asociado a una solicitud de pago.
 
-Actualmente este endpoint retorna un archivo binario utilizando los encabezados HTTP correspondientes para descarga.
+El archivo se recupera mediante el proveedor configurado en el ambiente y se
+retorna como binario utilizando los encabezados HTTP correspondientes para
+descarga.
 
 ---
 
@@ -1106,6 +1108,9 @@ Descarga la plantilla oficial `.xlsx` con las columnas procesadas por el
 sistema, instrucciones de diligenciamiento y listas para los valores
 controlados. Cada fila recibe directamente `valor_total`; la plantilla no
 incluye columnas de retenciones ni descuentos. Requiere una sesión autenticada.
+
+El Excel cargado se almacena mediante el proveedor del ambiente: disco local
+en desarrollo y el bucket S3 independiente de staging o producción.
 
 ## Procesar nómina grupal
 
