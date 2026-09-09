@@ -11,14 +11,14 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: #2563eb;
 }
 
 .title {
   margin: 0;
   font-size: clamp(1.75rem, 3vw, 2.25rem);
   line-height: 1.15;
-  color: var(--color-text-primary);
+  color: #0f172a;
 }
 
 .description {
@@ -26,5 +26,5 @@
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.6;
-  color: var(--color-text-secondary);
+  color: #334155;
 }

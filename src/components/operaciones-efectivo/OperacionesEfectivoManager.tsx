@@ -486,20 +486,24 @@ export default function OperacionesEfectivoManager({
         </label>
         <label>
           <span>Desde</span>
-          <input
-            type="date"
-            value={fechaDesde}
-            onChange={(event) => setFechaDesde(event.target.value)}
-          />
+          <span className={styles.dateControl}>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={(event) => setFechaDesde(event.target.value)}
+            />
+          </span>
         </label>
         <label>
           <span>Hasta</span>
-          <input
-            min={fechaDesde || undefined}
-            type="date"
-            value={fechaHasta}
-            onChange={(event) => setFechaHasta(event.target.value)}
-          />
+          <span className={styles.dateControl}>
+            <input
+              min={fechaDesde || undefined}
+              type="date"
+              value={fechaHasta}
+              onChange={(event) => setFechaHasta(event.target.value)}
+            />
+          </span>
         </label>
         <label>
           <span>Estado</span>
