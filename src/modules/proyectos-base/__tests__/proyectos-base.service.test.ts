@@ -11,6 +11,7 @@ import {
   cambiarEstadoCentroCostoRepository,
   crearProyectoBaseConCentroCostoRepository,
   existeProyectoBasePorNombreRepository,
+  listarAccesosActivosUsuarioProyectoBaseRepository,
   listarProyectosBaseRepository,
   obtenerCentroCostoPorProyectoRepository,
   obtenerProyectoBasePorIdRepository,
@@ -20,12 +21,39 @@ vi.mock("../proyectos-base.repository", () => ({
   listarProyectosBaseRepository: vi.fn(),
   obtenerProyectoBasePorIdRepository: vi.fn(),
   existeProyectoBasePorNombreRepository: vi.fn(),
+  listarAccesosActivosUsuarioProyectoBaseRepository: vi.fn(),
   crearProyectoBaseConCentroCostoRepository: vi.fn(),
   obtenerCentroCostoPorProyectoRepository: vi.fn(),
   cambiarEstadoCentroCostoRepository: vi.fn(),
 }));
 
 const fechaMock = new Date("2026-06-23T10:00:00.000Z");
+
+const usuarioAdministradorMock = {
+  id: "admin-1",
+  nombre: "Administrador",
+  correo: "admin@gmail.com",
+  telefono: "3001234567",
+  estado: "ACTIVO",
+  roles: ["ADMINISTRADOR"],
+  permisos: [],
+};
+
+const usuarioDirectorMock = {
+  ...usuarioAdministradorMock,
+  id: "director-1",
+  nombre: "Director",
+  correo: "director@gmail.com",
+  roles: ["DIRECTOR"],
+};
+
+const usuarioAprobadorNivel1Mock = {
+  ...usuarioAdministradorMock,
+  id: "aprobador-1",
+  nombre: "Aprobador 1",
+  correo: "aprobador1@gmail.com",
+  roles: ["APROBADOR_1"],
+};
 
 const centroCostoProObraLicitacionMock = {
   id: "centro-pro-obra-1",
@@ -408,7 +436,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("", "centro-1", {
         estado_centro_costo: "EN_EJECUCION",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       }),
     ).rejects.toThrow("El ID del proyecto base es obligatorio.");
 
@@ -420,7 +448,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("proyecto-1", "", {
         estado_centro_costo: "EN_EJECUCION",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       }),
     ).rejects.toThrow("El ID del centro de costo es obligatorio.");
 
@@ -432,7 +460,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("proyecto-1", "centro-1", {
         estado_centro_costo: "EN_EJECUCION",
-        usuario_id: "",
+        usuario: { ...usuarioAdministradorMock, id: "" },
       }),
     ).rejects.toThrow("El usuario que realiza el cambio es obligatorio.");
 
@@ -444,7 +472,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("proyecto-1", "centro-1", {
         estado_centro_costo: "ADJUDICADO" as never,
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       }),
     ).rejects.toThrow("El estado del centro de costo no es válido.");
 
@@ -458,7 +486,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("proyecto-1", "centro-no-existe", {
         estado_centro_costo: "EN_EJECUCION",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       }),
     ).rejects.toThrow("El centro de costo no existe para este proyecto base.");
 
@@ -477,7 +505,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("proyecto-1", "centro-pro-obra-1", {
         estado_centro_costo: "EN_LICITACION",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       }),
     ).rejects.toThrow("El centro de costo ya se encuentra en ese estado.");
 
@@ -492,7 +520,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("proyecto-1", "centro-pro-obra-1", {
         estado_centro_costo: "FINALIZADO",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       }),
     ).rejects.toThrow(
       "No se puede cambiar el centro de costo PRO-OBRA de EN_LICITACION a FINALIZADO.",
@@ -509,7 +537,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
     await expect(
       cambiarEstadoCentroCostoService("proyecto-1", "centro-obra-1", {
         estado_centro_costo: "EN_EJECUCION",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       }),
     ).rejects.toThrow(
       "No se puede cambiar el centro de costo OBRA de FINALIZADO a EN_EJECUCION.",
@@ -537,7 +565,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
       {
         estado_centro_costo: "EN_EJECUCION",
         observacion: " Inicio de ejecución aprobado ",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       },
     );
 
@@ -570,7 +598,7 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
       {
         estado_centro_costo: "FINALIZADO",
         observacion: " Centro de costo finalizado ",
-        usuario_id: "admin-1",
+        usuario: usuarioAdministradorMock,
       },
     );
 
@@ -584,6 +612,103 @@ describe("proyectos-base.service - cambiarEstadoCentroCostoService", () => {
         observacion: "Centro de costo finalizado",
         usuario_id: "admin-1",
       },
+    );
+  });
+
+  it("debe permitir a Director avanzar PRO-OBRA con acceso activo", async () => {
+    vi.mocked(obtenerCentroCostoPorProyectoRepository).mockResolvedValue(
+      centroCostoProObraLicitacionMock as never,
+    );
+    vi.mocked(
+      listarAccesosActivosUsuarioProyectoBaseRepository,
+    ).mockResolvedValue([
+      { proyecto_base_id: "proyecto-1", linea_negocio: "OBRA" },
+    ]);
+    vi.mocked(cambiarEstadoCentroCostoRepository).mockResolvedValue(
+      proyectoBaseMock as never,
+    );
+
+    await cambiarEstadoCentroCostoService(
+      "proyecto-1",
+      "centro-pro-obra-1",
+      {
+        estado_centro_costo: "EN_EJECUCION",
+        usuario: usuarioDirectorMock,
+      },
+    );
+
+    expect(cambiarEstadoCentroCostoRepository).toHaveBeenCalledWith(
+      "proyecto-1",
+      "centro-pro-obra-1",
+      expect.objectContaining({ usuario_id: "director-1" }),
+    );
+  });
+
+  it("debe permitir a Aprobador 1 avanzar PRO-INT con acceso activo", async () => {
+    vi.mocked(obtenerCentroCostoPorProyectoRepository).mockResolvedValue(
+      centroCostoProIntLicitacionMock as never,
+    );
+    vi.mocked(
+      listarAccesosActivosUsuarioProyectoBaseRepository,
+    ).mockResolvedValue([
+      { proyecto_base_id: "proyecto-1", linea_negocio: "INTERVENTORIA" },
+    ]);
+    vi.mocked(cambiarEstadoCentroCostoRepository).mockResolvedValue(
+      proyectoBaseMock as never,
+    );
+
+    await cambiarEstadoCentroCostoService(
+      "proyecto-1",
+      "centro-pro-int-1",
+      {
+        estado_centro_costo: "EN_EJECUCION",
+        usuario: usuarioAprobadorNivel1Mock,
+      },
+    );
+
+    expect(cambiarEstadoCentroCostoRepository).toHaveBeenCalledWith(
+      "proyecto-1",
+      "centro-pro-int-1",
+      expect.objectContaining({ usuario_id: "aprobador-1" }),
+    );
+  });
+
+  it("debe rechazar el avance si Director no tiene acceso al proyecto y línea", async () => {
+    vi.mocked(obtenerCentroCostoPorProyectoRepository).mockResolvedValue(
+      centroCostoProObraLicitacionMock as never,
+    );
+    vi.mocked(
+      listarAccesosActivosUsuarioProyectoBaseRepository,
+    ).mockResolvedValue([
+      { proyecto_base_id: "proyecto-1", linea_negocio: "INTERVENTORIA" },
+    ]);
+
+    await expect(
+      cambiarEstadoCentroCostoService(
+        "proyecto-1",
+        "centro-pro-obra-1",
+        {
+          estado_centro_costo: "EN_EJECUCION",
+          usuario: usuarioDirectorMock,
+        },
+      ),
+    ).rejects.toThrow(
+      "No tiene acceso activo al proyecto y línea de negocio del centro de costo.",
+    );
+  });
+
+  it("debe impedir a Aprobador 1 finalizar un centro en ejecución", async () => {
+    vi.mocked(obtenerCentroCostoPorProyectoRepository).mockResolvedValue(
+      centroCostoObraEjecucionMock as never,
+    );
+
+    await expect(
+      cambiarEstadoCentroCostoService("proyecto-1", "centro-obra-1", {
+        estado_centro_costo: "FINALIZADO",
+        usuario: usuarioAprobadorNivel1Mock,
+      }),
+    ).rejects.toThrow(
+      "Solo el administrador puede finalizar centros de costo en ejecución.",
     );
   });
 });

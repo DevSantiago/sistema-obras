@@ -562,6 +562,8 @@ Como usuario autorizado, quiero pasar un centro de costo de licitación a ejecuc
 Criterios:
 
 - Permite pasar `PRO-OBRA` de `EN_LICITACION` a ejecución.
+- `ADMINISTRADOR`, `DIRECTOR` y `APROBADOR_1` pueden ejecutar la transición.
+- `DIRECTOR` y `APROBADOR_1` solo pueden operar sobre proyectos y líneas de negocio con acceso activo.
 - Al pasar `PRO-OBRA`, el sistema finaliza `PRO-OBRA` y crea `OBRA` en `EN_EJECUCION`.
 - Permite pasar `PRO-INT` de `EN_LICITACION` a ejecución.
 - Al pasar `PRO-INT`, el sistema finaliza `PRO-INT` y crea `INT` en `EN_EJECUCION`.
