@@ -28,7 +28,9 @@ function soloNumeros(valor: string) {
   return valor.replace(/\D/g, "");
 }
 
-function requiereDatosBancarios(medioPago: MedioPagoPreferido | "") {
+export function requiereDatosBancarios(
+  medioPago: MedioPagoPreferido | "",
+) {
   return medioPago === "TRANSFERENCIA" || medioPago === "CONSIGNACION";
 }
 
@@ -92,9 +94,7 @@ export function BeneficiariosManager({
   const [cargaMasivaMovilVisible, setCargaMasivaMovilVisible] = useState(false);
 
   const esEdicion = Boolean(beneficiarioEditando);
-  const requiereBanco =
-    tipoBeneficiario === "PROVEEDOR" ||
-    requiereDatosBancarios(medioPagoPreferido);
+  const requiereBanco = requiereDatosBancarios(medioPagoPreferido);
 
   const tiposDocumentoDisponibles =
     tipoBeneficiario === "TRABAJADOR"
@@ -146,7 +146,7 @@ export function BeneficiariosManager({
   function manejarCambioMedioPago(valor: MedioPagoPreferido | "") {
     setMedioPagoPreferido(valor);
 
-    if (tipoBeneficiario !== "PROVEEDOR" && !requiereDatosBancarios(valor)) {
+    if (!requiereDatosBancarios(valor)) {
       setBanco("");
       setTipoCuentaBancaria("");
       setNumeroCuentaBancaria("");
