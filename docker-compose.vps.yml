@@ -87,6 +87,7 @@ services:
         condition: service_healthy
     networks:
       - database
+      - web
 
 volumes:
   postgres_data:
