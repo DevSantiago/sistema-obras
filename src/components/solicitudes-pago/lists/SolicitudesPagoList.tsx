@@ -1,4 +1,5 @@
 import type {
+  EstadoSolicitudPago,
   SolicitudPagoListado,
   UsuarioSesionSolicitudesPago,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
@@ -14,16 +15,27 @@ import {
   formatearTextoDominio,
 } from "../solicitudes-pago.utils";
 
+const ORDEN_ESTADOS: EstadoSolicitudPago[] = [
+  "BORRADOR",
+  "PENDIENTE_APROBADOR_1",
+  "PENDIENTE_APROBADOR_2",
+  "DEVUELTA_APROBADOR_1",
+  "DEVUELTA_SOLICITANTE",
+  "PROGRAMADA_PAGO",
+  "PAGADA",
+  "ANULADA",
+];
+
 type SolicitudesPagoListProps = {
   solicitudes: SolicitudPagoListado[];
   usuario: UsuarioSesionSolicitudesPago;
   cargando: boolean;
   enviandoSolicitudId: string | null;
   onEnviar: (solicitudId: string) => void | Promise<void>;
+  onEnviarVarias: (solicitudIds: string[]) => Promise<void>;
   onEditar: (solicitud: SolicitudPagoListado) => void;
   onDevolver: (solicitud: SolicitudPagoListado) => void | Promise<void>;
   onVerDetalle: (solicitud: SolicitudPagoListado) => void;
-  onActualizar: () => void | Promise<void>;
 };
 
 function obtenerCategoriaSolicitud(
@@ -104,14 +116,16 @@ export default function SolicitudesPagoList({
   cargando,
   enviandoSolicitudId,
   onEnviar,
+  onEnviarVarias,
   onEditar,
   onDevolver,
   onVerDetalle,
-  onActualizar,
 }: SolicitudesPagoListProps) {
   const [proyectoFiltro, setProyectoFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
   const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState("");
+  const [idsSeleccionados, setIdsSeleccionados] = useState<Set<string>>(new Set());
   const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
 
   const proyectosFiltro = useMemo(() => {
@@ -152,11 +166,66 @@ export default function SolicitudesPagoList({
               ?.toLocaleLowerCase("es")
               .includes(numeroBuscado)) &&
           (!proyectoFiltro || solicitud.proyecto_base_id === proyectoFiltro) &&
-          (!centroFiltro || solicitud.centro_costo_id === centroFiltro),
+          (!centroFiltro || solicitud.centro_costo_id === centroFiltro) &&
+          (!estadoFiltro || solicitud.estado_actual === estadoFiltro),
       );
     },
-    [centroFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes],
+    [centroFiltro, estadoFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes],
   );
+
+  const estadosFiltro = useMemo(
+    () => ORDEN_ESTADOS.filter((estado) =>
+      solicitudes.some((solicitud) => solicitud.estado_actual === estado),
+    ),
+    [solicitudes],
+  );
+
+  const solicitudesEnviablesVisibles = useMemo(
+    () => solicitudesFiltradas.filter((solicitud) => usuarioPuedeEnviarSolicitud(solicitud, usuario)),
+    [solicitudesFiltradas, usuario],
+  );
+
+  const idsSeleccionadosValidos = useMemo(() => {
+    const idsEnviables = new Set(
+      solicitudes
+        .filter((solicitud) => usuarioPuedeEnviarSolicitud(solicitud, usuario))
+        .map((solicitud) => solicitud.id),
+    );
+    return new Set(Array.from(idsSeleccionados).filter((id) => idsEnviables.has(id)));
+  }, [idsSeleccionados, solicitudes, usuario]);
+
+  const todasEnviablesSeleccionadas =
+    solicitudesEnviablesVisibles.length > 0 &&
+    solicitudesEnviablesVisibles.every((solicitud) => idsSeleccionadosValidos.has(solicitud.id));
+
+  function alternarSolicitud(solicitudId: string) {
+    setIdsSeleccionados((actuales) => {
+      const siguientes = new Set(actuales);
+      if (siguientes.has(solicitudId)) siguientes.delete(solicitudId);
+      else siguientes.add(solicitudId);
+      return siguientes;
+    });
+  }
+
+  function alternarTodasVisibles() {
+    setIdsSeleccionados((actuales) => {
+      const siguientes = new Set(actuales);
+      solicitudesEnviablesVisibles.forEach((solicitud) => {
+        if (todasEnviablesSeleccionadas) siguientes.delete(solicitud.id);
+        else siguientes.add(solicitud.id);
+      });
+      return siguientes;
+    });
+  }
+
+  function enviarSeleccionadas() {
+    const ids = solicitudesEnviablesVisibles
+      .filter((solicitud) => idsSeleccionados.has(solicitud.id))
+      .map((solicitud) => solicitud.id);
+    if (ids.length === 0) return;
+    if (!window.confirm(`¿Enviar ${ids.length} solicitud(es) seleccionada(s) para aprobación?`)) return;
+    void onEnviarVarias(ids).then(() => setIdsSeleccionados(new Set()));
+  }
 
   function manejarEnvio(solicitud: SolicitudPagoListado) {
     if (!confirmarEnvio(solicitud)) {
@@ -194,15 +263,6 @@ export default function SolicitudesPagoList({
     <section className={styles.card}>
       <div className={styles.tableHeader}>
         <h2 className={styles.sectionTitle}>Solicitudes creadas</h2>
-
-        <button
-          className={styles.secondaryButton}
-          type="button"
-          onClick={() => void onActualizar()}
-          disabled={cargando || enviandoSolicitudId !== null}
-        >
-          {cargando ? "Actualizando..." : "Actualizar"}
-        </button>
       </div>
 
       <button
@@ -214,9 +274,9 @@ export default function SolicitudesPagoList({
       >
         <span>Filtros</span>
         <span>
-          {[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length > 0
-            ? `${[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length} activos`
-            : "Mostrar"}
+          {[numeroSolicitudFiltro, proyectoFiltro, centroFiltro, estadoFiltro].filter(Boolean).length > 0
+            ? `${[numeroSolicitudFiltro, proyectoFiltro, centroFiltro, estadoFiltro].filter(Boolean).length} activos · ${filtrosMovilesVisibles ? "Ocultar" : "Mostrar"}`
+            : filtrosMovilesVisibles ? "Ocultar" : "Mostrar"}
         </span>
       </button>
       <div
@@ -230,9 +290,30 @@ export default function SolicitudesPagoList({
           <input
             type="search"
             value={numeroSolicitudFiltro}
-            onChange={(event) => setNumeroSolicitudFiltro(event.target.value)}
+            onChange={(event) => {
+              setNumeroSolicitudFiltro(event.target.value);
+              setIdsSeleccionados(new Set());
+            }}
             placeholder="Buscar por número"
           />
+        </label>
+
+        <label>
+          <span>Estado</span>
+          <select
+            value={estadoFiltro}
+            onChange={(event) => {
+              setEstadoFiltro(event.target.value);
+              setIdsSeleccionados(new Set());
+            }}
+          >
+            <option value="">Todos los estados</option>
+            {estadosFiltro.map((estado) => (
+              <option key={estado} value={estado}>
+                {formatearEstadoSolicitud(estado)}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label>
@@ -242,6 +323,7 @@ export default function SolicitudesPagoList({
             onChange={(event) => {
               setProyectoFiltro(event.target.value);
               setCentroFiltro("");
+              setIdsSeleccionados(new Set());
             }}
           >
             <option value="">Todos los proyectos</option>
@@ -257,7 +339,10 @@ export default function SolicitudesPagoList({
           <span>Centro de costo</span>
           <select
             value={centroFiltro}
-            onChange={(event) => setCentroFiltro(event.target.value)}
+            onChange={(event) => {
+              setCentroFiltro(event.target.value);
+              setIdsSeleccionados(new Set());
+            }}
           >
             <option value="">Todos los centros</option>
             {centrosFiltro.map((centro) => (
@@ -269,7 +354,7 @@ export default function SolicitudesPagoList({
         </label>
 
         <div className={styles.filterActions}>
-          {(numeroSolicitudFiltro || proyectoFiltro || centroFiltro) ? (
+          {(numeroSolicitudFiltro || proyectoFiltro || centroFiltro || estadoFiltro) ? (
             <button
               className={styles.clearFiltersButton}
               type="button"
@@ -277,6 +362,8 @@ export default function SolicitudesPagoList({
                 setNumeroSolicitudFiltro("");
                 setProyectoFiltro("");
                 setCentroFiltro("");
+                setEstadoFiltro("");
+                setIdsSeleccionados(new Set());
               }}
             >
               Limpiar filtros
@@ -292,6 +379,31 @@ export default function SolicitudesPagoList({
           </button>
         </div>
       </div>
+
+      {solicitudesEnviablesVisibles.length > 0 ? (
+        <div className={styles.bulkSendBar}>
+          <label>
+            <input
+              type="checkbox"
+              checked={todasEnviablesSeleccionadas}
+              onChange={alternarTodasVisibles}
+              disabled={enviandoSolicitudId !== null}
+            />
+            Seleccionar solicitudes por enviar a aprobación
+          </label>
+          <span>{idsSeleccionadosValidos.size} seleccionada(s)</span>
+          <button
+            className={styles.sendButton}
+            type="button"
+            onClick={enviarSeleccionadas}
+            disabled={enviandoSolicitudId !== null || idsSeleccionadosValidos.size === 0}
+          >
+            {enviandoSolicitudId === "SELECCION_MULTIPLE"
+              ? "Enviando..."
+              : `Enviar seleccionadas (${idsSeleccionadosValidos.size})`}
+          </button>
+        </div>
+      ) : null}
 
       {cargando ? (
         <div className={styles.empty}>
@@ -317,6 +429,9 @@ export default function SolicitudesPagoList({
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <th className={styles.selectionColumn}>
+                    <span className={styles.visuallyHidden}>Seleccionar</span>
+                  </th>
                   <th>Solicitud</th>
                   <th>Proyecto / Centro</th>
                   <th>Beneficiario</th>
@@ -335,13 +450,26 @@ export default function SolicitudesPagoList({
                     usuario,
                   );
                   const enviando = enviandoSolicitudId === solicitud.id;
+                  const seleccionada = idsSeleccionadosValidos.has(solicitud.id);
 
                   return (
                     <tr
                       key={solicitud.id}
-                      className={styles.clickableRow}
+                      className={`${styles.clickableRow} ${seleccionada ? styles.selectedRow : ""}`}
                       onClick={() => onVerDetalle(solicitud)}
                     >
+                      <td
+                        className={styles.selectionColumn}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={seleccionada}
+                          disabled={!puedeEnviar || enviandoSolicitudId !== null}
+                          onChange={() => alternarSolicitud(solicitud.id)}
+                          aria-label={`Seleccionar solicitud ${solicitud.numero_solicitud}`}
+                        />
+                      </td>
                       <td>
                         <strong className={styles.requestNumber}>
                           {solicitud.numero_solicitud}
@@ -476,14 +604,26 @@ export default function SolicitudesPagoList({
                 usuario,
               );
               const enviando = enviandoSolicitudId === solicitud.id;
+              const seleccionada = idsSeleccionadosValidos.has(solicitud.id);
 
               return (
                 <article
-                  className={`${styles.mobileCard} ${styles.clickableCard}`}
+                  className={`${styles.mobileCard} ${styles.clickableCard} ${seleccionada ? styles.selectedRow : ""}`}
                   key={solicitud.id}
                   onClick={() => onVerDetalle(solicitud)}
                 >
                   <div className={styles.mobileHeader}>
+                    {puedeEnviar ? (
+                      <input
+                        className={styles.mobileSelection}
+                        type="checkbox"
+                        checked={seleccionada}
+                        disabled={enviandoSolicitudId !== null}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() => alternarSolicitud(solicitud.id)}
+                        aria-label={`Seleccionar solicitud ${solicitud.numero_solicitud}`}
+                      />
+                    ) : null}
                     <div>
                       <h3>{solicitud.numero_solicitud}</h3>
                       <p>{formatearFecha(solicitud.creado_en)}</p>

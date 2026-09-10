@@ -35,6 +35,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+cleanup_unused_docker_storage() {
+  echo "Liberando imágenes y caché Docker que no están en uso."
+  docker image prune --all --force >/dev/null
+  docker builder prune --all --force >/dev/null
+}
+
 cd "$project_dir"
 
 current_container="$(docker compose -f "$compose_file" "${compose_profile[@]}" ps -q "$service_name")"
@@ -43,6 +49,7 @@ if [[ -n "$current_container" ]]; then
   previous_image="$(docker inspect --format '{{.Config.Image}}' "$current_container")"
 fi
 
+cleanup_unused_docker_storage
 docker load --input "$image_archive"
 
 env "$image_variable=$image_ref" \

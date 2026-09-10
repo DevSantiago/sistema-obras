@@ -3,6 +3,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: only light;
+  supported-color-schemes: light;
 }
 
 @theme inline {
@@ -12,15 +14,55 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  color-scheme: only light;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+body:has(.appModalBackdrop) {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.appModalBackdrop {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.appModalDialog {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 48rem) {
+  .appModalBackdrop {
+    align-items: stretch !important;
+    justify-items: stretch !important;
+    padding: 0 !important;
+  }
+
+  .appModalDialog {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    overflow-y: auto !important;
+    border-radius: 0 !important;
+  }
+}
+
+a[x-apple-data-detectors],
+[x-apple-data-detectors] {
+  color: inherit !important;
+  font: inherit !important;
+  text-decoration: none !important;
 }

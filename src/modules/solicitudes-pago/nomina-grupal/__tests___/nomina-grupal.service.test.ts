@@ -623,6 +623,12 @@ describe("nomina-grupal.service - consulta", () => {
     );
 
     expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.solicitud.archivo_origen).toEqual(
+      expect.objectContaining({
+        id: "adjunto-1",
+        tamano_archivo: 1024,
+      }),
+    );
     expect(resultado.body.data?.solicitud.detalles_nomina[0]).toEqual(
       expect.objectContaining({
         valor_total: 1700000,

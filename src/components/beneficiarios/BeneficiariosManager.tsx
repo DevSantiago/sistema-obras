@@ -3,7 +3,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
+import { ListSearchPanel } from "@/components/shared/ListSearchPanel";
 import { formatearNombrePropio } from "@/lib/text-format";
 import { BANCOS_COLOMBIA } from "@/modules/beneficiarios/bancos.constants";
 import type {
@@ -92,9 +93,25 @@ export function BeneficiariosManager({
   const [procesandoMasivo, setProcesandoMasivo] = useState(false);
   const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null);
   const [cargaMasivaMovilVisible, setCargaMasivaMovilVisible] = useState(false);
+  const [formularioExpandido, setFormularioExpandido] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
+  const formularioRef = useRef<HTMLElement>(null);
 
   const esEdicion = Boolean(beneficiarioEditando);
   const requiereBanco = requiereDatosBancarios(medioPagoPreferido);
+  const beneficiariosFiltrados = useMemo(() => {
+    const criterio = busqueda.trim().toLocaleLowerCase("es");
+
+    if (!criterio) {
+      return beneficiarios;
+    }
+
+    return beneficiarios.filter((beneficiario) =>
+      `${beneficiario.nombre} ${beneficiario.numero_documento}`
+        .toLocaleLowerCase("es")
+        .includes(criterio),
+    );
+  }, [beneficiarios, busqueda]);
 
   const tiposDocumentoDisponibles =
     tipoBeneficiario === "TRABAJADOR"
@@ -133,6 +150,13 @@ export function BeneficiariosManager({
     setActivo(beneficiario.activo);
     setMensajeError(null);
     setMensajeExito(null);
+    setFormularioExpandido(true);
+    window.requestAnimationFrame(() => {
+      formularioRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   function manejarCambioTipoBeneficiario(valor: TipoBeneficiario | "") {
@@ -486,9 +510,9 @@ export function BeneficiariosManager({
         {mensajeMasivo ? <p className={styles.helpText}>{mensajeMasivo}</p> : null}
       </section>
 
-      <section className={styles.card}>
-        <form className={styles.form} onSubmit={manejarSubmit}>
-          <header className={styles.formHeader}>
+      <section className={styles.card} ref={formularioRef}>
+        <header className={styles.formHeader}>
+          <div>
             <h2 className={styles.formTitle}>
               {esEdicion ? "Editar beneficiario" : "Crear beneficiario"}
             </h2>
@@ -498,8 +522,27 @@ export function BeneficiariosManager({
                 ? "Actualice los datos de identificación, clasificación y pago del beneficiario."
                 : "Registre la persona o proveedor que podrá ser usado como beneficiario en solicitudes de pago."}
             </p>
-          </header>
+          </div>
+          <button
+            className={styles.disclosureButton}
+            type="button"
+            aria-expanded={formularioExpandido}
+            aria-controls="formulario-beneficiario"
+            aria-label={
+              formularioExpandido ? "Contraer formulario" : "Expandir formulario"
+            }
+            onClick={() => setFormularioExpandido((expandido) => !expandido)}
+          >
+            <span aria-hidden="true">{formularioExpandido ? "−" : "+"}</span>
+          </button>
+        </header>
 
+        <form
+          id="formulario-beneficiario"
+          className={styles.form}
+          onSubmit={manejarSubmit}
+          hidden={!formularioExpandido}
+        >
           <div className={styles.grid}>
             <label className={styles.field}>
               <span className={styles.label}>
@@ -804,15 +847,25 @@ export function BeneficiariosManager({
       </section>
 
       <section>
-        <h2 className={styles.sectionTitle}>Beneficiarios creados</h2>
-
         {beneficiarios.length === 0 ? (
           <section className={styles.empty}>
             <h2>No hay beneficiarios registrados</h2>
             <p>Cuando cree beneficiarios, aparecerán en esta sección.</p>
           </section>
         ) : (
-          <section className={styles.card}>
+          <ListSearchPanel
+            title="Beneficiarios creados"
+            searchLabel="Buscar beneficiario"
+            searchPlaceholder="Nombre o número de identificación"
+            searchValue={busqueda}
+            onSearchChange={setBusqueda}
+          >
+            {beneficiariosFiltrados.length === 0 ? (
+              <p className={styles.noResults}>
+                No hay beneficiarios que coincidan con la búsqueda.
+              </p>
+            ) : (
+              <>
             <div className={styles.desktopTable}>
               <table className={styles.table}>
                 <thead>
@@ -828,7 +881,7 @@ export function BeneficiariosManager({
                 </thead>
 
                 <tbody>
-                  {beneficiarios.map((beneficiario) => (
+                  {beneficiariosFiltrados.map((beneficiario) => (
                     <tr key={beneficiario.id}>
                       <td>
                         <strong className={styles.beneficiaryName}>
@@ -889,7 +942,7 @@ export function BeneficiariosManager({
             </div>
 
             <div className={styles.mobileList}>
-              {beneficiarios.map((beneficiario) => (
+              {beneficiariosFiltrados.map((beneficiario) => (
                 <article
                   className={styles.mobileCard}
                   key={beneficiario.id}
@@ -948,7 +1001,9 @@ export function BeneficiariosManager({
                 </article>
               ))}
             </div>
-          </section>
+              </>
+            )}
+          </ListSearchPanel>
         )}
       </section>
     </section>

@@ -116,6 +116,33 @@ function esBeneficiarioValidoParaPagoProveedor(
   return tipoBeneficiario === "PROVEEDOR" || tipoBeneficiario === "OTRO";
 }
 
+function validarDatosBeneficiarioParaMedioPago(
+  beneficiario: {
+    banco: string | null;
+    tipo_cuenta_bancaria: string | null;
+    numero_cuenta_bancaria: string | null;
+  },
+  medioPago: MedioPagoSolicitud,
+): string | null {
+  if (medioPago !== "TRANSFERENCIA" && medioPago !== "CONSIGNACION") {
+    return null;
+  }
+
+  const datosFaltantes = [
+    [beneficiario.banco, "banco"],
+    [beneficiario.tipo_cuenta_bancaria, "tipo de cuenta"],
+    [beneficiario.numero_cuenta_bancaria, "número de cuenta o convenio"],
+  ]
+    .filter(([valor]) => !valor?.trim())
+    .map(([, etiqueta]) => etiqueta);
+
+  if (datosFaltantes.length === 0) {
+    return null;
+  }
+
+  return `El beneficiario no tiene registrados los datos requeridos para ${medioPago.toLowerCase()}: ${datosFaltantes.join(", ")}. Actualice el beneficiario antes de continuar.`;
+}
+
 function obtenerMetadatosAdjunto(archivo: ArchivoGuardado) {
   return {
     nombre_archivo: archivo.nombre_archivo,
@@ -1255,6 +1282,18 @@ export async function editarSolicitudAprobadorNivel1Service(
     return {
       status: 404,
       body: { ok: false, message: "El beneficiario no existe o está inactivo." },
+    };
+  }
+
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
     };
   }
 
@@ -2479,6 +2518,18 @@ export async function crearSolicitudPagoProveedorService(
     };
   }
 
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
+    };
+  }
+
   if (
     !esBeneficiarioValidoParaPagoProveedor(
       beneficiario.tipo_beneficiario,
@@ -2663,6 +2714,18 @@ export async function actualizarSolicitudPagoProveedorService(
         ok: false,
         message: "El beneficiario no existe o está inactivo.",
       },
+    };
+  }
+
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
     };
   }
 
@@ -2864,6 +2927,18 @@ export async function crearSolicitudNominaIndividualService(
         ok: false,
         message: "El trabajador no existe o está inactivo.",
       },
+    };
+  }
+
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
     };
   }
 
@@ -3135,6 +3210,18 @@ export async function actualizarSolicitudNominaIndividualService(
     };
   }
 
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
+    };
+  }
+
   const solicitudActualizada =
     await actualizarSolicitudPagoRepository({
       id: solicitudEditable.solicitud.id,
@@ -3295,6 +3382,18 @@ export async function crearSolicitudPagoImpuestoService(
         message:
           "La entidad beneficiaria no existe o está inactiva.",
       },
+    };
+  }
+
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
     };
   }
 
@@ -3489,6 +3588,18 @@ export async function actualizarSolicitudPagoImpuestoService(
     };
   }
 
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
+    };
+  }
+
   const solicitudActualizada =
     await actualizarSolicitudPagoRepository({
       id: solicitudEditable.solicitud.id,
@@ -3673,6 +3784,18 @@ export async function crearSolicitudReembolsoService(
         message:
           "El beneficiario del reembolso no existe o está inactivo.",
       },
+    };
+  }
+
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
     };
   }
 
@@ -3895,6 +4018,18 @@ export async function actualizarSolicitudReembolsoService(
         message:
           "El beneficiario del reembolso no existe o está inactivo.",
       },
+    };
+  }
+
+  const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+    beneficiario,
+    medioPago,
+  );
+
+  if (errorDatosMedioPago) {
+    return {
+      status: 400,
+      body: { ok: false, message: errorDatosMedioPago },
     };
   }
 

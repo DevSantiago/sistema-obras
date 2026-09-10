@@ -24,6 +24,7 @@ import {
   MEDIOS_PAGO,
   obtenerDocumentoBeneficiario,
   obtenerEtiquetaBeneficiario,
+  validarDatosBeneficiarioParaMedioPago,
   type ValoresSolicitudPago,
 } from "../solicitudes-pago.utils";
 
@@ -227,6 +228,15 @@ export default function ProveedorForm({
 
     if (!beneficiarioSeleccionado) {
       return "Seleccione un beneficiario proveedor válido.";
+    }
+
+    const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+      beneficiarioSeleccionado,
+      formulario.medio_pago,
+    );
+
+    if (errorDatosMedioPago) {
+      return errorDatosMedioPago;
     }
 
     if (valores.valorBruto <= 0) {

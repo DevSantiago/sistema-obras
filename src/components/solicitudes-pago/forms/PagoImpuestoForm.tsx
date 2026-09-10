@@ -23,6 +23,7 @@ import {
   MEDIOS_PAGO,
   obtenerDocumentoBeneficiario,
   obtenerEtiquetaBeneficiario,
+  validarDatosBeneficiarioParaMedioPago,
 } from "../solicitudes-pago.utils";
 
 type PagoImpuestoFormProps = {
@@ -245,6 +246,15 @@ export default function PagoImpuestoForm({
 
     if (!entidadSeleccionada) {
       return "Seleccione una entidad recaudadora válida.";
+    }
+
+    const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+      entidadSeleccionada,
+      form.medio_pago,
+    );
+
+    if (errorDatosMedioPago) {
+      return errorDatosMedioPago;
     }
 
     if (form.periodo_impuesto > PERIODO_ACTUAL) {

@@ -48,6 +48,8 @@ type UsuarioResponse = {
 type UserFormProps = {
   usuarioEditando?: UsuarioListado | null;
   proyectos: ProyectoAccesoDisponible[];
+  expandido: boolean;
+  onAlternarExpansion: () => void;
   onCancelarEdicion?: () => void;
   onGuardado?: () => void;
 };
@@ -59,6 +61,8 @@ function crearClaveAcceso(acceso: AccesoUsuarioInput) {
 export function UserForm({
   usuarioEditando,
   proyectos,
+  expandido,
+  onAlternarExpansion,
   onCancelarEdicion,
   onGuardado,
 }: UserFormProps) {
@@ -224,17 +228,34 @@ export function UserForm({
   return (
     <section className={styles.card}>
       <header className={styles.header}>
-        <h2 className={styles.title}>
-          {esEdicion ? "Editar usuario" : "Crear usuario"}
-        </h2>
-        <p className={styles.description}>
-          {esEdicion
-            ? "Actualice los datos, el rol y los proyectos asignados. La identificación no se puede modificar."
-            : "Registre el usuario y defina los proyectos y líneas donde podrá operar."}
-        </p>
+        <div>
+          <h2 className={styles.title}>
+            {esEdicion ? "Editar usuario" : "Crear usuario"}
+          </h2>
+          <p className={styles.description}>
+            {esEdicion
+              ? "Actualice los datos, el rol y los proyectos asignados. La identificación no se puede modificar."
+              : "Registre el usuario y defina los proyectos y líneas donde podrá operar."}
+          </p>
+        </div>
+        <button
+          className={styles.disclosureButton}
+          type="button"
+          aria-expanded={expandido}
+          aria-controls="formulario-usuario"
+          aria-label={expandido ? "Contraer formulario" : "Expandir formulario"}
+          onClick={onAlternarExpansion}
+        >
+          <span aria-hidden="true">{expandido ? "−" : "+"}</span>
+        </button>
       </header>
 
-      <form className={styles.form} onSubmit={manejarSubmit}>
+      <form
+        id="formulario-usuario"
+        className={styles.form}
+        onSubmit={manejarSubmit}
+        hidden={!expandido}
+      >
         <div className={styles.grid}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="tipo_documento">

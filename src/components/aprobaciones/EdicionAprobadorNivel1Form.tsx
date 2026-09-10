@@ -2,6 +2,7 @@
 
 import type {
   BeneficiarioSolicitudCatalogo,
+  MedioPagoSolicitud,
   SolicitudPagoListado,
   SolicitudesPagoApiResponse,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
@@ -9,7 +10,11 @@ import {
   CATEGORIAS_REEMBOLSO,
   TIPOS_IMPUESTO_SOLICITUD,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
-import { CATEGORIAS_GASTO, MEDIOS_PAGO } from "@/components/solicitudes-pago/solicitudes-pago.utils";
+import {
+  CATEGORIAS_GASTO,
+  MEDIOS_PAGO,
+  validarDatosBeneficiarioParaMedioPago,
+} from "@/components/solicitudes-pago/solicitudes-pago.utils";
 import SelectorAdjuntos from "@/components/adjuntos/SelectorAdjuntos";
 import { formatearNombrePropio } from "@/lib/text-format";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
@@ -70,7 +75,9 @@ export default function EdicionAprobadorNivel1Form({
   const [beneficiarios, setBeneficiarios] = useState<BeneficiarioSolicitudCatalogo[]>([]);
   const [beneficiarioId, setBeneficiarioId] = useState(solicitud.beneficiario_id ?? "");
   const [categoria, setCategoria] = useState(obtenerCategoria(solicitud));
-  const [medioPago, setMedioPago] = useState(solicitud.medio_pago ?? "");
+  const [medioPago, setMedioPago] = useState<MedioPagoSolicitud | "">(
+    solicitud.medio_pago ?? "",
+  );
   const [descripcion, setDescripcion] = useState(solicitud.descripcion);
   const [valorBruto, setValorBruto] = useState(String(solicitud.valor_bruto));
   const [valorRetenciones, setValorRetenciones] = useState(String(solicitud.valor_retenciones));
@@ -130,6 +137,22 @@ export default function EdicionAprobadorNivel1Form({
     event.preventDefault();
     if (guardando) return;
 
+    const beneficiarioSeleccionado = beneficiariosPermitidos.find(
+      (beneficiario) => beneficiario.id === beneficiarioId,
+    );
+
+    if (beneficiarioSeleccionado) {
+      const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+        beneficiarioSeleccionado,
+        medioPago,
+      );
+
+      if (errorDatosMedioPago) {
+        setError(errorDatosMedioPago);
+        return;
+      }
+    }
+
     setGuardando(true);
     setError("");
 
@@ -166,8 +189,8 @@ export default function EdicionAprobadorNivel1Form({
   }
 
   return (
-    <div className={styles.modalBackdrop} role="presentation">
-      <form className={styles.editDialog} role="dialog" aria-modal="true" onSubmit={guardar}>
+    <div className={`${styles.modalBackdrop} appModalBackdrop`} role="presentation">
+      <form className={`${styles.editDialog} appModalDialog`} role="dialog" aria-modal="true" onSubmit={guardar}>
         <div className={styles.detailHeader}>
           <div>
             <span className={styles.detailEyebrow}>Aprobación nivel 1</span>
@@ -209,7 +232,13 @@ export default function EdicionAprobadorNivel1Form({
             </label>
             <label>
               <span>Medio de pago *</span>
-              <select required value={medioPago} onChange={(event) => setMedioPago(event.target.value)}>
+              <select
+                required
+                value={medioPago}
+                onChange={(event) =>
+                  setMedioPago(event.target.value as MedioPagoSolicitud | "")
+                }
+              >
                 <option value="">Seleccionar</option>
                 {MEDIOS_PAGO.map((medio) => <option key={medio} value={medio}>{medio}</option>)}
               </select>

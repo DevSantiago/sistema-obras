@@ -1103,9 +1103,9 @@ export default function PagosManager() {
       )}
 
       {modalTransferenciasAbierto ? (
-        <div className={styles.modalBackdrop}>
+        <div className={`${styles.modalBackdrop} appModalBackdrop`}>
           <section
-            className={`${styles.modal} ${styles.batchModal}`}
+            className={`${styles.modal} ${styles.batchModal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="registro-transferencias-title"
@@ -1234,9 +1234,9 @@ export default function PagosManager() {
       ) : null}
 
       {modalRetiroAbierto ? (
-        <div className={styles.modalBackdrop}>
+        <div className={`${styles.modalBackdrop} appModalBackdrop`}>
           <section
-            className={`${styles.modal} ${styles.batchModal}`}
+            className={`${styles.modal} ${styles.batchModal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="registro-retiro-title"
@@ -1421,7 +1421,7 @@ export default function PagosManager() {
 
       {solicitudSeleccionada ? (
         <div
-          className={styles.modalBackdrop}
+          className={`${styles.modalBackdrop} appModalBackdrop`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -1430,7 +1430,7 @@ export default function PagosManager() {
           }}
         >
           <section
-            className={styles.modal}
+            className={`${styles.modal} ${styles.detailModal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="detalle-pago-title"
@@ -1452,23 +1452,29 @@ export default function PagosManager() {
               </button>
             </header>
 
-            <div className={styles.modalGrid}>
-              <div><span>Tipo de solicitud</span><strong>{obtenerTipo(solicitudSeleccionada)}</strong></div>
-              <div><span>Medio de pago</span><strong>{solicitudSeleccionada.medio_pago ?? "—"}</strong></div>
-              <div><span>Fecha de aprobación</span><strong>{formatearFecha(solicitudSeleccionada.aprobado_2_en)}</strong></div>
-              <div><span>Beneficiario</span><strong>{obtenerBeneficiario(solicitudSeleccionada)}</strong></div>
-              <div><span>Documento</span><strong>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</strong></div>
-              <div><span>Banco</span><strong>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</strong></div>
-              <div><span>Tipo de cuenta</span><strong>{solicitudSeleccionada.beneficiario?.tipo_cuenta_bancaria ?? "No registrado"}</strong></div>
-              <div className={styles.fullWidth}><span>Número de cuenta o convenio</span><strong>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</strong></div>
-            </div>
+            <section className={styles.detailSection}>
+              <h3>Información para el pago</h3>
+              <div className={styles.modalGrid}>
+                <div><span>Tipo de solicitud</span><strong>{obtenerTipo(solicitudSeleccionada)}</strong></div>
+                <div><span>Medio de pago</span><strong>{solicitudSeleccionada.medio_pago ?? "—"}</strong></div>
+                <div><span>Fecha de aprobación</span><strong>{formatearFecha(solicitudSeleccionada.aprobado_2_en)}</strong></div>
+                <div><span>Beneficiario</span><strong>{obtenerBeneficiario(solicitudSeleccionada)}</strong></div>
+                <div><span>Documento</span><strong>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</strong></div>
+                <div><span>Banco</span><strong>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</strong></div>
+                <div><span>Tipo de cuenta</span><strong>{solicitudSeleccionada.beneficiario?.tipo_cuenta_bancaria ?? "No registrado"}</strong></div>
+                <div className={styles.fullWidth}><span>Número de cuenta o convenio</span><strong>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</strong></div>
+              </div>
+            </section>
 
-            <div className={styles.values}>
-              <div><span>Valor bruto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_bruto)}</strong></div>
-              <div><span>Impuestos y retenciones</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_retenciones)}</strong></div>
-              <div><span>Descuentos</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_descuentos)}</strong></div>
-              <div className={styles.netValue}><span>Valor neto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_neto)}</strong></div>
-            </div>
+            <section className={styles.detailSection}>
+              <h3>Resumen de valores</h3>
+              <div className={styles.values}>
+                <div><span>Valor bruto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_bruto)}</strong></div>
+                <div><span>Impuestos y retenciones</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_retenciones)}</strong></div>
+                <div><span>Descuentos</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_descuentos)}</strong></div>
+                <div className={styles.netValue}><span>Valor neto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_neto)}</strong></div>
+              </div>
+            </section>
           </section>
         </div>
       ) : null}

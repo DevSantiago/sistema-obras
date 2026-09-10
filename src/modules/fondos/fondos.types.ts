@@ -41,6 +41,15 @@ export type FiltrosMovimientosFondo = {
   fase_centro_costo?: string;
   direccion?: "INGRESO" | "EGRESO";
   tipo_movimiento?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+};
+
+export type AdjuntoMovimientoFondoConsulta = {
+  id: string;
+  nombre_archivo: string;
+  tipo_mime: string | null;
+  url: string;
 };
 
 export type MovimientoFondoConsulta = {
@@ -61,6 +70,7 @@ export type MovimientoFondoConsulta = {
   descripcion: string | null;
   operacion_efectivo_id: string | null;
   registrado_en: string;
+  adjuntos: AdjuntoMovimientoFondoConsulta[];
 };
 
 export type ConsultarMovimientosFondoData = {

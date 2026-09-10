@@ -26,6 +26,7 @@ import {
   MEDIOS_PAGO,
   obtenerDocumentoBeneficiario,
   obtenerEtiquetaBeneficiario,
+  validarDatosBeneficiarioParaMedioPago,
 } from "../solicitudes-pago.utils";
 
 const ESTADO_INICIAL: ReembolsoFormularioState = {
@@ -273,6 +274,15 @@ const trabajadoresFiltrados = useMemo(() => {
 
     if (!trabajadorSeleccionado) {
       return "Seleccione un beneficiario trabajador válido.";
+    }
+
+    const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+      trabajadorSeleccionado,
+      form.medio_pago,
+    );
+
+    if (errorDatosMedioPago) {
+      return errorDatosMedioPago;
     }
 
     if (valores.valorBruto <= 0) {

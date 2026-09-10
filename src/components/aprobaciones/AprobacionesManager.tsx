@@ -2,6 +2,7 @@
 
 import { formatearNombrePropio } from "@/lib/text-format";
 import { descargarTablaPdf } from "@/lib/pdf-export";
+import { descargarTablaExcel } from "@/lib/excel-export";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import type {
   AprobarSolicitudesNivel1Data,
@@ -65,6 +66,30 @@ function formatearMoneda(valor: number): string {
   return FORMATEADOR_MONEDA.format(valor);
 }
 
+export function ordenarSolicitudesParaExportar(
+  solicitudes: SolicitudPagoListado[],
+): SolicitudPagoListado[] {
+  return [...solicitudes].sort((a, b) => {
+    const proyecto = (a.proyecto_base?.nombre ?? "").localeCompare(
+      b.proyecto_base?.nombre ?? "",
+      "es",
+    );
+    if (proyecto !== 0) return proyecto;
+
+    const centro = (a.centro_costo?.nombre ?? "").localeCompare(
+      b.centro_costo?.nombre ?? "",
+      "es",
+    );
+    if (centro !== 0) return centro;
+
+    return (a.numero_solicitud ?? "").localeCompare(
+      b.numero_solicitud ?? "",
+      "es",
+      { numeric: true },
+    );
+  });
+}
+
 export function calcularSaldoProyectadoAprobacion(
   nivel: NivelAprobacion,
   saldoActual: number,
@@ -89,6 +114,19 @@ export function calcularSaldoTrasPagarSeleccion(
   valorSeleccionado: number,
 ) {
   return saldoActual - valorSeleccionado;
+}
+
+export function calcularDisponibleAntesSeleccionNivel1(
+  saldoDisponible: number,
+  valorSeleccionado: number,
+  valorNuevoPorReservar: number,
+) {
+  const valorYaReservado = Math.max(
+    0,
+    valorSeleccionado - valorNuevoPorReservar,
+  );
+
+  return saldoDisponible + valorYaReservado;
 }
 
 export default function AprobacionesManager({
@@ -131,6 +169,7 @@ export default function AprobacionesManager({
   const [proyectoFiltro, setProyectoFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
   const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
+  const [pendientesExpandidas, setPendientesExpandidas] = useState(true);
 
   const permisoRequerido =
     nivel === 1
@@ -207,31 +246,62 @@ const mensajeSinSolicitudes =
       .filter((proyecto) => proyecto.solicitudes.length > 0);
   }, [centroFiltro, numeroSolicitudFiltro, proyectoFiltro, proyectos]);
 
-  const solicitudesPendientesVisibles = useMemo(
-    () => proyectosVisibles.flatMap((proyecto) => proyecto.solicitudes),
-    [proyectosVisibles],
-  );
+  function obtenerSolicitudesSeleccionadasParaExportar() {
+    return ordenarSolicitudesParaExportar(
+      solicitudes.filter((solicitud) => idsSeleccionados.has(solicitud.id)),
+    );
+  }
 
   function exportarPendientesPdf() {
     const proyecto = proyectosFiltro.find((opcion) => opcion.id === proyectoFiltro);
     const centro = centrosFiltro.find((opcion) => opcion.id === centroFiltro);
+    const filas = obtenerSolicitudesSeleccionadasParaExportar();
+    const total = filas.reduce((acumulado, fila) => acumulado + fila.valor_neto, 0);
     descargarTablaPdf({
       titulo: `Solicitudes pendientes de aprobación nivel ${nivel}`,
-      nombreArchivo: `aprobaciones-nivel-${nivel}-filtradas.pdf`,
-      filas: solicitudesPendientesVisibles,
+      nombreArchivo: `aprobaciones-nivel-${nivel}-seleccionadas.pdf`,
+      filas,
       filtros: [
         numeroSolicitudFiltro.trim() && `Número: ${numeroSolicitudFiltro.trim()}`,
         proyecto && `Proyecto: ${proyecto.nombre}`,
         centro && `Centro de costo: ${centro.nombre}`,
       ].filter(Boolean) as string[],
+      resumen: [
+        `${filas.length} solicitud(es) seleccionada(s)`,
+        `Valor total: ${formatearMoneda(total)}`,
+      ],
       columnas: [
-        { titulo: "Solicitud", ancho: 19, valor: (fila) => fila.numero_solicitud },
         { titulo: "Proyecto", ancho: 17, valor: (fila) => fila.proyecto_base?.nombre },
         { titulo: "Centro de costo", ancho: 17, valor: (fila) => fila.centro_costo?.nombre },
+        { titulo: "Solicitud", ancho: 19, valor: (fila) => fila.numero_solicitud },
         { titulo: "Beneficiario", ancho: 18, valor: (fila) => fila.beneficiario?.nombre },
         { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
         { titulo: "Estado", ancho: 10, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
         { titulo: "Valor neto", ancho: 10, valor: (fila) => formatearMoneda(fila.valor_neto) },
+      ],
+    });
+  }
+
+  async function exportarPendientesExcel() {
+    const filas = obtenerSolicitudesSeleccionadasParaExportar();
+    const total = filas.reduce((acumulado, fila) => acumulado + fila.valor_neto, 0);
+    await descargarTablaExcel({
+      nombreArchivo: `aprobaciones-nivel-${nivel}-seleccionadas.xls`,
+      nombreHoja: `Aprobaciones nivel ${nivel}`,
+      filas,
+      resumen: [
+        { etiqueta: "Solicitudes seleccionadas", valor: filas.length },
+        { etiqueta: "Valor total", valor: total },
+      ],
+      columnas: [
+        { titulo: "Proyecto", ancho: 28, valor: (fila) => fila.proyecto_base?.nombre },
+        { titulo: "Centro de costo", ancho: 30, valor: (fila) => fila.centro_costo?.nombre },
+        { titulo: "Número de solicitud", ancho: 38, valor: (fila) => fila.numero_solicitud },
+        { titulo: "Beneficiario", ancho: 32, valor: (fila) => fila.beneficiario?.nombre },
+        { titulo: "Tipo", ancho: 22, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Estado", ancho: 22, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
+        { titulo: "Valor bruto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_bruto },
+        { titulo: "Valor neto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_neto },
       ],
     });
   }
@@ -604,15 +674,21 @@ const mensajeSinSolicitudes =
 
         <button
           type="button"
-          className={styles.refreshButton}
-          onClick={() => void cargarSolicitudes()}
-          disabled={
-            estadoCarga === "CARGANDO" || aprobando
-          }
+          className={styles.accordionToggle}
+          aria-label={pendientesExpandidas ? "Contraer solicitudes pendientes" : `Expandir ${solicitudes.length} solicitudes pendientes`}
+          aria-expanded={pendientesExpandidas}
+          aria-controls={`pendientes-aprobacion-${nivel}`}
+          onClick={() => setPendientesExpandidas((expandida) => !expandida)}
         >
-          Actualizar
+          <span aria-hidden="true">{pendientesExpandidas ? "−" : "+"}</span>
         </button>
       </div>
+
+      <div
+        id={`pendientes-aprobacion-${nivel}`}
+        className={styles.pendingContent}
+        hidden={!pendientesExpandidas}
+      >
 
       {(!puedeAprobar || mensajeError) && (
         <div
@@ -730,9 +806,16 @@ const mensajeSinSolicitudes =
                 <button
                   type="button"
                   onClick={exportarPendientesPdf}
-                  disabled={solicitudesPendientesVisibles.length === 0}
+                  disabled={idsSeleccionados.size === 0}
                 >
-                  Exportar PDF ({solicitudesPendientesVisibles.length})
+                  Exportar PDF ({idsSeleccionados.size})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void exportarPendientesExcel()}
+                  disabled={idsSeleccionados.size === 0}
+                >
+                  Exportar Excel ({idsSeleccionados.size})
                 </button>
               </div>
             </div>
@@ -808,6 +891,12 @@ const mensajeSinSolicitudes =
                   proyecto.saldo_actual,
                   valorSeleccionado,
                 );
+              const disponibleAntesSeleccionNivel1 =
+                calcularDisponibleAntesSeleccionNivel1(
+                  proyecto.saldo_disponible,
+                  valorSeleccionado,
+                  valorNuevoPorReservar,
+                );
 
               const saldoProyectado =
                 calcularSaldoProyectadoAprobacion(
@@ -865,80 +954,18 @@ const mensajeSinSolicitudes =
                         </small>
                       </div>
 
-                      <details className={styles.mobileDisclosure}>
-                        <summary>Ver detalle del fondo</summary>
-                        <dl className={styles.mobileFinancialList}>
-                          <div>
-                            <dt>Saldo actual</dt>
-                            <dd>{formatearMoneda(proyecto.saldo_actual)}</dd>
-                          </div>
-                          <div>
-                            <dt>Total reservado</dt>
-                            <dd>{formatearMoneda(proyecto.reservas_existentes)}</dd>
-                          </div>
-                          <div>
-                            <dt>Disponible ahora</dt>
-                            <dd>{formatearMoneda(proyecto.saldo_disponible)}</dd>
-                          </div>
-                        </dl>
-                      </details>
-
-                      <details className={styles.mobileDisclosure}>
-                        <summary>
-                          {nivel === 1
-                            ? "Ver cálculo de la aprobación"
-                            : "Ver proyección del pago"}
-                        </summary>
-                        {nivel === 1 ? (
-                          <div className={styles.mobileCalculation}>
-                            <span>Disponible si se aprueba</span>
-                            <strong>
-                              {valorSeleccionado > 0
-                                ? formatearMoneda(saldoProyectado)
-                                : "—"}
-                            </strong>
-                            <small>
-                              {valorSeleccionado > 0
-                                ? `${formatearMoneda(proyecto.saldo_disponible)} − ${formatearMoneda(valorNuevoPorReservar)}`
-                                : "Selecciona una solicitud para calcularlo."}
-                            </small>
-                          </div>
-                        ) : (
-                          <dl className={styles.mobileFinancialList}>
-                            <div>
-                              <dt>Saldo después del pago</dt>
-                              <dd>
-                                {valorSeleccionado > 0
-                                  ? formatearMoneda(saldoTrasPagarSeleccion)
-                                  : "—"}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Otras reservas pendientes</dt>
-                              <dd>
-                                {valorSeleccionado > 0
-                                  ? formatearMoneda(reservaRestante)
-                                  : "—"}
-                              </dd>
-                            </div>
-                            <div className={styles.mobileFinancialTotal}>
-                              <dt>Disponible final</dt>
-                              <dd className={styles.mobileTotalValue}>
-                                <strong>
-                                  {valorSeleccionado > 0
-                                    ? formatearMoneda(saldoProyectado)
-                                    : "—"}
-                                </strong>
-                                <small>
-                                  {valorSeleccionado > 0
-                                    ? `${formatearMoneda(saldoTrasPagarSeleccion)} − ${formatearMoneda(reservaRestante)}`
-                                    : "Selecciona para calcular"}
-                                </small>
-                              </dd>
-                            </div>
-                          </dl>
-                        )}
-                      </details>
+                      <div className={styles.mobileOperationCard}>
+                        <span className={styles.summaryLabel}>
+                          {nivel === 1 ? "Cálculo al aprobar" : "Proyección al pagar"}
+                        </span>
+                        <strong>
+                          {valorSeleccionado > 0
+                            ? nivel === 1
+                              ? `${formatearMoneda(disponibleAntesSeleccionNivel1)} − ${formatearMoneda(valorSeleccionado)} = ${formatearMoneda(saldoProyectado)}`
+                              : `${formatearMoneda(proyecto.saldo_actual)} − ${formatearMoneda(valorSeleccionado)} − ${formatearMoneda(reservaRestante)} = ${formatearMoneda(saldoProyectado)}`
+                            : "Selecciona una solicitud para ver la operación"}
+                        </strong>
+                      </div>
                     </div>
 
                     <div
@@ -1125,9 +1152,9 @@ const mensajeSinSolicitudes =
             })}
 
             {solicitudesDevolucion.length > 0 ? (
-              <div className={styles.modalBackdrop} role="presentation">
+              <div className={`${styles.modalBackdrop} appModalBackdrop`} role="presentation">
                 <form
-                  className={styles.returnDialog}
+                  className={`${styles.returnDialog} appModalDialog`}
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="return-title"
@@ -1192,9 +1219,9 @@ const mensajeSinSolicitudes =
             ) : null}
 
             {nivel === 1 && solicitudesAnulacion.length > 0 ? (
-              <div className={styles.modalBackdrop} role="presentation">
+              <div className={`${styles.modalBackdrop} appModalBackdrop`} role="presentation">
                 <form
-                  className={styles.returnDialog}
+                  className={`${styles.returnDialog} appModalDialog`}
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="annul-title"
@@ -1256,13 +1283,13 @@ const mensajeSinSolicitudes =
 
             {solicitudDetalle ? (
               <div
-                className={styles.modalBackdrop}
+                className={`${styles.modalBackdrop} ${styles.detailBackdrop} appModalBackdrop`}
                 role="presentation"
                 onMouseDown={(event) => {
                   if (event.target === event.currentTarget) setSolicitudDetalle(null);
                 }}
               >
-                <section className={styles.detailDialog} role="dialog" aria-modal="true" aria-labelledby="detail-title">
+                <section className={`${styles.detailDialog} appModalDialog`} role="dialog" aria-modal="true" aria-labelledby="detail-title">
                   <div className={styles.detailHeader}>
                     <div>
                       <span className={styles.detailEyebrow}>Detalle de solicitud</span>
@@ -1315,6 +1342,41 @@ const mensajeSinSolicitudes =
                       <div className={styles.detailNet}><dt>Valor neto a pagar</dt><dd>{formatearMoneda(solicitudDetalle.valor_neto)}</dd></div>
                     </dl>
                   </div>
+
+                  {solicitudDetalle.archivo_origen ||
+                  (solicitudDetalle.adjuntos &&
+                    solicitudDetalle.adjuntos.length > 0) ? (
+                    <div className={styles.detailSection}>
+                      <h3>Documentos adjuntos</h3>
+                      <div className={styles.attachmentList}>
+                        {solicitudDetalle.archivo_origen ? (
+                          <a
+                            className={styles.receiptLink}
+                            href={`/api/v1/solicitudes-pago/${solicitudDetalle.id}/archivo`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <span>
+                              {solicitudDetalle.archivo_origen.nombre_archivo}
+                            </span>
+                            <strong>Descargar Excel</strong>
+                          </a>
+                        ) : null}
+                        {(solicitudDetalle.adjuntos ?? []).map((adjunto) => (
+                          <a
+                            key={adjunto.id}
+                            className={styles.receiptLink}
+                            href={`/api/v1/solicitudes-pago/${solicitudDetalle.id}/adjuntos/${adjunto.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <span>{adjunto.nombre_archivo}</span>
+                            <strong>Ver adjunto</strong>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
 
                   {solicitudDetalle.ultima_devolucion ? (
                     <div className={styles.returnReason}>
@@ -1397,6 +1459,8 @@ const mensajeSinSolicitudes =
             </div>
           </>
         )}
+
+      </div>
 
       {estadoCarga === "LISTO" ? (
         <HistorialAprobacionesList

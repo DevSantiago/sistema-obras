@@ -11,6 +11,7 @@ describe("crearTablaPdf", () => {
     const pdf = crearTablaPdf({
       titulo: "Solicitudes filtradas",
       filtros: ["Proyecto: Central"],
+      resumen: ["2 solicitudes", "Valor total: $ 100.000"],
       filas,
       columnas: [
         { titulo: "Solicitud", ancho: 50, valor: (fila) => fila.numero },
@@ -22,6 +23,7 @@ describe("crearTablaPdf", () => {
     expect(contenido.startsWith("%PDF-1.4")).toBe(true);
     expect(contenido).toContain("Solicitudes filtradas");
     expect(contenido).toContain("Proyecto: Central");
+    expect(contenido).toContain("Valor total: $ 100.000");
     expect(contenido).toContain("SOL-70");
     expect(contenido).toMatch(/\/Count [2-9]/);
     expect(contenido.endsWith("%%EOF")).toBe(true);
