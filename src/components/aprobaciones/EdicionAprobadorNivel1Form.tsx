@@ -189,8 +189,8 @@ export default function EdicionAprobadorNivel1Form({
   }
 
   return (
-    <div className={styles.modalBackdrop} role="presentation">
-      <form className={styles.editDialog} role="dialog" aria-modal="true" onSubmit={guardar}>
+    <div className={`${styles.modalBackdrop} appModalBackdrop`} role="presentation">
+      <form className={`${styles.editDialog} appModalDialog`} role="dialog" aria-modal="true" onSubmit={guardar}>
         <div className={styles.detailHeader}>
           <div>
             <span className={styles.detailEyebrow}>Aprobación nivel 1</span>

@@ -81,9 +81,9 @@ export function ChangePasswordButton() {
       </button>
 
       {modalAbierto ? (
-        <div className={styles.modalBackdrop} role="presentation">
+        <div className={`${styles.modalBackdrop} appModalBackdrop`} role="presentation">
           <section
-            className={styles.modal}
+            className={`${styles.modal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-password-title"
