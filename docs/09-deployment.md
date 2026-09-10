@@ -1178,6 +1178,29 @@ custom y los carga cifrados al bucket privado indicado por
 `BACKUP_S3_BUCKET`. Debe ejecutarse diariamente desde cron o un temporizador
 del VPS con las variables de `deploy/env/backup.env.example`.
 
+El servicio `backup` se conecta simultáneamente a la red interna de la base de
+datos y a la red con salida hacia S3. Para ejecutar el respaldo sin recrear ni
+reiniciar PostgreSQL se debe utilizar:
+
+```bash
+docker compose -p app -f docker-compose.vps.yml --profile operations run --rm --no-deps backup
+```
+
+En el VPS, el respaldo se programa diariamente a las `07:00 UTC` (`02:00`
+en Colombia) y registra su resultado en
+`/var/log/sistema-obras-backup.log`. La entrada de cron es:
+
+```cron
+0 7 * * * cd /opt/sistema-obras/app && docker compose -p app -f docker-compose.vps.yml --profile operations run --rm --no-deps backup >> /var/log/sistema-obras-backup.log 2>&1
+```
+
+Antes de cargar cada archivo, el script valida que `pg_restore` pueda leer el
+catálogo del respaldo. Los objetos se almacenan en
+`s3://dimensiones-obras-backups/postgres/`, con cifrado SSE-S3 y acceso
+privado. La regla de ciclo de vida conserva las versiones actuales durante 90
+días, elimina versiones no vigentes después de 30 días y descarta cargas
+multiparte incompletas después de 7 días.
+
 ---
 
 ## Respaldo de documentos
