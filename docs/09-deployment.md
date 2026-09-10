@@ -173,9 +173,17 @@ El workflow realiza, en orden:
 2. construcción de la imagen Docker, incluido el build de producción;
 3. publicación de la imagen inmutable en GHCR;
 4. transferencia segura de la imagen y archivos de despliegue al VPS;
-5. ejecución de `prisma migrate deploy` sobre la base del ambiente;
-6. recreación exclusiva del servicio correspondiente;
-7. comprobación de salud interna y del endpoint HTTPS público.
+5. limpieza de imágenes y caché Docker que no estén asociados a contenedores activos;
+6. ejecución de `prisma migrate deploy` sobre la base del ambiente;
+7. recreación exclusiva del servicio correspondiente;
+8. comprobación de salud interna y del endpoint HTTPS público.
+
+La limpieza preventiva usa exclusivamente `docker image prune --all` y
+`docker builder prune --all`. No elimina contenedores activos ni utiliza la
+opción `--volumes`; por tanto, conserva el volumen persistente
+`postgres_data`, los datos de PostgreSQL y los volúmenes de Caddy. Las imágenes
+que ejecutan staging, producción y los servicios de infraestructura también
+permanecen protegidas por Docker.
 
 Si el nuevo contenedor no alcanza el estado `healthy`, el script restaura la
 imagen que estaba ejecutándose. Las migraciones deben continuar siendo
@@ -1507,6 +1515,7 @@ Cada actualización de este documento deberá registrar, como mínimo:
 
 | Versión | Fecha | Descripción |
 |----------|--------|-------------|
+| 1.1 | Septiembre de 2026 | Se incorpora limpieza preventiva de imágenes y caché Docker sin afectar contenedores ni volúmenes persistentes. |
 | 1.0 | Julio de 2026 | Versión inicial del documento de despliegue del Sistema de Gestión de Solicitudes de Pago. |
 
 ---
