@@ -25,6 +25,8 @@ respaldar() {
     --file "$archivo" \
     "$base"
 
+  pg_restore --list "$archivo" >/dev/null
+
   aws s3 cp "$archivo" \
     "s3://${BACKUP_S3_BUCKET}/postgres/${ambiente}/$(basename "$archivo")" \
     --region "$AWS_REGION" \
