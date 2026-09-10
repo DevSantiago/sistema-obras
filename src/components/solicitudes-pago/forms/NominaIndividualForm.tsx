@@ -26,6 +26,7 @@ import {
   MEDIOS_PAGO,
   obtenerDocumentoBeneficiario,
   obtenerEtiquetaBeneficiario,
+  validarDatosBeneficiarioParaMedioPago,
 } from "../solicitudes-pago.utils";
 
 type NominaIndividualFormProps = {
@@ -326,6 +327,15 @@ function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
 
     if (!trabajadorSeleccionado) {
       return "Seleccione un trabajador válido.";
+    }
+
+    const errorDatosMedioPago = validarDatosBeneficiarioParaMedioPago(
+      trabajadorSeleccionado,
+      form.medio_pago,
+    );
+
+    if (errorDatosMedioPago) {
+      return errorDatosMedioPago;
     }
 
     if (form.periodo_nomina > PERIODO_ACTUAL) {

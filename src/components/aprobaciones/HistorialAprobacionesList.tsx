@@ -47,6 +47,8 @@ export default function HistorialAprobacionesList({
   const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
   const [proyectoFiltro, setProyectoFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoSolicitudPago | "">("");
+  const [expandida, setExpandida] = useState(true);
 
   const proyectos = useMemo(() => {
     const opciones = new Map<string, string>();
@@ -75,6 +77,18 @@ export default function HistorialAprobacionesList({
     );
   }, [proyectoFiltro, solicitudes]);
 
+  const estados = useMemo(
+    () =>
+      Array.from(new Set(solicitudes.map((solicitud) => solicitud.estado_actual)))
+        .sort((a, b) =>
+          formatearEstadoSolicitud(a).localeCompare(
+            formatearEstadoSolicitud(b),
+            "es",
+          ),
+        ),
+    [solicitudes],
+  );
+
   const solicitudesFiltradas = useMemo(() => {
     const numeroBuscado = numeroSolicitudFiltro.trim().toLocaleLowerCase("es");
     return solicitudes.filter(
@@ -84,9 +98,10 @@ export default function HistorialAprobacionesList({
             ?.toLocaleLowerCase("es")
             .includes(numeroBuscado)) &&
         (!proyectoFiltro || solicitud.proyecto_base_id === proyectoFiltro) &&
-        (!centroFiltro || solicitud.centro_costo_id === centroFiltro),
+        (!centroFiltro || solicitud.centro_costo_id === centroFiltro) &&
+        (!estadoFiltro || solicitud.estado_actual === estadoFiltro),
     );
-  }, [centroFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes]);
+  }, [centroFiltro, estadoFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes]);
 
   function exportarPdf() {
     const proyecto = proyectos.find((opcion) => opcion.id === proyectoFiltro);
@@ -99,6 +114,7 @@ export default function HistorialAprobacionesList({
         numeroSolicitudFiltro.trim() && `Número: ${numeroSolicitudFiltro.trim()}`,
         proyecto && `Proyecto: ${proyecto.nombre}`,
         centro && `Centro de costo: ${centro.nombre}`,
+        estadoFiltro && `Estado: ${formatearEstadoSolicitud(estadoFiltro)}`,
       ].filter(Boolean) as string[],
       columnas: [
         { titulo: "Solicitud", ancho: 18, valor: (fila) => fila.numero_solicitud },
@@ -114,13 +130,27 @@ export default function HistorialAprobacionesList({
 
   return (
     <section className={styles.historySection}>
-      <div>
-        <h2 className={styles.subtitle}>Solicitudes aprobadas por mí</h2>
-        <p className={styles.helper}>
-          Historial de solicitudes que aprobaste en el nivel {nivel}, con su
-          estado actual dentro del proceso.
-        </p>
+      <div className={styles.historyHeader}>
+        <div>
+          <h2 className={styles.subtitle}>Solicitudes aprobadas por mí</h2>
+          <p className={styles.helper}>
+            Historial de solicitudes que aprobaste en el nivel {nivel}, con su
+            estado actual dentro del proceso.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={styles.accordionToggle}
+          aria-label={expandida ? "Contraer solicitudes aprobadas" : `Expandir ${solicitudes.length} solicitudes aprobadas`}
+          aria-expanded={expandida}
+          aria-controls={`historial-aprobaciones-${nivel}`}
+          onClick={() => setExpandida((actual) => !actual)}
+        >
+          <span aria-hidden="true">{expandida ? "−" : "+"}</span>
+        </button>
       </div>
+
+      <div id={`historial-aprobaciones-${nivel}`} hidden={!expandida} className={styles.historyContent}>
 
       {solicitudes.length > 0 ? (
         <div className={styles.summaryFilters}>
@@ -164,6 +194,22 @@ export default function HistorialAprobacionesList({
               ))}
             </select>
           </label>
+          <label>
+            <span>Estado actual</span>
+            <select
+              value={estadoFiltro}
+              onChange={(event) =>
+                setEstadoFiltro(event.target.value as EstadoSolicitudPago | "")
+              }
+            >
+              <option value="">Todos los estados</option>
+              {estados.map((estado) => (
+                <option key={estado} value={estado}>
+                  {formatearEstadoSolicitud(estado)}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className={styles.summaryFilterActions}>
             <button
               type="button"
@@ -171,6 +217,7 @@ export default function HistorialAprobacionesList({
                 setNumeroSolicitudFiltro("");
                 setProyectoFiltro("");
                 setCentroFiltro("");
+                setEstadoFiltro("");
               }}
             >
               Limpiar filtros
@@ -310,6 +357,7 @@ export default function HistorialAprobacionesList({
           </div>
         </>
       )}
+      </div>
     </section>
   );
 }

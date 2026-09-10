@@ -187,6 +187,7 @@ export default function SolicitudesPagoManager({
   const [solicitudDetalle, setSolicitudDetalle] =
     useState<SolicitudPagoListado | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [creacionExpandida, setCreacionExpandida] = useState(false);
   const formularioRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -434,6 +435,7 @@ export default function SolicitudesPagoManager({
         return;
     }
 
+    setCreacionExpandida(true);
     setSolicitudEnEdicion(solicitud);
     setProyectoBaseSeleccionadoId(solicitud.proyecto_base_id);
     limpiarMensajes();
@@ -793,6 +795,47 @@ export default function SolicitudesPagoManager({
     }
   }
 
+  async function enviarSolicitudes(solicitudIds: string[]): Promise<void> {
+    if (solicitudIds.length === 0) return;
+
+    setEnviandoSolicitudId("SELECCION_MULTIPLE");
+    setMensajeError("");
+    setMensajeExito("");
+
+    let enviadas = 0;
+    const errores: string[] = [];
+
+    for (const solicitudId of solicitudIds) {
+      try {
+        await fetchJson<SolicitudesPagoResponseData>(
+          `/api/v1/solicitudes-pago/${solicitudId}/enviar`,
+          { method: "POST" },
+        );
+        enviadas += 1;
+      } catch (error) {
+        errores.push(
+          error instanceof Error ? error.message : "No fue posible enviar una solicitud.",
+        );
+      }
+    }
+
+    await cargarSolicitudes();
+    setEnviandoSolicitudId(null);
+
+    if (errores.length > 0) {
+      setMensajeError(
+        `${enviadas} solicitud(es) enviada(s). ${errores.length} no se pudieron enviar: ${errores[0]}`,
+      );
+      return;
+    }
+
+    setMensajeExito(
+      enviadas === 1
+        ? "Solicitud enviada para aprobación correctamente."
+        : `${enviadas} solicitudes enviadas para aprobación correctamente.`,
+    );
+  }
+
   async function devolverSolicitudAlSolicitante(
     solicitud: SolicitudPagoListado,
   ): Promise<void> {
@@ -952,19 +995,43 @@ export default function SolicitudesPagoManager({
 
   return (
     <div className={styles.container}>
-      <SolicitudTipoSelector
-        opciones={opcionesTipoSolicitud}
-        tipoSeleccionado={tipoSeleccionado}
-        onChange={cambiarTipoSolicitud}
-      />
+      <section className={`${styles.card} ${styles.creationPanel}`}>
+        <button
+          type="button"
+          className={styles.creationToggle}
+          aria-expanded={creacionExpandida}
+          aria-controls="creacion-solicitud"
+          onClick={() => setCreacionExpandida((expandida) => !expandida)}
+        >
+          <span>
+            <strong>Crear solicitud de pago</strong>
+            <small>Selecciona el tipo y registra una nueva solicitud.</small>
+          </span>
+          <span className={styles.creationToggleIcon} aria-hidden="true">
+            {creacionExpandida ? "−" : "+"}
+          </span>
+        </button>
 
-      <div
-        id="formulario-solicitud"
-        ref={formularioRef}
-        className={styles.formAnchor}
-      >
-        {renderizarFormulario()}
-      </div>
+        <div
+          id="creacion-solicitud"
+          className={styles.creationContent}
+          hidden={!creacionExpandida}
+        >
+          <SolicitudTipoSelector
+            opciones={opcionesTipoSolicitud}
+            tipoSeleccionado={tipoSeleccionado}
+            onChange={cambiarTipoSolicitud}
+          />
+
+          <div
+            id="formulario-solicitud"
+            ref={formularioRef}
+            className={styles.formAnchor}
+          >
+            {renderizarFormulario()}
+          </div>
+        </div>
+      </section>
 
       <SolicitudesPagoList
         solicitudes={solicitudes}
@@ -972,15 +1039,15 @@ export default function SolicitudesPagoManager({
         cargando={cargandoSolicitudes}
         enviandoSolicitudId={enviandoSolicitudId}
         onEnviar={enviarSolicitud}
+        onEnviarVarias={enviarSolicitudes}
         onEditar={editarSolicitud}
         onDevolver={devolverSolicitudAlSolicitante}
         onVerDetalle={(solicitud) => void verDetalleSolicitud(solicitud)}
-        onActualizar={cargarSolicitudes}
       />
 
       {solicitudDetalle ? (
         <div
-          className={styles.modalBackdrop}
+          className={`${styles.modalBackdrop} ${styles.detailBackdrop}`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -1059,12 +1126,26 @@ export default function SolicitudesPagoManager({
               </dl>
             </section>
 
-            {solicitudDetalle.adjuntos &&
-            solicitudDetalle.adjuntos.length > 0 ? (
+            {solicitudDetalle.archivo_origen ||
+            (solicitudDetalle.adjuntos &&
+              solicitudDetalle.adjuntos.length > 0) ? (
               <section className={styles.detailSection}>
                 <h3>Documentos adjuntos</h3>
                 <div className={styles.attachmentList}>
-                  {solicitudDetalle.adjuntos.map((adjunto) => (
+                  {solicitudDetalle.archivo_origen ? (
+                    <a
+                      className={styles.receiptLink}
+                      href={`/api/v1/solicitudes-pago/${solicitudDetalle.id}/archivo`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>
+                        {solicitudDetalle.archivo_origen.nombre_archivo}
+                      </span>
+                      <strong>Descargar Excel</strong>
+                    </a>
+                  ) : null}
+                  {(solicitudDetalle.adjuntos ?? []).map((adjunto) => (
                     <a
                       key={adjunto.id}
                       className={styles.receiptLink}

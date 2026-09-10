@@ -2,6 +2,7 @@ import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import {
   consultarFondosRepository,
   consultarMovimientosFondoRepository,
+  obtenerAdjuntoMovimientoFondoRepository,
 } from "./fondos.repository";
 import type {
   ConsultarMovimientosFondoData,
@@ -25,6 +26,33 @@ function obtenerVisibilidadFondos(
   return tieneVisibilidadTotal
     ? { tipo: "TOTAL" }
     : { tipo: "ACCESOS", usuario_id: usuario.id };
+}
+
+function esFechaCalendarioValida(fecha: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return false;
+  }
+
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  const fechaUtc = new Date(Date.UTC(anio, mes - 1, dia));
+
+  return (
+    fechaUtc.getUTCFullYear() === anio &&
+    fechaUtc.getUTCMonth() === mes - 1 &&
+    fechaUtc.getUTCDate() === dia
+  );
+}
+
+function consolidarAdjuntos<T extends { id: string }>(
+  adjuntos: Array<T | null | undefined>,
+): T[] {
+  return Array.from(
+    new Map(
+      adjuntos
+        .filter((adjunto): adjunto is T => Boolean(adjunto))
+        .map((adjunto) => [adjunto.id, adjunto]),
+    ).values(),
+  );
 }
 
 function agruparGasto(
@@ -168,12 +196,52 @@ export async function consultarMovimientosFondoService(
     };
   }
 
+  if (
+    (filtros.fecha_desde &&
+      !esFechaCalendarioValida(filtros.fecha_desde)) ||
+    (filtros.fecha_hasta &&
+      !esFechaCalendarioValida(filtros.fecha_hasta))
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "El rango de fechas no es válido.",
+      },
+    };
+  }
+
+  if (
+    filtros.fecha_desde &&
+    filtros.fecha_hasta &&
+    filtros.fecha_desde > filtros.fecha_hasta
+  ) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "La fecha inicial no puede ser posterior a la fecha final.",
+      },
+    };
+  }
+
   const registros = await consultarMovimientosFondoRepository(
     obtenerVisibilidadFondos(usuario),
     filtros,
   );
   const movimientos: MovimientoFondoConsulta[] = registros.map(
-    (movimiento) => ({
+    (movimiento) => {
+      const adjuntos = consolidarAdjuntos([
+        ...(movimiento.solicitud_pago?.adjuntos ?? []),
+        movimiento.pago?.soporte,
+        movimiento.operacion_efectivo?.soporte_retiro,
+        movimiento.anticipo?.soporte,
+        movimiento.prestamo_proyecto?.soporte,
+        movimiento.devolucion_prestamo?.soporte,
+        movimiento.reingreso_sobrante?.soporte,
+      ]);
+
+      return {
       id: movimiento.id,
       proyecto_base_id: movimiento.proyecto_base.id,
       proyecto_nombre: movimiento.proyecto_base.nombre,
@@ -196,7 +264,14 @@ export async function consultarMovimientosFondoService(
       operacion_efectivo_id:
         movimiento.operacion_efectivo_id ?? null,
       registrado_en: movimiento.registrado_en.toISOString(),
-    }),
+      adjuntos: adjuntos.map((adjunto) => ({
+        id: adjunto.id,
+        nombre_archivo: adjunto.nombre_archivo,
+        tipo_mime: adjunto.tipo_mime,
+        url: `/api/v1/fondos/movimientos/${movimiento.id}/adjuntos/${adjunto.id}`,
+      })),
+      };
+    },
   );
 
   return {
@@ -214,6 +289,79 @@ export async function consultarMovimientosFondoService(
           ),
         ).sort(),
       },
+    },
+  };
+}
+
+export async function obtenerAdjuntoMovimientoFondoService(
+  usuario: UsuarioSesion,
+  movimientoId: string,
+  adjuntoId: string,
+) {
+  if (!usuario.permisos.includes("CONSULTAR_FONDOS")) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        message: "No tiene permisos para consultar movimientos financieros.",
+      },
+    };
+  }
+
+  const movimiento = await obtenerAdjuntoMovimientoFondoRepository(
+    obtenerVisibilidadFondos(usuario),
+    movimientoId,
+    adjuntoId,
+  );
+
+  if (!movimiento) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "El soporte solicitado no existe o no está disponible.",
+      },
+    };
+  }
+
+  const adjunto = consolidarAdjuntos([
+    ...(movimiento.solicitud_pago?.adjuntos ?? []),
+    movimiento.pago?.soporte?.id === adjuntoId
+      ? movimiento.pago.soporte
+      : null,
+    movimiento.operacion_efectivo?.soporte_retiro?.id === adjuntoId
+      ? movimiento.operacion_efectivo.soporte_retiro
+      : null,
+    movimiento.anticipo?.soporte?.id === adjuntoId
+      ? movimiento.anticipo.soporte
+      : null,
+    movimiento.prestamo_proyecto?.soporte?.id === adjuntoId
+      ? movimiento.prestamo_proyecto.soporte
+      : null,
+    movimiento.devolucion_prestamo?.soporte?.id === adjuntoId
+      ? movimiento.devolucion_prestamo.soporte
+      : null,
+    movimiento.reingreso_sobrante?.soporte?.id === adjuntoId
+      ? movimiento.reingreso_sobrante.soporte
+      : null,
+  ])[0];
+
+  if (!adjunto) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        message: "El soporte solicitado no pertenece al movimiento.",
+      },
+    };
+  }
+
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      message: "Soporte del movimiento consultado correctamente.",
+      data: adjunto,
     },
   };
 }

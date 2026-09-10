@@ -3,15 +3,18 @@ import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import {
   consultarFondosRepository,
   consultarMovimientosFondoRepository,
+  obtenerAdjuntoMovimientoFondoRepository,
 } from "../fondos.repository";
 import {
   consultarFondosService,
   consultarMovimientosFondoService,
+  obtenerAdjuntoMovimientoFondoService,
 } from "../fondos.service";
 
 vi.mock("../fondos.repository", () => ({
   consultarFondosRepository: vi.fn(),
   consultarMovimientosFondoRepository: vi.fn(),
+  obtenerAdjuntoMovimientoFondoRepository: vi.fn(),
 }));
 
 const usuarioAdministrador: UsuarioSesion = {
@@ -175,6 +178,29 @@ describe("fondos.service - consultarMovimientosFondoService", () => {
     ).not.toHaveBeenCalled();
   });
 
+  it("debe rechazar un rango de fechas invertido", async () => {
+    const resultado = await consultarMovimientosFondoService(
+      usuarioAdministrador,
+      {
+        fecha_desde: "2026-09-10",
+        fecha_hasta: "2026-09-01",
+      },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(consultarMovimientosFondoRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe rechazar una fecha inexistente", async () => {
+    const resultado = await consultarMovimientosFondoService(
+      usuarioAdministrador,
+      { fecha_desde: "2026-02-30" },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(consultarMovimientosFondoRepository).not.toHaveBeenCalled();
+  });
+
   it("debe respetar accesos y mapear saldos del movimiento", async () => {
     vi.mocked(
       consultarMovimientosFondoRepository,
@@ -231,9 +257,61 @@ describe("fondos.service - consultarMovimientosFondoService", () => {
           saldo_nuevo: 700000,
           linea_negocio: "OBRA",
           registrado_en: "2026-07-28T14:00:00.000Z",
+          adjuntos: [],
         }),
       ],
       tipos_movimiento: ["EGRESO_SOLICITUD_PAGO"],
     });
+  });
+});
+
+describe("fondos.service - obtenerAdjuntoMovimientoFondoService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("debe devolver el soporte perteneciente a un movimiento visible", async () => {
+    vi.mocked(obtenerAdjuntoMovimientoFondoRepository).mockResolvedValue({
+      solicitud_pago: { adjuntos: [] },
+      pago: {
+        soporte: {
+          id: "adjunto-1",
+          nombre_archivo: "comprobante.pdf",
+          ruta_archivo: "pagos/comprobante.pdf",
+          tipo_mime: "application/pdf",
+        },
+      },
+      operacion_efectivo: null,
+      anticipo: null,
+      prestamo_proyecto: null,
+      devolucion_prestamo: null,
+      reingreso_sobrante: null,
+    } as never);
+
+    const resultado = await obtenerAdjuntoMovimientoFondoService(
+      usuarioAdministrador,
+      "movimiento-1",
+      "adjunto-1",
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data).toEqual(
+      expect.objectContaining({
+        id: "adjunto-1",
+        ruta_archivo: "pagos/comprobante.pdf",
+      }),
+    );
+  });
+
+  it("debe ocultar soportes de movimientos no visibles", async () => {
+    vi.mocked(obtenerAdjuntoMovimientoFondoRepository).mockResolvedValue(null);
+
+    const resultado = await obtenerAdjuntoMovimientoFondoService(
+      usuarioDirector,
+      "movimiento-1",
+      "adjunto-1",
+    );
+
+    expect(resultado.status).toBe(404);
   });
 });

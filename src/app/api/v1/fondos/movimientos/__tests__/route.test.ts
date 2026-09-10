@@ -59,7 +59,9 @@ describe("GET /api/v1/fondos/movimientos", () => {
           "&linea_negocio=OBRA" +
           "&fase_centro_costo=EJECUCION" +
           "&direccion=EGRESO" +
-          "&tipo_movimiento=EGRESO_SOLICITUD_PAGO",
+          "&tipo_movimiento=EGRESO_SOLICITUD_PAGO" +
+          "&fecha_desde=2026-09-01" +
+          "&fecha_hasta=2026-09-10",
       ),
     );
 
@@ -73,6 +75,8 @@ describe("GET /api/v1/fondos/movimientos", () => {
       fase_centro_costo: "EJECUCION",
       direccion: "EGRESO",
       tipo_movimiento: "EGRESO_SOLICITUD_PAGO",
+      fecha_desde: "2026-09-01",
+      fecha_hasta: "2026-09-10",
     });
   });
 

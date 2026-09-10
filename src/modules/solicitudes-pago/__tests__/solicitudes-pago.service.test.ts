@@ -3773,6 +3773,29 @@ describe("solicitudes-pago.service - actualizarSolicitudPagoProveedorService", (
       actualizarSolicitudPagoRepository,
     ).not.toHaveBeenCalled();
   });
+
+  it("rechaza transferencia si el beneficiario no tiene datos bancarios completos", async () => {
+    prepararMocksProveedor();
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue(
+      solicitudProveedorBorrador as never,
+    );
+    vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue({
+      ...beneficiarioProveedorMock,
+      banco: null,
+      tipo_cuenta_bancaria: null,
+      numero_cuenta_bancaria: null,
+    } as never);
+
+    const resultado = await actualizarSolicitudPagoProveedorService(
+      usuarioSolicitante,
+      "solicitud-1",
+      inputProveedorBase,
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toContain("datos requeridos para transferencia");
+    expect(actualizarSolicitudPagoRepository).not.toHaveBeenCalled();
+  });
 });
 
 describe("solicitudes-pago.service - editarSolicitudAprobadorNivel1Service", () => {
@@ -3865,6 +3888,27 @@ describe("solicitudes-pago.service - editarSolicitudAprobadorNivel1Service", () 
     );
 
     expect(resultado.status).toBe(409);
+    expect(editarSolicitudAprobadorNivel1Repository).not.toHaveBeenCalled();
+  });
+
+  it("rechaza consignación en nivel 1 si faltan datos bancarios", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_1",
+    } as never);
+    vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue({
+      ...beneficiarioProveedorMock,
+      numero_cuenta_bancaria: null,
+    } as never);
+
+    const resultado = await editarSolicitudAprobadorNivel1Service(
+      usuarioAprobador1,
+      "solicitud-1",
+      { ...inputEdicion, medio_pago: "CONSIGNACION" },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toContain("número de cuenta o convenio");
     expect(editarSolicitudAprobadorNivel1Repository).not.toHaveBeenCalled();
   });
 });

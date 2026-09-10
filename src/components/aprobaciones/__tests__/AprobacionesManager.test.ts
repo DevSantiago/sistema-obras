@@ -3,7 +3,9 @@ import {
   calcularReservaRestanteNivel2,
   calcularSaldoProyectadoAprobacion,
   calcularSaldoTrasPagarSeleccion,
+  ordenarSolicitudesParaExportar,
 } from "../AprobacionesManager";
+import type { SolicitudPagoListado } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 
 describe("calcularSaldoProyectadoAprobacion", () => {
   it("debe descontar la selección en nivel 1", () => {
@@ -34,5 +36,28 @@ describe("calcularSaldoProyectadoAprobacion", () => {
     expect(calcularSaldoTrasPagarSeleccion(24229700, 650000)).toBe(
       23579700,
     );
+  });
+
+  it("organiza la exportación por proyecto, centro y número de solicitud", () => {
+    const solicitud = (
+      id: string,
+      proyecto: string,
+      centro: string,
+      numero: string,
+    ) => ({
+      id,
+      numero_solicitud: numero,
+      proyecto_base: { nombre: proyecto },
+      centro_costo: { nombre: centro },
+    }) as SolicitudPagoListado;
+
+    const ordenadas = ordenarSolicitudesParaExportar([
+      solicitud("3", "Proyecto B", "Centro A", "SOL-2"),
+      solicitud("2", "Proyecto A", "Centro B", "SOL-1"),
+      solicitud("1", "Proyecto A", "Centro A", "SOL-10"),
+      solicitud("4", "Proyecto A", "Centro A", "SOL-2"),
+    ]);
+
+    expect(ordenadas.map((item) => item.id)).toEqual(["4", "1", "2", "3"]);
   });
 });

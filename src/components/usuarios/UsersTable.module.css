@@ -1,12 +1,14 @@
-.card,
 .empty {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #ffffff;
 }
 
-.card {
-  overflow: hidden;
+.noResults {
+  margin: 0;
+  padding: 24px 16px;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 .desktopTable {

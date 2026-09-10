@@ -10,6 +10,7 @@ type ExportarTablaPdfOpciones<T> = {
   columnas: ColumnaPdf<T>[];
   filas: T[];
   filtros?: string[];
+  resumen?: string[];
 };
 
 const ANCHO_PAGINA = 842;
@@ -80,6 +81,7 @@ export function crearTablaPdf<T>({
   columnas,
   filas,
   filtros = [],
+  resumen = [],
 }: Omit<ExportarTablaPdfOpciones<T>, "nombreArchivo">): Uint8Array {
   const anchoDisponible = ANCHO_PAGINA - MARGEN * 2;
   const sumaAnchos = columnas.reduce((total, columna) => total + columna.ancho, 0);
@@ -112,6 +114,10 @@ export function crearTablaPdf<T>({
     if (filtros.length > 0) {
       texto(`Filtros: ${filtros.join(" | ")}`, MARGEN, y, "F1", 7);
       y -= 14;
+    }
+    if (resumen.length > 0) {
+      texto(`Resumen: ${resumen.join(" | ")}`, MARGEN, y, "F2", 8);
+      y -= 15;
     }
     rectangulo(MARGEN, y - 13, anchoDisponible, 18, "0.90 0.94 0.98");
     let x = MARGEN + 3;
