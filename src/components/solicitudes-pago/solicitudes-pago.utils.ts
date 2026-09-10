@@ -226,6 +226,29 @@ export function obtenerEtiquetaBeneficiario(
     : nombre;
 }
 
+export function validarDatosBeneficiarioParaMedioPago(
+  beneficiario: BeneficiarioSolicitudCatalogo,
+  medioPago: MedioPagoSolicitud | "",
+): string | null {
+  if (medioPago !== "TRANSFERENCIA" && medioPago !== "CONSIGNACION") {
+    return null;
+  }
+
+  const datosFaltantes = [
+    [beneficiario.banco, "banco"],
+    [beneficiario.tipo_cuenta_bancaria, "tipo de cuenta"],
+    [beneficiario.numero_cuenta_bancaria, "número de cuenta o convenio"],
+  ]
+    .filter(([valor]) => !valor?.trim())
+    .map(([, etiqueta]) => etiqueta);
+
+  if (datosFaltantes.length === 0) {
+    return null;
+  }
+
+  return `El beneficiario no tiene registrados los datos requeridos para ${formatearTextoDominio(medioPago).toLowerCase()}: ${datosFaltantes.join(", ")}. Actualice el beneficiario antes de continuar.`;
+}
+
 export function buscarBeneficiarioPorEtiqueta(
   beneficiarios: BeneficiarioSolicitudCatalogo[],
   etiqueta: string,

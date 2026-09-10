@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PwaRegistration } from "@/components/pwa/PwaRegistration";
@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   description: "Sistema para gestionar los pagos realizados a beneficiarios",
   applicationName: "Sistema Obras",
   manifest: "/manifest.webmanifest",
+  formatDetection: {
+    address: false,
+    email: false,
+    telephone: false,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -26,6 +31,11 @@ export const metadata: Metadata = {
   icons: {
     apple: "/icons/apple-touch-icon.png",
   },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "only light",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
@@ -38,6 +48,9 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <meta name="darkreader-lock" />
+      </head>
       <body className="min-h-full flex flex-col">
         <PwaRegistration />
         {children}

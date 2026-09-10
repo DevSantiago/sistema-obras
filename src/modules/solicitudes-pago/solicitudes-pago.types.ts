@@ -482,6 +482,12 @@ export type SolicitudPagoListado = {
     tipo_mime: string | null;
     subido_en: string | Date;
   }[];
+  archivo_origen?: {
+    id: string;
+    nombre_archivo: string;
+    tipo_mime: string | null;
+    subido_en: string | Date;
+  } | null;
   comprobante_pago?: {
     id: string;
     nombre_archivo: string;
@@ -627,6 +633,9 @@ export type BeneficiarioSolicitudCatalogo = {
   tipo_documento: string | null;
   numero_documento: string | null;
   medio_pago_preferido?: MedioPagoSolicitud | null;
+  banco?: string | null;
+  tipo_cuenta_bancaria?: string | null;
+  numero_cuenta_bancaria?: string | null;
   activo?: boolean;
 };
 

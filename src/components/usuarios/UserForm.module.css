@@ -7,6 +7,13 @@
 }
 
 .header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header:has(+ .form:not([hidden])) {
   margin-bottom: 18px;
 }
 
@@ -24,10 +31,37 @@
   line-height: 1.5;
 }
 
+.disclosureButton {
+  display: inline-flex;
+  min-height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.disclosureButton span:last-child {
+  font-size: 19px;
+  line-height: 1;
+}
+
 .form {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.form[hidden] {
+  display: none;
 }
 
 .grid {
@@ -244,4 +278,9 @@
   .input {
     font-size: 16px;
   }
+
+  .header {
+    align-items: center;
+  }
+
 }

@@ -50,6 +50,28 @@ function formatearTipoMovimiento(valor: string): string {
     .join(" ");
 }
 
+function formatearCentroCosto(
+  codigo: string | null | undefined,
+  nombre: string | null | undefined,
+): string {
+  const codigoLimpio = codigo?.trim() ?? "";
+  const nombreLimpio = nombre?.trim() ?? "";
+
+  if (!codigoLimpio && !nombreLimpio) {
+    return "Movimiento general del fondo";
+  }
+
+  if (
+    codigoLimpio.localeCompare(nombreLimpio, "es", {
+      sensitivity: "base",
+    }) === 0
+  ) {
+    return nombreLimpio || codigoLimpio;
+  }
+
+  return [codigoLimpio, nombreLimpio].filter(Boolean).join(" · ");
+}
+
 const FORMATEADOR_FECHA = new Intl.DateTimeFormat("es-CO", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -75,9 +97,25 @@ export default function FondosManager() {
   const [faseMovimiento, setFaseMovimiento] = useState("");
   const [direccionMovimiento, setDireccionMovimiento] = useState("");
   const [tipoMovimiento, setTipoMovimiento] = useState("");
+  const [fechaDesdeMovimiento, setFechaDesdeMovimiento] = useState("");
+  const [fechaHastaMovimiento, setFechaHastaMovimiento] = useState("");
   const [cargandoMovimientos, setCargandoMovimientos] = useState(false);
   const [errorMovimientos, setErrorMovimientos] = useState("");
   const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
+  const [fondoDetalle, setFondoDetalle] = useState<ProyectoFondoGeneral | null>(null);
+  const [movimientoDetalle, setMovimientoDetalle] = useState<MovimientoFondoConsulta | null>(null);
+
+  useEffect(() => {
+    if (!fondoDetalle && !movimientoDetalle) return;
+    function cerrarConEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setFondoDetalle(null);
+        setMovimientoDetalle(null);
+      }
+    }
+    window.addEventListener("keydown", cerrarConEscape);
+    return () => window.removeEventListener("keydown", cerrarConEscape);
+  }, [fondoDetalle, movimientoDetalle]);
 
   const cargarFondos = useCallback(async () => {
     setCargando(true);
@@ -141,6 +179,12 @@ export default function FondosManager() {
     if (tipoMovimiento) {
       parametros.set("tipo_movimiento", tipoMovimiento);
     }
+    if (fechaDesdeMovimiento) {
+      parametros.set("fecha_desde", fechaDesdeMovimiento);
+    }
+    if (fechaHastaMovimiento) {
+      parametros.set("fecha_hasta", fechaHastaMovimiento);
+    }
 
     try {
       const query = parametros.toString();
@@ -183,6 +227,8 @@ export default function FondosManager() {
     centroMovimiento,
     direccionMovimiento,
     faseMovimiento,
+    fechaDesdeMovimiento,
+    fechaHastaMovimiento,
     lineaMovimiento,
     proyectoMovimiento,
     tipoMovimiento,
@@ -309,6 +355,103 @@ export default function FondosManager() {
     </div>
   );
 
+  const modalDetalle = fondoDetalle || movimientoDetalle ? (
+    <div
+      className={`${styles.modalBackdrop} ${styles.detailBackdrop}`}
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          setFondoDetalle(null);
+          setMovimientoDetalle(null);
+        }
+      }}
+    >
+      <section
+        className={styles.detailDialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detalle-financiero-titulo"
+      >
+        <header className={styles.detailHeader}>
+          <div>
+            <span>{fondoDetalle ? "Detalle del fondo" : "Detalle del movimiento"}</span>
+            <h2 id="detalle-financiero-titulo">
+              {fondoDetalle
+                ? fondoDetalle.fondo_nombre
+                : formatearTipoMovimiento(movimientoDetalle!.tipo_movimiento)}
+            </h2>
+          </div>
+          <button
+            type="button"
+            aria-label="Cerrar detalle"
+            onClick={() => {
+              setFondoDetalle(null);
+              setMovimientoDetalle(null);
+            }}
+          >
+            ×
+          </button>
+        </header>
+
+        {fondoDetalle ? (
+          <section className={styles.detailSection}>
+            <h3>Resumen del fondo</h3>
+            <dl className={styles.detailGrid}>
+              <div><dt>Proyecto</dt><dd>{fondoDetalle.proyecto_nombre}</dd></div>
+              <div><dt>Estado</dt><dd>{formatearEtiqueta(fondoDetalle.estado_proyecto)}</dd></div>
+              <div className={styles.detailHighlight}><dt>Saldo actual</dt><dd>{FORMATEADOR_MONEDA.format(fondoDetalle.saldo_actual)}</dd></div>
+              <div><dt>Gasto imputado visible</dt><dd>{FORMATEADOR_MONEDA.format(fondoDetalle.gasto_total_visible)}</dd></div>
+              <div><dt>Centros de costo visibles</dt><dd>{fondoDetalle.centros_costo.length}</dd></div>
+            </dl>
+          </section>
+        ) : (
+          <>
+            <section className={styles.detailSection}>
+              <h3>Información del movimiento</h3>
+              <dl className={styles.detailGrid}>
+                <div><dt>Proyecto</dt><dd>{movimientoDetalle!.proyecto_nombre}</dd></div>
+                <div><dt>Centro de costo</dt><dd>{formatearCentroCosto(movimientoDetalle!.centro_costo_codigo, movimientoDetalle!.centro_costo_nombre)}</dd></div>
+                <div><dt>Fecha</dt><dd>{FORMATEADOR_FECHA.format(new Date(movimientoDetalle!.registrado_en))}</dd></div>
+                <div><dt>Dirección</dt><dd>{formatearEtiqueta(movimientoDetalle!.direccion)}</dd></div>
+                <div className={styles.detailWide}><dt>Referencia</dt><dd>{movimientoDetalle!.referencia_sistema ?? "Sin referencia"}</dd></div>
+                <div className={styles.detailWide}><dt>Descripción</dt><dd>{movimientoDetalle!.descripcion ?? "Sin descripción"}</dd></div>
+              </dl>
+            </section>
+            <section className={styles.detailSection}>
+              <h3>Impacto en el saldo</h3>
+              <dl className={`${styles.detailGrid} ${styles.detailFinancialGrid}`}>
+                <div><dt>Valor</dt><dd>{FORMATEADOR_MONEDA.format(movimientoDetalle!.valor)}</dd></div>
+                <div><dt>Saldo anterior</dt><dd>{FORMATEADOR_MONEDA.format(movimientoDetalle!.saldo_anterior)}</dd></div>
+                <div className={styles.detailWide}><dt>Operación</dt><dd>{`${FORMATEADOR_MONEDA.format(movimientoDetalle!.saldo_anterior)} ${movimientoDetalle!.direccion === "INGRESO" ? "+" : "−"} ${FORMATEADOR_MONEDA.format(movimientoDetalle!.valor)}`}</dd></div>
+                <div className={`${styles.detailWide} ${styles.detailHighlight}`}><dt>Saldo nuevo</dt><dd>{FORMATEADOR_MONEDA.format(movimientoDetalle!.saldo_nuevo)}</dd></div>
+              </dl>
+            </section>
+            <section className={styles.attachmentSection}>
+              <h3>Soportes del movimiento</h3>
+              {movimientoDetalle!.adjuntos.length > 0 ? (
+                <div className={styles.attachmentList}>
+                  {movimientoDetalle!.adjuntos.map((adjunto) => (
+                    <a
+                      key={adjunto.id}
+                      href={adjunto.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>{adjunto.nombre_archivo}</span>
+                      <strong>Ver adjunto</strong>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p>Este movimiento no tiene un soporte asociado.</p>
+              )}
+            </section>
+          </>
+        )}
+      </section>
+    </div>
+  ) : null;
+
   if (vista === "MOVIMIENTOS") {
     return (
       <section className={styles.container}>
@@ -323,8 +466,8 @@ export default function FondosManager() {
         >
           <span>Filtros</span>
           <span>
-            {[proyectoMovimiento, centroMovimiento, lineaMovimiento, faseMovimiento, direccionMovimiento, tipoMovimiento].filter(Boolean).length > 0
-              ? `${[proyectoMovimiento, centroMovimiento, lineaMovimiento, faseMovimiento, direccionMovimiento, tipoMovimiento].filter(Boolean).length} activos`
+            {[proyectoMovimiento, centroMovimiento, lineaMovimiento, faseMovimiento, direccionMovimiento, tipoMovimiento, fechaDesdeMovimiento, fechaHastaMovimiento].filter(Boolean).length > 0
+              ? `${[proyectoMovimiento, centroMovimiento, lineaMovimiento, faseMovimiento, direccionMovimiento, tipoMovimiento, fechaDesdeMovimiento, fechaHastaMovimiento].filter(Boolean).length} activos`
               : "Mostrar"}
           </span>
         </button>
@@ -365,7 +508,7 @@ export default function FondosManager() {
               <option value="">Todos los centros</option>
               {centrosDisponibles.map((centro) => (
                 <option key={centro.id} value={centro.id}>
-                  {centro.codigo} · {centro.nombre}
+                  {formatearCentroCosto(centro.codigo, centro.nombre)}
                 </option>
               ))}
             </select>
@@ -427,6 +570,28 @@ export default function FondosManager() {
               ))}
             </select>
           </label>
+          <label className={styles.field}>
+            <span>Desde</span>
+            <input
+              type="date"
+              value={fechaDesdeMovimiento}
+              max={fechaHastaMovimiento || undefined}
+              onChange={(event) =>
+                setFechaDesdeMovimiento(event.target.value)
+              }
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Hasta</span>
+            <input
+              type="date"
+              value={fechaHastaMovimiento}
+              min={fechaDesdeMovimiento || undefined}
+              onChange={(event) =>
+                setFechaHastaMovimiento(event.target.value)
+              }
+            />
+          </label>
           <button
             className={styles.secondaryButton}
             type="button"
@@ -437,6 +602,8 @@ export default function FondosManager() {
               setFaseMovimiento("");
               setDireccionMovimiento("");
               setTipoMovimiento("");
+              setFechaDesdeMovimiento("");
+              setFechaHastaMovimiento("");
             }}
           >
             Limpiar filtros
@@ -472,7 +639,18 @@ export default function FondosManager() {
                 </thead>
                 <tbody>
                   {movimientos.map((movimiento) => (
-                    <tr key={movimiento.id}>
+                    <tr
+                      key={movimiento.id}
+                      className={styles.clickableRow}
+                      onClick={() => setMovimientoDetalle(movimiento)}
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setMovimientoDetalle(movimiento);
+                        }
+                      }}
+                    >
                       <td>
                         {FORMATEADOR_FECHA.format(
                           new Date(movimiento.registrado_en),
@@ -481,9 +659,10 @@ export default function FondosManager() {
                       <td>
                         <strong>{movimiento.proyecto_nombre}</strong>
                         <span>
-                          {movimiento.centro_costo_codigo
-                            ? `${movimiento.centro_costo_codigo} · ${movimiento.centro_costo_nombre}`
-                            : "Movimiento general del fondo"}
+                          {formatearCentroCosto(
+                            movimiento.centro_costo_codigo,
+                            movimiento.centro_costo_nombre,
+                          )}
                         </span>
                       </td>
                       <td>
@@ -503,6 +682,7 @@ export default function FondosManager() {
                           <Link
                             className={styles.detailLink}
                             href={`/pagos/retiros?operacion=${movimiento.operacion_efectivo_id}`}
+                            onClick={(event) => event.stopPropagation()}
                           >
                             Ver detalle operativo
                           </Link>
@@ -540,7 +720,18 @@ export default function FondosManager() {
 
             <div className={styles.movementCards}>
               {movimientos.map((movimiento) => (
-                <article key={movimiento.id}>
+                <article
+                  key={movimiento.id}
+                  className={styles.clickableCard}
+                  onClick={() => setMovimientoDetalle(movimiento)}
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setMovimientoDetalle(movimiento);
+                    }
+                  }}
+                >
                   <header>
                     <div>
                       <strong>
@@ -561,9 +752,10 @@ export default function FondosManager() {
                     </span>
                   </header>
                   <p>
-                    {movimiento.centro_costo_codigo
-                      ? `${movimiento.centro_costo_codigo} · ${movimiento.centro_costo_nombre}`
-                      : "Movimiento general del fondo"}
+                    {formatearCentroCosto(
+                      movimiento.centro_costo_codigo,
+                      movimiento.centro_costo_nombre,
+                    )}
                   </p>
                   <div className={styles.mobilePrimaryAmount}>
                     <span>
@@ -577,6 +769,7 @@ export default function FondosManager() {
                     <Link
                       className={styles.detailLink}
                       href={`/pagos/retiros?operacion=${movimiento.operacion_efectivo_id}`}
+                      onClick={(event) => event.stopPropagation()}
                     >
                       Ver detalle operativo
                     </Link>
@@ -607,6 +800,7 @@ export default function FondosManager() {
             </div>
           </>
         )}
+        {modalDetalle}
       </section>
     );
   }
@@ -706,6 +900,13 @@ export default function FondosManager() {
                     {FORMATEADOR_MONEDA.format(proyecto.saldo_actual)}
                   </strong>
                 </div>
+                <button
+                  className={styles.fundDetailButton}
+                  type="button"
+                  onClick={() => setFondoDetalle(proyecto)}
+                >
+                  Ver detalle del fondo
+                </button>
               </header>
 
               <div className={styles.metrics}>
@@ -754,8 +955,12 @@ export default function FondosManager() {
                     {proyecto.centros_costo.map((centro) => (
                       <tr key={centro.id}>
                         <td>
-                          <strong>{centro.codigo}</strong>
-                          <span>{centro.nombre}</span>
+                          <strong>
+                            {formatearCentroCosto(
+                              centro.codigo,
+                              centro.nombre,
+                            )}
+                          </strong>
                         </td>
                         <td>{formatearEtiqueta(centro.linea_negocio)}</td>
                         <td>
@@ -778,8 +983,9 @@ export default function FondosManager() {
               <div className={styles.centerCards}>
                 {proyecto.centros_costo.map((centro) => (
                   <article key={centro.id}>
-                    <strong>{centro.codigo}</strong>
-                    <span>{centro.nombre}</span>
+                    <strong>
+                      {formatearCentroCosto(centro.codigo, centro.nombre)}
+                    </strong>
                     <div className={styles.mobilePrimaryAmount}>
                       <span>Gasto acumulado</span>
                       <strong>{FORMATEADOR_MONEDA.format(centro.gasto_acumulado)}</strong>
@@ -799,6 +1005,7 @@ export default function FondosManager() {
           ))}
         </div>
       )}
+      {modalDetalle}
     </section>
   );
 }

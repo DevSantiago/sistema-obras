@@ -167,6 +167,26 @@ export async function consultarMovimientosFondoRepository(
       ...(filtros.tipo_movimiento
         ? { tipo_movimiento: filtros.tipo_movimiento }
         : {}),
+      ...(filtros.fecha_desde || filtros.fecha_hasta
+        ? {
+            registrado_en: {
+              ...(filtros.fecha_desde
+                ? {
+                    gte: new Date(
+                      `${filtros.fecha_desde}T00:00:00.000-05:00`,
+                    ),
+                  }
+                : {}),
+              ...(filtros.fecha_hasta
+                ? {
+                    lte: new Date(
+                      `${filtros.fecha_hasta}T23:59:59.999-05:00`,
+                    ),
+                  }
+                : {}),
+            },
+          }
+        : {}),
       ...(filtrosAcceso
         ? {
             OR: filtrosAcceso.map((acceso) => ({
@@ -189,6 +209,83 @@ export async function consultarMovimientosFondoRepository(
       descripcion: true,
       operacion_efectivo_id: true,
       registrado_en: true,
+      solicitud_pago: {
+        select: {
+          adjuntos: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      pago: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      operacion_efectivo: {
+        select: {
+          soporte_retiro: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      anticipo: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      prestamo_proyecto: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      devolucion_prestamo: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      reingreso_sobrante: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
       proyecto_base: {
         select: {
           id: true,
@@ -209,5 +306,138 @@ export async function consultarMovimientosFondoRepository(
       { registrado_en: "desc" },
       { id: "desc" },
     ],
+  });
+}
+
+export async function obtenerAdjuntoMovimientoFondoRepository(
+  visibilidad: VisibilidadFondos,
+  movimientoId: string,
+  adjuntoId: string,
+) {
+  let filtrosAcceso:
+    | Array<{
+        proyecto_base_id: string;
+        linea_negocio: string;
+      }>
+    | undefined;
+
+  if (visibilidad.tipo === "ACCESOS") {
+    filtrosAcceso = await prisma.accesos_usuario_proyecto.findMany({
+      where: {
+        usuario_id: visibilidad.usuario_id,
+        activo: true,
+      },
+      select: {
+        proyecto_base_id: true,
+        linea_negocio: true,
+      },
+    });
+
+    if (filtrosAcceso.length === 0) {
+      return null;
+    }
+  }
+
+  return prisma.movimientos_fondo.findFirst({
+    where: {
+      id: movimientoId,
+      ...(filtrosAcceso
+        ? {
+            OR: filtrosAcceso.map((acceso) => ({
+              proyecto_base_id: acceso.proyecto_base_id,
+              centro_costo: {
+                linea_negocio: acceso.linea_negocio,
+              },
+            })),
+          }
+        : {}),
+    },
+    select: {
+      solicitud_pago: {
+        select: {
+          adjuntos: {
+            where: { id: adjuntoId },
+            select: {
+              id: true,
+              nombre_archivo: true,
+              ruta_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      pago: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              ruta_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      operacion_efectivo: {
+        select: {
+          soporte_retiro: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              ruta_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      anticipo: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              ruta_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      prestamo_proyecto: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              ruta_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      devolucion_prestamo: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              ruta_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+      reingreso_sobrante: {
+        select: {
+          soporte: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              ruta_archivo: true,
+              tipo_mime: true,
+            },
+          },
+        },
+      },
+    },
   });
 }

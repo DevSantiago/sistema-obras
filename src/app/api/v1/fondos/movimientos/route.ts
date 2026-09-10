@@ -28,6 +28,10 @@ function obtenerFiltros(request: Request): FiltrosMovimientosFondo {
         | "EGRESO") || undefined,
     tipo_movimiento:
       parametros.get("tipo_movimiento")?.trim() || undefined,
+    fecha_desde:
+      parametros.get("fecha_desde")?.trim() || undefined,
+    fecha_hasta:
+      parametros.get("fecha_hasta")?.trim() || undefined,
   };
 }
 
