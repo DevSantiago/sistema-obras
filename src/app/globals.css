@@ -25,6 +25,41 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+body:has(.appModalBackdrop) {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.appModalBackdrop {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.appModalDialog {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 48rem) {
+  .appModalBackdrop {
+    align-items: stretch !important;
+    justify-items: stretch !important;
+    padding: 0 !important;
+  }
+
+  .appModalDialog {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    overflow-y: auto !important;
+    border-radius: 0 !important;
+  }
+}
+
 a[x-apple-data-detectors],
 [x-apple-data-detectors] {
   color: inherit !important;

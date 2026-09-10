@@ -116,6 +116,19 @@ export function calcularSaldoTrasPagarSeleccion(
   return saldoActual - valorSeleccionado;
 }
 
+export function calcularDisponibleAntesSeleccionNivel1(
+  saldoDisponible: number,
+  valorSeleccionado: number,
+  valorNuevoPorReservar: number,
+) {
+  const valorYaReservado = Math.max(
+    0,
+    valorSeleccionado - valorNuevoPorReservar,
+  );
+
+  return saldoDisponible + valorYaReservado;
+}
+
 export default function AprobacionesManager({
   usuario,
   nivel,
@@ -878,6 +891,12 @@ const mensajeSinSolicitudes =
                   proyecto.saldo_actual,
                   valorSeleccionado,
                 );
+              const disponibleAntesSeleccionNivel1 =
+                calcularDisponibleAntesSeleccionNivel1(
+                  proyecto.saldo_disponible,
+                  valorSeleccionado,
+                  valorNuevoPorReservar,
+                );
 
               const saldoProyectado =
                 calcularSaldoProyectadoAprobacion(
@@ -942,7 +961,7 @@ const mensajeSinSolicitudes =
                         <strong>
                           {valorSeleccionado > 0
                             ? nivel === 1
-                              ? `${formatearMoneda(proyecto.saldo_disponible)} − ${formatearMoneda(valorNuevoPorReservar)} = ${formatearMoneda(saldoProyectado)}`
+                              ? `${formatearMoneda(disponibleAntesSeleccionNivel1)} − ${formatearMoneda(valorSeleccionado)} = ${formatearMoneda(saldoProyectado)}`
                               : `${formatearMoneda(saldoTrasPagarSeleccion)} − ${formatearMoneda(reservaRestante)} = ${formatearMoneda(saldoProyectado)}`
                             : "Selecciona una solicitud para ver la operación"}
                         </strong>
@@ -1133,9 +1152,9 @@ const mensajeSinSolicitudes =
             })}
 
             {solicitudesDevolucion.length > 0 ? (
-              <div className={styles.modalBackdrop} role="presentation">
+              <div className={`${styles.modalBackdrop} appModalBackdrop`} role="presentation">
                 <form
-                  className={styles.returnDialog}
+                  className={`${styles.returnDialog} appModalDialog`}
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="return-title"
@@ -1200,9 +1219,9 @@ const mensajeSinSolicitudes =
             ) : null}
 
             {nivel === 1 && solicitudesAnulacion.length > 0 ? (
-              <div className={styles.modalBackdrop} role="presentation">
+              <div className={`${styles.modalBackdrop} appModalBackdrop`} role="presentation">
                 <form
-                  className={styles.returnDialog}
+                  className={`${styles.returnDialog} appModalDialog`}
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="annul-title"
@@ -1264,13 +1283,13 @@ const mensajeSinSolicitudes =
 
             {solicitudDetalle ? (
               <div
-                className={`${styles.modalBackdrop} ${styles.detailBackdrop}`}
+                className={`${styles.modalBackdrop} ${styles.detailBackdrop} appModalBackdrop`}
                 role="presentation"
                 onMouseDown={(event) => {
                   if (event.target === event.currentTarget) setSolicitudDetalle(null);
                 }}
               >
-                <section className={styles.detailDialog} role="dialog" aria-modal="true" aria-labelledby="detail-title">
+                <section className={`${styles.detailDialog} appModalDialog`} role="dialog" aria-modal="true" aria-labelledby="detail-title">
                   <div className={styles.detailHeader}>
                     <div>
                       <span className={styles.detailEyebrow}>Detalle de solicitud</span>

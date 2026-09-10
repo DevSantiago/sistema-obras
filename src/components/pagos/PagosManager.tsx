@@ -1103,9 +1103,9 @@ export default function PagosManager() {
       )}
 
       {modalTransferenciasAbierto ? (
-        <div className={styles.modalBackdrop}>
+        <div className={`${styles.modalBackdrop} appModalBackdrop`}>
           <section
-            className={`${styles.modal} ${styles.batchModal}`}
+            className={`${styles.modal} ${styles.batchModal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="registro-transferencias-title"
@@ -1234,9 +1234,9 @@ export default function PagosManager() {
       ) : null}
 
       {modalRetiroAbierto ? (
-        <div className={styles.modalBackdrop}>
+        <div className={`${styles.modalBackdrop} appModalBackdrop`}>
           <section
-            className={`${styles.modal} ${styles.batchModal}`}
+            className={`${styles.modal} ${styles.batchModal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="registro-retiro-title"
@@ -1421,7 +1421,7 @@ export default function PagosManager() {
 
       {solicitudSeleccionada ? (
         <div
-          className={styles.modalBackdrop}
+          className={`${styles.modalBackdrop} appModalBackdrop`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -1430,7 +1430,7 @@ export default function PagosManager() {
           }}
         >
           <section
-            className={`${styles.modal} ${styles.detailModal}`}
+            className={`${styles.modal} ${styles.detailModal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="detalle-pago-title"

@@ -82,9 +82,9 @@ export function InstallAppButton() {
       </button>
 
       {modalAbierto ? (
-        <div className={styles.backdrop} role="presentation">
+        <div className={`${styles.backdrop} appModalBackdrop`} role="presentation">
           <section
-            className={styles.modal}
+            className={`${styles.modal} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="install-app-title"
