@@ -962,7 +962,7 @@ const mensajeSinSolicitudes =
                           {valorSeleccionado > 0
                             ? nivel === 1
                               ? `${formatearMoneda(disponibleAntesSeleccionNivel1)} − ${formatearMoneda(valorSeleccionado)} = ${formatearMoneda(saldoProyectado)}`
-                              : `${formatearMoneda(saldoTrasPagarSeleccion)} − ${formatearMoneda(reservaRestante)} = ${formatearMoneda(saldoProyectado)}`
+                              : `${formatearMoneda(proyecto.saldo_actual)} − ${formatearMoneda(valorSeleccionado)} − ${formatearMoneda(reservaRestante)} = ${formatearMoneda(saldoProyectado)}`
                             : "Selecciona una solicitud para ver la operación"}
                         </strong>
                       </div>
