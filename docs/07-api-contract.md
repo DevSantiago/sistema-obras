@@ -146,6 +146,7 @@ crear el movimiento de forma atómica.
 | PATCH | `/api/v1/proyectos-base/{id}/centros-costo/{centroCostoId}/estado` |
 | GET | `/api/v1/fondos` |
 | GET | `/api/v1/fondos/movimientos` |
+| GET | `/api/v1/fondos/movimientos/{id}/adjuntos/{adjuntoId}` |
 | POST | `/api/v1/anticipos` |
 | POST | `/api/v1/prestamos` |
 | GET | `/api/v1/prestamos` |
@@ -351,6 +352,8 @@ Parámetros de consulta opcionales:
 | `fase_centro_costo` | Fase del centro de costo. |
 | `direccion` | `INGRESO` o `EGRESO`. |
 | `tipo_movimiento` | Tipo funcional del movimiento. |
+| `fecha_desde` | Fecha inicial inclusiva en formato `YYYY-MM-DD`. |
+| `fecha_hasta` | Fecha final inclusiva en formato `YYYY-MM-DD`. |
 
 Respuesta:
 
@@ -376,7 +379,15 @@ Respuesta:
         "saldo_nuevo": 700000,
         "referencia_sistema": "TR-001",
         "descripcion": "Transferencia",
-        "registrado_en": "2026-07-28T14:00:00.000Z"
+        "registrado_en": "2026-07-28T14:00:00.000Z",
+        "adjuntos": [
+          {
+            "id": "uuid",
+            "nombre_archivo": "comprobante.pdf",
+            "tipo_mime": "application/pdf",
+            "url": "/api/v1/fondos/movimientos/uuid/adjuntos/uuid"
+          }
+        ]
       }
     ],
     "tipos_movimiento": [
@@ -388,6 +399,10 @@ Respuesta:
 
 Los usuarios con acceso restringido únicamente reciben movimientos imputados
 a centros de costo pertenecientes a sus proyectos y líneas autorizadas.
+
+Los adjuntos se descargan mediante la URL autorizada incluida en cada
+movimiento. La descarga requiere sesión activa, permiso `CONSULTAR_FONDOS` y
+visibilidad sobre el movimiento; nunca se expone la ruta interna del bucket.
 
 ---
 
@@ -1315,6 +1330,12 @@ nuevo valor no supere el saldo disponible del fondo.
 También admite `multipart/form-data` con los mismos campos y hasta diez
 entradas `archivos`. Los soportes son opcionales, aceptan PDF, PNG o JPEG y
 tienen un límite de 10 MB por archivo.
+
+Al crear o editar una solicitud, si el medio de pago es `TRANSFERENCIA` o
+`CONSIGNACION`, el beneficiario debe tener registrados banco, tipo de cuenta y
+número de cuenta o convenio. La validación se aplica tanto en la edición del
+solicitante como en la edición de aprobación nivel 1. Los demás medios de pago
+no exigen información bancaria.
 
 ---
 

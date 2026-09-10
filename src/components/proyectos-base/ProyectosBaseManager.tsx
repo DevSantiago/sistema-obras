@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ListSearchPanel } from "@/components/shared/ListSearchPanel";
 import type { UsuarioSesion } from "@/modules/auth/auth.types";
 import styles from "./ProyectosBaseManager.module.css";
 
@@ -157,6 +158,19 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
   >(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formularioExpandido, setFormularioExpandido] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
+  const proyectosFiltrados = useMemo(() => {
+    const criterio = busqueda.trim().toLocaleLowerCase("es");
+
+    if (!criterio) {
+      return proyectos;
+    }
+
+    return proyectos.filter((proyecto) =>
+      proyecto.nombre.toLocaleLowerCase("es").includes(criterio),
+    );
+  }, [busqueda, proyectos]);
 
   useEffect(() => {
     let componenteMontado = true;
@@ -380,9 +394,28 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
       </header>
 
       <section className={styles.card}>
-        <form className={styles.form} onSubmit={crearProyecto}>
+        <header className={styles.formHeader}>
           <h2 className={styles.formTitle}>Crear proyecto base</h2>
+          <button
+            className={styles.disclosureButton}
+            type="button"
+            aria-expanded={formularioExpandido}
+            aria-controls="formulario-proyecto-base"
+            aria-label={
+              formularioExpandido ? "Contraer formulario" : "Expandir formulario"
+            }
+            onClick={() => setFormularioExpandido((expandido) => !expandido)}
+          >
+            <span aria-hidden="true">{formularioExpandido ? "−" : "+"}</span>
+          </button>
+        </header>
 
+        <form
+          id="formulario-proyecto-base"
+          className={styles.form}
+          onSubmit={crearProyecto}
+          hidden={!formularioExpandido}
+        >
           <label className={styles.field}>
             Nombre del proyecto
             <input
@@ -441,8 +474,6 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
       {error && <p className={styles.error}>{error}</p>}
 
       <section>
-        <h2 className={styles.sectionTitle}>Proyectos creados</h2>
-
         {cargando ? (
           <section className={styles.empty}>
             <h2>Cargando proyectos...</h2>
@@ -454,8 +485,20 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
             <p>Crea el primer proyecto para generar su fondo y centros de costo.</p>
           </section>
         ) : (
-          <>
-            <section className={`${styles.card} ${styles.desktopOnly}`}>
+          <ListSearchPanel
+            title="Proyectos creados"
+            searchLabel="Buscar proyecto"
+            searchPlaceholder="Nombre del proyecto"
+            searchValue={busqueda}
+            onSearchChange={setBusqueda}
+          >
+            {proyectosFiltrados.length === 0 ? (
+              <p className={styles.noResults}>
+                No hay proyectos que coincidan con la búsqueda.
+              </p>
+            ) : (
+              <>
+            <section className={styles.desktopOnly}>
               <div className={styles.tableWrapper}>
                 <table className={styles.table}>
                   <thead>
@@ -468,7 +511,7 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
                   </thead>
 
                   <tbody>
-                    {proyectos.map((proyecto) => (
+                    {proyectosFiltrados.map((proyecto) => (
                       <tr key={proyecto.id}>
                         <td>
                           <strong className={styles.projectName}>
@@ -517,7 +560,7 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
             </section>
 
             <section className={styles.mobileProjects}>
-              {proyectos.map((proyecto) => (
+              {proyectosFiltrados.map((proyecto) => (
                 <article className={styles.projectCard} key={proyecto.id}>
                   <div className={styles.projectCardHeader}>
                     <div>
@@ -563,7 +606,9 @@ export function ProyectosBaseManager({ usuario }: ProyectosBaseManagerProps) {
                 </article>
               ))}
             </section>
-          </>
+              </>
+            )}
+          </ListSearchPanel>
         )}
       </section>
     </section>

@@ -8,6 +8,76 @@
   scroll-margin-top: 24px;
 }
 
+.creationPanel {
+  min-width: 0;
+}
+
+.creationToggle {
+  display: flex;
+  width: 100%;
+  min-height: 4.5rem;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 0;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.creationToggle > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.creationToggle strong {
+  font-size: 1.125rem;
+}
+
+.creationToggle small {
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.creationToggleIcon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.creationContent {
+  display: grid;
+  min-width: 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.creationContent[hidden] {
+  display: none;
+}
+
+.creationContent .card {
+  border: 0;
+  border-radius: 0;
+}
+
+.creationContent .formAnchor {
+  border-top: 1px solid #e5e7eb;
+}
+
 .card,
 .empty {
   border: 1px solid #e5e7eb;
@@ -185,6 +255,7 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  min-height: 2.75rem;
   padding: 11px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -462,6 +533,37 @@
 
 .table tbody tr:hover {
   background: #f9fafb;
+}
+
+.table tbody tr.selectedRow,
+.mobileCard.selectedRow {
+  background: #eff6ff;
+}
+
+.selectionColumn {
+  width: 3rem;
+  text-align: center !important;
+}
+
+.selectionColumn input,
+.mobileSelection,
+.bulkSendBar input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: #2563eb;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .processDates {
@@ -1153,13 +1255,14 @@
 
 .listFilters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
   align-items: end;
   gap: 0.75rem;
   padding: 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   background: #f8fafc;
+  margin: 1rem;
 }
 
 .mobileFiltersToggle {
@@ -1175,6 +1278,7 @@
 
 .listFilters label {
   display: grid;
+  min-width: 0;
   gap: 0.4rem;
 }
 
@@ -1186,6 +1290,9 @@
 
 .listFilters input,
 .listFilters select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 2.75rem;
   padding: 0.65rem 0.75rem;
   border: 1px solid #cbd5e1;
@@ -1193,6 +1300,33 @@
   background: #ffffff;
   color: #111827;
   font: inherit;
+}
+
+.bulkSendBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: 0 1rem 1rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.bulkSendBar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+  font-weight: 700;
+}
+
+.bulkSendBar > span {
+  font-size: 0.875rem;
+  font-weight: 700;
 }
 
 .listFilters input:focus,
@@ -1216,18 +1350,19 @@
 @media (max-width: 48rem) {
   .mobileFiltersToggle {
     display: flex;
+    width: fit-content;
     min-height: 44px;
     align-items: center;
-    justify-content: space-between;
-    margin: 0 1rem;
-    padding: 0.75rem 0.875rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.625rem;
-    background: #ffffff;
+    gap: 0.625rem;
+    margin: 0.5rem 1rem 0;
+    padding: 0.5rem 0;
+    border: 0;
+    background: transparent;
     color: #1e293b;
     font: inherit;
     font-size: 0.875rem;
     font-weight: 700;
+    cursor: pointer;
   }
 
   .mobileFiltersToggle span:last-child {
@@ -1246,6 +1381,20 @@
   .filterActions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .bulkSendBar {
+    align-items: stretch;
+    flex-direction: column;
+    margin-top: 1rem;
+  }
+
+  .bulkSendBar label {
+    margin-right: 0;
+  }
+
+  .bulkSendBar .sendButton {
+    width: 100%;
   }
 
   .detailDialog {
@@ -1272,5 +1421,84 @@
   .detailMeta {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+/* Lectura progresiva y consistente de los detalles. */
+.detailDialog {
+  gap: 0;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+
+.detailDialog > .detailHeader {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: rgb(255 255 255 / 96%);
+  backdrop-filter: blur(0.5rem);
+}
+
+.detailDialog > .detailLoading {
+  margin: 1rem 1.5rem 0;
+}
+
+.detailDialog > .detailSection {
+  padding: 1.125rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.detailDialog > .detailSection:first-of-type {
+  border-top: 0;
+}
+
+.detailDialog .detailGrid > div {
+  padding: 0.25rem 0 0.75rem;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.detailDialog .valuesGrid > div {
+  padding: 0.875rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+}
+
+.detailDialog > .returnReason {
+  margin: 0 1.5rem 1.125rem;
+}
+
+@media (max-width: 48rem) {
+  .detailBackdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .detailDialog {
+    width: 100%;
+    max-height: 92dvh;
+    padding: 0;
+    border-radius: 1rem 1rem 0 0;
+  }
+
+  .detailDialog > .detailHeader,
+  .detailDialog > .detailSection {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .detailDialog > .detailLoading {
+    margin-right: 1rem;
+    margin-left: 1rem;
+  }
+
+  .detailDialog > .returnReason {
+    margin-right: 1rem;
+    margin-left: 1rem;
   }
 }

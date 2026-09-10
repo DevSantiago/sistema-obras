@@ -2376,6 +2376,8 @@ Criterios:
 
 ### HU-2102. Adaptar tablas operativas y tablas de resumen
 
+**Estado: EN DESARROLLO.**
+
 Como usuario, quiero consultar y operar las tablas desde pantallas pequeñas,
 para completar mis tareas sin desplazamientos horizontales excesivos.
 
@@ -2385,6 +2387,32 @@ Criterios:
 - Mantiene filtros, búsqueda, selección y exportación disponibles.
 - Aplica ajuste de texto a números de solicitud y contenido extenso.
 - Conserva jerarquía visual entre estado actual y datos secundarios.
+- Permite seleccionar y enviar varias solicitudes elegibles a aprobación sin
+  modificar el contrato individual de envío.
+- Incluye filtro de estado en el resumen de solicitudes y evita superposición
+  de filtros en escritorio.
+- Exporta en aprobaciones únicamente la selección activa, ordenada por
+  proyecto, centro de costo y número de solicitud, con valores y total.
+- Permite minimizar las bandejas de solicitudes pendientes y aprobadas.
+- Presenta el detalle de fondos y movimientos financieros en una vista
+  informativa accesible desde cada registro.
+- Agrupa la creación de solicitudes en una sección expandible y evita acciones
+  redundantes de actualización manual.
+- Permite filtrar movimientos por un rango inclusivo de fechas.
+- Muestra los soportes asociados dentro del detalle de cada movimiento, con
+  descarga autorizada según los permisos y la visibilidad del usuario.
+- Separa visualmente los filtros del encabezado de solicitudes y usa en móvil
+  un control de expansión discreto, accesible y con estado visible.
+- Muestra los soportes de la solicitud dentro del detalle de aprobaciones.
+- Homologa la altura de campos de texto y selectores en formularios de
+  solicitudes y aprobación nivel 1.
+- Valida antes de guardar que el beneficiario tenga banco, tipo de cuenta y
+  número de cuenta o convenio cuando se elige transferencia o consignación.
+- Homologa los modales de detalle de solicitudes, aprobaciones, fondos,
+  movimientos y pagos con encabezado persistente, información agrupada y
+  lectura progresiva en escritorio y móvil, sin eliminar campos existentes.
+- Permite filtrar por estado actual el historial "Solicitudes aprobadas por mí"
+  en los niveles 1 y 2 e incluye el filtro aplicado en la exportación PDF.
 
 ### HU-2103. Homologar formularios, selectores y modales
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { ListSearchPanel } from "@/components/shared/ListSearchPanel";
 import type { UsuarioListado } from "@/modules/usuarios/usuarios.types";
 import { UserStatusButton } from "./UserStatusButton";
 import styles from "./UsersTable.module.css";
@@ -73,6 +75,21 @@ function AccessList({ usuario }: { usuario: UsuarioListado }) {
 }
 
 export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
+  const [busqueda, setBusqueda] = useState("");
+  const usuariosFiltrados = useMemo(() => {
+    const criterio = busqueda.trim().toLocaleLowerCase("es");
+
+    if (!criterio) {
+      return usuarios;
+    }
+
+    return usuarios.filter((usuario) =>
+      `${usuario.nombre} ${usuario.numero_documento}`
+        .toLocaleLowerCase("es")
+        .includes(criterio),
+    );
+  }, [busqueda, usuarios]);
+
   if (usuarios.length === 0) {
     return (
       <section className={styles.empty}>
@@ -84,41 +101,109 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
   }
 
   return (
-    <section className={styles.card}>
-      <div className={styles.desktopTable}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Usuario</th>
-              <th>Contacto</th>
-              <th>Estado</th>
-              <th>Rol</th>
-              <th>Accesos</th>
-              <th>Creado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
+    <ListSearchPanel
+      title="Usuarios creados"
+      searchLabel="Buscar usuario"
+      searchPlaceholder="Nombre o número de identificación"
+      searchValue={busqueda}
+      onSearchChange={setBusqueda}
+    >
+      {usuariosFiltrados.length === 0 ? (
+        <p className={styles.noResults}>
+          No hay usuarios que coincidan con la búsqueda.
+        </p>
+      ) : (
+        <>
+          <div className={styles.desktopTable}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Contacto</th>
+                  <th>Estado</th>
+                  <th>Rol</th>
+                  <th>Accesos</th>
+                  <th>Creado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
 
-          <tbody>
-            {usuarios.map((usuario) => (
-              <tr key={usuario.id}>
-                <td>
-                  <strong className={styles.userName}>{usuario.nombre}</strong>
+              <tbody>
+                {usuariosFiltrados.map((usuario) => (
+                  <tr key={usuario.id}>
+                    <td>
+                      <strong className={styles.userName}>
+                        {usuario.nombre}
+                      </strong>
 
-                  <span className={styles.document}>
-                    {usuario.tipo_documento} {usuario.numero_documento}
-                  </span>
-                </td>
+                      <span className={styles.document}>
+                        {usuario.tipo_documento} {usuario.numero_documento}
+                      </span>
+                    </td>
 
-                <td>
-                  <span className={styles.contact}>{usuario.correo}</span>
+                    <td>
+                      <span className={styles.contact}>{usuario.correo}</span>
 
-                  <span className={styles.contact}>
-                    {usuario.telefono ?? "Sin teléfono"}
-                  </span>
-                </td>
+                      <span className={styles.contact}>
+                        {usuario.telefono ?? "Sin teléfono"}
+                      </span>
+                    </td>
 
-                <td>
+                    <td>
+                      <span
+                        className={
+                          usuario.estado === "ACTIVO"
+                            ? styles.statusActive
+                            : styles.statusInactive
+                        }
+                      >
+                        {usuario.estado}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span
+                        className={
+                          usuario.rol ? styles.role : styles.roleMissing
+                        }
+                      >
+                        {usuario.rol || "Sin rol"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <AccessList usuario={usuario} />
+                    </td>
+
+                    <td>{formatearFechaColombia(usuario.creado_en)}</td>
+
+                    <td>
+                      <UserActions
+                        usuario={usuario}
+                        onEditarUsuario={onEditarUsuario}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className={styles.mobileList}>
+            {usuariosFiltrados.map((usuario) => (
+              <article className={styles.mobileUser} key={usuario.id}>
+                <div className={styles.mobileHeader}>
+                  <div>
+                    <h3>{usuario.nombre}</h3>
+
+                    <p>
+                      {usuario.tipo_documento} {usuario.numero_documento}
+                    </p>
+                    <span className={styles.mobileRole}>
+                      {usuario.rol || "Sin rol"}
+                    </span>
+                  </div>
+
                   <span
                     className={
                       usuario.estado === "ACTIVO"
@@ -128,94 +213,44 @@ export function UsersTable({ usuarios, onEditarUsuario }: UsersTableProps) {
                   >
                     {usuario.estado}
                   </span>
-                </td>
-
-                <td>
-                  <span
-                    className={usuario.rol ? styles.role : styles.roleMissing}
-                  >
-                    {usuario.rol || "Sin rol"}
-                  </span>
-                </td>
-
-                <td>
-                  <AccessList usuario={usuario} />
-                </td>
-
-                <td>{formatearFechaColombia(usuario.creado_en)}</td>
-
-                <td>
-                  <UserActions
-                    usuario={usuario}
-                    onEditarUsuario={onEditarUsuario}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className={styles.mobileList}>
-        {usuarios.map((usuario) => (
-          <article className={styles.mobileUser} key={usuario.id}>
-            <div className={styles.mobileHeader}>
-              <div>
-                <h3>{usuario.nombre}</h3>
-
-                <p>
-                  {usuario.tipo_documento} {usuario.numero_documento}
-                </p>
-                <span className={styles.mobileRole}>
-                  {usuario.rol || "Sin rol"}
-                </span>
-              </div>
-
-              <span
-                className={
-                  usuario.estado === "ACTIVO"
-                    ? styles.statusActive
-                    : styles.statusInactive
-                }
-              >
-                {usuario.estado}
-              </span>
-            </div>
-
-            <details className={styles.mobileDisclosure}>
-              <summary>Ver información y accesos</summary>
-              <div className={styles.mobileDisclosureContent}>
-                <dl className={styles.mobileDetails}>
-                  <div>
-                    <dt>Correo</dt>
-                    <dd>{usuario.correo}</dd>
-                  </div>
-
-                  <div>
-                    <dt>Teléfono</dt>
-                    <dd>{usuario.telefono ?? "Sin teléfono"}</dd>
-                  </div>
-
-                  <div>
-                    <dt>Creado</dt>
-                    <dd>{formatearFechaColombia(usuario.creado_en)}</dd>
-                  </div>
-                </dl>
-
-                <div className={styles.mobileAccesses}>
-                  <p>Accesos</p>
-                  <AccessList usuario={usuario} />
                 </div>
-              </div>
-            </details>
 
-            <UserActions
-              usuario={usuario}
-              onEditarUsuario={onEditarUsuario}
-            />
-          </article>
-        ))}
-      </div>
-    </section>
+                <details className={styles.mobileDisclosure}>
+                  <summary>Ver información y accesos</summary>
+                  <div className={styles.mobileDisclosureContent}>
+                    <dl className={styles.mobileDetails}>
+                      <div>
+                        <dt>Correo</dt>
+                        <dd>{usuario.correo}</dd>
+                      </div>
+
+                      <div>
+                        <dt>Teléfono</dt>
+                        <dd>{usuario.telefono ?? "Sin teléfono"}</dd>
+                      </div>
+
+                      <div>
+                        <dt>Creado</dt>
+                        <dd>{formatearFechaColombia(usuario.creado_en)}</dd>
+                      </div>
+                    </dl>
+
+                    <div className={styles.mobileAccesses}>
+                      <p>Accesos</p>
+                      <AccessList usuario={usuario} />
+                    </div>
+                  </div>
+                </details>
+
+                <UserActions
+                  usuario={usuario}
+                  onEditarUsuario={onEditarUsuario}
+                />
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+    </ListSearchPanel>
   );
 }
