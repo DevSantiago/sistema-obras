@@ -1047,7 +1047,7 @@ export default function SolicitudesPagoManager({
 
       {solicitudDetalle ? (
         <div
-          className={`${styles.modalBackdrop} ${styles.detailBackdrop}`}
+          className={`${styles.modalBackdrop} ${styles.detailBackdrop} appModalBackdrop`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -1056,7 +1056,7 @@ export default function SolicitudesPagoManager({
           }}
         >
           <section
-            className={styles.detailDialog}
+            className={`${styles.detailDialog} appModalDialog`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="solicitud-detail-title"

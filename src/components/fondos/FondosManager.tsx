@@ -357,7 +357,7 @@ export default function FondosManager() {
 
   const modalDetalle = fondoDetalle || movimientoDetalle ? (
     <div
-      className={`${styles.modalBackdrop} ${styles.detailBackdrop}`}
+      className={`${styles.modalBackdrop} ${styles.detailBackdrop} appModalBackdrop`}
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -367,7 +367,7 @@ export default function FondosManager() {
       }}
     >
       <section
-        className={styles.detailDialog}
+        className={`${styles.detailDialog} appModalDialog`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="detalle-financiero-titulo"

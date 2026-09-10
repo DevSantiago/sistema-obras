@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calcularDisponibleAntesSeleccionNivel1,
   calcularReservaRestanteNivel2,
   calcularSaldoProyectadoAprobacion,
   calcularSaldoTrasPagarSeleccion,
@@ -12,6 +13,19 @@ describe("calcularSaldoProyectadoAprobacion", () => {
     expect(
       calcularSaldoProyectadoAprobacion(1, 100000, 100000, 5000, 0),
     ).toBe(95000);
+  });
+
+  it("debe mostrar la selección completa en la resta sin duplicar una reserva existente", () => {
+    expect(
+      calcularDisponibleAntesSeleccionNivel1(6930000, 60000, 0),
+    ).toBe(6990000);
+    expect(6990000 - 60000).toBe(6930000);
+  });
+
+  it("debe usar el disponible actual cuando la selección aún no tiene reserva", () => {
+    expect(
+      calcularDisponibleAntesSeleccionNivel1(6930000, 60000, 60000),
+    ).toBe(6930000);
   });
 
   it("debe incluir reservas previas y la selección en nivel 2", () => {

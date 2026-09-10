@@ -671,7 +671,7 @@ export default function OperacionesEfectivoManager({
 
       {operacionDetalle ? (
         <div
-          className={styles.backdrop}
+          className={`${styles.backdrop} appModalBackdrop`}
           role="presentation"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target) {
@@ -682,7 +682,7 @@ export default function OperacionesEfectivoManager({
           <section
             aria-labelledby="detalle-retiro-title"
             aria-modal="true"
-            className={styles.modal}
+            className={`${styles.modal} appModalDialog`}
             role="dialog"
           >
             <header className={styles.modalHeader}>
