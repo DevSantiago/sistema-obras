@@ -2449,3 +2449,24 @@ Criterios:
 - Cubre navegación, tablas, formularios, modales y acciones críticas.
 - Registra hallazgos y criterios de aceptación por módulo.
 - No promueve la épica mientras existan bloqueos de operación en móvil.
+
+### HU-2106. Crear beneficiarios sin abandonar una solicitud
+
+**Estado: EN DESARROLLO.**
+
+Como usuario que registra solicitudes, quiero crear el beneficiario que no
+encuentro desde el mismo formulario, para continuar la solicitud sin perder la
+información diligenciada.
+
+Criterios:
+
+- Ofrece la creación contextual únicamente cuando la búsqueda no tiene
+  coincidencias.
+- Conserva intactos los datos ya diligenciados de la solicitud.
+- Crea proveedores para pago a proveedor, trabajadores para nómina individual
+  y reembolso, y entidades recaudadoras para pago de impuestos.
+- Muestra únicamente los datos bancarios cuando el medio sugerido es
+  transferencia o consignación.
+- Respeta las validaciones, permisos y contrato vigente de beneficiarios.
+- Selecciona automáticamente el beneficiario recién creado y permite continuar
+  la solicitud.
