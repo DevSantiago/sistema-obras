@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
+import CrearBeneficiarioModal from "../shared/CrearBeneficiarioModal";
 import {
   buscarBeneficiarioPorEtiqueta,
   formatearMoneda,
@@ -55,6 +56,7 @@ type ReembolsoFormProps = {
   onLimpiarMensajes: () => void;
   solicitudEnEdicion: SolicitudPagoListado | null;
   onCancelarEdicion: () => void;
+  onBeneficiarioCreado: (beneficiario: BeneficiarioSolicitudCatalogo) => void;
 };
 
 function convertirValorMoneda(valor: string): number {
@@ -79,11 +81,13 @@ export default function ReembolsoForm({
   onCrear,
   onLimpiarMensajes,
   solicitudEnEdicion,
-  onCancelarEdicion
+  onCancelarEdicion,
+  onBeneficiarioCreado,
 }: ReembolsoFormProps) {
 const [form, setForm] =
   useState<ReembolsoFormularioState>(ESTADO_INICIAL);
 const [busquedaBeneficiario, setBusquedaBeneficiario] = useState("");
+const [creandoBeneficiario, setCreandoBeneficiario] = useState(false);
 
 useEffect(() => {
   const timeoutId = window.setTimeout(() => {
@@ -449,35 +453,55 @@ const trabajadoresFiltrados = useMemo(() => {
                 required
               />
 
-              {busquedaBeneficiario.trim() && !form.beneficiario_id ? (
+              {busquedaBeneficiario.trim() &&
+              !form.beneficiario_id &&
+              !creandoBeneficiario ? (
                 <div className={styles.comboboxDropdown}>
                   {trabajadoresFiltrados.length > 0 ? (
-                    trabajadoresFiltrados.slice(0, 8).map((trabajador) => {
-                      const documento =
-                        obtenerDocumentoBeneficiario(trabajador);
+                    <>
+                      {trabajadoresFiltrados.slice(0, 8).map((trabajador) => {
+                        const documento =
+                          obtenerDocumentoBeneficiario(trabajador);
 
-                      return (
-                        <button
-                          key={trabajador.id}
-                          type="button"
-                          className={styles.comboboxOption}
-                          onClick={() => seleccionarBeneficiario(trabajador)}
-                          disabled={guardando}
-                        >
-                          <strong className={styles.comboboxOptionName}>
-                            {trabajador.nombre}
-                          </strong>
+                        return (
+                          <button
+                            key={trabajador.id}
+                            type="button"
+                            className={styles.comboboxOption}
+                            onClick={() => seleccionarBeneficiario(trabajador)}
+                            disabled={guardando}
+                          >
+                            <strong className={styles.comboboxOptionName}>
+                              {trabajador.nombre}
+                            </strong>
 
-                          <span className={styles.comboboxOptionDocument}>
-                            {documento || "Sin documento registrado"}
-                          </span>
-                        </button>
-                      );
-                    })
+                            <span className={styles.comboboxOptionDocument}>
+                              {documento || "Sin documento registrado"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoBeneficiario(true)}
+                      >
+                        + Crear otro trabajador
+                      </button>
+                    </>
                   ) : (
-                    <p className={styles.comboboxEmpty}>
-                      No se encontraron trabajadores.
-                    </p>
+                    <div className={styles.comboboxEmptyState}>
+                      <p className={styles.comboboxEmpty}>
+                        No se encontraron trabajadores.
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoBeneficiario(true)}
+                      >
+                        + Crear trabajador
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : null}
@@ -648,6 +672,19 @@ const trabajadoresFiltrados = useMemo(() => {
                 : "Crear solicitud"}
           </button>
         </div>
+
+        {creandoBeneficiario ? (
+          <CrearBeneficiarioModal
+            tipoBeneficiario="TRABAJADOR"
+            nombreInicial={busquedaBeneficiario}
+            onCerrar={() => setCreandoBeneficiario(false)}
+            onCreado={(beneficiario) => {
+              onBeneficiarioCreado(beneficiario);
+              seleccionarBeneficiario(beneficiario);
+              setCreandoBeneficiario(false);
+            }}
+          />
+        ) : null}
       </form>
     </section>
   );

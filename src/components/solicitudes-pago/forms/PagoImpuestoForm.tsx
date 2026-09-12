@@ -12,6 +12,7 @@ import {
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
+import CrearBeneficiarioModal from "../shared/CrearBeneficiarioModal";
 import type {
   CrearSolicitudPagoImpuestoPayload,
   PagoImpuestoFormularioState,
@@ -42,6 +43,7 @@ type PagoImpuestoFormProps = {
   onLimpiarMensajes: () => void;
   solicitudEnEdicion: SolicitudPagoListado | null;
   onCancelarEdicion: () => void;
+  onBeneficiarioCreado: (beneficiario: BeneficiarioSolicitudCatalogo) => void;
 };
 
 function obtenerPeriodoActualColombia(): string {
@@ -96,11 +98,13 @@ export default function PagoImpuestoForm({
   onLimpiarMensajes,
   solicitudEnEdicion,
   onCancelarEdicion,
+  onBeneficiarioCreado,
 }: PagoImpuestoFormProps) {
   const [form, setForm] = useState<PagoImpuestoFormularioState>(
     ESTADO_INICIAL,
   );
   const [busquedaEntidad, setBusquedaEntidad] = useState("");
+  const [creandoEntidad, setCreandoEntidad] = useState(false);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -419,29 +423,49 @@ export default function PagoImpuestoForm({
                 disabled={cargandoCatalogos || guardando}
               />
 
-              {busquedaEntidad && !form.beneficiario_id ? (
+              {busquedaEntidad &&
+              !form.beneficiario_id &&
+              !creandoEntidad ? (
                 <div className={styles.comboboxDropdown}>
                   {entidadesFiltradas.length > 0 ? (
-                    entidadesFiltradas.map((entidad) => (
-                      <button
-                        key={entidad.id}
-                        type="button"
-                        className={styles.comboboxOption}
-                        onClick={() => seleccionarEntidad(entidad)}
-                      >
-                        <span className={styles.comboboxOptionName}>
-                          {entidad.nombre}
-                        </span>
+                    <>
+                      {entidadesFiltradas.map((entidad) => (
+                        <button
+                          key={entidad.id}
+                          type="button"
+                          className={styles.comboboxOption}
+                          onClick={() => seleccionarEntidad(entidad)}
+                        >
+                          <span className={styles.comboboxOptionName}>
+                            {entidad.nombre}
+                          </span>
 
-                        <span className={styles.comboboxOptionDocument}>
-                          {obtenerDocumentoBeneficiario(entidad)}
-                        </span>
+                          <span className={styles.comboboxOptionDocument}>
+                            {obtenerDocumentoBeneficiario(entidad)}
+                          </span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoEntidad(true)}
+                      >
+                        + Crear otra entidad recaudadora
                       </button>
-                    ))
+                    </>
                   ) : (
-                    <p className={styles.comboboxEmpty}>
-                      No se encontraron entidades recaudadoras.
-                    </p>
+                    <div className={styles.comboboxEmptyState}>
+                      <p className={styles.comboboxEmpty}>
+                        No se encontraron entidades recaudadoras.
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoEntidad(true)}
+                      >
+                        + Crear entidad recaudadora
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : null}
@@ -614,6 +638,19 @@ export default function PagoImpuestoForm({
                 : "Crear solicitud"}
           </button>
         </div>
+
+        {creandoEntidad ? (
+          <CrearBeneficiarioModal
+            tipoBeneficiario="OTRO"
+            nombreInicial={busquedaEntidad}
+            onCerrar={() => setCreandoEntidad(false)}
+            onCreado={(beneficiario) => {
+              onBeneficiarioCreado(beneficiario);
+              seleccionarEntidad(beneficiario);
+              setCreandoEntidad(false);
+            }}
+          />
+        ) : null}
       </form>
     </section>
   );
