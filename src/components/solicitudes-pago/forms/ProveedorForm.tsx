@@ -12,6 +12,7 @@ import type {
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
+import CrearBeneficiarioModal from "../shared/CrearBeneficiarioModal";
 import {
   buscarBeneficiarioPorEtiqueta,
   calcularValoresSolicitudPago,
@@ -44,6 +45,7 @@ type ProveedorFormProps = {
   onLimpiarMensajes: () => void;
   solicitudEnEdicion: SolicitudPagoListado | null;
   onCancelarEdicion: () => void;
+  onBeneficiarioCreado: (beneficiario: BeneficiarioSolicitudCatalogo) => void;
 };
 
 export default function ProveedorForm({
@@ -59,12 +61,14 @@ export default function ProveedorForm({
   onLimpiarMensajes,
   solicitudEnEdicion,
   onCancelarEdicion,
+  onBeneficiarioCreado,
 }: ProveedorFormProps) {
   const [form, setForm] = useState<SolicitudPagoFormularioState>(
     ESTADO_INICIAL_FORMULARIO,
   );
 
   const [busquedaBeneficiario, setBusquedaBeneficiario] = useState("");
+  const [creandoBeneficiario, setCreandoBeneficiario] = useState(false);
   const [archivos, setArchivos] = useState<File[]>([]);
   useEffect(() => {
     if (
@@ -433,12 +437,15 @@ export default function ProveedorForm({
                 value={form.beneficiario_id}
               />
 
-              {busquedaBeneficiario.trim() && !form.beneficiario_id ? (
+              {busquedaBeneficiario.trim() &&
+              !form.beneficiario_id &&
+              !creandoBeneficiario ? (
                 <div className={styles.comboboxDropdown}>
                   {beneficiariosFiltrados.length > 0 ? (
-                    beneficiariosFiltrados
-                      .slice(0, 8)
-                      .map((beneficiario) => {
+                    <>
+                      {beneficiariosFiltrados
+                        .slice(0, 8)
+                        .map((beneficiario) => {
                         const documento =
                           obtenerDocumentoBeneficiario(beneficiario);
 
@@ -461,11 +468,28 @@ export default function ProveedorForm({
                             </span>
                           </button>
                         );
-                      })
+                        })}
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoBeneficiario(true)}
+                      >
+                        + Crear otro proveedor
+                      </button>
+                    </>
                   ) : (
-                    <p className={styles.comboboxEmpty}>
-                      No se encontraron proveedores.
-                    </p>
+                    <div className={styles.comboboxEmptyState}>
+                      <p className={styles.comboboxEmpty}>
+                        No se encontraron proveedores.
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoBeneficiario(true)}
+                      >
+                        + Crear proveedor
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : null}
@@ -650,6 +674,19 @@ export default function ProveedorForm({
                 : "Crear solicitud"}
           </button>
         </div>
+
+        {creandoBeneficiario ? (
+          <CrearBeneficiarioModal
+            tipoBeneficiario="PROVEEDOR"
+            nombreInicial={busquedaBeneficiario}
+            onCerrar={() => setCreandoBeneficiario(false)}
+            onCreado={(beneficiario) => {
+              onBeneficiarioCreado(beneficiario);
+              seleccionarBeneficiario(beneficiario);
+              setCreandoBeneficiario(false);
+            }}
+          />
+        ) : null}
       </form>
     </section>
   );

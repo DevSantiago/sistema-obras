@@ -5,6 +5,7 @@ import type {
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 import { formatearNombrePropio } from "@/lib/text-format";
 import { descargarTablaPdf } from "@/lib/pdf-export";
+import { descargarTablaExcel } from "@/lib/excel-export";
 import { useMemo, useState } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
 import {
@@ -110,6 +111,14 @@ function confirmarEnvio(solicitud: SolicitudPagoListado): boolean {
   );
 }
 
+export function obtenerSolicitudesParaExportar(
+  solicitudes: SolicitudPagoListado[],
+  solicitudesFiltradas: SolicitudPagoListado[],
+  hayFiltrosActivos: boolean,
+) {
+  return hayFiltrosActivos ? solicitudesFiltradas : solicitudes;
+}
+
 export default function SolicitudesPagoList({
   solicitudes,
   usuario,
@@ -171,6 +180,23 @@ export default function SolicitudesPagoList({
       );
     },
     [centroFiltro, estadoFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes],
+  );
+
+  const hayFiltrosActivos = Boolean(
+    numeroSolicitudFiltro.trim() ||
+      proyectoFiltro ||
+      centroFiltro ||
+      estadoFiltro,
+  );
+
+  const solicitudesParaExportar = useMemo(
+    () =>
+      obtenerSolicitudesParaExportar(
+        solicitudes,
+        solicitudesFiltradas,
+        hayFiltrosActivos,
+      ),
+    [hayFiltrosActivos, solicitudes, solicitudesFiltradas],
   );
 
   const estadosFiltro = useMemo(
@@ -240,13 +266,17 @@ export default function SolicitudesPagoList({
     const centro = centrosFiltro.find((opcion) => opcion.id === centroFiltro);
     descargarTablaPdf({
       titulo: "Resumen de solicitudes de pago",
-      nombreArchivo: "solicitudes-filtradas.pdf",
-      filas: solicitudesFiltradas,
+      nombreArchivo: hayFiltrosActivos
+        ? "solicitudes-filtradas.pdf"
+        : "solicitudes-completas.pdf",
+      filas: solicitudesParaExportar,
       filtros: [
         numeroSolicitudFiltro.trim() && `Número: ${numeroSolicitudFiltro.trim()}`,
         proyecto && `Proyecto: ${proyecto.nombre}`,
         centro && `Centro de costo: ${centro.nombre}`,
+        estadoFiltro && `Estado: ${formatearEstadoSolicitud(estadoFiltro as EstadoSolicitudPago)}`,
       ].filter(Boolean) as string[],
+      resumen: [`${solicitudesParaExportar.length} solicitud(es)`],
       columnas: [
         { titulo: "Solicitud", ancho: 18, valor: (fila) => fila.numero_solicitud },
         { titulo: "Proyecto", ancho: 16, valor: (fila) => fila.proyecto_base?.nombre },
@@ -255,6 +285,47 @@ export default function SolicitudesPagoList({
         { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
         { titulo: "Estado", ancho: 12, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
         { titulo: "Valor neto", ancho: 10, valor: (fila) => formatearMoneda(fila.valor_neto) },
+      ],
+    });
+  }
+
+  async function exportarExcel() {
+    await descargarTablaExcel({
+      nombreArchivo: hayFiltrosActivos
+        ? "solicitudes-filtradas.xlsx"
+        : "solicitudes-completas.xlsx",
+      nombreHoja: "Solicitudes",
+      filas: solicitudesParaExportar,
+      resumen: [
+        { etiqueta: "Solicitudes exportadas", valor: solicitudesParaExportar.length },
+        {
+          etiqueta: "Valor neto total",
+          valor: solicitudesParaExportar.reduce(
+            (total, solicitud) => total + solicitud.valor_neto,
+            0,
+          ),
+        },
+      ],
+      columnas: [
+        { titulo: "Número de solicitud", ancho: 38, valor: (fila) => fila.numero_solicitud },
+        { titulo: "Proyecto", ancho: 28, valor: (fila) => fila.proyecto_base?.nombre },
+        { titulo: "Centro de costo", ancho: 32, valor: (fila) => fila.centro_costo?.nombre },
+        { titulo: "Línea de negocio", ancho: 20, valor: (fila) => fila.centro_costo?.linea_negocio },
+        { titulo: "Fase", ancho: 18, valor: (fila) => fila.centro_costo?.fase_centro_costo },
+        { titulo: "Beneficiario", ancho: 32, valor: (fila) => fila.beneficiario?.nombre },
+        { titulo: "Identificación", ancho: 22, valor: (fila) => fila.beneficiario?.numero_documento },
+        { titulo: "Tipo de solicitud", ancho: 24, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Categoría", ancho: 24, valor: (fila) => formatearTextoDominio(obtenerCategoriaSolicitud(fila)) },
+        { titulo: "Medio de pago", ancho: 22, valor: (fila) => formatearTextoDominio(fila.medio_pago) },
+        { titulo: "Valor bruto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_bruto },
+        { titulo: "Retenciones", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_retenciones },
+        { titulo: "Descuentos", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_descuentos },
+        { titulo: "Valor neto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_neto },
+        { titulo: "Estado", ancho: 24, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
+        { titulo: "Fecha de creación", ancho: 24, valor: (fila) => formatearFechaHora(fila.creado_en) },
+        { titulo: "Aprobación nivel 1", ancho: 24, valor: (fila) => formatearFechaHora(fila.aprobado_1_en) },
+        { titulo: "Aprobación nivel 2", ancho: 24, valor: (fila) => formatearFechaHora(fila.aprobado_2_en) },
+        { titulo: "Fecha de pago", ancho: 24, valor: (fila) => formatearFechaHora(fila.pagado_en) },
       ],
     });
   }
@@ -354,7 +425,7 @@ export default function SolicitudesPagoList({
         </label>
 
         <div className={styles.filterActions}>
-          {(numeroSolicitudFiltro || proyectoFiltro || centroFiltro || estadoFiltro) ? (
+          {hayFiltrosActivos ? (
             <button
               className={styles.clearFiltersButton}
               type="button"
@@ -373,9 +444,17 @@ export default function SolicitudesPagoList({
             className={styles.secondaryButton}
             type="button"
             onClick={exportarPdf}
-            disabled={solicitudesFiltradas.length === 0}
+            disabled={solicitudesParaExportar.length === 0}
           >
-            Exportar PDF ({solicitudesFiltradas.length})
+            Exportar PDF ({solicitudesParaExportar.length})
+          </button>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => void exportarExcel()}
+            disabled={solicitudesParaExportar.length === 0}
+          >
+            Exportar Excel ({solicitudesParaExportar.length})
           </button>
         </div>
       </div>

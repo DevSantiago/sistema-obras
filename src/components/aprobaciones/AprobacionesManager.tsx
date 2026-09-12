@@ -55,6 +55,18 @@ type EstadoCarga =
   | "LISTO"
   | "ERROR";
 
+type FiltrosProyecto = {
+  numeroSolicitud: string;
+  centroCostoId: string;
+  visiblesEnMovil: boolean;
+};
+
+const FILTROS_PROYECTO_INICIALES: FiltrosProyecto = {
+  numeroSolicitud: "",
+  centroCostoId: "",
+  visiblesEnMovil: false,
+};
+
 const FORMATEADOR_MONEDA = new Intl.NumberFormat("es-CO", {
   style: "currency",
   currency: "COP",
@@ -129,6 +141,23 @@ export function calcularDisponibleAntesSeleccionNivel1(
   return saldoDisponible + valorYaReservado;
 }
 
+export function filtrarSolicitudesProyecto(
+  solicitudes: SolicitudPagoListado[],
+  numeroSolicitud: string,
+  centroCostoId: string,
+) {
+  const numeroBuscado = numeroSolicitud.trim().toLocaleLowerCase("es");
+
+  return solicitudes.filter(
+    (solicitud) =>
+      (!numeroBuscado ||
+        solicitud.numero_solicitud
+          ?.toLocaleLowerCase("es")
+          .includes(numeroBuscado)) &&
+      (!centroCostoId || solicitud.centro_costo_id === centroCostoId),
+  );
+}
+
 export default function AprobacionesManager({
   usuario,
   nivel,
@@ -165,10 +194,10 @@ export default function AprobacionesManager({
   const [historialAprobaciones, setHistorialAprobaciones] = useState<
     SolicitudPagoListado[]
   >([]);
-  const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
-  const [proyectoFiltro, setProyectoFiltro] = useState("");
-  const [centroFiltro, setCentroFiltro] = useState("");
-  const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
+  const [proyectoExpandidoId, setProyectoExpandidoId] = useState<string | null>(null);
+  const [filtrosPorProyecto, setFiltrosPorProyecto] = useState<
+    Record<string, FiltrosProyecto>
+  >({});
   const [pendientesExpandidas, setPendientesExpandidas] = useState(true);
 
   const permisoRequerido =
@@ -200,51 +229,19 @@ const mensajeSinSolicitudes =
     [proyectos],
   );
 
-  const proyectosFiltro = useMemo(
-    () =>
-      proyectos
-        .map((proyecto) => ({
-          id: proyecto.proyecto_base_id,
-          nombre: proyecto.proyecto_base_nombre,
-        }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
-    [proyectos],
-  );
-
-  const centrosFiltro = useMemo(() => {
-    const centros = new Map<string, string>();
-    solicitudes.forEach((solicitud) => {
-      if (proyectoFiltro && solicitud.proyecto_base_id !== proyectoFiltro) return;
-      centros.set(
-        solicitud.centro_costo_id,
-        solicitud.centro_costo?.nombre ?? "Centro sin nombre",
-      );
-    });
-    return Array.from(centros, ([id, nombre]) => ({ id, nombre })).sort(
-      (a, b) => a.nombre.localeCompare(b.nombre, "es"),
-    );
-  }, [proyectoFiltro, solicitudes]);
-
-  const proyectosVisibles = useMemo(() => {
-    const numeroBuscado = numeroSolicitudFiltro.trim().toLocaleLowerCase("es");
-    return proyectos
-      .filter(
-        (proyecto) =>
-          !proyectoFiltro || proyecto.proyecto_base_id === proyectoFiltro,
-      )
-      .map((proyecto) => ({
-        ...proyecto,
-        solicitudes: proyecto.solicitudes.filter(
-          (solicitud) =>
-            (!numeroBuscado ||
-              solicitud.numero_solicitud
-                ?.toLocaleLowerCase("es")
-                .includes(numeroBuscado)) &&
-            (!centroFiltro || solicitud.centro_costo_id === centroFiltro),
-        ),
-      }))
-      .filter((proyecto) => proyecto.solicitudes.length > 0);
-  }, [centroFiltro, numeroSolicitudFiltro, proyectoFiltro, proyectos]);
+  function actualizarFiltrosProyecto(
+    proyectoId: string,
+    cambios: Partial<FiltrosProyecto>,
+  ) {
+    setFiltrosPorProyecto((filtrosActuales) => ({
+      ...filtrosActuales,
+      [proyectoId]: {
+        ...FILTROS_PROYECTO_INICIALES,
+        ...filtrosActuales[proyectoId],
+        ...cambios,
+      },
+    }));
+  }
 
   function obtenerSolicitudesSeleccionadasParaExportar() {
     return ordenarSolicitudesParaExportar(
@@ -253,19 +250,13 @@ const mensajeSinSolicitudes =
   }
 
   function exportarPendientesPdf() {
-    const proyecto = proyectosFiltro.find((opcion) => opcion.id === proyectoFiltro);
-    const centro = centrosFiltro.find((opcion) => opcion.id === centroFiltro);
     const filas = obtenerSolicitudesSeleccionadasParaExportar();
     const total = filas.reduce((acumulado, fila) => acumulado + fila.valor_neto, 0);
     descargarTablaPdf({
       titulo: `Solicitudes pendientes de aprobación nivel ${nivel}`,
       nombreArchivo: `aprobaciones-nivel-${nivel}-seleccionadas.pdf`,
       filas,
-      filtros: [
-        numeroSolicitudFiltro.trim() && `Número: ${numeroSolicitudFiltro.trim()}`,
-        proyecto && `Proyecto: ${proyecto.nombre}`,
-        centro && `Centro de costo: ${centro.nombre}`,
-      ].filter(Boolean) as string[],
+      filtros: [],
       resumen: [
         `${filas.length} solicitud(es) seleccionada(s)`,
         `Valor total: ${formatearMoneda(total)}`,
@@ -286,7 +277,7 @@ const mensajeSinSolicitudes =
     const filas = obtenerSolicitudesSeleccionadasParaExportar();
     const total = filas.reduce((acumulado, fila) => acumulado + fila.valor_neto, 0);
     await descargarTablaExcel({
-      nombreArchivo: `aprobaciones-nivel-${nivel}-seleccionadas.xls`,
+      nombreArchivo: `aprobaciones-nivel-${nivel}-seleccionadas.xlsx`,
       nombreHoja: `Aprobaciones nivel ${nivel}`,
       filas,
       resumen: [
@@ -334,6 +325,14 @@ const mensajeSinSolicitudes =
         body.data?.proyectos ?? [];
 
       setProyectos(proyectosPendientes);
+      setProyectoExpandidoId((proyectoActual) =>
+        proyectoActual &&
+        proyectosPendientes.some(
+          (proyecto) => proyecto.fondo_id === proyectoActual,
+        )
+          ? proyectoActual
+          : proyectosPendientes[0]?.fondo_id ?? null,
+      );
       setHistorialAprobaciones(body.data?.historial ?? []);
       setIdsSeleccionados(new Set());
       setEstadoCarga("LISTO");
@@ -344,6 +343,7 @@ const mensajeSinSolicitudes =
           : "No fue posible consultar las solicitudes pendientes.";
 
       setProyectos([]);
+      setProyectoExpandidoId(null);
       setHistorialAprobaciones([]);
       setIdsSeleccionados(new Set());
       setMensajeError(mensaje);
@@ -724,102 +724,6 @@ const mensajeSinSolicitudes =
       {estadoCarga === "LISTO" &&
         solicitudes.length > 0 && (
           <>
-            <button
-              type="button"
-              className={styles.mobileFiltersToggle}
-              aria-expanded={filtrosMovilesVisibles}
-              aria-controls={`filtros-aprobaciones-nivel-${nivel}`}
-              onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
-            >
-              <span>Filtros</span>
-              <span>
-                {[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length > 0
-                  ? `${[numeroSolicitudFiltro, proyectoFiltro, centroFiltro].filter(Boolean).length} activos`
-                  : "Mostrar"}
-              </span>
-            </button>
-            <div
-              id={`filtros-aprobaciones-nivel-${nivel}`}
-              className={`${styles.summaryFilters} ${
-                filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
-              }`}
-            >
-              <label>
-                <span>Número de solicitud</span>
-                <input
-                  type="search"
-                  value={numeroSolicitudFiltro}
-                  onChange={(event) => {
-                    setNumeroSolicitudFiltro(event.target.value);
-                    setIdsSeleccionados(new Set());
-                  }}
-                  placeholder="Buscar por número"
-                />
-              </label>
-              <label>
-                <span>Proyecto</span>
-                <select
-                  value={proyectoFiltro}
-                  onChange={(event) => {
-                    setProyectoFiltro(event.target.value);
-                    setCentroFiltro("");
-                    setIdsSeleccionados(new Set());
-                  }}
-                >
-                  <option value="">Todos los proyectos</option>
-                  {proyectosFiltro.map((proyecto) => (
-                    <option key={proyecto.id} value={proyecto.id}>
-                      {proyecto.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Centro de costo</span>
-                <select
-                  value={centroFiltro}
-                  onChange={(event) => {
-                    setCentroFiltro(event.target.value);
-                    setIdsSeleccionados(new Set());
-                  }}
-                >
-                  <option value="">Todos los centros</option>
-                  {centrosFiltro.map((centro) => (
-                    <option key={centro.id} value={centro.id}>
-                      {centro.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className={styles.summaryFilterActions}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNumeroSolicitudFiltro("");
-                    setProyectoFiltro("");
-                    setCentroFiltro("");
-                    setIdsSeleccionados(new Set());
-                  }}
-                >
-                  Limpiar filtros
-                </button>
-                <button
-                  type="button"
-                  onClick={exportarPendientesPdf}
-                  disabled={idsSeleccionados.size === 0}
-                >
-                  Exportar PDF ({idsSeleccionados.size})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void exportarPendientesExcel()}
-                  disabled={idsSeleccionados.size === 0}
-                >
-                  Exportar Excel ({idsSeleccionados.size})
-                </button>
-              </div>
-            </div>
-
             <div className={styles.selectionSummary}>
               <div className={styles.summaryValues}>
                 <span>
@@ -837,6 +741,22 @@ const mensajeSinSolicitudes =
                     )}
                   </strong>
                 </span>
+              </div>
+              <div className={styles.selectionExportActions}>
+                <button
+                  type="button"
+                  onClick={exportarPendientesPdf}
+                  disabled={idsSeleccionados.size === 0}
+                >
+                  Exportar PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void exportarPendientesExcel()}
+                  disabled={idsSeleccionados.size === 0}
+                >
+                  Exportar Excel
+                </button>
               </div>
             </div>
 
@@ -857,13 +777,33 @@ const mensajeSinSolicitudes =
               </button>
             </div>
 
-            {proyectosVisibles.length === 0 ? (
-              <div className={styles.estado}>
-                No hay solicitudes pendientes que coincidan con los filtros.
-              </div>
-            ) : null}
-
-            {proyectosVisibles.map((proyecto) => {
+            {proyectos.map((proyecto) => {
+              const filtrosProyecto =
+                filtrosPorProyecto[proyecto.fondo_id] ??
+                FILTROS_PROYECTO_INICIALES;
+              const centrosProyecto = Array.from(
+                new Map(
+                  proyecto.solicitudes.map((solicitud) => [
+                    solicitud.centro_costo_id,
+                    solicitud.centro_costo?.nombre ?? "Centro sin nombre",
+                  ]),
+                ),
+                ([id, nombre]) => ({ id, nombre }),
+              ).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+              const solicitudesFiltradas = filtrarSolicitudesProyecto(
+                proyecto.solicitudes,
+                filtrosProyecto.numeroSolicitud,
+                filtrosProyecto.centroCostoId,
+              );
+              const proyectoExpandido = proyectoExpandidoId === proyecto.fondo_id;
+              const cantidadFiltrosActivos = [
+                filtrosProyecto.numeroSolicitud,
+                filtrosProyecto.centroCostoId,
+              ].filter(Boolean).length;
+              const valorPendienteProyecto = proyecto.solicitudes.reduce(
+                (total, solicitud) => total + solicitud.valor_neto,
+                0,
+              );
               const valorSeleccionado =
                 obtenerValorSeleccionadoProyecto(
                   proyecto,
@@ -914,12 +854,122 @@ const mensajeSinSolicitudes =
                   key={proyecto.fondo_id}
                   className={styles.projectBlock}
                 >
-                  <div className={styles.projectHeader}>
-                    <h3 className={styles.projectTitle}>
-                      {proyecto.proyecto_base_nombre}
-                    </h3>
+                  <button
+                    type="button"
+                    className={styles.projectAccordionHeader}
+                    aria-expanded={proyectoExpandido}
+                    aria-controls={`proyecto-aprobacion-${nivel}-${proyecto.fondo_id}`}
+                    onClick={() =>
+                      setProyectoExpandidoId((proyectoActual) =>
+                        proyectoActual === proyecto.fondo_id
+                          ? null
+                          : proyecto.fondo_id,
+                      )
+                    }
+                  >
+                    <span className={styles.projectAccordionHeading}>
+                      <strong>{proyecto.proyecto_base_nombre}</strong>
+                      <span>
+                        {proyecto.solicitudes.length}{" "}
+                        {proyecto.solicitudes.length === 1
+                          ? "solicitud pendiente"
+                          : "solicitudes pendientes"}{" "}
+                        · {formatearMoneda(valorPendienteProyecto)}
+                      </span>
+                    </span>
+                    {cantidadSeleccionadaProyecto > 0 ? (
+                      <span className={styles.projectSelectedBadge}>
+                        {cantidadSeleccionadaProyecto} seleccionada{cantidadSeleccionadaProyecto === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                    <span className={styles.projectAccordionIcon} aria-hidden="true">
+                      {proyectoExpandido ? "−" : "+"}
+                    </span>
+                  </button>
 
+                  <div
+                    id={`proyecto-aprobacion-${nivel}-${proyecto.fondo_id}`}
+                    className={styles.projectContent}
+                    hidden={!proyectoExpandido}
+                  >
+                    <button
+                      type="button"
+                      className={styles.mobileFiltersToggle}
+                      aria-expanded={filtrosProyecto.visiblesEnMovil}
+                      aria-controls={`filtros-proyecto-${nivel}-${proyecto.fondo_id}`}
+                      onClick={() =>
+                        actualizarFiltrosProyecto(proyecto.fondo_id, {
+                          visiblesEnMovil: !filtrosProyecto.visiblesEnMovil,
+                        })
+                      }
+                    >
+                      <span>Filtrar este proyecto</span>
+                      <span>
+                        {cantidadFiltrosActivos > 0
+                          ? `${cantidadFiltrosActivos} activos`
+                          : "Mostrar"}
+                      </span>
+                    </button>
+                    <div
+                      id={`filtros-proyecto-${nivel}-${proyecto.fondo_id}`}
+                      className={`${styles.summaryFilters} ${styles.projectFilters} ${
+                        filtrosProyecto.visiblesEnMovil
+                          ? ""
+                          : styles.mobileFiltersCollapsed
+                      }`}
+                    >
+                      <label>
+                        <span>Número de solicitud</span>
+                        <input
+                          type="search"
+                          value={filtrosProyecto.numeroSolicitud}
+                          onChange={(event) =>
+                            actualizarFiltrosProyecto(proyecto.fondo_id, {
+                              numeroSolicitud: event.target.value,
+                            })
+                          }
+                          placeholder="Buscar por número"
+                        />
+                      </label>
+                      <label>
+                        <span>Centro de costo</span>
+                        <select
+                          value={filtrosProyecto.centroCostoId}
+                          onChange={(event) =>
+                            actualizarFiltrosProyecto(proyecto.fondo_id, {
+                              centroCostoId: event.target.value,
+                            })
+                          }
+                        >
+                          <option value="">Todos los centros</option>
+                          {centrosProyecto.map((centro) => (
+                            <option key={centro.id} value={centro.id}>
+                              {centro.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className={styles.summaryFilterActions}>
+                        <button
+                          type="button"
+                          disabled={cantidadFiltrosActivos === 0}
+                          onClick={() =>
+                            actualizarFiltrosProyecto(
+                              proyecto.fondo_id,
+                              FILTROS_PROYECTO_INICIALES,
+                            )
+                          }
+                        >
+                          Limpiar filtros
+                        </button>
+                      </div>
+                    </div>
+
+                  <div className={styles.projectHeader}>
                     <div className={styles.mobileProjectSummary}>
+                      <span className={styles.summarySectionTitle}>
+                        Resumen financiero
+                      </span>
                       <div className={styles.mobileKeyFigures}>
                         <div>
                           <span className={styles.summaryLabel}>Disponible ahora</span>
@@ -954,172 +1004,109 @@ const mensajeSinSolicitudes =
                         </small>
                       </div>
 
-                      <div className={styles.mobileOperationCard}>
-                        <span className={styles.summaryLabel}>
-                          {nivel === 1 ? "Cálculo al aprobar" : "Proyección al pagar"}
-                        </span>
-                        <strong>
-                          {valorSeleccionado > 0
-                            ? nivel === 1
-                              ? `${formatearMoneda(disponibleAntesSeleccionNivel1)} − ${formatearMoneda(valorSeleccionado)} = ${formatearMoneda(saldoProyectado)}`
-                              : `${formatearMoneda(proyecto.saldo_actual)} − ${formatearMoneda(valorSeleccionado)} − ${formatearMoneda(reservaRestante)} = ${formatearMoneda(saldoProyectado)}`
-                            : "Selecciona una solicitud para ver la operación"}
-                        </strong>
-                      </div>
+                      <details className={styles.mobileCalculationDisclosure}>
+                        <summary>Ver cálculo</summary>
+                        <div className={styles.mobileOperationCard}>
+                          <span className={styles.summaryLabel}>
+                            {nivel === 1 ? "Cálculo al aprobar" : "Proyección al pagar"}
+                          </span>
+                          <strong>
+                            {valorSeleccionado > 0
+                              ? nivel === 1
+                                ? `${formatearMoneda(disponibleAntesSeleccionNivel1)} − ${formatearMoneda(valorSeleccionado)} = ${formatearMoneda(saldoProyectado)}`
+                                : `${formatearMoneda(proyecto.saldo_actual)} − ${formatearMoneda(valorSeleccionado)} − ${formatearMoneda(reservaRestante)} = ${formatearMoneda(saldoProyectado)}`
+                              : "Selecciona una solicitud para ver la operación"}
+                          </strong>
+                        </div>
+                      </details>
                     </div>
 
                     <div
                       className={styles.projectSummary}
                     >
-                      <section className={styles.summarySection}>
+                      <section className={styles.compactFinancialSummary}>
                         <span className={styles.summarySectionTitle}>
-                          Estado presupuestal
+                          Resumen financiero
                         </span>
-                        <div className={styles.summaryCards}>
-                          <div className={styles.summaryCard}>
+                        <div className={styles.compactMetrics}>
+                          <div className={styles.compactMetric}>
                             <span className={styles.summaryLabel}>Saldo actual</span>
                             <strong className={styles.summaryValue}>{formatearMoneda(proyecto.saldo_actual)}</strong>
                             <small className={styles.summaryDescription}>
-                              Saldo registrado actualmente en el fondo.
+                              Registrado en el fondo.
                             </small>
                           </div>
-                          <div className={styles.summaryCard}>
+                          <div className={styles.compactMetric}>
                             <span className={styles.summaryLabel}>
                               {nivel === 1
-                                ? "Reservado para pagos por terminar de aprobar"
-                                : "Total reservado"}
+                                ? "Reservado pendiente"
+                                : "Reservado"}
                             </span>
                             <strong className={styles.summaryValue}>{formatearMoneda(proyecto.reservas_existentes)}</strong>
                             <small className={styles.summaryDescription}>
                               {nivel === 1
-                                ? "Incluye reservas creadas en nivel 1 aún pendientes de pago."
-                                : "Incluye solicitudes de esta bandeja y compromisos que ya avanzaron hacia pago."}
+                                ? "Pagos por terminar de aprobar."
+                                : "Solicitudes y compromisos vigentes."}
                             </small>
                           </div>
-                          <div className={styles.summaryCard}>
-                            <span className={styles.summaryLabel}>
-                              {nivel === 1
-                                ? "Saldo disponible sin comprometer"
-                                : "Saldo libre tras todas las reservas"}
-                            </span>
+                          <div className={styles.compactMetric}>
+                            <span className={styles.summaryLabel}>Disponible ahora</span>
                             <strong className={styles.summaryValue}>{formatearMoneda(proyecto.saldo_disponible)}</strong>
                             <small className={styles.summaryDescription}>
-                              Saldo actual menos todas las reservas vigentes.
+                              Saldo menos reservas vigentes.
                             </small>
                           </div>
-                        </div>
-                      </section>
-
-                      <section className={styles.simulationSection}>
-                        <span className={styles.summarySectionTitle}>
-                          Simulación de la selección
-                        </span>
-                        <div className={styles.summaryCards}>
-                          <div className={styles.summaryCard}>
-                            <span className={styles.summaryLabel}>
-                              {nivel === 2
-                                ? `Seleccionado para aprobar (${cantidadSeleccionadaProyecto})`
-                                : "Seleccionado para aprobar"}
-                            </span>
+                          <div className={styles.compactMetric}>
+                            <span className={styles.summaryLabel}>Seleccionado ({cantidadSeleccionadaProyecto})</span>
                             <strong className={styles.summaryValue}>{formatearMoneda(valorSeleccionado)}</strong>
                             <small className={styles.summaryDescription}>
-                              Suma de las solicitudes marcadas en la lista.
+                              Solicitudes marcadas.
                             </small>
                           </div>
-                          {nivel === 2 ? (
-                            <div className={styles.projectedCard}>
-                              <span className={styles.summaryLabel}>
-                                Resultado de aprobar
-                              </span>
-                              <strong className={styles.projectedValue}>
-                                {valorSeleccionado > 0
-                                  ? "Pasa a programación de pago"
-                                  : "Selecciona una solicitud"}
-                              </strong>
-                              <small className={styles.summaryDescription}>
-                                Todavía no se mueve dinero. La reserva se mantiene hasta registrar el pago.
-                              </small>
-                            </div>
-                          ) : (
-                            <div className={styles.projectedCard}>
-                              <span className={styles.summaryLabel}>
-                                Disponible si se aprueba
-                              </span>
-                              <strong className={styles.projectedValue}>
-                                {valorSeleccionado > 0 ? formatearMoneda(saldoProyectado) : "—"}
-                              </strong>
-                              <small className={styles.summaryDescription}>
-                                Considera las reservas vigentes y la selección actual.
-                              </small>
-                            </div>
-                          )}
+                          <div className={styles.compactResult}>
+                            <span className={styles.summaryLabel}>Resultado al aprobar</span>
+                            <strong className={styles.projectedValue}>
+                              {valorSeleccionado === 0
+                                ? "Selecciona una solicitud"
+                                : nivel === 1
+                                  ? formatearMoneda(saldoProyectado)
+                                  : "Pasa a programación de pago"}
+                            </strong>
+                            <small className={styles.summaryDescription}>
+                              {nivel === 1
+                                ? "Disponible después de comprometer la selección."
+                                : "No mueve dinero; mantiene la reserva."}
+                            </small>
+                          </div>
                         </div>
-                        <p className={styles.simulationHelp}>
-                          {nivel === 1
-                            ? "Incluye los compromisos existentes y la selección actual."
-                            : "La aprobación de nivel 2 no descuenta dinero ni libera la reserva."}
-                        </p>
-                        {nivel === 2 ? (
-                          <div className={styles.paymentProjection}>
-                            <span className={styles.summarySectionTitle}>
-                              Cuando se registre el pago
-                            </span>
-                            <div className={styles.summaryCards}>
-                              <div className={styles.summaryCard}>
-                                <span className={styles.summaryLabel}>
-                                  Saldo después del pago
-                                </span>
-                                <strong className={styles.summaryValue}>
-                                  {valorSeleccionado > 0
-                                    ? formatearMoneda(saldoTrasPagarSeleccion)
-                                    : "—"}
-                                </strong>
-                                <small className={styles.summaryCalculation}>
-                                  {valorSeleccionado > 0
-                                    ? `${formatearMoneda(proyecto.saldo_actual)} − ${formatearMoneda(valorSeleccionado)}`
-                                    : "Selecciona una solicitud para calcularlo."}
-                                </small>
-                              </div>
-                              <div className={styles.summaryCard}>
-                                <span className={styles.summaryLabel}>
-                                  Otras reservas pendientes
-                                </span>
-                                <strong className={styles.summaryValue}>
-                                  {valorSeleccionado > 0
-                                    ? formatearMoneda(reservaRestante)
-                                    : "—"}
-                                </strong>
-                                <small className={styles.summaryDescription}>
-                                  Valor reservado por otras solicitudes pendientes o programadas para pago en este fondo.
-                                </small>
-                              </div>
-                              <div className={styles.projectedCard}>
-                                <span className={styles.summaryLabel}>
-                                  Disponible final
-                                </span>
-                                <strong className={styles.projectedValue}>
-                                  {valorSeleccionado > 0
-                                    ? formatearMoneda(saldoProyectado)
-                                    : "—"}
-                                </strong>
-                                <small className={styles.summaryCalculation}>
-                                  {valorSeleccionado > 0
-                                    ? `${formatearMoneda(saldoTrasPagarSeleccion)} − ${formatearMoneda(reservaRestante)}`
-                                    : "Selecciona una solicitud para calcularlo."}
-                                </small>
-                              </div>
-                            </div>
-                            <p className={styles.simulationHelp}>
-                              El disponible puede quedar igual al actual: el pago reduce el saldo, pero libera una reserva por el mismo valor.
-                            </p>
+                        <div className={styles.compactCalculation}>
+                          <span>{nivel === 1 ? "Cálculo al aprobar" : "Efecto de aprobar"}</span>
+                          <strong>
+                            {valorSeleccionado > 0
+                              ? nivel === 1
+                                ? `${formatearMoneda(disponibleAntesSeleccionNivel1)} − ${formatearMoneda(valorSeleccionado)} = ${formatearMoneda(saldoProyectado)}`
+                                : "La solicitud avanza a programación de pago y conserva su reserva."
+                              : "Selecciona una solicitud para ver el resultado."}
+                          </strong>
+                        </div>
+                        {nivel === 2 && valorSeleccionado > 0 ? (
+                          <div className={styles.compactPaymentProjection}>
+                            <span>Proyección cuando se registre el pago</span>
+                            <strong>
+                              {formatearMoneda(proyecto.saldo_actual)} − {formatearMoneda(valorSeleccionado)} − {formatearMoneda(reservaRestante)} = {formatearMoneda(saldoProyectado)} disponibles
+                            </strong>
+                            <small>
+                              Saldo después del pago: {formatearMoneda(saldoTrasPagarSeleccion)} · Otras reservas pendientes: {formatearMoneda(reservaRestante)}.
+                            </small>
                           </div>
                         ) : null}
                       </section>
                     </div>
                   </div>
 
+                  {solicitudesFiltradas.length > 0 ? (
                   <SolicitudesAprobacionList
-                    solicitudes={proyecto.solicitudes}
+                    solicitudes={solicitudesFiltradas}
                     idsSeleccionados={
                       idsSeleccionados
                     }
@@ -1129,7 +1116,10 @@ const mensajeSinSolicitudes =
                     }
                     onCambiarSeleccionTodas={() =>
                       alternarSolicitudesProyecto(
-                        proyecto,
+                        {
+                          ...proyecto,
+                          solicitudes: solicitudesFiltradas,
+                        },
                       )
                     }
                     onDevolver={(solicitud) => {
@@ -1147,6 +1137,12 @@ const mensajeSinSolicitudes =
                       setMensajeExito("");
                     } : undefined}
                   />
+                  ) : (
+                    <div className={styles.estado}>
+                      No hay solicitudes que coincidan con los filtros de este proyecto.
+                    </div>
+                  )}
+                  </div>
                 </article>
               );
             })}

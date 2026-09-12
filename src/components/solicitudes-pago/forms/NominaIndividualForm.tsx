@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import styles from "../SolicitudesPagoManager.module.css";
+import CrearBeneficiarioModal from "../shared/CrearBeneficiarioModal";
 import type {
   CrearSolicitudNominaIndividualPayload,
   NominaIndividualFormularioState,
@@ -45,6 +46,7 @@ type NominaIndividualFormProps = {
   onLimpiarMensajes: () => void;
   solicitudEnEdicion: SolicitudPagoListado | null;
   onCancelarEdicion: () => void;
+  onBeneficiarioCreado: (beneficiario: BeneficiarioSolicitudCatalogo) => void;
 };
 
 const CONCEPTOS_NOMINA = [
@@ -113,12 +115,14 @@ export default function NominaIndividualForm({
   onLimpiarMensajes,
   solicitudEnEdicion,
   onCancelarEdicion,
+  onBeneficiarioCreado,
 }: NominaIndividualFormProps) {
   const [form, setForm] = useState<NominaIndividualFormularioState>(
     ESTADO_INICIAL_NOMINA,
   );
 
   const [busquedaTrabajador, setBusquedaTrabajador] = useState("");
+  const [creandoTrabajador, setCreandoTrabajador] = useState(false);
   const [archivos, setArchivos] = useState<File[]>([]);
 
   useEffect(() => {
@@ -532,12 +536,15 @@ function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
                 value={form.beneficiario_id}
               />
 
-              {busquedaTrabajador.trim() && !form.beneficiario_id ? (
+              {busquedaTrabajador.trim() &&
+              !form.beneficiario_id &&
+              !creandoTrabajador ? (
                 <div className={styles.comboboxDropdown}>
                   {trabajadoresFiltrados.length > 0 ? (
-                    trabajadoresFiltrados
-                      .slice(0, 8)
-                      .map((trabajador) => {
+                    <>
+                      {trabajadoresFiltrados
+                        .slice(0, 8)
+                        .map((trabajador) => {
                         const documento =
                           obtenerDocumentoBeneficiario(trabajador);
 
@@ -560,11 +567,28 @@ function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
                             </span>
                           </button>
                         );
-                      })
+                        })}
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoTrabajador(true)}
+                      >
+                        + Crear otro trabajador
+                      </button>
+                    </>
                   ) : (
-                    <p className={styles.comboboxEmpty}>
-                      No se encontraron trabajadores.
-                    </p>
+                    <div className={styles.comboboxEmptyState}>
+                      <p className={styles.comboboxEmpty}>
+                        No se encontraron trabajadores.
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.comboboxCreateAction}
+                        onClick={() => setCreandoTrabajador(true)}
+                      >
+                        + Crear trabajador
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : null}
@@ -782,6 +806,19 @@ function actualizarCampo<K extends keyof NominaIndividualFormularioState>(
             </button>
           ) : null}
         </div>
+
+        {creandoTrabajador ? (
+          <CrearBeneficiarioModal
+            tipoBeneficiario="TRABAJADOR"
+            nombreInicial={busquedaTrabajador}
+            onCerrar={() => setCreandoTrabajador(false)}
+            onCreado={(beneficiario) => {
+              onBeneficiarioCreado(beneficiario);
+              seleccionarTrabajador(beneficiario);
+              setCreandoTrabajador(false);
+            }}
+          />
+        ) : null}
       </form>
     </section>
   );

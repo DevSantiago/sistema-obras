@@ -67,6 +67,15 @@ function extraerBeneficiarios(data?: BeneficiariosSolicitudResponseData) {
   return data.beneficiarios ?? [];
 }
 
+function agregarBeneficiarioCatalogo(
+  actuales: BeneficiarioSolicitudCatalogo[],
+  beneficiario: BeneficiarioSolicitudCatalogo,
+) {
+  return actuales.some((actual) => actual.id === beneficiario.id)
+    ? actuales
+    : [...actuales, beneficiario];
+}
+
 function extraerSolicitudes(data?: SolicitudesPagoResponseData) {
   return data?.solicitudes ?? [];
 }
@@ -915,6 +924,11 @@ export default function SolicitudesPagoManager({
             onLimpiarMensajes={limpiarMensajes}
             solicitudEnEdicion={solicitudEnEdicion}
             onCancelarEdicion={cancelarEdicion}
+            onBeneficiarioCreado={(beneficiario) => {
+              setBeneficiariosProveedor((actuales) =>
+                agregarBeneficiarioCatalogo(actuales, beneficiario),
+              );
+            }}
           />
         );
 
@@ -933,6 +947,11 @@ export default function SolicitudesPagoManager({
             onLimpiarMensajes={limpiarMensajes}
             solicitudEnEdicion={solicitudEnEdicion}
             onCancelarEdicion={cancelarEdicion}
+            onBeneficiarioCreado={(beneficiario) => {
+              setTrabajadores((actuales) =>
+                agregarBeneficiarioCatalogo(actuales, beneficiario),
+              );
+            }}
           />
         );
 
@@ -967,6 +986,14 @@ export default function SolicitudesPagoManager({
             onLimpiarMensajes={limpiarMensajes}
             solicitudEnEdicion={solicitudEnEdicion}
             onCancelarEdicion={cancelarEdicion}
+            onBeneficiarioCreado={(beneficiario) => {
+              setEntidadesRecaudadoras((actuales) =>
+                agregarBeneficiarioCatalogo(actuales, beneficiario),
+              );
+              setBeneficiariosProveedor((actuales) =>
+                agregarBeneficiarioCatalogo(actuales, beneficiario),
+              );
+            }}
           />
         );
 
@@ -985,6 +1012,11 @@ export default function SolicitudesPagoManager({
             onLimpiarMensajes={limpiarMensajes}
             solicitudEnEdicion={solicitudEnEdicion}
             onCancelarEdicion={cancelarEdicion}
+            onBeneficiarioCreado={(beneficiario) => {
+              setTrabajadores((actuales) =>
+                agregarBeneficiarioCatalogo(actuales, beneficiario),
+              );
+            }}
           />
         );
 
