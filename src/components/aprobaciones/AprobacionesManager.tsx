@@ -277,7 +277,7 @@ const mensajeSinSolicitudes =
     const filas = obtenerSolicitudesSeleccionadasParaExportar();
     const total = filas.reduce((acumulado, fila) => acumulado + fila.valor_neto, 0);
     await descargarTablaExcel({
-      nombreArchivo: `aprobaciones-nivel-${nivel}-seleccionadas.xls`,
+      nombreArchivo: `aprobaciones-nivel-${nivel}-seleccionadas.xlsx`,
       nombreHoja: `Aprobaciones nivel ${nivel}`,
       filas,
       resumen: [
