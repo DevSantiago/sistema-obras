@@ -1,22 +1,30 @@
+import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
-import { crearTablaExcelXml } from "@/lib/excel-export";
+import { crearTablaExcel } from "@/lib/excel-export";
 
-describe("crearTablaExcelXml", () => {
-  it("incluye resumen, encabezados y valores compatibles con Excel", () => {
-    const contenido = crearTablaExcelXml({
+describe("crearTablaExcel", () => {
+  it("genera un XLSX real con resumen, encabezados, valores y formato", async () => {
+    const contenido = await crearTablaExcel({
       nombreHoja: "Aprobaciones nivel 1",
       resumen: [{ etiqueta: "Valor total", valor: 250000 }],
       filas: [{ numero: "SOL-001", valor: 250000 }],
       columnas: [
         { titulo: "Número", valor: (fila) => fila.numero },
-        { titulo: "Valor", valor: (fila) => fila.valor },
+        {
+          titulo: "Valor",
+          formato: '"$"#,##0',
+          valor: (fila) => fila.valor,
+        },
       ],
     });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(contenido);
+    const hoja = workbook.getWorksheet("Aprobaciones nivel 1");
 
-    expect(contenido).toContain("Excel.Sheet");
-    expect(contenido).toContain("Aprobaciones nivel 1");
-    expect(contenido).toContain("Valor total");
-    expect(contenido).toContain("SOL-001");
-    expect(contenido).toContain('ss:Type="Number">250000');
+    expect(hoja?.getCell("A1").value).toBe("Valor total");
+    expect(hoja?.getCell("B1").value).toBe(250000);
+    expect(hoja?.getCell("A3").value).toBe("Número");
+    expect(hoja?.getCell("A4").value).toBe("SOL-001");
+    expect(hoja?.getCell("B4").numFmt).toBe('"$"#,##0');
   });
 });
