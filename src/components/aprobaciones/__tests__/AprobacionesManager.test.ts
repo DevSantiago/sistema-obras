@@ -4,6 +4,7 @@ import {
   calcularReservaRestanteNivel2,
   calcularSaldoProyectadoAprobacion,
   calcularSaldoTrasPagarSeleccion,
+  filtrarSolicitudesProyecto,
   ordenarSolicitudesParaExportar,
 } from "../AprobacionesManager";
 import type { SolicitudPagoListado } from "@/modules/solicitudes-pago/solicitudes-pago.types";
@@ -73,5 +74,36 @@ describe("calcularSaldoProyectadoAprobacion", () => {
     ]);
 
     expect(ordenadas.map((item) => item.id)).toEqual(["4", "1", "2", "3"]);
+  });
+
+  it("filtra únicamente las solicitudes del proyecto por número y centro de costo", () => {
+    const solicitudes = [
+      {
+        id: "1",
+        numero_solicitud: "SOL-PRO-OBRA-2026-000001",
+        centro_costo_id: "centro-1",
+      },
+      {
+        id: "2",
+        numero_solicitud: "SOL-OBRA-2026-000002",
+        centro_costo_id: "centro-2",
+      },
+      {
+        id: "3",
+        numero_solicitud: "SOL-PRO-OBRA-2026-000003",
+        centro_costo_id: "centro-1",
+      },
+    ] as SolicitudPagoListado[];
+
+    expect(
+      filtrarSolicitudesProyecto(solicitudes, "000003", "centro-1").map(
+        (solicitud) => solicitud.id,
+      ),
+    ).toEqual(["3"]);
+    expect(
+      filtrarSolicitudesProyecto(solicitudes, "", "centro-2").map(
+        (solicitud) => solicitud.id,
+      ),
+    ).toEqual(["2"]);
   });
 });

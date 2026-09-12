@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { formatearNombrePropio } from "@/lib/text-format";
 import { descargarTablaPdf } from "@/lib/pdf-export";
+import { descargarTablaExcel } from "@/lib/excel-export";
 import type {
   EstadoSolicitudPago,
   SolicitudPagoListado,
@@ -38,6 +39,37 @@ function obtenerClaseEstado(estado: EstadoSolicitudPago) {
     default:
       return styles.historyStatusDraft;
   }
+}
+
+export function formatearEstadoHistorial(estado: EstadoSolicitudPago) {
+  switch (estado) {
+    case "PENDIENTE_APROBADOR_1":
+      return "Pendiente N1";
+    case "PENDIENTE_APROBADOR_2":
+      return "Pendiente N2";
+    case "DEVUELTA_APROBADOR_1":
+      return "Devuelta a N1";
+    case "DEVUELTA_SOLICITANTE":
+      return "Devuelta";
+    case "PROGRAMADA_PAGO":
+      return "Programada";
+    case "PAGADA":
+      return "Pagada";
+    case "ANULADA":
+      return "Anulada";
+    case "BORRADOR":
+      return "Borrador";
+    default:
+      return formatearEstadoSolicitud(estado);
+  }
+}
+
+export function obtenerHistorialParaExportar(
+  solicitudes: SolicitudPagoListado[],
+  solicitudesFiltradas: SolicitudPagoListado[],
+  hayFiltrosActivos: boolean,
+) {
+  return hayFiltrosActivos ? solicitudesFiltradas : solicitudes;
 }
 
 export default function HistorialAprobacionesList({
@@ -103,19 +135,44 @@ export default function HistorialAprobacionesList({
     );
   }, [centroFiltro, estadoFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes]);
 
+  const hayFiltrosActivos = Boolean(
+    numeroSolicitudFiltro.trim() ||
+      proyectoFiltro ||
+      centroFiltro ||
+      estadoFiltro,
+  );
+  const solicitudesParaExportar = useMemo(
+    () =>
+      obtenerHistorialParaExportar(
+        solicitudes,
+        solicitudesFiltradas,
+        hayFiltrosActivos,
+      ),
+    [hayFiltrosActivos, solicitudes, solicitudesFiltradas],
+  );
+
   function exportarPdf() {
     const proyecto = proyectos.find((opcion) => opcion.id === proyectoFiltro);
     const centro = centros.find((opcion) => opcion.id === centroFiltro);
     descargarTablaPdf({
       titulo: `Solicitudes aprobadas por mí - nivel ${nivel}`,
       nombreArchivo: `historial-aprobaciones-nivel-${nivel}.pdf`,
-      filas: solicitudesFiltradas,
+      filas: solicitudesParaExportar,
       filtros: [
         numeroSolicitudFiltro.trim() && `Número: ${numeroSolicitudFiltro.trim()}`,
         proyecto && `Proyecto: ${proyecto.nombre}`,
         centro && `Centro de costo: ${centro.nombre}`,
         estadoFiltro && `Estado: ${formatearEstadoSolicitud(estadoFiltro)}`,
       ].filter(Boolean) as string[],
+      resumen: [
+        `${solicitudesParaExportar.length} solicitud(es)`,
+        `Valor total: ${formatearMoneda(
+          solicitudesParaExportar.reduce(
+            (total, solicitud) => total + solicitud.valor_neto,
+            0,
+          ),
+        )}`,
+      ],
       columnas: [
         { titulo: "Solicitud", ancho: 18, valor: (fila) => fila.numero_solicitud },
         { titulo: "Proyecto", ancho: 16, valor: (fila) => fila.proyecto_base?.nombre },
@@ -124,6 +181,40 @@ export default function HistorialAprobacionesList({
         { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
         { titulo: "Aprobada", ancho: 13, valor: (fila) => formatearFechaHora(nivel === 1 ? fila.aprobado_1_en : fila.aprobado_2_en) },
         { titulo: "Estado", ancho: 10, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
+      ],
+    });
+  }
+
+  async function exportarExcel() {
+    await descargarTablaExcel({
+      nombreArchivo: `historial-aprobaciones-nivel-${nivel}.xlsx`,
+      nombreHoja: `Aprobaciones nivel ${nivel}`,
+      filas: solicitudesParaExportar,
+      resumen: [
+        { etiqueta: "Solicitudes exportadas", valor: solicitudesParaExportar.length },
+        {
+          etiqueta: "Valor neto total",
+          valor: solicitudesParaExportar.reduce(
+            (total, solicitud) => total + solicitud.valor_neto,
+            0,
+          ),
+        },
+      ],
+      columnas: [
+        { titulo: "Número de solicitud", ancho: 38, valor: (fila) => fila.numero_solicitud },
+        { titulo: "Proyecto", ancho: 28, valor: (fila) => fila.proyecto_base?.nombre },
+        { titulo: "Centro de costo", ancho: 32, valor: (fila) => fila.centro_costo?.nombre },
+        { titulo: "Beneficiario", ancho: 32, valor: (fila) => fila.beneficiario?.nombre },
+        { titulo: "Tipo", ancho: 24, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Valor neto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_neto },
+        {
+          titulo: "Fecha de aprobación",
+          ancho: 24,
+          valor: (fila) => formatearFechaHora(
+            nivel === 1 ? fila.aprobado_1_en : fila.aprobado_2_en,
+          ),
+        },
+        { titulo: "Estado actual", ancho: 22, valor: (fila) => formatearEstadoHistorial(fila.estado_actual) },
       ],
     });
   }
@@ -225,9 +316,16 @@ export default function HistorialAprobacionesList({
             <button
               type="button"
               onClick={exportarPdf}
-              disabled={solicitudesFiltradas.length === 0}
+              disabled={solicitudesParaExportar.length === 0}
             >
-              Exportar PDF ({solicitudesFiltradas.length})
+              Exportar PDF ({solicitudesParaExportar.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => void exportarExcel()}
+              disabled={solicitudesParaExportar.length === 0}
+            >
+              Exportar Excel ({solicitudesParaExportar.length})
             </button>
           </div>
         </div>
@@ -292,7 +390,7 @@ export default function HistorialAprobacionesList({
                     <span
                       className={`${styles.detailStatus} ${obtenerClaseEstado(solicitud.estado_actual)}`}
                     >
-                      {formatearEstadoSolicitud(solicitud.estado_actual)}
+                      {formatearEstadoHistorial(solicitud.estado_actual)}
                     </span>
                   </td>
                 </tr>
@@ -310,7 +408,7 @@ export default function HistorialAprobacionesList({
                 <span
                   className={`${styles.detailStatus} ${obtenerClaseEstado(solicitud.estado_actual)}`}
                 >
-                  {formatearEstadoSolicitud(solicitud.estado_actual)}
+                  {formatearEstadoHistorial(solicitud.estado_actual)}
                 </span>
               </div>
               <dl className={styles.historyMobileDetails}>
