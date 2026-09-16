@@ -32,6 +32,15 @@ export async function PATCH(request: Request, context: RouteContext) {
       body = Object.fromEntries(
         Array.from(formData.entries()).filter(([campo]) => campo !== "archivos"),
       );
+      for (const campo of [
+        "valor_bruto",
+        "valor_retenciones",
+        "valor_descuentos",
+      ]) {
+        if (typeof body[campo] === "string") {
+          body[campo] = Number(body[campo]);
+        }
+      }
       archivos = formData.getAll("archivos").filter(
         (valor): valor is File => valor instanceof File && valor.size > 0,
       );

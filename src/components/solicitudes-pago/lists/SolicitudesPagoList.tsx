@@ -35,7 +35,6 @@ type SolicitudesPagoListProps = {
   onEnviar: (solicitudId: string) => void | Promise<void>;
   onEnviarVarias: (solicitudIds: string[]) => Promise<void>;
   onEditar: (solicitud: SolicitudPagoListado) => void;
-  onDevolver: (solicitud: SolicitudPagoListado) => void | Promise<void>;
   onVerDetalle: (solicitud: SolicitudPagoListado) => void;
 };
 
@@ -64,23 +63,15 @@ function obtenerCategoriaSolicitud(
   }
 }
 
-function usuarioPuedeEnviarSolicitud(
+export function usuarioPuedeEnviarSolicitud(
   solicitud: SolicitudPagoListado,
   usuario: UsuarioSesionSolicitudesPago,
 ): boolean {
   const estadoPermitido =
     solicitud.estado_actual === "BORRADOR" ||
-    solicitud.estado_actual === "DEVUELTA_SOLICITANTE" ||
-    solicitud.estado_actual === "DEVUELTA_APROBADOR_1";
+    solicitud.estado_actual === "DEVUELTA_SOLICITANTE";
 
   if (!estadoPermitido) return false;
-
-  if (solicitud.estado_actual === "DEVUELTA_APROBADOR_1") {
-    return (
-      usuario.permisos?.includes("APROBAR_NIVEL_1") ||
-      usuario.roles.includes("ADMINISTRADOR")
-    );
-  }
 
   return (
     solicitud.creado_por === usuario.id ||
@@ -88,7 +79,7 @@ function usuarioPuedeEnviarSolicitud(
   );
 }
 
-function usuarioPuedeEditarSolicitud(
+export function usuarioPuedeEditarSolicitud(
   solicitud: SolicitudPagoListado,
   usuario: UsuarioSesionSolicitudesPago,
 ): boolean {
@@ -127,7 +118,6 @@ export default function SolicitudesPagoList({
   onEnviar,
   onEnviarVarias,
   onEditar,
-  onDevolver,
   onVerDetalle,
 }: SolicitudesPagoListProps) {
   const [proyectoFiltro, setProyectoFiltro] = useState("");
@@ -648,17 +638,6 @@ export default function SolicitudesPagoList({
                             </button>
                           ) : null}
 
-                          {solicitud.estado_actual === "DEVUELTA_APROBADOR_1" ? (
-                            <button
-                              className={styles.editButton}
-                              type="button"
-                              onClick={() => void onDevolver(solicitud)}
-                              disabled={enviandoSolicitudId !== null}
-                            >
-                              Devolver al solicitante
-                            </button>
-                          ) : null}
-
                           {!usuarioPuedeEditarSolicitud(solicitud, usuario) &&
                           !puedeEnviar ? (
                             <span className={styles.noActions}>—</span>
@@ -815,16 +794,6 @@ export default function SolicitudesPagoList({
                           disabled={enviandoSolicitudId !== null}
                         >
                           {enviando ? "Enviando..." : "Enviar solicitud"}
-                        </button>
-                      ) : null}
-                      {solicitud.estado_actual === "DEVUELTA_APROBADOR_1" ? (
-                        <button
-                          className={styles.editButton}
-                          type="button"
-                          onClick={() => void onDevolver(solicitud)}
-                          disabled={enviandoSolicitudId !== null}
-                        >
-                          Devolver al solicitante
                         </button>
                       ) : null}
                     </div>
