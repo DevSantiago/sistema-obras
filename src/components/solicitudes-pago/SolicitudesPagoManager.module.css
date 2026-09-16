@@ -538,8 +538,49 @@
 
 .table {
   width: 100%;
-  min-width: 1320px;
+  min-width: 1485px;
   border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th:nth-child(2),
+.table td:nth-child(2) {
+  width: 245px;
+}
+
+.table th:nth-child(3),
+.table td:nth-child(3) {
+  width: 210px;
+}
+
+.table th:nth-child(4),
+.table td:nth-child(4) {
+  width: 185px;
+}
+
+.table th:nth-child(5),
+.table td:nth-child(5) {
+  width: 120px;
+}
+
+.table th:nth-child(6),
+.table td:nth-child(6) {
+  width: 105px;
+}
+
+.table th:nth-child(7),
+.table td:nth-child(7) {
+  width: 155px;
+}
+
+.table th:nth-child(8),
+.table td:nth-child(8) {
+  width: 230px;
+}
+
+.table th:nth-child(9),
+.table td:nth-child(9) {
+  width: 126px;
 }
 
 .table th,
@@ -670,22 +711,31 @@
 .badge,
 .status {
   display: inline-flex;
+  max-width: 100%;
   width: fit-content;
+  align-items: center;
+  justify-content: center;
   padding: 4px 7px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: normal;
+  text-align: center;
+  word-break: normal;
 }
 
 .badge {
   margin-bottom: 6px;
   background: #dbeafe;
   color: #1d4ed8;
+  white-space: nowrap;
 }
 
 .status {
   background: #fef3c7;
   color: #92400e;
+  white-space: nowrap;
 }
 
 .empty {
@@ -979,6 +1029,7 @@
 
 .rowActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
