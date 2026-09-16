@@ -14,6 +14,7 @@ import {
   formatearEstadoSolicitud,
   formatearMoneda,
   formatearTextoDominio,
+  ordenarPorNumeroSolicitudDescendente,
 } from "../solicitudes-pago.utils";
 
 const ORDEN_ESTADOS: EstadoSolicitudPago[] = [
@@ -158,15 +159,17 @@ export default function SolicitudesPagoList({
     () => {
       const numeroBuscado = numeroSolicitudFiltro.trim().toLocaleLowerCase("es");
 
-      return solicitudes.filter(
-        (solicitud) =>
-          (!numeroBuscado ||
-            solicitud.numero_solicitud
-              ?.toLocaleLowerCase("es")
-              .includes(numeroBuscado)) &&
-          (!proyectoFiltro || solicitud.proyecto_base_id === proyectoFiltro) &&
-          (!centroFiltro || solicitud.centro_costo_id === centroFiltro) &&
-          (!estadoFiltro || solicitud.estado_actual === estadoFiltro),
+      return ordenarPorNumeroSolicitudDescendente(
+        solicitudes.filter(
+          (solicitud) =>
+            (!numeroBuscado ||
+              solicitud.numero_solicitud
+                ?.toLocaleLowerCase("es")
+                .includes(numeroBuscado)) &&
+            (!proyectoFiltro || solicitud.proyecto_base_id === proyectoFiltro) &&
+            (!centroFiltro || solicitud.centro_costo_id === centroFiltro) &&
+            (!estadoFiltro || solicitud.estado_actual === estadoFiltro),
+        ),
       );
     },
     [centroFiltro, estadoFiltro, numeroSolicitudFiltro, proyectoFiltro, solicitudes],
