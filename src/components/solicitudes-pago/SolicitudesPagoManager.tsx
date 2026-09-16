@@ -845,42 +845,6 @@ export default function SolicitudesPagoManager({
     );
   }
 
-  async function devolverSolicitudAlSolicitante(
-    solicitud: SolicitudPagoListado,
-  ): Promise<void> {
-    const motivo = window.prompt(
-      `Motivo para devolver ${solicitud.numero_solicitud} al solicitante:`,
-    )?.trim();
-
-    if (!motivo) return;
-
-    if (motivo.length < 5) {
-      setMensajeError("El motivo debe tener al menos 5 caracteres.");
-      return;
-    }
-
-    setEnviandoSolicitudId(solicitud.id);
-    setMensajeError("");
-    setMensajeExito("");
-
-    try {
-      const response = await fetchJson(
-        `/api/v1/solicitudes-pago/${solicitud.id}/devolver`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ motivo }),
-        },
-      );
-      setMensajeExito(response.message ?? "Solicitud devuelta al solicitante.");
-      await cargarSolicitudes();
-    } catch (error) {
-      setMensajeError(error instanceof Error ? error.message : "No fue posible devolver la solicitud.");
-    } finally {
-      setEnviandoSolicitudId(null);
-    }
-  }
-
   async function verDetalleSolicitud(
     solicitud: SolicitudPagoListado,
   ): Promise<void> {
@@ -1073,7 +1037,6 @@ export default function SolicitudesPagoManager({
         onEnviar={enviarSolicitud}
         onEnviarVarias={enviarSolicitudes}
         onEditar={editarSolicitud}
-        onDevolver={devolverSolicitudAlSolicitante}
         onVerDetalle={(solicitud) => void verDetalleSolicitud(solicitud)}
       />
 
