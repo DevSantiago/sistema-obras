@@ -169,15 +169,32 @@ export function formatearTextoDominio(valor?: string | null): string {
 }
 
 const ETIQUETAS_ESTADO_SOLICITUD: Record<string, string> = {
-  PENDIENTE_APROBADOR_1: "PEND. APROBACIÓN N1",
-  PENDIENTE_APROBADOR_2: "PEND. APROBACIÓN N2",
-  DEVUELTA_APROBADOR_1: "DEV. APROBADOR N1",
-  DEVUELTA_SOLICITANTE: "DEV. SOLICITANTE",
-  PROGRAMADA_PAGO: "PROG. PAGO",
+  BORRADOR: "Borrador",
+  PENDIENTE_APROBADOR_1: "Pendiente N1",
+  PENDIENTE_APROBADOR_2: "Pendiente N2",
+  DEVUELTA_APROBADOR_1: "Devuelta a N1",
+  DEVUELTA_SOLICITANTE: "Devuelta al solicitante",
+  PROGRAMADA_PAGO: "Programada",
+  PAGADA: "Pagada",
+  ANULADA: "Anulada",
 };
 
 export function formatearEstadoSolicitud(estado: string): string {
   return ETIQUETAS_ESTADO_SOLICITUD[estado] ?? formatearTextoDominio(estado);
+}
+
+export function ordenarPorNumeroSolicitudDescendente<
+  T extends { numero_solicitud?: string | null },
+>(solicitudes: readonly T[]): T[] {
+  return [...solicitudes].sort((a, b) => {
+    if (!a.numero_solicitud) return b.numero_solicitud ? 1 : 0;
+    if (!b.numero_solicitud) return -1;
+
+    return b.numero_solicitud.localeCompare(a.numero_solicitud, "es", {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
 }
 
 function usuarioTieneRol(

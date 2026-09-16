@@ -1,6 +1,7 @@
 "use client";
 
 import SelectorSoporteConCamara from "@/components/adjuntos/SelectorSoporteConCamara";
+import { ordenarPorNumeroSolicitudDescendente } from "@/components/solicitudes-pago/solicitudes-pago.utils";
 import { descargarTablaPdf } from "@/lib/pdf-export";
 import { formatearNombrePropio } from "@/lib/text-format";
 import type {
@@ -213,34 +214,36 @@ export default function PagosManager() {
   const solicitudesFiltradas = useMemo(() => {
     const busqueda = filtros.busqueda.trim().toLocaleLowerCase("es");
 
-    return solicitudes.filter((solicitud) => {
-      const coincideBusqueda =
-        !busqueda ||
-        [
-          solicitud.numero_solicitud,
-          solicitud.descripcion,
-          obtenerBeneficiario(solicitud),
-          solicitud.proyecto_base?.nombre,
-          solicitud.centro_costo?.nombre,
-        ].some((valor) => valor?.toLocaleLowerCase("es").includes(busqueda));
+    return ordenarPorNumeroSolicitudDescendente(
+      solicitudes.filter((solicitud) => {
+        const coincideBusqueda =
+          !busqueda ||
+          [
+            solicitud.numero_solicitud,
+            solicitud.descripcion,
+            obtenerBeneficiario(solicitud),
+            solicitud.proyecto_base?.nombre,
+            solicitud.centro_costo?.nombre,
+          ].some((valor) => valor?.toLocaleLowerCase("es").includes(busqueda));
 
-      return (
-        coincideBusqueda &&
-        (vistaOperacion === "TODOS" ||
-          (vistaOperacion === "TRANSFERENCIAS"
-            ? solicitud.medio_pago === "TRANSFERENCIA" ||
-              solicitud.medio_pago === "PSE" ||
-              solicitud.medio_pago === "PORTAL"
-            : solicitud.medio_pago === "CONSIGNACION" ||
-              solicitud.medio_pago === "EFECTIVO")) &&
-        (!filtros.proyecto_base_id ||
-          solicitud.proyecto_base_id === filtros.proyecto_base_id) &&
-        (!filtros.centro_costo_id ||
-          solicitud.centro_costo_id === filtros.centro_costo_id) &&
-        (!filtros.medio_pago ||
-          solicitud.medio_pago === filtros.medio_pago)
-      );
-    });
+        return (
+          coincideBusqueda &&
+          (vistaOperacion === "TODOS" ||
+            (vistaOperacion === "TRANSFERENCIAS"
+              ? solicitud.medio_pago === "TRANSFERENCIA" ||
+                solicitud.medio_pago === "PSE" ||
+                solicitud.medio_pago === "PORTAL"
+              : solicitud.medio_pago === "CONSIGNACION" ||
+                solicitud.medio_pago === "EFECTIVO")) &&
+          (!filtros.proyecto_base_id ||
+            solicitud.proyecto_base_id === filtros.proyecto_base_id) &&
+          (!filtros.centro_costo_id ||
+            solicitud.centro_costo_id === filtros.centro_costo_id) &&
+          (!filtros.medio_pago ||
+            solicitud.medio_pago === filtros.medio_pago)
+        );
+      }),
+    );
   }, [filtros, solicitudes, vistaOperacion]);
 
   const totalSolicitudesFiltradas = useMemo(
