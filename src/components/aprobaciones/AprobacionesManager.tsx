@@ -28,6 +28,7 @@ import styles from "./AprobacionesManager.module.css";
 import {
   formatearEstadoSolicitud,
   formatearTextoDominio,
+  ordenarPorNumeroSolicitudDescendente,
 } from "@/components/solicitudes-pago/solicitudes-pago.utils";
 
 type NivelAprobacion = 1 | 2;
@@ -148,13 +149,15 @@ export function filtrarSolicitudesProyecto(
 ) {
   const numeroBuscado = numeroSolicitud.trim().toLocaleLowerCase("es");
 
-  return solicitudes.filter(
-    (solicitud) =>
-      (!numeroBuscado ||
-        solicitud.numero_solicitud
-          ?.toLocaleLowerCase("es")
-          .includes(numeroBuscado)) &&
-      (!centroCostoId || solicitud.centro_costo_id === centroCostoId),
+  return ordenarPorNumeroSolicitudDescendente(
+    solicitudes.filter(
+      (solicitud) =>
+        (!numeroBuscado ||
+          solicitud.numero_solicitud
+            ?.toLocaleLowerCase("es")
+            .includes(numeroBuscado)) &&
+        (!centroCostoId || solicitud.centro_costo_id === centroCostoId),
+    ),
   );
 }
 
