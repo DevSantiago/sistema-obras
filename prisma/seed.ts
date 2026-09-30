@@ -147,6 +147,7 @@ const permisosPorRol: Record<string, string[]> = {
   ],
   AUXILIAR_CONTABLE: [
     "CREAR_SOLICITUDES",
+    "MARCAR_COMO_PAGADO",
     "CONSULTAR_FONDOS",
     "REGISTRAR_ANTICIPOS",
     "REGISTRAR_PRESTAMOS",

@@ -1532,7 +1532,9 @@ export async function listarBandejaPagosService(
 ): Promise<ServiceResponse<{ solicitudes: SolicitudProgramadaPago[] }>> {
   const puedeConsultarPagos =
     usuarioAutenticado.roles.includes("PAGOS") ||
-    usuarioAutenticado.roles.includes("ADMINISTRADOR");
+    usuarioAutenticado.roles.includes("ADMINISTRADOR") ||
+    (usuarioAutenticado.roles.includes("AUXILIAR_CONTABLE") &&
+      usuarioAutenticado.permisos.includes("MARCAR_COMO_PAGADO"));
 
   if (!puedeConsultarPagos) {
     return {
@@ -1640,7 +1642,8 @@ export async function registrarTransferenciasService(
 ): Promise<ServiceResponse<RegistrarTransferenciasData>> {
   const puedeRegistrar =
     usuarioAutenticado.roles.includes("ADMINISTRADOR") ||
-    (usuarioAutenticado.roles.includes("PAGOS") &&
+    ((usuarioAutenticado.roles.includes("PAGOS") ||
+      usuarioAutenticado.roles.includes("AUXILIAR_CONTABLE")) &&
       usuarioAutenticado.permisos.includes("MARCAR_COMO_PAGADO"));
 
   if (!puedeRegistrar) {
@@ -1792,7 +1795,8 @@ export async function registrarOperacionEfectivoService(
 ): Promise<ServiceResponse<RegistrarOperacionEfectivoData>> {
   const puedeRegistrar =
     usuarioAutenticado.roles.includes("ADMINISTRADOR") ||
-    (usuarioAutenticado.roles.includes("PAGOS") &&
+    ((usuarioAutenticado.roles.includes("PAGOS") ||
+      usuarioAutenticado.roles.includes("AUXILIAR_CONTABLE")) &&
       usuarioAutenticado.permisos.includes("MARCAR_COMO_PAGADO"));
 
   if (!puedeRegistrar) {

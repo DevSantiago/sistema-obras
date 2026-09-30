@@ -347,6 +347,8 @@ Su participación se concentra en los procesos contables y financieros definidos
 ### Permisos principales
 
 - Crear solicitudes cuando corresponda.
+- Consultar solicitudes programadas y registrar pagos con el permiso
+  `MARCAR_COMO_PAGADO`.
 - Acceder al módulo de beneficiarios y crear o actualizar sus registros.
 - Registrar operaciones financieras autorizadas para su rol.
 - Registrar anticipos de entidades al fondo general de un proyecto.
@@ -359,7 +361,6 @@ Su participación se concentra en los procesos contables y financieros definidos
 No puede:
 
 - aprobar solicitudes;
-- registrar pagos;
 - modificar permisos o accesos del sistema.
 
 ---
@@ -441,7 +442,7 @@ No puede:
 | Crear nómina individual y agrupada | Acceso transversal | ✓ | ✓ | — | — | — | — |
 | Aprobar nivel 1 | ✓ | — | ✓ | — | — | — | — |
 | Aprobar nivel 2 | ✓ | — | — | ✓ | — | — | — |
-| Registrar pagos | ✓ | — | — | — | — | ✓ | — |
+| Registrar pagos | ✓ | — | — | — | Con `MARCAR_COMO_PAGADO` | ✓ | — |
 | Registrar anticipos | ✓ | — | — | — | ✓ | — | — |
 | Registrar préstamos | ✓ | — | — | — | ✓ | — | — |
 | Consultar fondos y movimientos | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |

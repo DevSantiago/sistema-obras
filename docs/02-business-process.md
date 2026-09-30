@@ -183,7 +183,8 @@ La solicitud ya cuenta con todas las aprobaciones.
 A partir de este momento:
 
 - no puede modificarse;
-- queda disponible para el rol PAGOS;
+- queda disponible para los roles PAGOS y AUXILIAR_CONTABLE cuando este último
+  tiene el permiso `MARCAR_COMO_PAGADO`;
 - puede registrarse el medio de pago;
 - puede registrarse el soporte de pago.
 
@@ -1001,13 +1002,17 @@ El objetivo del proceso es registrar la ejecución efectiva del pago, generar la
 PROGRAMADA_PAGO
 ```
 
-podrán ser gestionadas por el rol **PAGOS**.
+podrán ser gestionadas por los roles **PAGOS** y **AUXILIAR_CONTABLE** cuando
+este último tenga el permiso `MARCAR_COMO_PAGADO`.
 
 > **Regla de negocio**
 
 El estado `PROGRAMADA_PAGO` es asignado automáticamente por el sistema como consecuencia de la aprobación realizada por el Aprobador 2.
 
-El rol **PAGOS** no puede crear, modificar ni asignar este estado. Su responsabilidad inicia únicamente cuando la solicitud ya se encuentra programada para pago.
+Los roles **PAGOS** y **AUXILIAR_CONTABLE** con permiso
+`MARCAR_COMO_PAGADO` no pueden crear, modificar ni asignar este estado. Su
+responsabilidad inicia únicamente cuando la solicitud ya se encuentra
+programada para pago.
 
 Estas solicitudes aparecerán en el filtro **Programadas para pago** de la tabla principal de solicitudes.
 

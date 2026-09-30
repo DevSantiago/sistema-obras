@@ -79,6 +79,7 @@ const MENU_ITEMS: MenuItem[] = [
     label: "Pagos",
     href: "/pagos",
     visibleParaRoles: ["ADMINISTRADOR", "TESORERIA", "PAGOS"],
+    visibleParaPermisos: ["MARCAR_COMO_PAGADO"],
   },
   {
     label: "Fondos",
