@@ -93,7 +93,8 @@ exige motivo y conserva una trazabilidad independiente.
 - Toda solicitud inicia en estado **BORRADOR**.
 - Una solicitud únicamente podrá avanzar siguiendo las transiciones definidas en esta máquina de estados.
 - La aprobación del segundo nivel cambia automáticamente el estado a **PROGRAMADA_PAGO**.
-- El rol **PAGOS** únicamente podrá ejecutar la transición hacia **PAGADA**.
+- El rol **PAGOS** o el **AUXILIAR_CONTABLE** con permiso
+  `MARCAR_COMO_PAGADO` podrá ejecutar la transición hacia **PAGADA**.
 - Toda transición deberá registrarse en la auditoría del sistema.
 - No se permitirán cambios de estado que no estén definidos explícitamente en esta máquina.
 

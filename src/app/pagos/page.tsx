@@ -22,7 +22,9 @@ export default async function PagosPage() {
   const { usuario } = resultadoAutenticacion.body.data;
   const puedeConsultar =
     usuario.roles.includes("PAGOS") ||
-    usuario.roles.includes("ADMINISTRADOR");
+    usuario.roles.includes("ADMINISTRADOR") ||
+    (usuario.roles.includes("AUXILIAR_CONTABLE") &&
+      usuario.permisos.includes("MARCAR_COMO_PAGADO"));
 
   if (!puedeConsultar) {
     redirect("/dashboard");

@@ -197,7 +197,9 @@ Marcar la solicitud como pagada
 El sistema registra automáticamente el movimiento financiero
 ```
 
-El rol Pagos únicamente puede ejecutar solicitudes que hayan finalizado satisfactoriamente el proceso de aprobación.
+El rol Pagos y el Auxiliar Contable con el permiso `MARCAR_COMO_PAGADO` pueden
+ejecutar solicitudes que hayan finalizado satisfactoriamente el proceso de
+aprobación.
 
 No puede crear solicitudes, aprobar solicitudes ni administrar usuarios, proyectos o beneficiarios.
 

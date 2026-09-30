@@ -28,8 +28,10 @@ const TIPOS_SOPORTE = [
 ];
 
 function tieneAcceso(usuario: UsuarioSesion) {
-  return usuario.roles.some((rol) =>
-    ["ADMINISTRADOR", "PAGOS"].includes(rol),
+  return (
+    usuario.roles.some((rol) => ["ADMINISTRADOR", "PAGOS"].includes(rol)) ||
+    (usuario.roles.includes("AUXILIAR_CONTABLE") &&
+      usuario.permisos.includes("MARCAR_COMO_PAGADO"))
   );
 }
 

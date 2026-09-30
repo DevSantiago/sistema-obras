@@ -56,6 +56,15 @@ const usuario: UsuarioSesion = {
   permisos: [],
 };
 
+const usuarioAuxiliarContable: UsuarioSesion = {
+  ...usuario,
+  id: "auxiliar-1",
+  nombre: "Auxiliar contable",
+  correo: "auxiliar@test.com",
+  roles: ["AUXILIAR_CONTABLE"],
+  permisos: ["MARCAR_COMO_PAGADO"],
+};
+
 const decimal = (valor: number) => ({ toNumber: () => valor });
 
 function crearOperacion(valorReintegrado = 0) {
@@ -160,6 +169,18 @@ describe("operaciones-efectivo.service", () => {
     ).not.toHaveBeenCalled();
   });
 
+  it("debe exigir MARCAR_COMO_PAGADO para el auxiliar contable", async () => {
+    const resultado = await consultarOperacionesEfectivoService(
+      { ...usuarioAuxiliarContable, permisos: [] },
+      {},
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(
+      consultarOperacionesEfectivoRepository,
+    ).not.toHaveBeenCalled();
+  });
+
   it("debe identificar el sobrante pendiente", async () => {
     vi.mocked(
       consultarOperacionesEfectivoRepository,
@@ -185,6 +206,19 @@ describe("operaciones-efectivo.service", () => {
         beneficiario_nombre: "Beneficiario",
       }),
     );
+  });
+
+  it("debe permitir al auxiliar contable con permiso consultar los retiros", async () => {
+    vi.mocked(
+      consultarOperacionesEfectivoRepository,
+    ).mockResolvedValue([crearOperacion()] as never);
+
+    const resultado = await consultarOperacionesEfectivoService(
+      usuarioAuxiliarContable,
+      {},
+    );
+
+    expect(resultado.status).toBe(200);
   });
 
   it("debe identificar el sobrante totalmente reintegrado", async () => {
