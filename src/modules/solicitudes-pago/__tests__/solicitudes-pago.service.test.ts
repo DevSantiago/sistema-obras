@@ -160,6 +160,11 @@ const usuarioAuxiliarContable: UsuarioSesion = {
   permisos: [],
 };
 
+const usuarioAuxiliarContablePagos: UsuarioSesion = {
+  ...usuarioAuxiliarContable,
+  permisos: ["MARCAR_COMO_PAGADO"],
+};
+
 const usuarioAprobador2: UsuarioSesion = {
   id: "aprobador-2",
   nombre: "Aprobador 2",
@@ -911,6 +916,22 @@ describe("solicitudes-pago.service - listarBandejaPagosService", () => {
     expect(resultado.status).toBe(200);
   });
 
+  it("debe permitir al auxiliar contable con permiso consultar pagos", async () => {
+    const resultado = await listarBandejaPagosService(
+      usuarioAuxiliarContablePagos,
+    );
+
+    expect(resultado.status).toBe(200);
+  });
+
+  it("debe rechazar al auxiliar contable sin permiso de pagos", async () => {
+    const resultado = await listarBandejaPagosService(
+      usuarioAuxiliarContable,
+    );
+
+    expect(resultado.status).toBe(403);
+  });
+
   it("debe rechazar usuarios ajenos al módulo de pagos", async () => {
     const resultado =
       await listarBandejaPagosService(usuarioSolicitante);
@@ -949,6 +970,18 @@ describe("solicitudes-pago.service - registrarTransferenciasService", () => {
     );
 
     expect(resultado.status).toBe(403);
+  });
+
+  it("debe autorizar al auxiliar contable con permiso para registrar pagos", async () => {
+    const resultado = await registrarTransferenciasService(
+      usuarioAuxiliarContablePagos,
+      [],
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "Debe seleccionar al menos una solicitud.",
+    );
   });
 
   it("debe guardar cada soporte y registrar el lote", async () => {
@@ -1097,6 +1130,18 @@ describe("solicitudes-pago.service - registrarOperacionEfectivoService", () => {
           }),
         }),
       }),
+    );
+  });
+
+  it("debe autorizar al auxiliar contable con permiso para pagos en efectivo", async () => {
+    const resultado = await registrarOperacionEfectivoService(
+      usuarioAuxiliarContablePagos,
+      { ...crearOperacion(), detalles: [] },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe(
+      "Debe seleccionar al menos una solicitud.",
     );
   });
 });

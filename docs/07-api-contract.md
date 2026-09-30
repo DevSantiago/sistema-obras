@@ -174,7 +174,8 @@ crear el movimiento de forma atómica.
 GET /api/v1/operaciones-efectivo
 ```
 
-Disponible para `ADMINISTRADOR` y `PAGOS`. Admite los filtros opcionales
+Disponible para `ADMINISTRADOR`, `PAGOS` y `AUXILIAR_CONTABLE` con permiso
+`MARCAR_COMO_PAGADO`. Admite los filtros opcionales
 `proyecto_base_id`, `fondo_id`, `fecha_desde`, `fecha_hasta` y
 `solo_pendientes`. Este último acepta `true` para retornar únicamente
 operaciones en `SOBRANTE_PENDIENTE_REINGRESO`.
@@ -200,7 +201,8 @@ POST /api/v1/operaciones-efectivo/{id}/reingresos
 Content-Type: multipart/form-data
 ```
 
-Disponible para `ADMINISTRADOR` y `PAGOS`. Campos obligatorios: `valor` y
+Disponible para `ADMINISTRADOR`, `PAGOS` y `AUXILIAR_CONTABLE` con permiso
+`MARCAR_COMO_PAGADO`. Campos obligatorios: `valor` y
 `soporte`. `observacion` es opcional. El contrato no recibe fecha.
 
 La operación debe tener sobrante pendiente y el valor no puede superarlo. El
@@ -216,7 +218,8 @@ POST /api/v1/operaciones-efectivo/{id}/correcciones
 Content-Type: application/json
 ```
 
-Disponible para `ADMINISTRADOR` y `PAGOS`.
+Disponible para `ADMINISTRADOR`, `PAGOS` y `AUXILIAR_CONTABLE` con permiso
+`MARCAR_COMO_PAGADO`.
 
 ```json
 {
@@ -1517,7 +1520,9 @@ Este módulo administra el registro de los pagos efectuados sobre las solicitude
 
 La programación del pago no constituye una operación independiente dentro del sistema. Una solicitud pasa automáticamente al estado **PROGRAMADA_PAGO** cuando el Aprobador 2 registra su aprobación.
 
-El rol **PAGOS** es responsable de registrar la ejecución efectiva del pago y de suministrar la información financiera asociada a la transacción.
+Los roles **PAGOS** y **AUXILIAR_CONTABLE** con permiso
+`MARCAR_COMO_PAGADO` pueden registrar la ejecución efectiva del pago y
+suministrar la información financiera asociada a la transacción.
 
 ## Endpoints implementados
 

@@ -1231,7 +1231,8 @@ Al finalizar esta épica, el sistema contará con un ciclo completo de revisión
 
 ## Objetivo
 
-Permitir que el rol Pagos marque solicitudes como pagadas.
+Permitir que los roles Pagos y Auxiliar Contable con el permiso
+`MARCAR_COMO_PAGADO` marquen solicitudes como pagadas.
 
 **Estado de la épica: COMPLETADA**
 
