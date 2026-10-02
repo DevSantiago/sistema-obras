@@ -38,7 +38,7 @@ function normalizarTextoPdf(valor: unknown): string {
 }
 
 function dividirTexto(valor: string, ancho: number, tamano = 7): string[] {
-  const maximo = Math.max(5, Math.floor(ancho / (tamano * 0.52)));
+  const maximo = Math.max(5, Math.floor(ancho / (tamano * 0.65)));
   const palabras = normalizarTextoPdf(valor).split(/\s+/).filter(Boolean);
   const lineas: string[] = [];
   let linea = "";

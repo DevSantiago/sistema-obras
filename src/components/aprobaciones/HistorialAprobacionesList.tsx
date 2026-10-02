@@ -184,6 +184,7 @@ export default function HistorialAprobacionesList({
         { titulo: "Centro de costo", ancho: 16, valor: (fila) => fila.centro_costo?.nombre },
         { titulo: "Beneficiario", ancho: 16, valor: (fila) => fila.beneficiario?.nombre },
         { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Descripción", ancho: 20, valor: (fila) => fila.descripcion },
         { titulo: "Aprobada", ancho: 13, valor: (fila) => formatearFechaHora(nivel === 1 ? fila.aprobado_1_en : fila.aprobado_2_en) },
         { titulo: "Estado", ancho: 10, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
       ],
@@ -211,6 +212,7 @@ export default function HistorialAprobacionesList({
         { titulo: "Centro de costo", ancho: 32, valor: (fila) => fila.centro_costo?.nombre },
         { titulo: "Beneficiario", ancho: 32, valor: (fila) => fila.beneficiario?.nombre },
         { titulo: "Tipo", ancho: 24, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Descripción", ancho: 40, valor: (fila) => fila.descripcion },
         { titulo: "Valor neto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_neto },
         {
           titulo: "Fecha de aprobación",
