@@ -50,6 +50,7 @@ import {
   editarSolicitudAprobadorNivel1Service,
   consultarAprobacionesNivel1Service,
   consultarAprobacionesNivel2Service,
+  obtenerSolicitudPagoPorIdService,
 } from "../solicitudes-pago.service";
 
 vi.mock("@/modules/secuencias/secuencias.service", () => ({
@@ -553,6 +554,24 @@ describe("solicitudes-pago.service - historial de aprobaciones", () => {
       nivel: 2,
       usuario_id: usuarioAprobador2.id,
     });
+  });
+
+  it("permite al aprobador de nivel 1 consultar el detalle aunque la solicitud haya avanzado a otro estado", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_2",
+      aprobado_1_por: usuarioAprobador1.id,
+      aprobado_1_en: fechaMock,
+    } as never);
+
+    const resultado = await obtenerSolicitudPagoPorIdService(
+      usuarioAprobador1,
+      "solicitud-1",
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.ok).toBe(true);
+    expect(resultado.body.data?.solicitud.id).toBe("solicitud-1");
   });
 });
 

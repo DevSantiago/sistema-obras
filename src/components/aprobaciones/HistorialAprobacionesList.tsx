@@ -20,6 +20,7 @@ import styles from "./AprobacionesManager.module.css";
 type HistorialAprobacionesListProps = {
   solicitudes: SolicitudPagoListado[];
   nivel: 1 | 2;
+  onVerDetalle: (solicitud: SolicitudPagoListado) => void;
 };
 
 function obtenerClaseEstado(estado: EstadoSolicitudPago) {
@@ -76,6 +77,7 @@ export function obtenerHistorialParaExportar(
 export default function HistorialAprobacionesList({
   solicitudes,
   nivel,
+  onVerDetalle,
 }: HistorialAprobacionesListProps) {
   const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
   const [proyectoFiltro, setProyectoFiltro] = useState("");
@@ -359,7 +361,11 @@ export default function HistorialAprobacionesList({
             </thead>
             <tbody>
               {solicitudesFiltradas.map((solicitud) => (
-                <tr key={solicitud.id}>
+                <tr
+                  key={solicitud.id}
+                  onClick={() => onVerDetalle(solicitud)}
+                  className={styles.clickableRow}
+                >
                   <td>
                     <strong className={styles.historyRequestNumber}>
                       {solicitud.numero_solicitud ?? "Sin número"}
@@ -403,7 +409,11 @@ export default function HistorialAprobacionesList({
           </div>
           <div className={styles.historyMobileList}>
             {solicitudesFiltradas.map((solicitud) => (
-              <article className={styles.historyMobileCard} key={solicitud.id}>
+              <article
+                className={styles.historyMobileCard}
+                key={solicitud.id}
+                onClick={() => onVerDetalle(solicitud)}
+              >
               <div className={styles.historyMobileHeader}>
                 <strong className={styles.historyRequestNumber}>
                   {solicitud.numero_solicitud ?? "Sin número"}

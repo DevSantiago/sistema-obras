@@ -1465,6 +1465,7 @@ const mensajeSinSolicitudes =
         <HistorialAprobacionesList
           solicitudes={historialAprobaciones}
           nivel={nivel}
+          onVerDetalle={(solicitud) => void verDetalleSolicitud(solicitud)}
         />
       ) : null}
     </section>
