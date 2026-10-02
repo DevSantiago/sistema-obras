@@ -270,6 +270,7 @@ const mensajeSinSolicitudes =
         { titulo: "Solicitud", ancho: 19, valor: (fila) => fila.numero_solicitud },
         { titulo: "Beneficiario", ancho: 18, valor: (fila) => fila.beneficiario?.nombre },
         { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Descripción", ancho: 20, valor: (fila) => fila.descripcion },
         { titulo: "Estado", ancho: 10, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
         { titulo: "Valor neto", ancho: 10, valor: (fila) => formatearMoneda(fila.valor_neto) },
       ],
@@ -293,6 +294,7 @@ const mensajeSinSolicitudes =
         { titulo: "Número de solicitud", ancho: 38, valor: (fila) => fila.numero_solicitud },
         { titulo: "Beneficiario", ancho: 32, valor: (fila) => fila.beneficiario?.nombre },
         { titulo: "Tipo", ancho: 22, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Descripción", ancho: 40, valor: (fila) => fila.descripcion },
         { titulo: "Estado", ancho: 22, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
         { titulo: "Valor bruto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_bruto },
         { titulo: "Valor neto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_neto },
@@ -1465,6 +1467,7 @@ const mensajeSinSolicitudes =
         <HistorialAprobacionesList
           solicitudes={historialAprobaciones}
           nivel={nivel}
+          onVerDetalle={(solicitud) => void verDetalleSolicitud(solicitud)}
         />
       ) : null}
     </section>

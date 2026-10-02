@@ -2262,8 +2262,13 @@ export async function obtenerSolicitudPagoPorIdService(
   const visibilidad =
     construirVisibilidadSolicitudesPago(usuarioAutenticado);
 
+  const aprobadaPorUsuario =
+    solicitud.aprobado_1_por === usuarioAutenticado.id ||
+    solicitud.aprobado_2_por === usuarioAutenticado.id;
+
   const puedeConsultar =
     visibilidad.consultar_todas ||
+    aprobadaPorUsuario ||
     (visibilidad.incluir_propias &&
       solicitud.creado_por === visibilidad.usuario_id) ||
     visibilidad.estados_flujo.includes(

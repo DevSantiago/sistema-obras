@@ -785,10 +785,28 @@
 }
 
 .detailModal {
+  display: grid;
+  width: min(100%, 56rem);
+  max-height: calc(100vh - 2rem);
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--color-border, #d9dee7);
+  border-radius: 1rem;
+  background: var(--color-surface, #ffffff);
+  box-shadow: 0 1.5rem 4rem rgb(15 23 42 / 25%);
   overscroll-behavior: contain;
 }
 
-.detailModal > .modalHeader {
+.detailHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detailModal > .detailHeader {
   position: sticky;
   z-index: 2;
   top: 0;
@@ -796,57 +814,134 @@
   backdrop-filter: blur(0.5rem);
 }
 
+.detailEyebrow {
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detailHeader h2 {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-primary, #111827);
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.detailCloseButton {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #111827;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.detailCloseButton:hover {
+  border-color: #94a3b8;
+  background: #e2e8f0;
+}
+
 .detailSection {
   display: grid;
   gap: 0.75rem;
-  padding: 1.125rem 1.375rem;
-  border-top: 1px solid #e5e7eb;
+  padding: 1.125rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
 }
 
-.detailSection:first-of-type {
+.detailModal > .detailSection:first-of-type {
   border-top: 0;
 }
 
 .detailSection h3 {
   margin: 0;
-  color: #374151;
+  color: #334155;
   font-size: 0.8rem;
-  font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.detailModal .modalGrid,
-.detailModal .values {
-  padding: 0;
-  border: 0;
-  background: transparent;
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
 }
 
-.detailModal .modalGrid > div {
+.detailGrid > div {
+  display: grid;
+  gap: 0.35rem;
   padding: 0.25rem 0 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.detailModal .values > div {
+.detailGrid dt {
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.detailGrid dd {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.detailWide,
+.detailNet {
+  grid-column: 1 / -1;
+}
+
+.valuesGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.valuesGrid > div {
+  display: grid;
+  gap: 0.35rem;
   padding: 0.875rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   border-radius: 0.625rem;
-  background: #f9fafb;
+  background: #f8fafc;
 }
 
-.detailModal .values > .netValue {
+.detailNet {
   border-color: #93c5fd;
   background: #eff6ff;
 }
 
-.detailModal .netValue strong {
+.detailNet dd {
   color: #1d4ed8;
+  font-size: 1.15rem;
 }
 
 @media (max-width: 700px) {
   .detailModal .detailSection {
     padding-right: 1rem;
     padding-left: 1rem;
+  }
+
+  .detailModal > .detailHeader {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .detailGrid,
+  .valuesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .detailWide,
+  .detailNet {
+    grid-column: auto;
   }
 }
