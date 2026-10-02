@@ -1438,45 +1438,46 @@ export default function PagosManager() {
             aria-modal="true"
             aria-labelledby="detalle-pago-title"
           >
-            <header className={styles.modalHeader}>
+            <header className={styles.detailHeader}>
               <div>
-                <p className={styles.modalEyebrow}>Detalle para pago</p>
+                <span className={styles.detailEyebrow}>Detalle para pago</span>
                 <h2 id="detalle-pago-title">
                   {solicitudSeleccionada.numero_solicitud ?? "Sin número"}
                 </h2>
               </div>
               <button
-                className={styles.closeButton}
+                className={styles.detailCloseButton}
                 type="button"
                 aria-label="Cerrar detalle"
                 onClick={() => setSolicitudSeleccionada(null)}
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             </header>
 
             <section className={styles.detailSection}>
               <h3>Información para el pago</h3>
-              <div className={styles.modalGrid}>
-                <div><span>Tipo de solicitud</span><strong>{obtenerTipo(solicitudSeleccionada)}</strong></div>
-                <div><span>Medio de pago</span><strong>{solicitudSeleccionada.medio_pago ?? "—"}</strong></div>
-                <div><span>Fecha de aprobación</span><strong>{formatearFecha(solicitudSeleccionada.aprobado_2_en)}</strong></div>
-                <div><span>Beneficiario</span><strong>{obtenerBeneficiario(solicitudSeleccionada)}</strong></div>
-                <div><span>Documento</span><strong>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</strong></div>
-                <div><span>Banco</span><strong>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</strong></div>
-                <div><span>Tipo de cuenta</span><strong>{solicitudSeleccionada.beneficiario?.tipo_cuenta_bancaria ?? "No registrado"}</strong></div>
-                <div className={styles.fullWidth}><span>Número de cuenta o convenio</span><strong>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</strong></div>
-              </div>
+              <dl className={styles.detailGrid}>
+                <div><dt>Tipo de solicitud</dt><dd>{obtenerTipo(solicitudSeleccionada)}</dd></div>
+                <div><dt>Medio de pago</dt><dd>{solicitudSeleccionada.medio_pago ?? "—"}</dd></div>
+                <div><dt>Fecha de aprobación</dt><dd>{formatearFecha(solicitudSeleccionada.aprobado_2_en)}</dd></div>
+                <div><dt>Beneficiario</dt><dd>{obtenerBeneficiario(solicitudSeleccionada)}</dd></div>
+                <div><dt>Documento</dt><dd>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</dd></div>
+                <div><dt>Banco</dt><dd>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</dd></div>
+                <div><dt>Tipo de cuenta</dt><dd>{solicitudSeleccionada.beneficiario?.tipo_cuenta_bancaria ?? "No registrado"}</dd></div>
+                <div><dt>Número de cuenta o convenio</dt><dd>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</dd></div>
+                <div className={styles.detailWide}><dt>Descripción</dt><dd>{solicitudSeleccionada.descripcion}</dd></div>
+              </dl>
             </section>
 
             <section className={styles.detailSection}>
               <h3>Resumen de valores</h3>
-              <div className={styles.values}>
-                <div><span>Valor bruto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_bruto)}</strong></div>
-                <div><span>Impuestos y retenciones</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_retenciones)}</strong></div>
-                <div><span>Descuentos</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_descuentos)}</strong></div>
-                <div className={styles.netValue}><span>Valor neto</span><strong>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_neto)}</strong></div>
-              </div>
+              <dl className={`${styles.detailGrid} ${styles.valuesGrid}`}>
+                <div><dt>Valor bruto</dt><dd>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_bruto)}</dd></div>
+                <div><dt>Impuestos y retenciones</dt><dd>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_retenciones)}</dd></div>
+                <div><dt>Descuentos</dt><dd>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_descuentos)}</dd></div>
+                <div className={styles.detailNet}><dt>Valor neto</dt><dd>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_neto)}</dd></div>
+              </dl>
             </section>
           </section>
         </div>

@@ -20,6 +20,7 @@ import styles from "./AprobacionesManager.module.css";
 type HistorialAprobacionesListProps = {
   solicitudes: SolicitudPagoListado[];
   nivel: 1 | 2;
+  onVerDetalle: (solicitud: SolicitudPagoListado) => void;
 };
 
 function obtenerClaseEstado(estado: EstadoSolicitudPago) {
@@ -76,6 +77,7 @@ export function obtenerHistorialParaExportar(
 export default function HistorialAprobacionesList({
   solicitudes,
   nivel,
+  onVerDetalle,
 }: HistorialAprobacionesListProps) {
   const [numeroSolicitudFiltro, setNumeroSolicitudFiltro] = useState("");
   const [proyectoFiltro, setProyectoFiltro] = useState("");
@@ -182,6 +184,7 @@ export default function HistorialAprobacionesList({
         { titulo: "Centro de costo", ancho: 16, valor: (fila) => fila.centro_costo?.nombre },
         { titulo: "Beneficiario", ancho: 16, valor: (fila) => fila.beneficiario?.nombre },
         { titulo: "Tipo", ancho: 11, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Descripción", ancho: 20, valor: (fila) => fila.descripcion },
         { titulo: "Aprobada", ancho: 13, valor: (fila) => formatearFechaHora(nivel === 1 ? fila.aprobado_1_en : fila.aprobado_2_en) },
         { titulo: "Estado", ancho: 10, valor: (fila) => formatearEstadoSolicitud(fila.estado_actual) },
       ],
@@ -209,6 +212,7 @@ export default function HistorialAprobacionesList({
         { titulo: "Centro de costo", ancho: 32, valor: (fila) => fila.centro_costo?.nombre },
         { titulo: "Beneficiario", ancho: 32, valor: (fila) => fila.beneficiario?.nombre },
         { titulo: "Tipo", ancho: 24, valor: (fila) => formatearTextoDominio(fila.tipo_solicitud) },
+        { titulo: "Descripción", ancho: 40, valor: (fila) => fila.descripcion },
         { titulo: "Valor neto", ancho: 18, formato: '"$"#,##0', valor: (fila) => fila.valor_neto },
         {
           titulo: "Fecha de aprobación",
@@ -359,7 +363,11 @@ export default function HistorialAprobacionesList({
             </thead>
             <tbody>
               {solicitudesFiltradas.map((solicitud) => (
-                <tr key={solicitud.id}>
+                <tr
+                  key={solicitud.id}
+                  onClick={() => onVerDetalle(solicitud)}
+                  className={styles.clickableRow}
+                >
                   <td>
                     <strong className={styles.historyRequestNumber}>
                       {solicitud.numero_solicitud ?? "Sin número"}
@@ -403,7 +411,11 @@ export default function HistorialAprobacionesList({
           </div>
           <div className={styles.historyMobileList}>
             {solicitudesFiltradas.map((solicitud) => (
-              <article className={styles.historyMobileCard} key={solicitud.id}>
+              <article
+                className={styles.historyMobileCard}
+                key={solicitud.id}
+                onClick={() => onVerDetalle(solicitud)}
+              >
               <div className={styles.historyMobileHeader}>
                 <strong className={styles.historyRequestNumber}>
                   {solicitud.numero_solicitud ?? "Sin número"}
