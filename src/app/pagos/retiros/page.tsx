@@ -43,9 +43,9 @@ export default async function RetirosPage({ searchParams }: Props) {
           operaciones de efectivo registradas.
         </p>
         <nav className={styles.tabs}>
-          <Link href="/pagos">Bandeja de pagos</Link>
-          <Link className={styles.activeTab} href="/pagos/retiros">
-            Retiros
+          <Link href="/pagos">Pagos programados</Link>
+          <Link className={styles.activeTab} href="/pagos/retiros" aria-current="page">
+            Seguimiento de retiros
           </Link>
         </nav>
       </header>

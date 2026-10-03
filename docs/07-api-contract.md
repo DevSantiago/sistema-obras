@@ -1560,7 +1560,7 @@ tipo de cuenta y número de cuenta. Las solicitudes pagadas no se incluyen.
 GET /api/v1/solicitudes-pago/programadas/exportar
 ```
 
-Genera un archivo `.xlsx` con todas las solicitudes en `PROGRAMADA_PAGO`. Incluye información de la solicitud, proyecto, centro de costo, beneficiario, datos bancarios, valores y fechas de creación, aprobación nivel 1, aprobación nivel 2 y pago.
+Genera un archivo `.xlsx` con las solicitudes en `PROGRAMADA_PAGO` que coincidan con los filtros recibidos. Incluye información de la solicitud, proyecto, centro de costo, beneficiario, datos bancarios, valores y fechas de creación, aprobación nivel 1, aprobación nivel 2 y pago.
 
 ### Parámetros de consulta
 
@@ -1568,12 +1568,12 @@ Genera un archivo `.xlsx` con todas las solicitudes en `PROGRAMADA_PAGO`. Incluy
 |-----------|------|-------------|
 | proyecto_base_id | UUID | No |
 | centro_costo_id | UUID | No |
-| tipo_solicitud | String | No |
-| beneficiario_id | UUID | No |
-| fecha_desde | Date | No |
-| fecha_hasta | Date | No |
 | medio_pago | String | No |
 | busqueda | String | No |
+| tipo_operacion | `TODOS`, `TRANSFERENCIAS` o `RETIRO` | No |
+
+`TRANSFERENCIAS` agrupa solicitudes con medio `TRANSFERENCIA`, `PSE` o
+`PORTAL`; `RETIRO` agrupa `EFECTIVO` y `CONSIGNACION`.
 
 ---
 

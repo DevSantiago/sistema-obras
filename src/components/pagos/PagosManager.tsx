@@ -331,6 +331,10 @@ export default function PagosManager() {
     solicitudesSeleccionablesVisibles.some((solicitud) =>
       idsSeleccionados.has(solicitud.id),
     );
+  const seleccionadasVisibles = solicitudesFiltradas.filter((solicitud) =>
+    idsSeleccionados.has(solicitud.id),
+  ).length;
+  const seleccionadasOcultas = idsSeleccionados.size - seleccionadasVisibles;
 
   useEffect(() => {
     if (seleccionarTodosRef.current) {
@@ -497,6 +501,11 @@ export default function PagosManager() {
 
   function cambiarVista(vista: VistaOperacion) {
     setVistaOperacion(vista);
+    setIdsSeleccionados(new Set());
+    setTipoSeleccion(null);
+  }
+
+  function limpiarSeleccion() {
     setIdsSeleccionados(new Set());
     setTipoSeleccion(null);
   }
@@ -720,8 +729,16 @@ export default function PagosManager() {
   }
 
   function descargarRelacionExcel() {
+    const parametros = new URLSearchParams();
+    if (filtros.busqueda.trim()) parametros.set("busqueda", filtros.busqueda.trim());
+    if (filtros.proyecto_base_id) parametros.set("proyecto_base_id", filtros.proyecto_base_id);
+    if (filtros.centro_costo_id) parametros.set("centro_costo_id", filtros.centro_costo_id);
+    if (filtros.medio_pago) parametros.set("medio_pago", filtros.medio_pago);
+    if (vistaOperacion !== "TODOS") parametros.set("tipo_operacion", vistaOperacion);
+
+    const query = parametros.toString();
     window.location.assign(
-      "/api/v1/solicitudes-pago/programadas/exportar",
+      `/api/v1/solicitudes-pago/programadas/exportar${query ? `?${query}` : ""}`,
     );
   }
 
@@ -758,9 +775,10 @@ export default function PagosManager() {
 
   return (
     <section className={styles.container}>
-      <div className={styles.operationTabs} aria-label="Tipo de operación">
+      <div className={styles.operationTabs} role="group" aria-label="Filtrar por flujo de pago">
         <button
           className={vistaOperacion === "TODOS" ? styles.activeTab : ""}
+          aria-pressed={vistaOperacion === "TODOS"}
           type="button"
           onClick={() => cambiarVista("TODOS")}
         >
@@ -770,19 +788,32 @@ export default function PagosManager() {
           className={
             vistaOperacion === "TRANSFERENCIAS" ? styles.activeTab : ""
           }
+          aria-pressed={vistaOperacion === "TRANSFERENCIAS"}
           type="button"
           onClick={() => cambiarVista("TRANSFERENCIAS")}
         >
-          Pagos directos
+          Transferencia, PSE o portal
         </button>
         <button
           className={vistaOperacion === "RETIRO" ? styles.activeTab : ""}
+          aria-pressed={vistaOperacion === "RETIRO"}
           type="button"
           onClick={() => cambiarVista("RETIRO")}
         >
-          Retiro y pagos
+          Efectivo o consignación
         </button>
       </div>
+      <label className={styles.mobileOperationFilter}>
+        <span>Tipo de pago</span>
+        <select
+          value={vistaOperacion}
+          onChange={(event) => cambiarVista(event.target.value as VistaOperacion)}
+        >
+          <option value="TODOS">Todos los pagos programados</option>
+          <option value="TRANSFERENCIAS">Transferencia, PSE o portal</option>
+          <option value="RETIRO">Efectivo o consignación</option>
+        </select>
+      </label>
 
       <button
         type="button"
@@ -893,36 +924,55 @@ export default function PagosManager() {
           <span>{solicitudesFiltradas.length} resultado(s)</span>
         </div>
         <div className={styles.summaryActions}>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={descargarRelacionExcel}
-          >
-            Descargar relación Excel
-          </button>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={descargarRelacionPdf}
-            disabled={solicitudesFiltradas.length === 0}
-          >
-            Descargar relación PDF
-          </button>
+          <div className={styles.exportActions}>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={descargarRelacionExcel}
+              disabled={solicitudesFiltradas.length === 0}
+            >
+              Exportar Excel ({solicitudesFiltradas.length})
+            </button>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={descargarRelacionPdf}
+              disabled={solicitudesFiltradas.length === 0}
+            >
+              Exportar PDF ({solicitudesFiltradas.length})
+            </button>
+          </div>
           <button
             className={styles.primaryButton}
             type="button"
             disabled={idsSeleccionados.size === 0}
             onClick={abrirRegistro}
           >
-            Procesar pagos seleccionados ({idsSeleccionados.size})
+            Procesar pagos ({idsSeleccionados.size})
           </button>
         </div>
       </div>
 
+      {idsSeleccionados.size > 0 ? (
+        <div className={styles.selectionNotice} role="status">
+          <span>
+            {idsSeleccionados.size} seleccionada(s)
+            {seleccionadasOcultas > 0
+              ? ` · ${seleccionadasOcultas} fuera de los filtros actuales`
+              : ""}
+          </span>
+          <button type="button" onClick={limpiarSeleccion}>
+            Limpiar selección
+          </button>
+        </div>
+      ) : null}
+
       <p className={styles.paymentHint}>
-        La primera solicitud seleccionada define el flujo. Las
-        consignaciones y pagos en efectivo de un mismo proyecto se agrupan
-        en un solo retiro.
+        {tipoSeleccion === "TRANSFERENCIAS"
+          ? "Flujo seleccionado: transferencia, PSE o portal. Puedes combinar solicitudes de distintos proyectos."
+          : tipoSeleccion === "RETIRO"
+            ? "Flujo seleccionado: efectivo o consignación. Solo puedes agrupar solicitudes del mismo proyecto y fondo."
+            : "Selecciona solicitudes de un mismo flujo: transferencia, PSE o portal; o efectivo y consignación del mismo proyecto y fondo."}
       </p>
 
       {cargando ? (
@@ -1162,13 +1212,20 @@ export default function PagosManager() {
                   return null;
                 }
 
+                const completo = Boolean(datos.numero_comprobante.trim() && datos.soporte);
+
                 return (
-                  <fieldset key={solicitud.id} disabled={registrando}>
-                    <legend>
-                      {solicitud.numero_solicitud} ·{" "}
-                      {FORMATEADOR_MONEDA.format(solicitud.valor_neto)}
-                    </legend>
-                    <p>{obtenerBeneficiario(solicitud)}</p>
+                  <details key={solicitud.id} className={styles.batchItem}>
+                    <summary className={styles.batchSummary}>
+                      <span>
+                        <strong>{solicitud.numero_solicitud}</strong>
+                        <small>{obtenerBeneficiario(solicitud)} · {FORMATEADOR_MONEDA.format(solicitud.valor_neto)}</small>
+                      </span>
+                      <span className={completo ? styles.batchComplete : styles.batchPending}>
+                        {completo ? "Completo" : "Pendiente"}
+                      </span>
+                    </summary>
+                    <fieldset disabled={registrando}>
                     <div className={styles.paymentGrid}>
                       <label className={styles.field}>
                         <span>Referencia bancaria</span>
@@ -1205,7 +1262,8 @@ export default function PagosManager() {
                         />
                       </label>
                     </div>
-                  </fieldset>
+                    </fieldset>
+                  </details>
                 );
               })}
             </div>
@@ -1343,16 +1401,23 @@ export default function PagosManager() {
                   return null;
                 }
 
+                const completo = Boolean(
+                  datos.soporte &&
+                    (solicitud.medio_pago !== "CONSIGNACION" || datos.numero_comprobante.trim()),
+                );
+
                 return (
-                  <fieldset key={solicitud.id} disabled={registrando}>
-                    <legend>
-                      {solicitud.numero_solicitud} ·{" "}
-                      {FORMATEADOR_MONEDA.format(solicitud.valor_neto)}
-                    </legend>
-                    <p>
-                      {obtenerBeneficiario(solicitud)} ·{" "}
-                      {solicitud.medio_pago}
-                    </p>
+                  <details key={solicitud.id} className={styles.batchItem}>
+                    <summary className={styles.batchSummary}>
+                      <span>
+                        <strong>{solicitud.numero_solicitud}</strong>
+                        <small>{obtenerBeneficiario(solicitud)} · {solicitud.medio_pago} · {FORMATEADOR_MONEDA.format(solicitud.valor_neto)}</small>
+                      </span>
+                      <span className={completo ? styles.batchComplete : styles.batchPending}>
+                        {completo ? "Completo" : "Pendiente"}
+                      </span>
+                    </summary>
+                    <fieldset disabled={registrando}>
                     <div className={styles.paymentGrid}>
                       {solicitud.medio_pago === "CONSIGNACION" ? (
                         <label className={styles.field}>
@@ -1391,7 +1456,8 @@ export default function PagosManager() {
                         />
                       </label>
                     </div>
-                  </fieldset>
+                    </fieldset>
+                  </details>
                 );
               })}
             </div>

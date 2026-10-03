@@ -40,10 +40,10 @@ export default async function PagosPage() {
           beneficiario, proyecto, centro de costo o medio de pago.
         </p>
         <nav className={styles.tabs}>
-          <Link className={styles.activeTab} href="/pagos">
-            Bandeja de pagos
+          <Link className={styles.activeTab} href="/pagos" aria-current="page">
+            Pagos programados
           </Link>
-          <Link href="/pagos/retiros">Retiros</Link>
+          <Link href="/pagos/retiros">Seguimiento de retiros</Link>
         </nav>
       </header>
 

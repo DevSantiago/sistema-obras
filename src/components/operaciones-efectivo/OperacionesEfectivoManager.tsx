@@ -33,14 +33,7 @@ export default function OperacionesEfectivoManager({
   >([]);
   const [operacionDetalle, setOperacionDetalle] =
     useState<OperacionEfectivoConsulta | null>(null);
-  const [proyectoId, setProyectoId] = useState("");
-  const [centroCosto, setCentroCosto] = useState("");
-  const [numeroSolicitud, setNumeroSolicitud] = useState("");
-  const [fondoId, setFondoId] = useState("");
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
-  const [soloPendientes, setSoloPendientes] = useState(false);
-  const [filtrosMovilesVisibles, setFiltrosMovilesVisibles] = useState(false);
+  const [proyectoBuscado, setProyectoBuscado] = useState("");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [valorReingreso, setValorReingreso] = useState("");
@@ -66,18 +59,10 @@ export default function OperacionesEfectivoManager({
   const cargar = useCallback(async () => {
     setCargando(true);
     setError("");
-    const parametros = new URLSearchParams();
-
-    if (proyectoId) parametros.set("proyecto_base_id", proyectoId);
-    if (fondoId) parametros.set("fondo_id", fondoId);
-    if (fechaDesde) parametros.set("fecha_desde", fechaDesde);
-    if (fechaHasta) parametros.set("fecha_hasta", fechaHasta);
-    if (soloPendientes) parametros.set("solo_pendientes", "true");
 
     try {
-      const query = parametros.toString();
       const response = await fetch(
-        `/api/v1/operaciones-efectivo${query ? `?${query}` : ""}`,
+        "/api/v1/operaciones-efectivo",
         { credentials: "include", cache: "no-store" },
       );
       const body = (await response.json()) as {
@@ -111,12 +96,7 @@ export default function OperacionesEfectivoManager({
       setCargando(false);
     }
   }, [
-    fechaDesde,
-    fechaHasta,
-    fondoId,
     operacionInicialId,
-    proyectoId,
-    soloPendientes,
   ]);
 
   useEffect(() => {
@@ -127,76 +107,15 @@ export default function OperacionesEfectivoManager({
     return () => window.clearTimeout(tarea);
   }, [cargar]);
 
-  const proyectos = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          operaciones.map((operacion) => [
-            operacion.proyecto_base_id,
-            {
-              id: operacion.proyecto_base_id,
-              nombre: operacion.proyecto_nombre,
-            },
-          ]),
-        ).values(),
-      ),
-    [operaciones],
-  );
-  const fondos = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          operaciones
-            .filter(
-              (operacion) =>
-                !proyectoId ||
-                operacion.proyecto_base_id === proyectoId,
-            )
-            .map((operacion) => [
-              operacion.fondo_id,
-              {
-                id: operacion.fondo_id,
-                nombre: operacion.fondo_nombre,
-              },
-            ]),
-        ).values(),
-      ),
-    [operaciones, proyectoId],
-  );
-  const centrosCosto = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          operaciones.flatMap((operacion) =>
-            operacion.detalles.map((detalle) => [
-              `${detalle.centro_costo_codigo}::${detalle.centro_costo_nombre}`,
-              {
-                id: `${detalle.centro_costo_codigo}::${detalle.centro_costo_nombre}`,
-                nombre: `${detalle.centro_costo_codigo} - ${detalle.centro_costo_nombre}`,
-              },
-            ]),
-          ),
-        ).values(),
-      ).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
-    [operaciones],
-  );
   const operacionesFiltradas = useMemo(() => {
-    const numeroBuscado = numeroSolicitud.trim().toLocaleLowerCase("es");
+    const nombreBuscado = proyectoBuscado.trim().toLocaleLowerCase("es");
 
     return operaciones.filter((operacion) =>
-      operacion.detalles.some((detalle) => {
-        const centroDetalle =
-          `${detalle.centro_costo_codigo}::${detalle.centro_costo_nombre}`;
-        return (
-          (!centroCosto || centroDetalle === centroCosto) &&
-          (!numeroBuscado ||
-            detalle.numero_solicitud
-              ?.toLocaleLowerCase("es")
-              .includes(numeroBuscado))
-        );
-      }),
+      operacion.proyecto_nombre
+        .toLocaleLowerCase("es")
+        .includes(nombreBuscado),
     );
-  }, [centroCosto, numeroSolicitud, operaciones]);
+  }, [operaciones, proyectoBuscado]);
   const resumen = useMemo(
     () => ({
       retiros: operacionesFiltradas.length,
@@ -429,128 +348,17 @@ export default function OperacionesEfectivoManager({
 
   return (
     <section className={styles.container}>
-      <button
-        type="button"
-        className={styles.mobileFiltersToggle}
-        aria-expanded={filtrosMovilesVisibles}
-        aria-controls="filtros-retiros"
-        onClick={() => setFiltrosMovilesVisibles((visible) => !visible)}
-      >
-        <span>Filtros</span>
-        <span>
-          {[numeroSolicitud, proyectoId, centroCosto, fondoId, fechaDesde, fechaHasta, soloPendientes ? "pendientes" : ""].filter(Boolean).length > 0
-            ? `${[numeroSolicitud, proyectoId, centroCosto, fondoId, fechaDesde, fechaHasta, soloPendientes ? "pendientes" : ""].filter(Boolean).length} activos`
-            : "Mostrar"}
-        </span>
-      </button>
-      <div
-        id="filtros-retiros"
-        className={`${styles.filters} ${
-          filtrosMovilesVisibles ? "" : styles.mobileFiltersCollapsed
-        }`}
-      >
-        <label>
-          <span>Número de solicitud</span>
-          <input
-            type="search"
-            value={numeroSolicitud}
-            onChange={(event) => setNumeroSolicitud(event.target.value)}
-            placeholder="Buscar por número"
-          />
-        </label>
+      <div className={`${styles.filters} ${styles.projectSearch}`}>
         <label>
           <span>Proyecto</span>
-          <select
-            value={proyectoId}
-            onChange={(event) => {
-              setProyectoId(event.target.value);
-              setFondoId("");
-              setCentroCosto("");
-            }}
-          >
-            <option value="">Todos los proyectos</option>
-            {proyectos.map((proyecto) => (
-              <option key={proyecto.id} value={proyecto.id}>
-                {proyecto.nombre}
-              </option>
-            ))}
-          </select>
+          <input
+            type="search"
+            value={proyectoBuscado}
+            onChange={(event) => setProyectoBuscado(event.target.value)}
+            placeholder="Buscar por nombre del proyecto"
+            aria-label="Buscar retiros por nombre del proyecto"
+          />
         </label>
-        <label>
-          <span>Centro de costo</span>
-          <select
-            value={centroCosto}
-            onChange={(event) => setCentroCosto(event.target.value)}
-          >
-            <option value="">Todos los centros</option>
-            {centrosCosto.map((centro) => (
-              <option key={centro.id} value={centro.id}>
-                {centro.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Fondo</span>
-          <select
-            value={fondoId}
-            onChange={(event) => setFondoId(event.target.value)}
-          >
-            <option value="">Todos los fondos</option>
-            {fondos.map((fondo) => (
-              <option key={fondo.id} value={fondo.id}>
-                {fondo.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Desde</span>
-          <span className={styles.dateControl}>
-            <input
-              type="date"
-              value={fechaDesde}
-              onChange={(event) => setFechaDesde(event.target.value)}
-            />
-          </span>
-        </label>
-        <label>
-          <span>Hasta</span>
-          <span className={styles.dateControl}>
-            <input
-              min={fechaDesde || undefined}
-              type="date"
-              value={fechaHasta}
-              onChange={(event) => setFechaHasta(event.target.value)}
-            />
-          </span>
-        </label>
-        <label>
-          <span>Estado</span>
-          <select
-            value={soloPendientes ? "pendientes" : "todos"}
-            onChange={(event) =>
-              setSoloPendientes(event.target.value === "pendientes")
-            }
-          >
-            <option value="todos">Todos los retiros</option>
-            <option value="pendientes">Reingreso pendiente</option>
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            setNumeroSolicitud("");
-            setProyectoId("");
-            setCentroCosto("");
-            setFondoId("");
-            setFechaDesde("");
-            setFechaHasta("");
-            setSoloPendientes(false);
-          }}
-        >
-          Limpiar filtros
-        </button>
       </div>
 
       {error ? <p className={styles.error}>{error}</p> : null}
