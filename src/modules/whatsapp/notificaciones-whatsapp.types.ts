@@ -5,7 +5,8 @@ export type TransicionNotificableWhatsApp = {
     | "PENDIENTE_APROBADOR_1"
     | "PENDIENTE_APROBADOR_2"
     | "DEVUELTA_APROBADOR_1"
-    | "DEVUELTA_SOLICITANTE";
+    | "DEVUELTA_SOLICITANTE"
+    | "PROGRAMADA_PAGO";
   estadoDestino:
     | "PENDIENTE_APROBADOR_1"
     | "PENDIENTE_APROBADOR_2"

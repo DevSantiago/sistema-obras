@@ -99,6 +99,9 @@ export default function PagosManager() {
   const [modalTransferenciasAbierto, setModalTransferenciasAbierto] =
     useState(false);
   const [modalRetiroAbierto, setModalRetiroAbierto] = useState(false);
+  const [devolucionAbierta, setDevolucionAbierta] = useState(false);
+  const [motivoDevolucion, setMotivoDevolucion] = useState("");
+  const [devolviendo, setDevolviendo] = useState(false);
   const [tipoSeleccion, setTipoSeleccion] = useState<TipoSeleccion>(null);
   const [valorRetirado, setValorRetirado] = useState("");
   const [soporteRetiro, setSoporteRetiro] = useState<File | null>(null);
@@ -508,6 +511,75 @@ export default function PagosManager() {
   function limpiarSeleccion() {
     setIdsSeleccionados(new Set());
     setTipoSeleccion(null);
+  }
+
+  function abrirDetalle(solicitud: SolicitudProgramadaPago) {
+    setDevolucionAbierta(false);
+    setMotivoDevolucion("");
+    setMensajeError("");
+    setSolicitudSeleccionada(solicitud);
+  }
+
+  async function devolverAprobacionNivel1() {
+    if (!solicitudSeleccionada || devolviendo) {
+      return;
+    }
+
+    const motivo = motivoDevolucion.trim();
+    if (motivo.length < 5) {
+      setMensajeError("Escribe un motivo de devolución de al menos 5 caracteres.");
+      return;
+    }
+
+    setDevolviendo(true);
+    setMensajeError("");
+    setMensajeExito("");
+
+    try {
+      const response = await fetch(
+        `/api/v1/solicitudes-pago/${solicitudSeleccionada.id}/devolver`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ motivo }),
+        },
+      );
+      const body =
+        (await response.json()) as SolicitudesPagoApiResponse<unknown>;
+
+      if (!response.ok || !body.ok) {
+        throw new Error(
+          body.message ?? "No fue posible devolver la solicitud a aprobación nivel 1.",
+        );
+      }
+
+      const numeroSolicitud =
+        solicitudSeleccionada.numero_solicitud ?? "La solicitud";
+      setSolicitudSeleccionada(null);
+      setDevolucionAbierta(false);
+      setMotivoDevolucion("");
+      setIdsSeleccionados((actuales) => {
+        const nuevos = new Set(actuales);
+        nuevos.delete(solicitudSeleccionada.id);
+        return nuevos;
+      });
+      if (idsSeleccionados.size <= 1) {
+        setTipoSeleccion(null);
+      }
+      setMensajeExito(
+        `${numeroSolicitud} fue devuelta a Aprobación nivel 1.`,
+      );
+      await cargarSolicitudes();
+    } catch (error) {
+      setMensajeError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible devolver la solicitud a aprobación nivel 1.",
+      );
+    } finally {
+      setDevolviendo(false);
+    }
   }
 
   function abrirRegistroTransferencias() {
@@ -1026,11 +1098,11 @@ export default function PagosManager() {
                     className={styles.clickableRow}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSolicitudSeleccionada(solicitud)}
+                    onClick={() => abrirDetalle(solicitud)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        setSolicitudSeleccionada(solicitud);
+                        abrirDetalle(solicitud);
                       }
                     }}
                   >
@@ -1133,7 +1205,7 @@ export default function PagosManager() {
                 <button
                   className={styles.detailButton}
                   type="button"
-                  onClick={() => setSolicitudSeleccionada(solicitud)}
+                  onClick={() => abrirDetalle(solicitud)}
                 >
                   Ver detalle
                 </button>
@@ -1544,6 +1616,76 @@ export default function PagosManager() {
                 <div><dt>Descuentos</dt><dd>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_descuentos)}</dd></div>
                 <div className={styles.detailNet}><dt>Valor neto</dt><dd>{FORMATEADOR_MONEDA.format(solicitudSeleccionada.valor_neto)}</dd></div>
               </dl>
+            </section>
+
+            <section className={styles.returnSection}>
+              {!devolucionAbierta ? (
+                <>
+                  <p>
+                    Si el valor aprobado debe corregirse, devuelve la solicitud
+                    a Aprobación nivel 1. No se registrará el pago.
+                  </p>
+                  <button
+                    className={styles.returnButton}
+                    type="button"
+                    onClick={() => {
+                      setMensajeError("");
+                      setDevolucionAbierta(true);
+                    }}
+                  >
+                    Devolver a Aprobación nivel 1
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3>Motivo de devolución</h3>
+                  <p>
+                    Aprobación nivel 1 podrá editar el valor o devolver la
+                    solicitud al solicitante.
+                  </p>
+                  <label className={styles.returnField}>
+                    <span>Motivo (obligatorio)</span>
+                    <textarea
+                      value={motivoDevolucion}
+                      onChange={(event) =>
+                        setMotivoDevolucion(event.target.value)
+                      }
+                      minLength={5}
+                      maxLength={500}
+                      rows={3}
+                      required
+                      disabled={devolviendo}
+                    />
+                  </label>
+                  {mensajeError ? (
+                    <p className={styles.error} role="alert">
+                      {mensajeError}
+                    </p>
+                  ) : null}
+                  <div className={styles.returnActions}>
+                    <button
+                      className={styles.secondaryButton}
+                      type="button"
+                      disabled={devolviendo}
+                      onClick={() => {
+                        setDevolucionAbierta(false);
+                        setMotivoDevolucion("");
+                        setMensajeError("");
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className={styles.returnButton}
+                      type="button"
+                      disabled={devolviendo || motivoDevolucion.trim().length < 5}
+                      onClick={() => void devolverAprobacionNivel1()}
+                    >
+                      {devolviendo ? "Devolviendo..." : "Confirmar devolución"}
+                    </button>
+                  </div>
+                </>
+              )}
             </section>
           </section>
         </div>

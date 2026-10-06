@@ -159,7 +159,7 @@ export type AnularSolicitudesPagoData = {
 
 export type DevolverSolicitudPagoData = {
   solicitud_id: string;
-  estado_origen: "PENDIENTE_APROBADOR_1" | "PENDIENTE_APROBADOR_2" | "DEVUELTA_APROBADOR_1";
+  estado_origen: "PENDIENTE_APROBADOR_1" | "PENDIENTE_APROBADOR_2" | "DEVUELTA_APROBADOR_1" | "PROGRAMADA_PAGO";
   estado_destino: "DEVUELTA_APROBADOR_1" | "DEVUELTA_SOLICITANTE";
   motivo: string;
 };

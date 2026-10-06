@@ -349,6 +349,8 @@ Su participación se concentra en los procesos contables y financieros definidos
 - Crear solicitudes cuando corresponda.
 - Consultar solicitudes programadas y registrar pagos con el permiso
   `MARCAR_COMO_PAGADO`.
+- Devolver solicitudes programadas a Aprobación nivel 1, indicando un motivo,
+  cuando se requiera corregir el importe aprobado.
 - Acceder al módulo de beneficiarios y crear o actualizar sus registros.
 - Registrar operaciones financieras autorizadas para su rol.
 - Registrar anticipos de entidades al fondo general de un proyecto.
@@ -443,6 +445,7 @@ No puede:
 | Aprobar nivel 1 | ✓ | — | ✓ | — | — | — | — |
 | Aprobar nivel 2 | ✓ | — | — | ✓ | — | — | — |
 | Registrar pagos | ✓ | — | — | — | Con `MARCAR_COMO_PAGADO` | ✓ | — |
+| Devolver solicitud programada a aprobación nivel 1 | ✓ | — | — | — | Con `MARCAR_COMO_PAGADO` | ✓ | — |
 | Registrar anticipos | ✓ | — | — | — | ✓ | — | — |
 | Registrar préstamos | ✓ | — | — | — | ✓ | — | — |
 | Consultar fondos y movimientos | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |

@@ -1414,7 +1414,12 @@ El destino se determina por el estado y el nivel del usuario:
 
 - `PENDIENTE_APROBADOR_1` pasa a `DEVUELTA_SOLICITANTE`;
 - `PENDIENTE_APROBADOR_2` pasa a `DEVUELTA_APROBADOR_1` y conserva la reserva;
+- `PROGRAMADA_PAGO` pasa a `DEVUELTA_APROBADOR_1` cuando Pagos devuelve una solicitud para revisar su importe, conservando la reserva;
 - `DEVUELTA_APROBADOR_1` pasa a `DEVUELTA_SOLICITANTE` y libera la reserva.
+
+La devolución desde `PROGRAMADA_PAGO` solo puede ejecutarla el rol Pagos o el
+Auxiliar Contable con permiso `MARCAR_COMO_PAGADO`. Requiere el mismo motivo
+obligatorio y registra al usuario, los estados de origen y destino y la fecha.
 
 La operación realiza la siguiente transición:
 

@@ -1090,6 +1090,78 @@
   font-size: 1.15rem;
 }
 
+.returnSection {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 1.5rem 1.25rem;
+  padding: 1rem;
+  border: 1px solid #fed7aa;
+  border-radius: 0.75rem;
+  background: #fff7ed;
+}
+
+.returnSection h3,
+.returnSection p {
+  margin: 0;
+}
+
+.returnSection h3 {
+  color: #7c2d12;
+  font-size: 0.9rem;
+}
+
+.returnSection p {
+  color: #7c2d12;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.returnButton {
+  min-height: 42px;
+  justify-self: start;
+  padding: 0.6rem 1rem;
+  border: 1px solid #f97316;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #9a3412;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.returnButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.returnField {
+  display: grid;
+  gap: 0.4rem;
+  color: #7c2d12;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.returnField textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem;
+  border: 1px solid #fdba74;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+
+.returnActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
 @media (max-width: 700px) {
   .detailModal .detailSection {
     padding-right: 1rem;
@@ -1099,6 +1171,24 @@
   .detailModal > .detailHeader {
     padding-right: 1rem;
     padding-left: 1rem;
+  }
+
+  .returnSection {
+    margin-right: 1rem;
+    margin-left: 1rem;
+  }
+
+  .returnButton,
+  .returnActions button {
+    width: 100%;
+  }
+
+  .returnButton {
+    justify-self: stretch;
+  }
+
+  .returnActions {
+    flex-direction: column-reverse;
   }
 
   .detailGrid,

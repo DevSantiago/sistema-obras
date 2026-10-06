@@ -4034,6 +4034,51 @@ describe("solicitudes-pago.service - devolución de aprobaciones", () => {
     );
   });
 
+  it("debe permitir que Pagos devuelva una solicitud programada al aprobador 1 con motivo", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PROGRAMADA_PAGO",
+      numero_solicitud: "SOL-001",
+      valor_reservado: 100000,
+    } as never);
+    vi.mocked(devolverSolicitudPagoRepository).mockResolvedValue({ count: 1 });
+
+    const resultado = await devolverSolicitudPagoService(
+      usuarioPagos,
+      "solicitud-1",
+      { motivo: "Corregir el valor aprobado" },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.estado_origen).toBe("PROGRAMADA_PAGO");
+    expect(resultado.body.data?.estado_destino).toBe("DEVUELTA_APROBADOR_1");
+    expect(devolverSolicitudPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        estadoOrigen: "PROGRAMADA_PAGO",
+        estadoDestino: "DEVUELTA_APROBADOR_1",
+        motivo: "Corregir el valor aprobado",
+        liberarReserva: false,
+      }),
+    );
+  });
+
+  it("no permite que un aprobador de nivel 1 devuelva una solicitud desde Pagos", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PROGRAMADA_PAGO",
+      numero_solicitud: "SOL-001",
+    } as never);
+
+    const resultado = await devolverSolicitudPagoService(
+      usuarioAprobador1,
+      "solicitud-1",
+      { motivo: "Corregir el valor aprobado" },
+    );
+
+    expect(resultado.status).toBe(403);
+    expect(devolverSolicitudPagoRepository).not.toHaveBeenCalled();
+  });
+
   it("debe liberar la reserva al devolver desde aprobador 1 al solicitante", async () => {
     vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
       ...solicitudProveedorBorrador,

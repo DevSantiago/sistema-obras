@@ -1028,6 +1028,14 @@ bancarios, además de filtrar por proyecto base, centro de costo y medio de
 pago. Las solicitudes que cambian a `PAGADA` dejan de aparecer
 automáticamente.
 
+Si Pagos detecta que el importe aprobado debe corregirse, podrá devolver la
+solicitud a `DEVUELTA_APROBADOR_1` mediante un motivo obligatorio. Pagos no
+puede editar el importe ni registrar el pago mientras la solicitud está
+devuelta. La reserva se conserva. El Aprobador 1 podrá corregir la solicitud y
+reenviarla a nivel 2, o devolverla al solicitante; esta última acción libera la
+reserva. Si el Aprobador 1 la corrige, el nuevo importe vuelve a requerir la
+aprobación de nivel 2 antes de quedar disponible para Pagos.
+
 ---
 
 ## 10.2 Información del pago

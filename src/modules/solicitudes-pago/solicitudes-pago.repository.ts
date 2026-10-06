@@ -1046,7 +1046,8 @@ export async function devolverSolicitudPagoRepository(input: {
   estadoOrigen:
     | "PENDIENTE_APROBADOR_1"
     | "PENDIENTE_APROBADOR_2"
-    | "DEVUELTA_APROBADOR_1";
+    | "DEVUELTA_APROBADOR_1"
+    | "PROGRAMADA_PAGO";
   estadoDestino:
     | "DEVUELTA_APROBADOR_1"
     | "DEVUELTA_SOLICITANTE";

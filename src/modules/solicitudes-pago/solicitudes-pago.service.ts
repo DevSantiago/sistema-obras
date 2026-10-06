@@ -4338,6 +4338,17 @@ export async function devolverSolicitudPagoService(
     }
     estadoDestino = "DEVUELTA_SOLICITANTE";
     liberarReserva = true;
+  } else if (estadoOrigen === "PROGRAMADA_PAGO") {
+    const puedeDevolverPago =
+      usuarioAutenticado.roles.includes("ADMINISTRADOR") ||
+      ((usuarioAutenticado.roles.includes("PAGOS") ||
+        usuarioAutenticado.roles.includes("AUXILIAR_CONTABLE")) &&
+        usuarioAutenticado.permisos.includes("MARCAR_COMO_PAGADO"));
+
+    if (!puedeDevolverPago) {
+      return { status: 403, body: { ok: false, message: "No tiene permiso para devolver solicitudes desde Pagos." } };
+    }
+    estadoDestino = "DEVUELTA_APROBADOR_1";
   } else {
     return { status: 409, body: { ok: false, message: "La solicitud no se encuentra en un estado que permita devolución." } };
   }

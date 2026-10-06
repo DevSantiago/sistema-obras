@@ -201,6 +201,11 @@ El rol Pagos y el Auxiliar Contable con el permiso `MARCAR_COMO_PAGADO` pueden
 ejecutar solicitudes que hayan finalizado satisfactoriamente el proceso de
 aprobación.
 
+Si el importe aprobado requiere corrección, puede devolver la solicitud a
+Aprobación nivel 1 con un motivo obligatorio. No puede editar el valor
+aprobado ni registrar el pago hasta que termine nuevamente el flujo de
+aprobación.
+
 No puede crear solicitudes, aprobar solicitudes ni administrar usuarios, proyectos o beneficiarios.
 
 Los pagos electrónicos directos (`TRANSFERENCIA`, `PSE` o `PORTAL`) se

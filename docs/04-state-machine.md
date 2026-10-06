@@ -68,6 +68,8 @@ stateDiagram-v2
 
     PENDIENTE_APROBADOR_2 --> DEVUELTA_APROBADOR_1 : Devolver
 
+    PROGRAMADA_PAGO --> DEVUELTA_APROBADOR_1 : Pagos devuelve con motivo
+
     DEVUELTA_APROBADOR_1 --> PENDIENTE_APROBADOR_2 : Reenviar
 
     DEVUELTA_APROBADOR_1 --> DEVUELTA_SOLICITANTE : Devolver al solicitante
@@ -79,8 +81,9 @@ stateDiagram-v2
 ```
 
 Todas las devoluciones exigen motivo y crean un registro histórico. La reserva
-se conserva entre `PENDIENTE_APROBADOR_2` y `DEVUELTA_APROBADOR_1`; se libera
-cuando la solicitud pasa a `DEVUELTA_SOLICITANTE`.
+se conserva entre `PENDIENTE_APROBADOR_2` y `DEVUELTA_APROBADOR_1`, incluidas
+las devoluciones de Pagos desde `PROGRAMADA_PAGO`; se libera cuando la
+solicitud pasa a `DEVUELTA_SOLICITANTE`.
 
 La anulación durante el flujo de aprobación corresponde al Aprobador de nivel
 1 y solo aplica desde `PENDIENTE_APROBADOR_1`. Es una transición terminal,
