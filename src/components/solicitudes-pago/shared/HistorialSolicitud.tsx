@@ -75,32 +75,55 @@ export default function HistorialSolicitud({
               <li className={styles.event} key={evento.id}>
                 <span className={styles.dot} aria-hidden="true" />
                 <div className={styles.content}>
-                  <div className={styles.header}>
-                    <strong>{TITULOS[evento.accion] ?? evento.accion.replaceAll("_", " ")}</strong>
-                    <time dateTime={new Date(evento.creado_en).toISOString()}>
-                      {formatearFecha(evento.creado_en)}
-                    </time>
-                  </div>
-                  <p className={styles.description}>{evento.descripcion}</p>
-                  <div className={styles.meta}>
-                    {evento.usuario?.nombre ?? "Sistema"}
-                    {evento.estado_anterior && evento.estado_nuevo && evento.estado_anterior !== evento.estado_nuevo
-                      ? ` · ${evento.estado_anterior.replaceAll("_", " ")} → ${evento.estado_nuevo.replaceAll("_", " ")}`
-                      : ""}
-                  </div>
-                  {cambios.length ? (
-                    <details className={styles.changes}>
-                      <summary>Ver campos modificados ({cambios.length})</summary>
-                      <ul>
-                        {cambios.map(([campo, cambio]) => (
-                          <li key={campo}>
-                            <strong>{CAMPOS[campo] ?? campo}:</strong>{" "}
-                            {mostrarValor(cambio.anterior)} → {mostrarValor(cambio.nuevo)}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
+                  <article className={styles.card}>
+                    <div className={styles.header}>
+                      <strong>{TITULOS[evento.accion] ?? evento.accion.replaceAll("_", " ")}</strong>
+                      <time dateTime={new Date(evento.creado_en).toISOString()}>
+                        {formatearFecha(evento.creado_en)}
+                      </time>
+                    </div>
+                    <p className={styles.description}>{evento.descripcion}</p>
+                    <div className={styles.meta}>
+                      <span className={styles.actor}>
+                        <span className={styles.metaLabel}>Responsable</span>
+                        {evento.usuario?.nombre ?? "Sistema"}
+                      </span>
+                      {evento.estado_anterior && evento.estado_nuevo && evento.estado_anterior !== evento.estado_nuevo
+                        ? (
+                            <span className={styles.transition}>
+                              <span className={styles.metaLabel}>Cambio de estado</span>
+                              <span>
+                                {evento.estado_anterior.replaceAll("_", " ")} <span aria-hidden="true">→</span>{" "}
+                                {evento.estado_nuevo.replaceAll("_", " ")}
+                              </span>
+                            </span>
+                          )
+                        : null}
+                    </div>
+                    {cambios.length ? (
+                      <details className={styles.changes}>
+                        <summary>Ver campos modificados ({cambios.length})</summary>
+                        <ul>
+                          {cambios.map(([campo, cambio]) => (
+                            <li className={styles.change} key={campo}>
+                              <strong>{CAMPOS[campo] ?? campo}</strong>
+                              <span className={styles.changeValues}>
+                                <span className={styles.changeValue}>
+                                  <span className={styles.changeLabel}>Antes</span>
+                                  {mostrarValor(cambio.anterior)}
+                                </span>
+                                <span aria-hidden="true">→</span>
+                                <span className={styles.changeValue}>
+                                  <span className={styles.changeLabel}>Después</span>
+                                  {mostrarValor(cambio.nuevo)}
+                                </span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </article>
                 </div>
               </li>
             );

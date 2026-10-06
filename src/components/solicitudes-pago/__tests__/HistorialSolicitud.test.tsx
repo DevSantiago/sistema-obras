@@ -25,9 +25,34 @@ describe("HistorialSolicitud", () => {
 
     expect(html).toContain("Editada por el aprobador nivel 1");
     expect(html).toContain("Aprobador Uno");
+    expect(html).toContain("Antes");
+    expect(html).toContain("Después");
     expect(html).toContain("Valor neto");
     expect(html).toContain("100000");
     expect(html).toContain("95000");
+  });
+
+  it("destaca la transición de estado cuando existe", () => {
+    const html = renderToStaticMarkup(
+      <HistorialSolicitud
+        eventos={[
+          {
+            id: "evento-2",
+            accion: "ENVIO_APROBACION",
+            descripcion: "La solicitud fue enviada a aprobación.",
+            estado_anterior: "BORRADOR",
+            estado_nuevo: "PENDIENTE_APROBADOR_1",
+            cambios: null,
+            creado_en: "2026-08-08T15:00:00.000Z",
+            usuario: { id: "usuario-1", nombre: "Solicitante" },
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("Cambio de estado");
+    expect(html).toContain("BORRADOR");
+    expect(html).toContain("PENDIENTE APROBADOR 1");
   });
 
   it("muestra un estado vacío cuando no existen eventos", () => {
