@@ -1080,7 +1080,9 @@ GET /api/v1/solicitudes-pago/{id}/adjuntos/{adjuntoId}
 ```
 
 Devuelve el contenido del adjunto únicamente cuando el usuario autenticado
-tiene permiso para consultar la solicitud y el archivo pertenece a ella.
+tiene permiso para consultar la solicitud y el archivo pertenece a ella. La
+respuesta utiliza `Content-Disposition: attachment` para descargar el archivo
+sin sacar al usuario de la aplicación móvil.
 
 ---
 

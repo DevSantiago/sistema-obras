@@ -8,6 +8,11 @@ const appBaseUrlOriginal = process.env.APP_BASE_URL;
 const plantillaOriginal = process.env.WHATSAPP_TEMPLATE_APROBACION_NIVEL_1;
 const enabledOriginal = process.env.WHATSAPP_ENABLED;
 
+type NotificacionWhatsAppCreada = {
+  destinatario_usuario_id: string;
+  [key: string]: unknown;
+};
+
 function crearTransaccionMock() {
   return {
     solicitudes_pago: {
@@ -28,7 +33,9 @@ function crearTransaccionMock() {
       findMany: vi.fn(),
     },
     notificaciones_whatsapp: {
-      createMany: vi.fn().mockImplementation(({ data }) => ({
+      createMany: vi.fn().mockImplementation(({
+        data,
+      }: { data: NotificacionWhatsAppCreada[] }) => ({
         count: data.length,
       })),
     },

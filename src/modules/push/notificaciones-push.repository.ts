@@ -4,8 +4,12 @@ import {
   construirEnlaceSolicitud,
   obtenerDestinatariosNotificacion,
   tipoEventoNotificacion,
+  type DestinatarioNotificacion,
 } from "@/modules/whatsapp/notificaciones-whatsapp.repository";
-import type { CrearNotificacionesTransicionesInput } from "@/modules/whatsapp/notificaciones-whatsapp.types";
+import type {
+  CrearNotificacionesTransicionesInput,
+  TransicionNotificableWhatsApp,
+} from "@/modules/whatsapp/notificaciones-whatsapp.types";
 
 const MENSAJES_ESTADO = {
   PENDIENTE_APROBADOR_1: "Tienes una solicitud pendiente de aprobación nivel 1.",
@@ -14,6 +18,47 @@ const MENSAJES_ESTADO = {
   DEVUELTA_SOLICITANTE: "Una solicitud fue devuelta y requiere tu corrección.",
   PROGRAMADA_PAGO: "Una solicitud aprobada está disponible para procesar el pago.",
 } as const;
+
+async function obtenerDestinatariosPush(
+  tx: Prisma.TransactionClient,
+  transicion: TransicionNotificableWhatsApp,
+  solicitud: {
+    proyecto_base_id: string;
+    creado_por: string | null;
+    aprobado_1_por: string | null;
+    centro_costo: { linea_negocio: string };
+  },
+): Promise<DestinatarioNotificacion[]> {
+  if (transicion.estadoDestino === "DEVUELTA_APROBADOR_1") {
+    return tx.usuarios.findMany({
+      where: {
+        estado: "ACTIVO",
+        roles: {
+          some: {
+            rol: {
+              nombre: "APROBADOR_1",
+              activo: true,
+            },
+          },
+        },
+        accesos_recibidos: {
+          some: {
+            proyecto_base_id: solicitud.proyecto_base_id,
+            linea_negocio: solicitud.centro_costo.linea_negocio,
+            activo: true,
+          },
+        },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        telefono: true,
+      },
+    });
+  }
+
+  return obtenerDestinatariosNotificacion(tx, transicion, solicitud);
+}
 
 export async function crearNotificacionesPushTransicionesRepository(
   input: CrearNotificacionesTransicionesInput,
@@ -38,7 +83,7 @@ export async function crearNotificacionesPushTransicionesRepository(
         centro_costo: { select: { linea_negocio: true } },
       },
     });
-    const destinatarios = await obtenerDestinatariosNotificacion(
+    const destinatarios = await obtenerDestinatariosPush(
       tx,
       transicion,
       solicitud,
