@@ -48,7 +48,7 @@ describe("GET /api/v1/solicitudes-pago/{id}/adjuntos/{adjuntoId}", () => {
     obtenerArchivoMock.mockResolvedValue(Buffer.from("archivo"));
   });
 
-  it("debe descargar el adjunto autorizado desde el almacenamiento", async () => {
+  it("debe descargar el adjunto autorizado sin abrirlo dentro de la app", async () => {
     const response = await GET(new Request("http://localhost"), {
       params: Promise.resolve({
         id: "solicitud-1",
@@ -69,6 +69,7 @@ describe("GET /api/v1/solicitudes-pago/{id}/adjuntos/{adjuntoId}", () => {
     expect(response.headers.get("content-disposition")).toContain(
       "factura prueba.pdf",
     );
+    expect(response.headers.get("content-disposition")).toMatch(/^attachment;/);
   });
 
   it("debe responder 404 cuando el archivo no está disponible", async () => {

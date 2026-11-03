@@ -18,7 +18,7 @@ function construirContentDisposition(nombreArchivo: string) {
   const nombreSeguro = nombre.replace(/["\\\r\n]/g, "_");
 
   return [
-    `inline; filename="${nombreSeguro}"`,
+    `attachment; filename="${nombreSeguro}"`,
     `filename*=UTF-8''${encodeURIComponent(nombreSeguro)}`,
   ].join("; ");
 }
