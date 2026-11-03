@@ -323,7 +323,7 @@ export function validarFilaNominaGrupal(input: {
       errores,
       "nombre_trabajador",
       "NOMBRE_NO_COINCIDE",
-      "El nombre del trabajador no coincide con el beneficiario registrado.",
+      `El documento ${filaNormalizada.tipo_documento} ${filaNormalizada.numero_documento} ya está registrado a nombre de «${beneficiario.nombre}», pero en el Excel aparece «${filaNormalizada.nombre_trabajador}». Actualice el nombre del beneficiario en el módulo Beneficiarios o corrija el Excel para que coincidan.`,
     );
   }
 
