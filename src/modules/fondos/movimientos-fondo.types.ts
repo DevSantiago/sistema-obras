@@ -12,6 +12,7 @@ export type RegistrarMovimientoFondoInput = {
   devolucion_prestamo_id?: string | null;
   reingreso_sobrante_id?: string | null;
   correccion_efectivo_id?: string | null;
+  pago_nomina_grupal_id?: string | null;
   tipo_movimiento: string;
   direccion: DireccionMovimientoFondo;
   valor: number;

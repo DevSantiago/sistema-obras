@@ -52,7 +52,7 @@ export type OperacionEfectivoConsulta = {
   observacion: string | null;
   registrado_por_nombre: string;
   registrado_en: string;
-  soporte_retiro: SoporteOperacionEfectivo;
+  soporte_retiro: SoporteOperacionEfectivo | null;
   detalles: DetalleOperacionEfectivoConsulta[];
   reingresos: ReingresoSobranteConsulta[];
   correcciones: CorreccionOperacionEfectivoConsulta[];

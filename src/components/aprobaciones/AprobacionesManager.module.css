@@ -17,6 +17,27 @@
   gap: 1rem;
 }
 
+.pendingSectionLabel,
+.historySectionLabel {
+  display: inline-flex;
+  margin-bottom: 0.45rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.pendingSectionLabel {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.historySectionLabel {
+  background: #f1f5f9;
+  color: #475569;
+}
+
 .accordionToggle {
   display: inline-flex;
   width: 2.25rem;
@@ -177,6 +198,12 @@
   border-radius: 0.625rem;
   font: inherit;
   resize: vertical;
+}
+
+.returnAttachments input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
 }
 
 .returnDialog textarea:focus {

@@ -30,6 +30,7 @@ export async function generarRelacionSolicitudesProgramadasExcel(
   });
 
   hoja.columns = [
+    { header: "Ítem", key: "item", width: 10 },
     { header: "Número de solicitud", key: "numero", width: 38 },
     { header: "Estado", key: "estado", width: 22 },
     { header: "Tipo de solicitud", key: "tipo", width: 24 },
@@ -57,6 +58,7 @@ export async function generarRelacionSolicitudesProgramadasExcel(
     const beneficiario = obtenerBeneficiario(solicitud);
 
     hoja.addRow({
+      item: solicitud.numero_item,
       numero: solicitud.numero_solicitud ?? "",
       estado: solicitud.estado_actual,
       tipo: solicitud.tipo_solicitud,
@@ -91,9 +93,9 @@ export async function generarRelacionSolicitudesProgramadasExcel(
     celda.alignment = { vertical: "middle", horizontal: "center" };
   });
   hoja.getRow(1).height = 26;
-  hoja.autoFilter = { from: "A1", to: "U1" };
+  hoja.autoFilter = { from: "A1", to: "V1" };
 
-  for (const columna of ["N", "O", "P", "Q"]) {
+  for (const columna of ["O", "P", "Q", "R"]) {
     hoja.getColumn(columna).numFmt = '"$"#,##0';
   }
 

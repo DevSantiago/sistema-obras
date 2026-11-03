@@ -37,20 +37,21 @@ model usuarios {
 
   beneficiarios_asociados beneficiarios_pago[] @relation("BeneficiarioUsuarioAsociado")
 
-  solicitudes_creadas                solicitudes_pago[]                @relation("SolicitudesCreadasPor")
-  solicitudes_aprobadas1             solicitudes_pago[]                @relation("SolicitudesAprobadas1Por")
-  solicitudes_aprobadas2             solicitudes_pago[]                @relation("SolicitudesAprobadas2Por")
-  solicitudes_pagadas                solicitudes_pago[]                @relation("SolicitudesPagadasPor")
-  pagos_registrados                  pagos[]                           @relation("PagosRegistradosPor")
-  movimientos_registrados            movimientos_fondo[]               @relation("MovimientosRegistradosPor")
-  operaciones_efectivo_registradas   operaciones_efectivo[]            @relation("OperacionesEfectivoRegistradasPor")
-  reingresos_sobrante_registrados    reingresos_sobrante_efectivo[]    @relation("ReingresosSobranteRegistradosPor")
-  correcciones_efectivo_registradas  correcciones_operacion_efectivo[] @relation("CorreccionesEfectivoRegistradasPor")
-  anticipos_registrados              anticipos[]                       @relation("AnticiposRegistradosPor")
-  prestamos_registrados              prestamos_proyecto[]              @relation("PrestamosRegistradosPor")
-  devoluciones_prestamo_registradas  devoluciones_prestamo[]           @relation("DevolucionesPrestamoRegistradasPor")
-  devoluciones_solicitud_registradas devoluciones_solicitud_pago[]     @relation("DevolucionesSolicitudRegistradasPor")
-  anulaciones_solicitud_registradas  anulaciones_solicitud_pago[]      @relation("AnulacionesSolicitudRegistradasPor")
+  solicitudes_creadas                solicitudes_pago[]                 @relation("SolicitudesCreadasPor")
+  solicitudes_aprobadas1             solicitudes_pago[]                 @relation("SolicitudesAprobadas1Por")
+  solicitudes_aprobadas2             solicitudes_pago[]                 @relation("SolicitudesAprobadas2Por")
+  solicitudes_pagadas                solicitudes_pago[]                 @relation("SolicitudesPagadasPor")
+  pagos_registrados                  pagos[]                            @relation("PagosRegistradosPor")
+  pagos_nomina_grupal_registrados    pagos_nomina_grupal[]              @relation("PagosNominaGrupalRegistradosPor")
+  movimientos_registrados            movimientos_fondo[]                @relation("MovimientosRegistradosPor")
+  operaciones_efectivo_registradas   operaciones_efectivo[]             @relation("OperacionesEfectivoRegistradasPor")
+  reingresos_sobrante_registrados    reingresos_sobrante_efectivo[]     @relation("ReingresosSobranteRegistradosPor")
+  correcciones_efectivo_registradas  correcciones_operacion_efectivo[]  @relation("CorreccionesEfectivoRegistradasPor")
+  anticipos_registrados              anticipos[]                        @relation("AnticiposRegistradosPor")
+  prestamos_registrados              prestamos_proyecto[]               @relation("PrestamosRegistradosPor")
+  devoluciones_prestamo_registradas  devoluciones_prestamo[]            @relation("DevolucionesPrestamoRegistradasPor")
+  devoluciones_solicitud_registradas devoluciones_solicitud_pago[]      @relation("DevolucionesSolicitudRegistradasPor")
+  anulaciones_solicitud_registradas  anulaciones_solicitud_pago[]       @relation("AnulacionesSolicitudRegistradasPor")
   eventos_auditoria_solicitud        eventos_auditoria_solicitud_pago[] @relation("EventosAuditoriaSolicitudRegistradosPor")
   notificaciones_whatsapp            notificaciones_whatsapp[]          @relation("NotificacionesWhatsAppDestinatario")
   notificaciones_push                notificaciones_push[]              @relation("NotificacionesPushDestinatario")
@@ -372,9 +373,10 @@ model solicitudes_pago {
   aprobador2 usuarios? @relation("SolicitudesAprobadas2Por", fields: [aprobado_2_por], references: [id])
   pagador    usuarios? @relation("SolicitudesPagadasPor", fields: [pagado_por], references: [id])
 
-  adjuntos                 adjuntos[]                    @relation("AdjuntosSolicitudPago")
-  archivo_origen           adjuntos?                     @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
+  adjuntos                 adjuntos[]                         @relation("AdjuntosSolicitudPago")
+  archivo_origen           adjuntos?                          @relation("SolicitudPagoArchivoOrigen", fields: [adjunto_archivo_origen_id], references: [id])
   detalles_nomina          detalles_nomina_solicitud[]
+  pagos_nomina_grupal      pagos_nomina_grupal[]
   pagos                    pagos?
   movimientosFondos        movimientos_fondo[]
   detalleOperacionEfectivo detalles_operacion_efectivo?
@@ -415,11 +417,24 @@ model devoluciones_solicitud_pago {
   devuelto_por      String
   creado_en         DateTime @default(now())
 
-  solicitud solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
-  usuario   usuarios         @relation("DevolucionesSolicitudRegistradasPor", fields: [devuelto_por], references: [id])
+  solicitud solicitudes_pago                       @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  usuario   usuarios                               @relation("DevolucionesSolicitudRegistradasPor", fields: [devuelto_por], references: [id])
+  adjuntos  devoluciones_solicitud_pago_adjuntos[]
 
   @@index([solicitud_pago_id, creado_en])
   @@index([devuelto_por])
+}
+
+model devoluciones_solicitud_pago_adjuntos {
+  devolucion_solicitud_pago_id String
+  adjunto_id                   String
+  creado_en                    DateTime @default(now())
+
+  devolucion devoluciones_solicitud_pago @relation(fields: [devolucion_solicitud_pago_id], references: [id], onDelete: Cascade)
+  adjunto    adjuntos                    @relation(fields: [adjunto_id], references: [id], onDelete: Cascade)
+
+  @@id([devolucion_solicitud_pago_id, adjunto_id])
+  @@index([adjunto_id])
 }
 
 model anulaciones_solicitud_pago {
@@ -460,33 +475,33 @@ model eventos_auditoria_solicitud_pago {
 }
 
 model notificaciones_whatsapp {
-  id                       String    @id @default(uuid())
-  evento_transicion_id     String
-  solicitud_pago_id        String
-  destinatario_usuario_id  String?
-  destinatario_nombre      String    @db.VarChar(150)
-  telefono_destinatario    String?
-  ambiente                 String    @db.VarChar(30)
-  tipo_evento              String    @db.VarChar(80)
-  estado_origen            String
-  estado_destino           String
-  plantilla                String?   @db.VarChar(150)
-  idioma                   String    @default("es_CO") @db.VarChar(10)
-  contenido                Json
-  estado                   String    @default("PENDIENTE") @db.VarChar(30)
-  intentos                 Int       @default(0)
-  meta_mensaje_id          String?   @unique @db.VarChar(255)
-  bsuid_destinatario       String?   @db.VarChar(255)
-  ultimo_error             String?   @db.Text
-  respuesta_proveedor      Json?
-  creado_en                DateTime  @default(now())
-  actualizado_en           DateTime  @updatedAt
-  enviado_en               DateTime?
-  entregado_en             DateTime?
-  leido_en                 DateTime?
+  id                      String    @id @default(uuid())
+  evento_transicion_id    String
+  solicitud_pago_id       String
+  destinatario_usuario_id String?
+  destinatario_nombre     String    @db.VarChar(150)
+  telefono_destinatario   String?
+  ambiente                String    @db.VarChar(30)
+  tipo_evento             String    @db.VarChar(80)
+  estado_origen           String
+  estado_destino          String
+  plantilla               String?   @db.VarChar(150)
+  idioma                  String    @default("es_CO") @db.VarChar(10)
+  contenido               Json
+  estado                  String    @default("PENDIENTE") @db.VarChar(30)
+  intentos                Int       @default(0)
+  meta_mensaje_id         String?   @unique @db.VarChar(255)
+  bsuid_destinatario      String?   @db.VarChar(255)
+  ultimo_error            String?   @db.Text
+  respuesta_proveedor     Json?
+  creado_en               DateTime  @default(now())
+  actualizado_en          DateTime  @updatedAt
+  enviado_en              DateTime?
+  entregado_en            DateTime?
+  leido_en                DateTime?
 
-  solicitud       solicitudes_pago @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
-  destinatario    usuarios?        @relation("NotificacionesWhatsAppDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: SetNull)
+  solicitud       solicitudes_pago           @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  destinatario    usuarios?                  @relation("NotificacionesWhatsAppDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: SetNull)
   eventos_webhook eventos_webhook_whatsapp[]
 
   @@unique([evento_transicion_id, solicitud_pago_id, destinatario_usuario_id], map: "notificaciones_whatsapp_evento_solicitud_destinatario_key")
@@ -510,7 +525,7 @@ model suscripciones_push {
   actualizado_en DateTime  @updatedAt
   revocado_en    DateTime?
 
-  usuario usuarios @relation("SuscripcionesPushUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
+  usuario        usuarios              @relation("SuscripcionesPushUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
   notificaciones notificaciones_push[]
 
   @@unique([endpoint_hash, ambiente])
@@ -538,8 +553,8 @@ model notificaciones_push {
   actualizado_en          DateTime  @updatedAt
   enviado_en              DateTime?
 
-  solicitud    solicitudes_pago  @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
-  destinatario usuarios          @relation("NotificacionesPushDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: Cascade)
+  solicitud    solicitudes_pago   @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  destinatario usuarios           @relation("NotificacionesPushDestinatario", fields: [destinatario_usuario_id], references: [id], onDelete: Cascade)
   suscripcion  suscripciones_push @relation(fields: [suscripcion_push_id], references: [id], onDelete: Cascade)
 
   @@unique([evento_transicion_id, solicitud_pago_id, destinatario_usuario_id, suscripcion_push_id], map: "notificaciones_push_evento_destino_suscripcion_key")
@@ -586,16 +601,18 @@ model adjuntos {
   texto_ocr         String?
   json_ocr          Json?
 
-  solicitud_pago             solicitudes_pago?              @relation("AdjuntosSolicitudPago", fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
-  solicitudes_archivo_origen solicitudes_pago[]             @relation("SolicitudPagoArchivoOrigen")
-  usuario_subio              usuarios?                      @relation("AdjuntosSubidosPor", fields: [subido_por], references: [id])
-  soporte_pago               pagos?
-  soportes_retiro            operaciones_efectivo[]         @relation("SoporteRetiroOperacion")
-  soportes_detalle_efectivo  detalles_operacion_efectivo[]  @relation("SoporteDetalleOperacion")
-  soportes_reingreso         reingresos_sobrante_efectivo[] @relation("SoporteReingresoSobrante")
-  soportes_anticipo          anticipos[]                    @relation("SoporteAnticipo")
-  soportes_prestamo          prestamos_proyecto[]           @relation("SoportePrestamo")
-  soportes_devolucion        devoluciones_prestamo[]        @relation("SoporteDevolucionPrestamo")
+  solicitud_pago                solicitudes_pago?                      @relation("AdjuntosSolicitudPago", fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  solicitudes_archivo_origen    solicitudes_pago[]                     @relation("SolicitudPagoArchivoOrigen")
+  usuario_subio                 usuarios?                              @relation("AdjuntosSubidosPor", fields: [subido_por], references: [id])
+  soporte_pago                  pagos?
+  soporte_pago_nomina_grupal    pagos_nomina_grupal?
+  soportes_retiro               operaciones_efectivo[]                 @relation("SoporteRetiroOperacion")
+  soportes_detalle_efectivo     detalles_operacion_efectivo[]          @relation("SoporteDetalleOperacion")
+  soportes_reingreso            reingresos_sobrante_efectivo[]         @relation("SoporteReingresoSobrante")
+  soportes_anticipo             anticipos[]                            @relation("SoporteAnticipo")
+  soportes_prestamo             prestamos_proyecto[]                   @relation("SoportePrestamo")
+  soportes_devolucion           devoluciones_prestamo[]                @relation("SoporteDevolucionPrestamo")
+  adjuntos_devolucion_solicitud devoluciones_solicitud_pago_adjuntos[]
 
   @@index([solicitud_pago_id])
   @@index([subido_por])
@@ -630,7 +647,7 @@ model operaciones_efectivo {
   id                   String   @id @default(uuid())
   proyecto_base_id     String
   fondo_id             String
-  adjunto_retiro_id    String   @unique
+  adjunto_retiro_id    String?  @unique
   fecha_retiro         DateTime
   valor_requerido      Decimal  @db.Decimal(14, 2)
   valor_retirado       Decimal  @db.Decimal(14, 2)
@@ -642,14 +659,15 @@ model operaciones_efectivo {
   registrado_por       String
   registrado_en        DateTime @default(now())
 
-  proyecto_base  proyectos_base                    @relation(fields: [proyecto_base_id], references: [id])
-  fondo          fondos                            @relation(fields: [fondo_id], references: [id])
-  soporte_retiro adjuntos                          @relation("SoporteRetiroOperacion", fields: [adjunto_retiro_id], references: [id])
-  registrador    usuarios                          @relation("OperacionesEfectivoRegistradasPor", fields: [registrado_por], references: [id])
-  detalles       detalles_operacion_efectivo[]
-  movimientos    movimientos_fondo[]
-  reingresos     reingresos_sobrante_efectivo[]
-  correcciones   correcciones_operacion_efectivo[]
+  proyecto_base       proyectos_base                    @relation(fields: [proyecto_base_id], references: [id])
+  fondo               fondos                            @relation(fields: [fondo_id], references: [id])
+  soporte_retiro      adjuntos?                         @relation("SoporteRetiroOperacion", fields: [adjunto_retiro_id], references: [id])
+  registrador         usuarios                          @relation("OperacionesEfectivoRegistradasPor", fields: [registrado_por], references: [id])
+  detalles            detalles_operacion_efectivo[]
+  pagos_nomina_grupal pagos_nomina_grupal[]
+  movimientos         movimientos_fondo[]
+  reingresos          reingresos_sobrante_efectivo[]
+  correcciones        correcciones_operacion_efectivo[]
 
   @@index([proyecto_base_id])
   @@index([fondo_id])
@@ -736,6 +754,7 @@ model movimientos_fondo {
   devolucion_prestamo_id String?
   reingreso_sobrante_id  String?  @unique
   correccion_efectivo_id String?  @unique
+  pago_nomina_grupal_id  String?  @unique
   tipo_movimiento        String
   direccion              String
   valor                  Decimal  @db.Decimal(14, 2)
@@ -757,6 +776,7 @@ model movimientos_fondo {
   devolucion_prestamo devoluciones_prestamo?           @relation(fields: [devolucion_prestamo_id], references: [id])
   reingreso_sobrante  reingresos_sobrante_efectivo?    @relation(fields: [reingreso_sobrante_id], references: [id])
   correccion_efectivo correcciones_operacion_efectivo? @relation(fields: [correccion_efectivo_id], references: [id])
+  pago_nomina_grupal  pagos_nomina_grupal?             @relation(fields: [pago_nomina_grupal_id], references: [id])
   registrador         usuarios?                        @relation("MovimientosRegistradosPor", fields: [registrado_por], references: [id])
 
   @@index([fondo_id])
@@ -888,12 +908,41 @@ model detalles_nomina_solicitud {
   creado_en              DateTime @default(now())
   actualizado_en         DateTime @updatedAt
 
-  solicitud_pago solicitudes_pago    @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
-  beneficiario   beneficiarios_pago? @relation(fields: [beneficiario_id], references: [id])
+  solicitud_pago  solicitudes_pago     @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  beneficiario    beneficiarios_pago?  @relation(fields: [beneficiario_id], references: [id])
+  pago_registrado pagos_nomina_grupal?
 
   @@unique([solicitud_pago_id, numero_fila])
   @@index([solicitud_pago_id])
   @@index([beneficiario_id])
   @@index([tipo_documento, numero_documento])
   @@index([estado_validacion])
+}
+
+model pagos_nomina_grupal {
+  id                    String   @id @default(uuid())
+  solicitud_pago_id     String
+  detalle_nomina_id     String   @unique
+  adjunto_soporte_id    String   @unique
+  operacion_efectivo_id String?
+  medio_pago            String
+  fecha_pago            DateTime
+  numero_comprobante    String?  @db.VarChar(150)
+  observacion           String?
+  valor_pagado          Decimal  @db.Decimal(14, 2)
+  registrado_por        String
+  registrado_en         DateTime @default(now())
+
+  solicitud_pago solicitudes_pago          @relation(fields: [solicitud_pago_id], references: [id], onDelete: Cascade)
+  detalle_nomina detalles_nomina_solicitud @relation(fields: [detalle_nomina_id], references: [id], onDelete: Cascade)
+  soporte        adjuntos                  @relation(fields: [adjunto_soporte_id], references: [id])
+  operacion      operaciones_efectivo?     @relation(fields: [operacion_efectivo_id], references: [id])
+  registrador    usuarios                  @relation("PagosNominaGrupalRegistradosPor", fields: [registrado_por], references: [id])
+  movimiento     movimientos_fondo?
+
+  @@index([solicitud_pago_id])
+  @@index([operacion_efectivo_id])
+  @@index([medio_pago])
+  @@index([fecha_pago])
+  @@index([registrado_por])
 }

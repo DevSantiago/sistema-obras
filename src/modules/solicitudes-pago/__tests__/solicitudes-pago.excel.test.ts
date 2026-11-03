@@ -7,6 +7,7 @@ describe("generarRelacionSolicitudesProgramadasExcel", () => {
     const contenido = await generarRelacionSolicitudesProgramadasExcel([
       {
         id: "solicitud-1",
+        numero_item: 1,
         numero_solicitud: "SOL-PRO-OBRA-2026-000001",
         estado_actual: "PROGRAMADA_PAGO",
         tipo_solicitud: "PAGO_PROVEEDOR",
@@ -51,14 +52,15 @@ describe("generarRelacionSolicitudesProgramadasExcel", () => {
     await workbook.xlsx.load(contenido as never);
     const hoja = workbook.getWorksheet("Solicitudes programadas");
 
-    expect(hoja?.getCell("A2").value).toBe(
+    expect(hoja?.getCell("A2").value).toBe(1);
+    expect(hoja?.getCell("B2").value).toBe(
       "SOL-PRO-OBRA-2026-000001",
     );
-    expect(hoja?.getCell("F2").value).toBe("PROVEEDOR PRUEBA");
-    expect(hoja?.getCell("I2").value).toBe("BANCO PRUEBA");
-    expect(hoja?.getCell("R2").value).toBeTruthy();
+    expect(hoja?.getCell("G2").value).toBe("PROVEEDOR PRUEBA");
+    expect(hoja?.getCell("J2").value).toBe("BANCO PRUEBA");
     expect(hoja?.getCell("S2").value).toBeTruthy();
     expect(hoja?.getCell("T2").value).toBeTruthy();
-    expect(hoja?.getCell("U2").value).toBe("");
+    expect(hoja?.getCell("U2").value).toBeTruthy();
+    expect(hoja?.getCell("V2").value).toBe("");
   });
 });

@@ -26,6 +26,7 @@ Esta entidad representa la cabecera común para las solicitudes de proveedores, 
 | `usuarios` | Usuarios que crean, aprueban o pagan la solicitud. |
 | `adjuntos` | Archivos asociados a la solicitud. |
 | `detalles_nomina_solicitud` | Detalle de trabajadores en solicitudes de nómina. |
+| `pagos_nomina_grupal` | Ejecución y soporte por trabajador en una nómina grupal. |
 | `pagos` | Pago de una transferencia directa. |
 | `operaciones_efectivo` | Cabecera de un retiro agrupado. |
 | `detalles_operacion_efectivo` | Pago individual cubierto por un retiro. |
@@ -59,6 +60,10 @@ erDiagram
     adjuntos o|--o{ solicitudes_pago : archivo_origen
 
     solicitudes_pago ||--o{ detalles_nomina_solicitud : detalla
+    detalles_nomina_solicitud ||--o| pagos_nomina_grupal : pago
+    solicitudes_pago ||--o{ pagos_nomina_grupal : registra
+    operaciones_efectivo o|--o{ pagos_nomina_grupal : cubre
+    pagos_nomina_grupal o|--o| movimientos_fondo : movimiento_directo
 
     solicitudes_pago ||--o| pagos : transferencia
     solicitudes_pago ||--o| detalles_operacion_efectivo : pago_retiro
@@ -221,6 +226,11 @@ SOLICITUD_PAGO 1 → 0..N DETALLES_NOMINA
 
 La eliminación física de una solicitud elimina en cascada sus detalles de nómina.
 
+En la modalidad `AGRUPADA_EXCEL`, cada fila conserva beneficiario, medio,
+valor y comprobante propios. La cabecera de aprobación se mantiene única;
+`pagos_nomina_grupal` registra la ejecución individual y evita duplicar el
+pago de una fila.
+
 ---
 
 # Clasificación
@@ -359,7 +369,7 @@ operaciones_efectivo
     └── solicitudes_pago
 ```
 
-La cabecera conserva proyecto, fondo, fecha, soporte general y valores
+La cabecera conserva proyecto, fondo, fecha, soporte general opcional y valores
 requerido, retirado, pagado y sobrante. Cada detalle conserva solicitud,
 medio de pago, valor, soporte y referencia cuando corresponde.
 
