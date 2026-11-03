@@ -438,6 +438,20 @@
   color: #991b1b;
 }
 
+.validationError {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-left: 3px solid #dc2626;
+  border-radius: 0.25rem;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .netBox {
   display: grid;
   align-self: start;
@@ -581,6 +595,47 @@
 .table th:nth-child(9),
 .table td:nth-child(9) {
   width: 126px;
+}
+
+.validationTable {
+  min-width: 1160px;
+}
+
+.validationTable th:first-child,
+.validationTable td:first-child {
+  width: 56px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.validationTable th:nth-child(2),
+.validationTable td:nth-child(2) {
+  width: 210px;
+}
+
+.validationTable th:nth-child(3),
+.validationTable td:nth-child(3) {
+  width: 135px;
+}
+
+.validationTable th:nth-child(4),
+.validationTable td:nth-child(4) {
+  width: 155px;
+}
+
+.validationTable th:nth-child(5),
+.validationTable td:nth-child(5) {
+  width: 130px;
+}
+
+.validationTable th:nth-child(6),
+.validationTable td:nth-child(6) {
+  width: 115px;
+}
+
+.validationTable th:nth-child(7),
+.validationTable td:nth-child(7) {
+  width: 360px;
 }
 
 .table th,
@@ -784,10 +839,21 @@
   }
 
   .mobileHeader {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .mobileHeader > div {
+    min-width: 0;
+  }
+
+  .mobileHeader .status {
+    max-width: 10rem;
+    flex: 0 0 auto;
+    white-space: normal;
   }
 
   .mobileHeader h3,

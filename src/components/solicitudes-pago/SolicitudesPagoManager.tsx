@@ -1131,8 +1131,7 @@ export default function SolicitudesPagoManager({
                     <a
                       className={styles.receiptLink}
                       href={`/api/v1/solicitudes-pago/${solicitudDetalle.id}/archivo`}
-                      target="_blank"
-                      rel="noreferrer"
+                      download
                     >
                       <span>
                         {solicitudDetalle.archivo_origen.nombre_archivo}
@@ -1145,11 +1144,10 @@ export default function SolicitudesPagoManager({
                       key={adjunto.id}
                       className={styles.receiptLink}
                       href={`/api/v1/solicitudes-pago/${solicitudDetalle.id}/adjuntos/${adjunto.id}`}
-                      target="_blank"
-                      rel="noreferrer"
+                      download
                     >
                       <span>{adjunto.nombre_archivo}</span>
-                      <strong>Ver adjunto</strong>
+                      <strong>Descargar archivo</strong>
                     </a>
                   ))}
                 </div>

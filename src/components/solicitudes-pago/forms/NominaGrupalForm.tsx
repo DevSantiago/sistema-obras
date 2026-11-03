@@ -778,7 +778,7 @@ export default function NominaGrupalForm({
           </div>
 
           <div className={styles.desktopTable}>
-            <table className={styles.table}>
+            <table className={`${styles.table} ${styles.validationTable}`}>
               <thead>
                 <tr>
                   <th>Fila</th>
@@ -825,7 +825,7 @@ export default function NominaGrupalForm({
                       </span>
 
                       {fila.errores_validacion.length > 0 ? (
-                        <span className={styles.muted}>
+                        <span className={styles.validationError} role="alert">
                           {fila.errores_validacion
                             .map((error) => error.mensaje)
                             .join(" · ")}
@@ -836,6 +836,47 @@ export default function NominaGrupalForm({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className={styles.mobileList}>
+            {filasValidadas.map((fila) => (
+              <article
+                className={styles.mobileCard}
+                key={`${fila.numero_fila}-${fila.numero_documento}`}
+              >
+                <div className={styles.mobileHeader}>
+                  <div>
+                    <h3>{fila.nombre_trabajador || "Sin nombre"}</h3>
+                    <p>
+                      Fila {fila.numero_fila} · {fila.tipo_documento || "—"}{" "}
+                      {fila.numero_documento || "—"}
+                    </p>
+                  </div>
+                  <span className={styles.status}>
+                    {etiquetaEstadoValidacion(fila.estado_validacion)}
+                  </span>
+                </div>
+
+                <div className={styles.mobilePrimaryData}>
+                  <div>
+                    <span>Concepto</span>
+                    <strong>{fila.concepto_nomina || "—"}</strong>
+                  </div>
+                  <div>
+                    <span>Valor total</span>
+                    <strong>{formatearMoneda(fila.valor_total)}</strong>
+                  </div>
+                </div>
+
+                {fila.errores_validacion.length > 0 ? (
+                  <div className={styles.validationError} role="alert">
+                    {fila.errores_validacion
+                      .map((error) => error.mensaje)
+                      .join(" · ")}
+                  </div>
+                ) : null}
+              </article>
+            ))}
           </div>
 
           <div className={styles.form}>
