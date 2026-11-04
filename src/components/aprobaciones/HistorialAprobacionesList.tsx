@@ -83,7 +83,7 @@ export default function HistorialAprobacionesList({
   const [proyectoFiltro, setProyectoFiltro] = useState("");
   const [centroFiltro, setCentroFiltro] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoSolicitudPago | "">("");
-  const [expandida, setExpandida] = useState(true);
+  const [expandida, setExpandida] = useState(false);
 
   const proyectos = useMemo(() => {
     const opciones = new Map<string, string>();
@@ -230,6 +230,9 @@ export default function HistorialAprobacionesList({
     <section className={styles.historySection}>
       <div className={styles.historyHeader}>
         <div>
+          <span className={styles.historySectionLabel}>
+            Historial aprobado · {solicitudes.length}
+          </span>
           <h2 className={styles.subtitle}>Solicitudes aprobadas por mí</h2>
           <p className={styles.helper}>
             Historial de solicitudes que aprobaste en el nivel {nivel}, con su

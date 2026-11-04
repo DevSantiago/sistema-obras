@@ -16,7 +16,27 @@ export async function POST(request: Request) {
 
     let body: DevolverSolicitudesPagoInput;
     try {
-      body = (await request.json()) as DevolverSolicitudesPagoInput;
+      if (request.headers.get("content-type")?.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        const datos = formData.get("datos");
+        if (typeof datos !== "string") {
+          return Response.json(
+            { ok: false, message: "Faltan los datos de la devolución." },
+            { status: 400 },
+          );
+        }
+        body = JSON.parse(datos) as DevolverSolicitudesPagoInput;
+        const archivos = formData.getAll("archivos");
+        if (archivos.some((archivo) => !(archivo instanceof File))) {
+          return Response.json(
+            { ok: false, message: "Los adjuntos de la devolución no son válidos." },
+            { status: 400 },
+          );
+        }
+        body.archivos = archivos as File[];
+      } else {
+        body = (await request.json()) as DevolverSolicitudesPagoInput;
+      }
     } catch {
       return Response.json(
         { ok: false, message: "El cuerpo debe ser un JSON válido." },

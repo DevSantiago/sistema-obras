@@ -1,7 +1,6 @@
 "use client";
 
 import SelectorSoporteConCamara from "@/components/adjuntos/SelectorSoporteConCamara";
-import { ordenarPorNumeroSolicitudDescendente } from "@/components/solicitudes-pago/solicitudes-pago.utils";
 import { descargarTablaPdf } from "@/lib/pdf-export";
 import { formatearNombrePropio } from "@/lib/text-format";
 import type {
@@ -14,6 +13,7 @@ import styles from "./PagosManager.module.css";
 
 type FiltrosPagos = {
   busqueda: string;
+  numero_item: string;
   proyecto_base_id: string;
   centro_costo_id: string;
   medio_pago: MedioPagoSolicitud | "";
@@ -31,11 +31,18 @@ type DatosPagoRetiro = {
   soporte: File | null;
 };
 
+type DatosPagoNominaFila = {
+  numero_comprobante: string;
+  observacion: string;
+  soporte: File | null;
+};
+
 type VistaOperacion = "TODOS" | "TRANSFERENCIAS" | "RETIRO";
-type TipoSeleccion = "TRANSFERENCIAS" | "RETIRO" | null;
+type TipoSeleccion = "TRANSFERENCIAS" | "RETIRO" | "NOMINA_GRUPAL" | null;
 
 const FILTROS_INICIALES: FiltrosPagos = {
   busqueda: "",
+  numero_item: "",
   proyecto_base_id: "",
   centro_costo_id: "",
   medio_pago: "",
@@ -99,8 +106,11 @@ export default function PagosManager() {
   const [modalTransferenciasAbierto, setModalTransferenciasAbierto] =
     useState(false);
   const [modalRetiroAbierto, setModalRetiroAbierto] = useState(false);
+  const [modalNominaGrupalAbierto, setModalNominaGrupalAbierto] = useState(false);
+  const [datosPagoNomina, setDatosPagoNomina] = useState<Record<string, DatosPagoNominaFila>>({});
   const [devolucionAbierta, setDevolucionAbierta] = useState(false);
   const [motivoDevolucion, setMotivoDevolucion] = useState("");
+  const [archivosDevolucion, setArchivosDevolucion] = useState<File[]>([]);
   const [devolviendo, setDevolviendo] = useState(false);
   const [tipoSeleccion, setTipoSeleccion] = useState<TipoSeleccion>(null);
   const [valorRetirado, setValorRetirado] = useState("");
@@ -217,8 +227,7 @@ export default function PagosManager() {
   const solicitudesFiltradas = useMemo(() => {
     const busqueda = filtros.busqueda.trim().toLocaleLowerCase("es");
 
-    return ordenarPorNumeroSolicitudDescendente(
-      solicitudes.filter((solicitud) => {
+    return solicitudes.filter((solicitud) => {
         const coincideBusqueda =
           !busqueda ||
           [
@@ -231,6 +240,8 @@ export default function PagosManager() {
 
         return (
           coincideBusqueda &&
+          (!filtros.numero_item.trim() ||
+            String(solicitud.numero_item) === filtros.numero_item.trim()) &&
           (vistaOperacion === "TODOS" ||
             (vistaOperacion === "TRANSFERENCIAS"
               ? solicitud.medio_pago === "TRANSFERENCIA" ||
@@ -245,8 +256,7 @@ export default function PagosManager() {
           (!filtros.medio_pago ||
             solicitud.medio_pago === filtros.medio_pago)
         );
-      }),
-    );
+      });
   }, [filtros, solicitudes, vistaOperacion]);
 
   const totalSolicitudesFiltradas = useMemo(
@@ -293,6 +303,15 @@ export default function PagosManager() {
     [idsSeleccionados, solicitudes],
   );
 
+  const solicitudesNominaGrupalSeleccionadas = useMemo(
+    () => solicitudes.filter((solicitud) =>
+      idsSeleccionados.has(solicitud.id) &&
+      solicitud.tipo_solicitud === "PAGO_NOMINA" &&
+      solicitud.modalidad_nomina === "AGRUPADA_EXCEL",
+    ),
+    [idsSeleccionados, solicitudes],
+  );
+
   const solicitudesSeleccionablesVisibles = useMemo(() => {
     const referencia =
       solicitudes.find((solicitud) => idsSeleccionados.has(solicitud.id)) ??
@@ -300,7 +319,9 @@ export default function PagosManager() {
 
     if (!referencia) return [];
 
-    const tipoReferencia =
+    const tipoReferencia = referencia.modalidad_nomina === "AGRUPADA_EXCEL"
+      ? "NOMINA_GRUPAL"
+      :
       referencia.medio_pago === "TRANSFERENCIA" ||
       referencia.medio_pago === "PSE" ||
       referencia.medio_pago === "PORTAL"
@@ -308,14 +329,16 @@ export default function PagosManager() {
         : "RETIRO";
 
     return solicitudesFiltradas.filter((solicitud) => {
-      const tipoSolicitud =
-        solicitud.medio_pago === "TRANSFERENCIA" ||
-        solicitud.medio_pago === "PSE" ||
-        solicitud.medio_pago === "PORTAL"
+      const tipoSolicitud = solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
+        ? "NOMINA_GRUPAL"
+        : solicitud.medio_pago === "TRANSFERENCIA" ||
+          solicitud.medio_pago === "PSE" ||
+          solicitud.medio_pago === "PORTAL"
           ? "TRANSFERENCIAS"
           : "RETIRO";
 
       if (tipoSolicitud !== tipoReferencia) return false;
+      if (tipoSolicitud === "NOMINA_GRUPAL") return solicitud.id === referencia.id;
       return (
         tipoSolicitud === "TRANSFERENCIAS" ||
         (solicitud.proyecto_base_id === referencia.proyecto_base_id &&
@@ -397,6 +420,24 @@ export default function PagosManager() {
     ? valorRetiradoNumero - valorRequeridoRetiro
     : -valorRequeridoRetiro;
   const solicitudBaseRetiro = solicitudesRetiroSeleccionadas[0];
+  const solicitudNominaGrupal = solicitudesNominaGrupalSeleccionadas[0];
+  const detallesNomina = solicitudNominaGrupal?.detalles_nomina ?? [];
+  const totalNominaGrupal = detallesNomina.reduce((total, detalle) => total + detalle.valor_neto, 0);
+  const soportesNominaDistintos = (() => {
+    const nombres = detallesNomina
+      .map((detalle) => datosPagoNomina[detalle.id]?.soporte?.name.trim().toLocaleLowerCase("es"))
+      .filter((nombre): nombre is string => Boolean(nombre));
+    return new Set(nombres).size === nombres.length;
+  })();
+  const pagoNominaGrupalCompleto = Boolean(
+    solicitudNominaGrupal && detallesNomina.length > 0 &&
+    Math.abs(totalNominaGrupal - solicitudNominaGrupal.valor_neto) < 0.01 &&
+    soportesNominaDistintos && detallesNomina.every((detalle) => {
+      const datos = datosPagoNomina[detalle.id];
+      const requiereReferencia = ["TRANSFERENCIA", "PSE", "PORTAL", "CONSIGNACION"].includes(detalle.medio_pago);
+      return Boolean(datos?.soporte && (!requiereReferencia || datos.numero_comprobante.trim()));
+    })
+  );
   const saldoProyectadoRetiro = solicitudBaseRetiro
     ? solicitudBaseRetiro.saldo_fondo_actual -
       valorRetiradoNumero +
@@ -404,7 +445,6 @@ export default function PagosManager() {
     : 0;
   const retiroCompleto =
     solicitudesRetiroSeleccionadas.length > 0 &&
-    soporteRetiro &&
     valorRetiradoNumero >= valorRequeridoRetiro &&
     valorRetiradoNumero <=
       (solicitudBaseRetiro?.saldo_fondo_actual ?? 0) &&
@@ -419,10 +459,11 @@ export default function PagosManager() {
     });
 
   function esSeleccionCompatible(solicitud: SolicitudProgramadaPago) {
-    const tipoSolicitud =
-      solicitud.medio_pago === "TRANSFERENCIA" ||
-      solicitud.medio_pago === "PSE" ||
-      solicitud.medio_pago === "PORTAL"
+    const tipoSolicitud = solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
+      ? "NOMINA_GRUPAL"
+      : solicitud.medio_pago === "TRANSFERENCIA" ||
+        solicitud.medio_pago === "PSE" ||
+        solicitud.medio_pago === "PORTAL"
         ? "TRANSFERENCIAS"
         : "RETIRO";
 
@@ -432,6 +473,10 @@ export default function PagosManager() {
 
     if (tipoSolicitud === "TRANSFERENCIAS") {
       return true;
+    }
+
+    if (tipoSolicitud === "NOMINA_GRUPAL") {
+      return idsSeleccionados.size === 0 || idsSeleccionados.has(solicitud.id);
     }
 
     return solicitudesRetiroSeleccionadas.every(
@@ -457,7 +502,9 @@ export default function PagosManager() {
       } else {
         nuevos.add(solicitud.id);
         setTipoSeleccion(
-          solicitud.medio_pago === "TRANSFERENCIA" ||
+          solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
+            ? "NOMINA_GRUPAL"
+            : solicitud.medio_pago === "TRANSFERENCIA" ||
           solicitud.medio_pago === "PSE" ||
           solicitud.medio_pago === "PORTAL"
             ? "TRANSFERENCIAS"
@@ -490,7 +537,9 @@ export default function PagosManager() {
       } else if (!tipoSeleccion && solicitudesSeleccionablesVisibles[0]) {
         const primera = solicitudesSeleccionablesVisibles[0];
         setTipoSeleccion(
-          primera.medio_pago === "TRANSFERENCIA" ||
+          primera.modalidad_nomina === "AGRUPADA_EXCEL"
+            ? "NOMINA_GRUPAL"
+            : primera.medio_pago === "TRANSFERENCIA" ||
           primera.medio_pago === "PSE" ||
           primera.medio_pago === "PORTAL"
             ? "TRANSFERENCIAS"
@@ -516,6 +565,7 @@ export default function PagosManager() {
   function abrirDetalle(solicitud: SolicitudProgramadaPago) {
     setDevolucionAbierta(false);
     setMotivoDevolucion("");
+    setArchivosDevolucion([]);
     setMensajeError("");
     setSolicitudSeleccionada(solicitud);
   }
@@ -536,13 +586,15 @@ export default function PagosManager() {
     setMensajeExito("");
 
     try {
+      const formData = new FormData();
+      formData.append("datos", JSON.stringify({ motivo }));
+      archivosDevolucion.forEach((archivo) => formData.append("archivos", archivo));
       const response = await fetch(
         `/api/v1/solicitudes-pago/${solicitudSeleccionada.id}/devolver`,
         {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ motivo }),
+          body: formData,
         },
       );
       const body =
@@ -559,6 +611,7 @@ export default function PagosManager() {
       setSolicitudSeleccionada(null);
       setDevolucionAbierta(false);
       setMotivoDevolucion("");
+      setArchivosDevolucion([]);
       setIdsSeleccionados((actuales) => {
         const nuevos = new Set(actuales);
         nuevos.delete(solicitudSeleccionada.id);
@@ -614,6 +667,19 @@ export default function PagosManager() {
   }
 
   function abrirRegistro() {
+    if (tipoSeleccion === "NOMINA_GRUPAL" && solicitudNominaGrupal) {
+      setDatosPagoNomina((current) => {
+        const next = { ...current };
+        for (const detalle of detallesNomina) {
+          next[detalle.id] ??= { numero_comprobante: "", observacion: "", soporte: null };
+        }
+        return next;
+      });
+      setMensajeError("");
+      setModalNominaGrupalAbierto(true);
+      return;
+    }
+
     if (tipoSeleccion === "TRANSFERENCIAS") {
       abrirRegistroTransferencias();
       return;
@@ -641,6 +707,54 @@ export default function PagosManager() {
     setModalRetiroAbierto(true);
   }
 
+  function actualizarDatosPagoNomina(detalleId: string, cambios: Partial<DatosPagoNominaFila>) {
+    setDatosPagoNomina((actuales) => ({
+      ...actuales,
+      [detalleId]: { ...actuales[detalleId], ...cambios },
+    }));
+  }
+
+  async function registrarPagosNominaGrupal() {
+    if (!solicitudNominaGrupal || !pagoNominaGrupalCompleto || registrando) return;
+    setRegistrando(true);
+    setMensajeError("");
+    setMensajeExito("");
+    try {
+      const formData = new FormData();
+      const pagos = detallesNomina.map((detalle, index) => {
+        const datos = datosPagoNomina[detalle.id];
+        const archivoCampo = `soporte_nomina_${index}`;
+        formData.append(archivoCampo, datos.soporte!);
+        return {
+          detalle_nomina_id: detalle.id,
+          medio_pago: detalle.medio_pago,
+          numero_comprobante: datos.numero_comprobante,
+          observacion: datos.observacion,
+          archivo_campo: archivoCampo,
+        };
+      });
+      formData.append("pagos", JSON.stringify(pagos));
+      const response = await fetch(
+        `/api/v1/solicitudes-pago/${solicitudNominaGrupal.id}/registrar-nomina-grupal`,
+        { method: "POST", credentials: "include", body: formData },
+      );
+      const body = await response.json() as SolicitudesPagoApiResponse<unknown>;
+      if (!response.ok || !body.ok) {
+        throw new Error(body.message ?? "No fue posible registrar los pagos de nómina grupal.");
+      }
+      setModalNominaGrupalAbierto(false);
+      setIdsSeleccionados(new Set());
+      setTipoSeleccion(null);
+      setDatosPagoNomina({});
+      setMensajeExito(body.message ?? "Pagos de nómina grupal registrados.");
+      await cargarSolicitudes();
+    } catch (error) {
+      setMensajeError(error instanceof Error ? error.message : "No fue posible registrar los pagos de nómina grupal.");
+    } finally {
+      setRegistrando(false);
+    }
+  }
+
   function actualizarDatosPagoRetiro(
     solicitudId: string,
     cambios: Partial<DatosPagoRetiro>,
@@ -665,7 +779,9 @@ export default function PagosManager() {
 
     try {
       const formData = new FormData();
-      formData.append("soporte_retiro", soporteRetiro!);
+      if (soporteRetiro) {
+        formData.append("soporte_retiro", soporteRetiro);
+      }
       const detalles = solicitudesRetiroSeleccionadas.map(
         (solicitud, indice) => {
           const datos = datosPagosRetiro[solicitud.id];
@@ -688,7 +804,9 @@ export default function PagosManager() {
           valor_retirado: valorRetiradoNumero,
           observacion: observacionRetiro,
           reintegrar_sobrante: reintegrarSobrante,
-          archivo_retiro_campo: "soporte_retiro",
+          ...(soporteRetiro
+            ? { archivo_retiro_campo: "soporte_retiro" }
+            : {}),
           detalles,
         }),
       );
@@ -803,6 +921,7 @@ export default function PagosManager() {
   function descargarRelacionExcel() {
     const parametros = new URLSearchParams();
     if (filtros.busqueda.trim()) parametros.set("busqueda", filtros.busqueda.trim());
+    if (filtros.numero_item.trim()) parametros.set("numero_item", filtros.numero_item.trim());
     if (filtros.proyecto_base_id) parametros.set("proyecto_base_id", filtros.proyecto_base_id);
     if (filtros.centro_costo_id) parametros.set("centro_costo_id", filtros.centro_costo_id);
     if (filtros.medio_pago) parametros.set("medio_pago", filtros.medio_pago);
@@ -827,12 +946,14 @@ export default function PagosManager() {
       filas: solicitudesFiltradas,
       filtros: [
         filtros.busqueda.trim() && `Búsqueda: ${filtros.busqueda.trim()}`,
+        filtros.numero_item.trim() && `Número de ítem: ${filtros.numero_item.trim()}`,
         proyecto && `Proyecto: ${proyecto.nombre}`,
         centro && `Centro de costo: ${centro.nombre}`,
         filtros.medio_pago && `Medio de pago: ${filtros.medio_pago}`,
         vistaOperacion !== "TODOS" && `Operación: ${vistaOperacion}`,
       ].filter(Boolean) as string[],
       columnas: [
+        { titulo: "Ítem", ancho: 6, valor: (fila) => fila.numero_item },
         { titulo: "Solicitud", ancho: 17, valor: (fila) => fila.numero_solicitud },
         { titulo: "Beneficiario", ancho: 17, valor: obtenerBeneficiario },
         { titulo: "Proyecto", ancho: 15, valor: (fila) => fila.proyecto_base?.nombre },
@@ -918,6 +1039,21 @@ export default function PagosManager() {
               }))
             }
             placeholder="Número, beneficiario o descripción"
+          />
+        </label>
+
+        <label className={styles.field}>
+          <span>Número de ítem</span>
+          <input
+            inputMode="numeric"
+            value={filtros.numero_item}
+            onChange={(event) =>
+              setFiltros((actuales) => ({
+                ...actuales,
+                numero_item: event.target.value.replace(/\D/g, ""),
+              }))
+            }
+            placeholder="Buscar por ítem"
           />
         </label>
 
@@ -1059,6 +1195,7 @@ export default function PagosManager() {
             <table className={styles.table}>
               <colgroup>
                 <col className={styles.selectionColumn} />
+                <col className={styles.itemColumn} />
                 <col className={styles.requestColumn} />
                 <col className={styles.beneficiaryColumn} />
                 <col className={styles.projectColumn} />
@@ -1081,7 +1218,8 @@ export default function PagosManager() {
                       onChange={alternarSeleccionVisibles}
                     />
                   </th>
-                  <th>Número</th>
+                  <th>Ítem</th>
+                  <th>Número de solicitud</th>
                   <th>Beneficiario</th>
                   <th>Proyecto base</th>
                   <th>Centro de costo</th>
@@ -1127,6 +1265,7 @@ export default function PagosManager() {
                         onChange={() => alternarSeleccion(solicitud)}
                       />
                     </td>
+                    <td>{solicitud.numero_item}</td>
                     <td><strong>{solicitud.numero_solicitud ?? "—"}</strong></td>
                     <td>{obtenerBeneficiario(solicitud)}</td>
                     <td>{solicitud.proyecto_base?.nombre ?? "—"}</td>
@@ -1142,7 +1281,7 @@ export default function PagosManager() {
               </tbody>
               <tfoot>
                 <tr className={styles.totalRow}>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     Total visible ({solicitudesFiltradas.length} solicitudes)
                   </td>
                   <td className={styles.totalValue}>
@@ -1151,7 +1290,7 @@ export default function PagosManager() {
                 </tr>
                 {idsSeleccionados.size > 0 ? (
                   <tr className={styles.selectedTotalRow}>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       Seleccionado para procesar ({idsSeleccionados.size} solicitudes)
                     </td>
                     <td className={styles.selectedTotalValue}>
@@ -1197,6 +1336,7 @@ export default function PagosManager() {
                 <details className={styles.mobileDisclosure}>
                   <summary>Ver información para el pago</summary>
                   <dl>
+                    <div><dt>Ítem</dt><dd>{solicitud.numero_item}</dd></div>
                     <div><dt>Proyecto</dt><dd>{solicitud.proyecto_base?.nombre ?? "—"}</dd></div>
                     <div><dt>Centro de costo</dt><dd>{solicitud.centro_costo?.nombre ?? "—"}</dd></div>
                     <div><dt>Fecha de aprobación</dt><dd>{formatearFecha(solicitud.aprobado_2_en)}</dd></div>
@@ -1226,6 +1366,86 @@ export default function PagosManager() {
           </div>
         </>
       )}
+
+      {modalNominaGrupalAbierto && solicitudNominaGrupal ? (
+        <div className={`${styles.modalBackdrop} appModalBackdrop`}>
+          <section
+            className={`${styles.modal} ${styles.batchModal} appModalDialog`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="registro-nomina-grupal-title"
+          >
+            <header className={styles.modalHeader}>
+              <div>
+                <p className={styles.modalEyebrow}>Nómina grupal · {detallesNomina.length} pagos individuales</p>
+                <h2 id="registro-nomina-grupal-title">Registrar pagos de nómina</h2>
+                <p>{solicitudNominaGrupal.numero_solicitud}</p>
+              </div>
+              <button className={styles.closeButton} type="button" aria-label="Cerrar" disabled={registrando} onClick={() => setModalNominaGrupalAbierto(false)}>×</button>
+            </header>
+            <div className={styles.paymentForms}>
+              <article className={styles.projectSummary}>
+                <strong>{solicitudNominaGrupal.proyecto_base?.nombre ?? "Proyecto"} · {solicitudNominaGrupal.centro_costo?.nombre ?? "Centro de costo"}</strong>
+                <dl>
+                  <div><dt>Saldo actual del fondo</dt><dd>{FORMATEADOR_MONEDA.format(solicitudNominaGrupal.saldo_fondo_actual)}</dd></div>
+                  <div><dt>Total aprobado</dt><dd>{FORMATEADOR_MONEDA.format(solicitudNominaGrupal.valor_neto)}</dd></div>
+                  <div><dt>Saldo después del pago</dt><dd>{FORMATEADOR_MONEDA.format(solicitudNominaGrupal.saldo_fondo_actual - totalNominaGrupal)}</dd></div>
+                </dl>
+                {Math.abs(totalNominaGrupal - solicitudNominaGrupal.valor_neto) >= 0.01 ? <p>El detalle de la nómina no coincide con el valor aprobado.</p> : null}
+                {solicitudNominaGrupal.saldo_fondo_actual < totalNominaGrupal ? <p>El fondo no tiene saldo suficiente para completar todos los pagos.</p> : null}
+              </article>
+              {detallesNomina.map((detalle, index) => {
+                const datos = datosPagoNomina[detalle.id];
+                if (!datos) return null;
+                const requiereReferencia = ["TRANSFERENCIA", "PSE", "PORTAL", "CONSIGNACION"].includes(detalle.medio_pago);
+                const completo = Boolean(datos.soporte && (!requiereReferencia || datos.numero_comprobante.trim()));
+                return (
+                  <details key={detalle.id} className={styles.batchItem}>
+                    <summary className={styles.batchSummary}>
+                      <span><strong>Fila {detalle.numero_fila} · {detalle.nombre_trabajador}</strong><small>{detalle.tipo_documento} {detalle.numero_documento} · {detalle.medio_pago} · {FORMATEADOR_MONEDA.format(detalle.valor_neto)}</small></span>
+                      <span className={completo ? styles.batchComplete : styles.batchPending}>{completo ? "Completo" : "Pendiente"}</span>
+                    </summary>
+                    <fieldset disabled={registrando}>
+                      <div className={styles.paymentGrid}>
+                        {requiereReferencia ? (
+                          <label className={styles.field}>
+                            <span>{detalle.medio_pago === "CONSIGNACION" ? "Referencia de consignación" : "Referencia bancaria"}</span>
+                            <input className={styles.paymentReferenceInput} value={datos.numero_comprobante} maxLength={150} onChange={(event) => actualizarDatosPagoNomina(detalle.id, { numero_comprobante: event.target.value })} required />
+                          </label>
+                        ) : null}
+                        <SelectorSoporteConCamara
+                          id={`soporte-nomina-grupal-${index}`}
+                          titulo="Soporte del pago"
+                          archivo={datos.soporte}
+                          onChange={(soporte) => actualizarDatosPagoNomina(detalle.id, { soporte })}
+                          required
+                          removable
+                        />
+                        <label className={`${styles.field} ${styles.fullWidth}`}>
+                          <span>Observación</span>
+                          <textarea value={datos.observacion} rows={2} onChange={(event) => actualizarDatosPagoNomina(detalle.id, { observacion: event.target.value })} />
+                        </label>
+                      </div>
+                    </fieldset>
+                  </details>
+                );
+              })}
+              {!soportesNominaDistintos ? (
+                <p className={styles.error} role="status">
+                  Cada pago debe tener un soporte diferente.
+                </p>
+              ) : null}
+            </div>
+            {mensajeError ? <p className={styles.error}>{mensajeError}</p> : null}
+            <footer className={styles.modalActions}>
+              <button className={styles.secondaryButton} type="button" disabled={registrando} onClick={() => setModalNominaGrupalAbierto(false)}>Cancelar</button>
+              <button className={styles.primaryButton} type="button" disabled={!pagoNominaGrupalCompleto || solicitudNominaGrupal.saldo_fondo_actual < totalNominaGrupal || registrando} onClick={() => void registrarPagosNominaGrupal()}>
+                {registrando ? "Registrando pagos..." : `Confirmar ${detallesNomina.length} pagos · ${FORMATEADOR_MONEDA.format(totalNominaGrupal)}`}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
 
       {modalTransferenciasAbierto ? (
         <div className={`${styles.modalBackdrop} appModalBackdrop`}>
@@ -1302,6 +1522,7 @@ export default function PagosManager() {
                       <label className={styles.field}>
                         <span>Referencia bancaria</span>
                         <input
+                          className={styles.paymentReferenceInput}
                           value={datos.numero_comprobante}
                           onChange={(event) =>
                             actualizarDatosTransferencia(solicitud.id, {
@@ -1435,10 +1656,9 @@ export default function PagosManager() {
                   </label>
                   <SelectorSoporteConCamara
                     id="soporte-retiro"
-                    titulo="Soporte del retiro"
+                    titulo="Soporte del retiro (opcional)"
                     archivo={soporteRetiro}
                     onChange={setSoporteRetiro}
-                    required
                   />
                   <label className={`${styles.field} ${styles.fullWidth}`}>
                     <span>Observación del retiro</span>
@@ -1495,6 +1715,7 @@ export default function PagosManager() {
                         <label className={styles.field}>
                           <span>Referencia de consignación</span>
                           <input
+                            className={styles.paymentReferenceInput}
                             value={datos.numero_comprobante}
                             onChange={(event) =>
                               actualizarDatosPagoRetiro(solicitud.id, {
@@ -1597,13 +1818,24 @@ export default function PagosManager() {
               <h3>Información para el pago</h3>
               <dl className={styles.detailGrid}>
                 <div><dt>Tipo de solicitud</dt><dd>{obtenerTipo(solicitudSeleccionada)}</dd></div>
-                <div><dt>Medio de pago</dt><dd>{solicitudSeleccionada.medio_pago ?? "—"}</dd></div>
+                <div><dt>Proyecto</dt><dd>{solicitudSeleccionada.proyecto_base?.nombre ?? "No disponible"}</dd></div>
+                <div><dt>Centro de costo</dt><dd>{solicitudSeleccionada.centro_costo?.nombre ?? "No disponible"}</dd></div>
+                <div><dt>Medio de pago</dt><dd>{solicitudSeleccionada.modalidad_nomina === "AGRUPADA_EXCEL" ? "Definido por trabajador" : solicitudSeleccionada.medio_pago ?? "—"}</dd></div>
                 <div><dt>Fecha de aprobación</dt><dd>{formatearFecha(solicitudSeleccionada.aprobado_2_en)}</dd></div>
                 <div><dt>Beneficiario</dt><dd>{obtenerBeneficiario(solicitudSeleccionada)}</dd></div>
-                <div><dt>Documento</dt><dd>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</dd></div>
-                <div><dt>Banco</dt><dd>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</dd></div>
-                <div><dt>Tipo de cuenta</dt><dd>{solicitudSeleccionada.beneficiario?.tipo_cuenta_bancaria ?? "No registrado"}</dd></div>
-                <div><dt>Número de cuenta o convenio</dt><dd>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</dd></div>
+                {solicitudSeleccionada.modalidad_nomina === "AGRUPADA_EXCEL" ? (
+                  <div className={styles.detailWide}>
+                    <dt>Datos de pago</dt>
+                    <dd>Los medios de pago y datos bancarios están definidos por trabajador en el detalle de nómina.</dd>
+                  </div>
+                ) : (
+                  <>
+                    <div><dt>Documento</dt><dd>{solicitudSeleccionada.beneficiario?.tipo_documento ?? "—"} {solicitudSeleccionada.beneficiario?.numero_documento ?? ""}</dd></div>
+                    <div><dt>Banco</dt><dd>{solicitudSeleccionada.beneficiario?.banco ?? "No registrado"}</dd></div>
+                    <div><dt>Tipo de cuenta</dt><dd>{solicitudSeleccionada.beneficiario?.tipo_cuenta_bancaria ?? "No registrado"}</dd></div>
+                    <div><dt>Número de cuenta o convenio</dt><dd>{solicitudSeleccionada.beneficiario?.numero_cuenta_bancaria ?? "No registrado"}</dd></div>
+                  </>
+                )}
                 <div className={styles.detailWide}><dt>Descripción</dt><dd>{solicitudSeleccionada.descripcion}</dd></div>
               </dl>
             </section>
@@ -1657,6 +1889,24 @@ export default function PagosManager() {
                       disabled={devolviendo}
                     />
                   </label>
+                  <label className={styles.returnField}>
+                    <span>Adjuntos (opcional)</span>
+                    <input
+                      type="file"
+                      accept="application/pdf,image/avif,image/heic,image/heif,image/jpeg,image/png,image/webp"
+                      multiple
+                      disabled={devolviendo}
+                      onChange={(event) =>
+                        setArchivosDevolucion(Array.from(event.target.files ?? []))
+                      }
+                    />
+                    <small>
+                      PDF o imágenes, hasta 10 archivos de 10 MB cada uno.
+                      {archivosDevolucion.length
+                        ? ` ${archivosDevolucion.length} seleccionados.`
+                        : ""}
+                    </small>
+                  </label>
                   {mensajeError ? (
                     <p className={styles.error} role="alert">
                       {mensajeError}
@@ -1670,6 +1920,7 @@ export default function PagosManager() {
                       onClick={() => {
                         setDevolucionAbierta(false);
                         setMotivoDevolucion("");
+                        setArchivosDevolucion([]);
                         setMensajeError("");
                       }}
                     >

@@ -28,6 +28,7 @@ import {
   obtenerSolicitudesPagoPorIdsRepository,
   obtenerReservasPorFondosRepository,
   obtenerFondosPorIdsRepository,
+  listarDetallesNominaParaPagosRepository,
   aprobarSolicitudesNivel1Repository,
   aprobarSolicitudesNivel2Repository,
   devolverSolicitudPagoRepository,
@@ -38,6 +39,7 @@ import {
   RegistroPagosError,
   registrarOperacionEfectivoRepository,
   registrarTransferenciasRepository,
+  registrarPagoNominaGrupalRepository,
 } from "./solicitudes-pago.repository";
 import type {
   CategoriaReembolso,
@@ -73,6 +75,8 @@ import type {
   AnularSolicitudesPagoInput,
   AnularSolicitudesPagoData,
   RegistrarTransferenciaLoteInput,
+  RegistrarPagoNominaGrupalFilaInput,
+  RegistrarPagoNominaGrupalRepositoryInput,
   RegistrarTransferenciasData,
   RegistrarOperacionEfectivoInput,
   RegistrarOperacionEfectivoData,
@@ -151,6 +155,77 @@ function obtenerMetadatosAdjunto(archivo: ArchivoGuardado) {
     tipo_mime: archivo.tipo_mime,
     tamano_archivo: archivo.tamano_archivo,
   };
+}
+
+const TIPOS_ARCHIVO_DEVOLUCION_PERMITIDOS = [
+  "application/pdf",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+const MAX_ARCHIVOS_DEVOLUCION = 10;
+const MAX_TAMANO_ARCHIVO_DEVOLUCION = 10 * 1024 * 1024;
+
+function validarArchivosDevolucion(archivos: File[]): string | null {
+  if (archivos.length > MAX_ARCHIVOS_DEVOLUCION) {
+    return `Solo se permiten máximo ${MAX_ARCHIVOS_DEVOLUCION} archivos por devolución.`;
+  }
+
+  if (
+    archivos.some(
+      (archivo) =>
+        archivo.size <= 0 ||
+        archivo.size > MAX_TAMANO_ARCHIVO_DEVOLUCION ||
+        !TIPOS_ARCHIVO_DEVOLUCION_PERMITIDOS.includes(archivo.type),
+    )
+  ) {
+    return "Cada archivo debe ser PDF o imagen (PNG, JPG, WEBP, HEIC o AVIF) y pesar máximo 10 MB.";
+  }
+
+  return null;
+}
+
+async function cargarAdjuntosDevolucion(
+  archivos: File[],
+  usuarioId: string,
+) {
+  const archivosGuardados: ArchivoGuardado[] = [];
+
+  try {
+    for (const archivo of archivos) {
+      archivosGuardados.push(
+        await storageService.guardarArchivo({
+          contenido: Buffer.from(await archivo.arrayBuffer()),
+          nombre_original: archivo.name,
+          tipo_mime: archivo.type,
+          carpeta: "solicitudes-pago/devoluciones",
+        }),
+      );
+    }
+
+    return archivosGuardados.map((archivo) => ({
+      ...obtenerMetadatosAdjunto(archivo),
+      subido_por: usuarioId,
+    }));
+  } catch (error) {
+    await Promise.allSettled(
+      archivosGuardados.map((archivo) =>
+        storageService.eliminarArchivo(archivo.ruta_archivo),
+      ),
+    );
+    throw error;
+  }
+}
+
+async function eliminarAdjuntosDevolucion(archivos: ArchivoGuardado[]) {
+  await Promise.allSettled(
+    archivos.map((archivo) =>
+      storageService.eliminarArchivo(archivo.ruta_archivo),
+    ),
+  );
 }
 
 const TIPOS_SOLICITUD_VALIDOS: TipoSolicitudPago[] = [
@@ -262,6 +337,13 @@ type SolicitudPagoRepositoryResult = {
       id: string;
       nombre: string;
     };
+    adjuntos?: Array<{
+      adjunto: {
+        id: string;
+        nombre_archivo: string;
+        tipo_mime: string | null;
+      };
+    }>;
   }>;
   anulaciones?: Array<{
     id: string;
@@ -670,6 +752,11 @@ function validarPeriodoImpuesto(periodo: string): string | null {
 function convertirSolicitudPago(
   solicitud: SolicitudPagoRepositoryResult,
 ): SolicitudPagoListado {
+  const devoluciones = (solicitud.devoluciones ?? []).map((evento) => ({
+    ...evento,
+    solicitud_id: solicitud.id,
+    adjuntos: (evento.adjuntos ?? []).map(({ adjunto }) => adjunto),
+  }));
   const historial = [
     {
       id: `${solicitud.id}-creacion`,
@@ -724,8 +811,9 @@ function convertirSolicitudPago(
           usuario: solicitud.aprobador2 ?? null,
         }]
       : []),
-    ...(solicitud.devoluciones ?? []).map((evento) => ({
+    ...devoluciones.map((evento) => ({
       id: evento.id,
+      solicitud_id: evento.solicitud_id,
       accion: "DEVOLUCION",
       descripcion: evento.motivo,
       estado_anterior: evento.estado_origen,
@@ -733,6 +821,7 @@ function convertirSolicitudPago(
       cambios: null,
       creado_en: evento.creado_en,
       usuario: evento.usuario,
+      adjuntos: evento.adjuntos,
     })),
     ...(solicitud.anulaciones ?? []).map((evento) => ({
       id: evento.id,
@@ -809,10 +898,15 @@ function convertirSolicitudPago(
     actualizado_en: solicitud.actualizado_en,
     proyecto_base: solicitud.proyecto_base,
     centro_costo: solicitud.centro_costo,
-    beneficiario: solicitud.beneficiario,
+    beneficiario:
+      solicitud.beneficiario &&
+      solicitud.tipo_solicitud === "PAGO_PROVEEDOR" &&
+      solicitud.proveedor?.nombre
+        ? { ...solicitud.beneficiario, nombre: solicitud.proveedor.nombre }
+        : solicitud.beneficiario,
     proveedor: solicitud.proveedor,
     creador: solicitud.creador,
-    ultima_devolucion: solicitud.devoluciones?.[0] ?? null,
+    ultima_devolucion: devoluciones[0] ?? null,
     adjuntos: solicitud.adjuntos ?? [],
     comprobante_pago:
       solicitud.pagos?.soporte ??
@@ -1577,9 +1671,15 @@ export async function listarBandejaPagosService(
     },
   });
 
+  const solicitudesOrdenadas = [...solicitudes].sort((a, b) => {
+    const fechaA = new Date(a.aprobado_2_en ?? a.creado_en).getTime();
+    const fechaB = new Date(b.aprobado_2_en ?? b.creado_en).getTime();
+    return fechaB - fechaA || b.id.localeCompare(a.id);
+  });
+
   const beneficiarioIds = Array.from(
     new Set(
-      solicitudes
+      solicitudesOrdenadas
         .map((solicitud) => solicitud.beneficiario_id)
         .filter((id): id is string => Boolean(id)),
     ),
@@ -1596,8 +1696,23 @@ export async function listarBandejaPagosService(
       .filter((beneficiario) => beneficiario !== null)
       .map((beneficiario) => [beneficiario.id, beneficiario]),
   );
+  const idsNominaGrupal = solicitudesOrdenadas
+    .filter((solicitud) =>
+      solicitud.tipo_solicitud === "PAGO_NOMINA" &&
+      solicitud.modalidad_nomina === "AGRUPADA_EXCEL",
+    )
+    .map((solicitud) => solicitud.id);
+  const detallesNomina = await listarDetallesNominaParaPagosRepository(idsNominaGrupal);
+  const detallesNominaPorSolicitud = new Map<string, typeof detallesNomina>();
+  for (const detalle of detallesNomina) {
+    const detallesActuales = detallesNominaPorSolicitud.get(detalle.solicitud_pago_id) ?? [];
+    detallesActuales.push(detalle);
+    detallesNominaPorSolicitud.set(detalle.solicitud_pago_id, detallesActuales);
+  }
   const fondos = await obtenerFondosPorIdsRepository(
-    Array.from(new Set(solicitudes.map((solicitud) => solicitud.fondo_id))),
+    Array.from(
+      new Set(solicitudesOrdenadas.map((solicitud) => solicitud.fondo_id)),
+    ),
   );
   const saldosPorFondo = new Map(
     fondos.map((fondo) => [fondo.id, fondo.saldo_actual.toNumber()]),
@@ -1609,7 +1724,7 @@ export async function listarBandejaPagosService(
       ok: true,
       message: "Bandeja de pagos consultada correctamente.",
       data: {
-        solicitudes: solicitudes.map((solicitud) => {
+        solicitudes: solicitudesOrdenadas.map((solicitud, index) => {
           const solicitudConvertida = convertirSolicitudPago(solicitud);
           const beneficiario = solicitud.beneficiario_id
             ? beneficiariosPorId.get(solicitud.beneficiario_id)
@@ -1617,6 +1732,7 @@ export async function listarBandejaPagosService(
 
           return {
             ...solicitudConvertida,
+            numero_item: index + 1,
             saldo_fondo_actual:
               saldosPorFondo.get(solicitud.fondo_id) ?? 0,
             beneficiario: solicitudConvertida.beneficiario
@@ -1629,6 +1745,21 @@ export async function listarBandejaPagosService(
                     beneficiario?.numero_cuenta_bancaria ?? null,
                 }
               : null,
+            ...(solicitud.modalidad_nomina === "AGRUPADA_EXCEL"
+              ? {
+                  detalles_nomina: (detallesNominaPorSolicitud.get(solicitud.id) ?? []).map((detalle) => ({
+                    id: detalle.id,
+                    numero_fila: detalle.numero_fila,
+                    beneficiario_id: detalle.beneficiario_id,
+                    nombre_trabajador: detalle.nombre_trabajador,
+                    tipo_documento: detalle.tipo_documento,
+                    numero_documento: detalle.numero_documento,
+                    concepto_nomina: detalle.concepto_nomina,
+                    medio_pago: detalle.medio_pago as MedioPagoSolicitud,
+                    valor_neto: convertirDecimalANumero(detalle.valor_neto),
+                  })),
+                }
+              : {}),
           };
         }),
       },
@@ -1789,6 +1920,98 @@ export async function registrarTransferenciasService(
   }
 }
 
+export async function registrarPagoNominaGrupalService(
+  usuarioAutenticado: UsuarioSesion,
+  solicitudId: string,
+  pagos: RegistrarPagoNominaGrupalFilaInput[],
+): Promise<ServiceResponse<{ pagos_registrados: number; valor_total: number }>> {
+  const puedeRegistrar =
+    usuarioAutenticado.roles.includes("ADMINISTRADOR") ||
+    ((usuarioAutenticado.roles.includes("PAGOS") ||
+      usuarioAutenticado.roles.includes("AUXILIAR_CONTABLE")) &&
+      usuarioAutenticado.permisos.includes("MARCAR_COMO_PAGADO"));
+  if (!puedeRegistrar) {
+    return { status: 403, body: { ok: false, message: "No tiene permisos para registrar pagos." } };
+  }
+
+  if (!solicitudId.trim() || pagos.length === 0) {
+    return { status: 400, body: { ok: false, message: "Debe incluir la solicitud y al menos un pago de nómina." } };
+  }
+  if (
+    pagos.some((pago) => !pago.detalle_nomina_id.trim()) ||
+    new Set(pagos.map((pago) => pago.detalle_nomina_id)).size !== pagos.length
+  ) {
+    return { status: 400, body: { ok: false, message: "Cada fila de nómina debe aparecer una sola vez." } };
+  }
+
+  const nombresSoportes = pagos.map((pago) =>
+    pago.soporte.name.trim().toLocaleLowerCase("es"),
+  );
+  if (new Set(nombresSoportes).size !== nombresSoportes.length) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        message: "Cada pago debe tener un soporte diferente.",
+      },
+    };
+  }
+
+  const tiposPermitidos = ["application/pdf", "image/png", "image/jpeg"];
+  const tiposDirectos = ["TRANSFERENCIA", "PSE", "PORTAL"];
+  if (pagos.some((pago) =>
+    pago.soporte.size <= 0 || pago.soporte.size > 10 * 1024 * 1024 ||
+    (pago.soporte.type && !tiposPermitidos.includes(pago.soporte.type)) ||
+    ((tiposDirectos.includes(pago.medio_pago) || pago.medio_pago === "CONSIGNACION") && !pago.numero_comprobante?.trim())
+  )) {
+    return { status: 400, body: { ok: false, message: "Cada fila requiere un soporte PDF, PNG o JPG de máximo 10 MB y referencia para pagos directos o consignaciones." } };
+  }
+
+  const archivosGuardados: ArchivoGuardado[] = [];
+  try {
+    const pagosRepository: RegistrarPagoNominaGrupalRepositoryInput[] = [];
+    for (const pago of pagos) {
+      const archivo = await storageService.guardarArchivo({
+        contenido: Buffer.from(await pago.soporte.arrayBuffer()),
+        nombre_original: pago.soporte.name,
+        tipo_mime: pago.soporte.type || null,
+        carpeta: "solicitudes-pago/nomina-grupal/pagos",
+      });
+      archivosGuardados.push(archivo);
+      pagosRepository.push({
+        detalle_nomina_id: pago.detalle_nomina_id,
+        medio_pago: pago.medio_pago,
+        numero_comprobante: pago.numero_comprobante?.trim() || null,
+        observacion: pago.observacion?.trim() || null,
+        soporte: obtenerMetadatosAdjunto(archivo),
+      });
+    }
+
+    const resultado = await registrarPagoNominaGrupalRepository({
+      solicitudId: solicitudId.trim(),
+      pagos: pagosRepository,
+      usuarioId: usuarioAutenticado.id,
+      fechaRegistro: new Date(),
+    });
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        message: `Se registraron ${resultado.pagos_registrados} pagos de nómina grupal.`,
+        data: resultado,
+      },
+    };
+  } catch (error) {
+    await Promise.allSettled(
+      archivosGuardados.map((archivo) => storageService.eliminarArchivo(archivo.ruta_archivo)),
+    );
+    if (error instanceof RegistroPagosError) {
+      return { status: 409, body: { ok: false, message: error.message } };
+    }
+    throw error;
+  }
+}
+
 export async function registrarOperacionEfectivoService(
   usuarioAutenticado: UsuarioSesion,
   operacion: RegistrarOperacionEfectivoInput,
@@ -1851,9 +2074,10 @@ export async function registrarOperacionEfectivoService(
   const fechaActual = new Date();
 
   const archivos = [
-    operacion.soporte_retiro,
+    ...(operacion.soporte_retiro ? [operacion.soporte_retiro] : []),
     ...operacion.detalles.map((detalle) => detalle.soporte),
   ];
+  const desplazamientoSoportes = operacion.soporte_retiro ? 1 : 0;
   const tiposSoportePermitidos = [
     "application/pdf",
     "image/png",
@@ -1899,14 +2123,16 @@ export async function registrarOperacionEfectivoService(
         valor_retirado: operacion.valor_retirado,
         observacion: operacion.observacion?.trim() || null,
         reintegrar_sobrante: operacion.reintegrar_sobrante,
-        soporte_retiro: obtenerMetadatosAdjunto(archivosGuardados[0]),
+        soporte_retiro: operacion.soporte_retiro
+          ? obtenerMetadatosAdjunto(archivosGuardados[0])
+          : null,
         detalles: operacion.detalles.map((detalle, indice) => ({
           solicitud_id: detalle.solicitud_id.trim(),
           numero_comprobante:
             detalle.numero_comprobante?.trim() || null,
           observacion: detalle.observacion?.trim() || null,
           soporte: obtenerMetadatosAdjunto(
-            archivosGuardados[indice + 1],
+            archivosGuardados[indice + desplazamientoSoportes],
           ),
         })),
       },
@@ -2112,6 +2338,10 @@ export async function consultarAprobacionesNivel2Service(
     }),
   ]);
   const solicitudes = solicitudesPendientes.map(convertirSolicitudPago);
+  const historialVisible = historial.filter(
+    (solicitud) =>
+      solicitud.estado_actual !== "PENDIENTE_APROBADOR_2",
+  );
 
   if (solicitudes.length === 0) {
     return {
@@ -2122,7 +2352,7 @@ export async function consultarAprobacionesNivel2Service(
           "No existen solicitudes pendientes de aprobación en nivel 2.",
         data: {
           proyectos: [],
-          historial: historial.map(convertirSolicitudPago),
+          historial: historialVisible.map(convertirSolicitudPago),
         },
       },
     };
@@ -2208,7 +2438,7 @@ export async function consultarAprobacionesNivel2Service(
         "Aprobaciones de nivel 2 consultadas correctamente.",
       data: {
         proyectos: Array.from(proyectos.values()),
-        historial: historial.map(convertirSolicitudPago),
+        historial: historialVisible.map(convertirSolicitudPago),
       },
     },
   };
@@ -4312,6 +4542,12 @@ export async function devolverSolicitudPagoService(
     return { status: 400, body: { ok: false, message: "El motivo debe tener entre 5 y 500 caracteres." } };
   }
 
+  const archivos = input.archivos ?? [];
+  const errorArchivos = validarArchivosDevolucion(archivos);
+  if (errorArchivos) {
+    return { status: 400, body: { ok: false, message: errorArchivos } };
+  }
+
   const solicitud = await obtenerSolicitudPagoPorIdRepository(id);
 
   if (!solicitud) {
@@ -4353,7 +4589,12 @@ export async function devolverSolicitudPagoService(
     return { status: 409, body: { ok: false, message: "La solicitud no se encuentra en un estado que permita devolución." } };
   }
 
+  let adjuntosGuardados: Awaited<ReturnType<typeof cargarAdjuntosDevolucion>> = [];
   try {
+    adjuntosGuardados = await cargarAdjuntosDevolucion(
+      archivos,
+      usuarioAutenticado.id,
+    );
     await devolverSolicitudPagoRepository({
       solicitudId: id,
       estadoOrigen,
@@ -4362,8 +4603,10 @@ export async function devolverSolicitudPagoService(
       usuarioId: usuarioAutenticado.id,
       fecha: new Date(),
       liberarReserva,
+      ...(adjuntosGuardados.length ? { adjuntos: adjuntosGuardados } : {}),
     });
   } catch (error) {
+    await eliminarAdjuntosDevolucion(adjuntosGuardados);
     if (error instanceof SolicitudesPagoCambioConcurrenteError) {
       return { status: 409, body: { ok: false, message: "La solicitud cambió de estado. Actualice la información." } };
     }
@@ -4401,6 +4644,12 @@ export async function devolverSolicitudesPagoService(
     return { status: 400, body: { ok: false, message: "El motivo debe tener entre 5 y 500 caracteres." } };
   }
 
+  const archivos = input.archivos ?? [];
+  const errorArchivos = validarArchivosDevolucion(archivos);
+  if (errorArchivos) {
+    return { status: 400, body: { ok: false, message: errorArchivos } };
+  }
+
   const solicitudes = await obtenerSolicitudesPagoPorIdsRepository(ids.ids);
 
   if (solicitudes.length !== ids.ids.length) {
@@ -4430,7 +4679,12 @@ export async function devolverSolicitudesPagoService(
     ? "DEVUELTA_SOLICITANTE" as const
     : "DEVUELTA_APROBADOR_1" as const;
 
+  let adjuntosGuardados: Awaited<ReturnType<typeof cargarAdjuntosDevolucion>> = [];
   try {
+    adjuntosGuardados = await cargarAdjuntosDevolucion(
+      archivos,
+      usuarioAutenticado.id,
+    );
     const resultado = await devolverSolicitudesPagoRepository({
       solicitudes: solicitudes.map((solicitud) => ({
         id: solicitud.id,
@@ -4440,6 +4694,7 @@ export async function devolverSolicitudesPagoService(
       motivo,
       usuarioId: usuarioAutenticado.id,
       fecha: new Date(),
+      ...(adjuntosGuardados.length ? { adjuntos: adjuntosGuardados } : {}),
     });
 
     return {
@@ -4454,6 +4709,7 @@ export async function devolverSolicitudesPagoService(
       },
     };
   } catch (error) {
+    await eliminarAdjuntosDevolucion(adjuntosGuardados);
     if (error instanceof SolicitudesPagoCambioConcurrenteError) {
       return { status: 409, body: { ok: false, message: "Una o más solicitudes cambiaron de estado. Actualice la información." } };
     }
