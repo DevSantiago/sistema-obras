@@ -59,6 +59,7 @@ export type EstadoSolicitudPago =
 
 export type EventoHistorialSolicitudPago = {
   id: string;
+  solicitud_id?: string;
   accion: string;
   descripcion: string;
   estado_anterior: string | null;
@@ -66,6 +67,11 @@ export type EventoHistorialSolicitudPago = {
   cambios: unknown;
   creado_en: string | Date;
   usuario: { id: string; nombre: string } | null;
+  adjuntos?: {
+    id: string;
+    nombre_archivo: string;
+    tipo_mime: string | null;
+  }[];
 };
 
 
@@ -136,6 +142,7 @@ export type AprobarSolicitudesNivel2Input = {
 
 export type DevolverSolicitudPagoInput = {
   motivo?: string;
+  archivos?: File[];
 };
 
 export type DevolverSolicitudesPagoInput = DevolverSolicitudPagoInput & {
@@ -475,6 +482,11 @@ export type SolicitudPagoListado = {
       id: string;
       nombre: string;
     };
+    adjuntos?: {
+      id: string;
+      nombre_archivo: string;
+      tipo_mime: string | null;
+    }[];
   } | null;
   adjuntos?: {
     id: string;
@@ -494,12 +506,24 @@ export type SolicitudPagoListado = {
     tipo_mime: string | null;
   } | null;
   historial?: EventoHistorialSolicitudPago[];
+  detalles_nomina?: {
+    id: string;
+    numero_fila: number;
+    beneficiario_id: string | null;
+    nombre_trabajador: string;
+    tipo_documento: string;
+    numero_documento: string;
+    concepto_nomina: string;
+    medio_pago: MedioPagoSolicitud;
+    valor_neto: number;
+  }[];
 };
 
 export type SolicitudProgramadaPago = Omit<
   SolicitudPagoListado,
   "beneficiario"
 > & {
+  numero_item: number;
   saldo_fondo_actual: number;
   beneficiario?: {
     id: string;
@@ -511,6 +535,39 @@ export type SolicitudProgramadaPago = Omit<
     tipo_cuenta_bancaria: string | null;
     numero_cuenta_bancaria: string | null;
   } | null;
+  detalles_nomina?: {
+    id: string;
+    numero_fila: number;
+    beneficiario_id: string | null;
+    nombre_trabajador: string;
+    tipo_documento: string;
+    numero_documento: string;
+    concepto_nomina: string;
+    medio_pago: MedioPagoSolicitud;
+    valor_neto: number;
+  }[];
+};
+
+export type RegistrarPagoNominaGrupalFilaInput = {
+  detalle_nomina_id: string;
+  medio_pago: MedioPagoSolicitud;
+  numero_comprobante?: string | null;
+  observacion?: string | null;
+  soporte: File;
+};
+
+export type RegistrarPagoNominaGrupalRepositoryInput = {
+  detalle_nomina_id: string;
+  medio_pago: MedioPagoSolicitud;
+  numero_comprobante: string | null;
+  observacion: string | null;
+  soporte: {
+    nombre_archivo: string;
+    ruta_archivo: string;
+    nombre_bucket: string;
+    tipo_mime: string | null;
+    tamano_archivo: bigint;
+  };
 };
 
 export type RegistrarTransferenciaLoteInput = {
@@ -558,7 +615,7 @@ export type RegistrarOperacionEfectivoInput = {
   valor_retirado: number;
   observacion?: string | null;
   reintegrar_sobrante: boolean;
-  soporte_retiro: File;
+  soporte_retiro: File | null;
   detalles: RegistrarDetalleOperacionEfectivoInput[];
 };
 
@@ -575,7 +632,7 @@ export type RegistrarOperacionEfectivoRepositoryInput = {
   valor_retirado: number;
   observacion: string | null;
   reintegrar_sobrante: boolean;
-  soporte_retiro: ArchivoOperacionEfectivoRepository;
+  soporte_retiro: ArchivoOperacionEfectivoRepository | null;
   detalles: Array<{
     solicitud_id: string;
     numero_comprobante: string | null;

@@ -1102,6 +1102,13 @@ del mismo proyecto y fondo. El retiro genera un único
 `EGRESO_RETIRO_EFECTIVO` por el valor retirado. Marcar las solicitudes
 asociadas como pagadas no genera egresos adicionales.
 
+La nómina grupal conserva su solicitud única para aprobación. En el pago, el
+modal presenta las filas con su trabajador, valor y medio de pago, y solicita
+soporte y referencia cuando corresponde. Transferencias, PSE y portal generan
+un movimiento por trabajador. Efectivo y consignaciones se agrupan en un
+retiro por el subtotal de esas filas. El registro es atómico y la solicitud
+solo queda `PAGADA` si todos los pagos se completan.
+
 La fecha y hora del pago o retiro se asignan automáticamente cuando el backend
 registra la operación. El usuario de Pagos no puede seleccionarlas ni
 modificarlas desde el formulario.
@@ -1366,9 +1373,10 @@ Por esta razón, el sistema administrará retiros agrupados.
 ## 12.1 Retiro agrupado
 
 Las operaciones registradas pueden consultarse desde el módulo Pagos. El
-detalle conserva el soporte general del retiro, las solicitudes incluidas,
-el soporte individual de cada pago y los valores requerido, retirado, pagado,
-sobrante, reintegrado y pendiente de reintegro.
+detalle conserva el soporte general del retiro cuando se adjunta, las
+solicitudes incluidas, el soporte individual obligatorio de cada pago y los
+valores requerido, retirado, pagado, sobrante, reintegrado y pendiente de
+reintegro.
 
 El estado de seguimiento se deriva de los movimientos ya registrados:
 

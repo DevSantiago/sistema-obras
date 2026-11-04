@@ -56,8 +56,20 @@ describe("GET /api/v1/solicitudes-pago/programadas/exportar", () => {
   });
 
   it("aplica los filtros y el flujo elegido al Excel", async () => {
-    const transferencia = { id: "1", medio_pago: "TRANSFERENCIA" };
-    const efectivo = { id: "2", medio_pago: "EFECTIVO" };
+    const transferencia = {
+      id: "1",
+      medio_pago: "TRANSFERENCIA",
+      numero_item: 1,
+      proyecto_base_id: "proyecto-1",
+      descripcion: "Pago proveedor materiales",
+    };
+    const efectivo = {
+      id: "2",
+      medio_pago: "EFECTIVO",
+      numero_item: 2,
+      proyecto_base_id: "proyecto-1",
+      descripcion: "Pago proveedor materiales",
+    };
     listarBandejaPagosServiceMock.mockResolvedValue({
       status: 200,
       body: {
@@ -73,15 +85,7 @@ describe("GET /api/v1/solicitudes-pago/programadas/exportar", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(listarBandejaPagosServiceMock).toHaveBeenCalledWith(
-      usuarioPagos,
-      {
-        proyecto_base_id: "proyecto-1",
-        centro_costo_id: undefined,
-        medio_pago: undefined,
-        busqueda: "proveedor",
-      },
-    );
+    expect(listarBandejaPagosServiceMock).toHaveBeenCalledWith(usuarioPagos, {});
     expect(generarRelacionSolicitudesProgramadasExcelMock).toHaveBeenCalledWith([
       transferencia,
     ]);
@@ -91,6 +95,37 @@ describe("GET /api/v1/solicitudes-pago/programadas/exportar", () => {
     const response = await GET(
       new Request(
         "http://localhost/api/v1/solicitudes-pago/programadas/exportar?tipo_operacion=OTRO",
+      ),
+    );
+
+    expect(response.status).toBe(400);
+    expect(generarRelacionSolicitudesProgramadasExcelMock).not.toHaveBeenCalled();
+  });
+
+  it("exporta solo el número de ítem solicitado", async () => {
+    const primero = { id: "1", medio_pago: "TRANSFERENCIA", numero_item: 1 };
+    const segundo = { id: "2", medio_pago: "TRANSFERENCIA", numero_item: 2 };
+    listarBandejaPagosServiceMock.mockResolvedValue({
+      status: 200,
+      body: { ok: true, data: { solicitudes: [primero, segundo] } },
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/v1/solicitudes-pago/programadas/exportar?numero_item=2",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(generarRelacionSolicitudesProgramadasExcelMock).toHaveBeenCalledWith([
+      segundo,
+    ]);
+  });
+
+  it("rechaza un número de ítem inválido", async () => {
+    const response = await GET(
+      new Request(
+        "http://localhost/api/v1/solicitudes-pago/programadas/exportar?numero_item=0",
       ),
     );
 

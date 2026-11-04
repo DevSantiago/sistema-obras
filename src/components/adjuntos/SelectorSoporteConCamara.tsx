@@ -10,6 +10,7 @@ type SelectorSoporteConCamaraProps = {
   onChange: (archivo: File | null) => void;
   required?: boolean;
   disabled?: boolean;
+  removable?: boolean;
 };
 
 export default function SelectorSoporteConCamara({
@@ -19,9 +20,12 @@ export default function SelectorSoporteConCamara({
   onChange,
   required = false,
   disabled = false,
+  removable = false,
 }: SelectorSoporteConCamaraProps) {
   function seleccionarArchivo(event: ChangeEvent<HTMLInputElement>) {
-    onChange(event.target.files?.[0] ?? null);
+    const archivoSeleccionado = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    onChange(archivoSeleccionado);
   }
 
   return (
@@ -55,7 +59,22 @@ export default function SelectorSoporteConCamara({
           Tomar foto
         </label>
       </div>
-      {archivo ? <p className={styles.fileName}>Seleccionado: {archivo.name}</p> : null}
+      {archivo ? (
+        <div className={styles.fileSelection}>
+          <p className={styles.fileName}>Seleccionado: {archivo.name}</p>
+          {removable ? (
+            <button
+              className={styles.removeButton}
+              type="button"
+              disabled={disabled}
+              aria-label={`Quitar ${titulo.toLocaleLowerCase("es")}`}
+              onClick={() => onChange(null)}
+            >
+              Quitar
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <p className={styles.help}>Puede seleccionar un PDF o imagen, o tomar una foto del comprobante.</p>
     </div>
   );

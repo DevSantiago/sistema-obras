@@ -530,13 +530,17 @@ export default function OperacionesEfectivoManager({
                 Retiro registrado por{" "}
                 <strong>{operacionDetalle.registrado_por_nombre}</strong>
               </span>
-              <a
-                href={`/api/v1/operaciones-efectivo/${operacionDetalle.id}/soportes/${operacionDetalle.soporte_retiro.id}`}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Ver soporte del retiro
-              </a>
+              {operacionDetalle.soporte_retiro ? (
+                <a
+                  href={`/api/v1/operaciones-efectivo/${operacionDetalle.id}/soportes/${operacionDetalle.soporte_retiro.id}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Ver soporte del retiro
+                </a>
+              ) : (
+                <span>Sin soporte adjunto</span>
+              )}
             </div>
             <div className={styles.detailList}>
               {operacionDetalle.detalles.map((detalle) => (

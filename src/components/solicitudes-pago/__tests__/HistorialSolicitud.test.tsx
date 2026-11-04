@@ -62,4 +62,37 @@ describe("HistorialSolicitud", () => {
 
     expect(html).toContain("Todavía no hay eventos registrados.");
   });
+
+  it("muestra los archivos adjuntos a una devolución", () => {
+    const html = renderToStaticMarkup(
+      <HistorialSolicitud
+        eventos={[
+          {
+            id: "devolucion-1",
+            solicitud_id: "solicitud-1",
+            accion: "DEVOLUCION",
+            descripcion: "Adjuntar soporte actualizado",
+            estado_anterior: "PENDIENTE_APROBADOR_2",
+            estado_nuevo: "DEVUELTA_APROBADOR_1",
+            cambios: null,
+            creado_en: "2026-08-08T15:00:00.000Z",
+            usuario: { id: "usuario-1", nombre: "Aprobador Dos" },
+            adjuntos: [
+              {
+                id: "adjunto-1",
+                nombre_archivo: "evidencia.pdf",
+                tipo_mime: "application/pdf",
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("Adjuntos de la devolución");
+    expect(html).toContain("evidencia.pdf");
+    expect(html).toContain(
+      "/api/v1/solicitudes-pago/solicitud-1/adjuntos/adjunto-1",
+    );
+  });
 });

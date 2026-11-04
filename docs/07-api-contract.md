@@ -1448,6 +1448,14 @@ El motivo es obligatorio, admite entre 5 y 500 caracteres y se registra en
 `devoluciones_solicitud_pago` junto con usuario, fecha, estado anterior y
 estado nuevo.
 
+También se admite `multipart/form-data` para adjuntar soportes, manteniendo
+el contrato JSON anterior para solicitudes sin archivos. En multipart se envía
+`datos` como JSON con el mismo cuerpo descrito arriba y cero o más campos
+`archivos`. Se permiten hasta 10 archivos PDF o imágenes (PNG, JPG, WEBP,
+HEIC o AVIF), con un máximo de 10 MB por archivo. Los archivos quedan asociados
+al evento de devolución, visibles en el historial y protegidos por las mismas
+validaciones de acceso al detalle de la solicitud.
+
 Para devolver varias solicitudes desde el checklist se usa el endpoint de
 colección. Todas deben pertenecer al mismo nivel y la operación completa se
 confirma en una única transacción:
@@ -1458,6 +1466,10 @@ confirma en una única transacción:
   "motivo": "Se requiere corregir la documentación adjunta."
 }
 ```
+
+El endpoint de colección admite el mismo formato `multipart/form-data` y las
+mismas restricciones opcionales de adjuntos descritas para la devolución
+individual.
 
 ---
 
@@ -1539,6 +1551,8 @@ GET  /api/v1/solicitudes-pago/programadas
 POST /api/v1/solicitudes-pago/registrar-pagos
 
 POST /api/v1/solicitudes-pago/registrar-operacion-efectivo
+
+POST /api/v1/solicitudes-pago/{id}/registrar-nomina-grupal
 ```
 
 ## Endpoint proyectado
@@ -1555,7 +1569,7 @@ POST /api/v1/solicitudes-pago/{id}/revertir-pago
 GET /api/v1/solicitudes-pago/programadas
 ```
 
-Retorna las solicitudes que finalizaron satisfactoriamente el flujo de aprobación y se encuentran pendientes de pago.
+Retorna las solicitudes que finalizaron satisfactoriamente el flujo de aprobación y se encuentran pendientes de pago, ordenadas de la aprobación nivel 2 más reciente a la más antigua. Cada fila incluye `numero_item`, consecutivo de la lista calculado antes de aplicar filtros de presentación.
 
 La respuesta incluye el saldo actual del fondo de cada solicitud y la
 información del beneficiario necesaria para validar el desembolso: banco,
@@ -1567,7 +1581,7 @@ tipo de cuenta y número de cuenta. Las solicitudes pagadas no se incluyen.
 GET /api/v1/solicitudes-pago/programadas/exportar
 ```
 
-Genera un archivo `.xlsx` con las solicitudes en `PROGRAMADA_PAGO` que coincidan con los filtros recibidos. Incluye información de la solicitud, proyecto, centro de costo, beneficiario, datos bancarios, valores y fechas de creación, aprobación nivel 1, aprobación nivel 2 y pago.
+Genera un archivo `.xlsx` con las solicitudes en `PROGRAMADA_PAGO` que coincidan con los filtros recibidos. Incluye el ítem de la lista e información de la solicitud, proyecto, centro de costo, beneficiario, datos bancarios, valores y fechas de creación, aprobación nivel 1, aprobación nivel 2 y pago. Mantiene el orden de la bandeja.
 
 ### Parámetros de consulta
 
@@ -1577,6 +1591,7 @@ Genera un archivo `.xlsx` con las solicitudes en `PROGRAMADA_PAGO` que coincidan
 | centro_costo_id | UUID | No |
 | medio_pago | String | No |
 | busqueda | String | No |
+| numero_item | Entero positivo | No |
 | tipo_operacion | `TODOS`, `TRANSFERENCIAS` o `RETIRO` | No |
 
 `TRANSFERENCIAS` agrupa solicitudes con medio `TRANSFERENCIA`, `PSE` o
@@ -1640,6 +1655,21 @@ El soporte usa el mismo contrato multipart para archivos cargados desde el
 sistema de archivos o imágenes capturadas con la cámara. No existe un campo API
 distinto para la captura fotográfica.
 
+### Nómina grupal
+
+```http
+POST /api/v1/solicitudes-pago/{id}/registrar-nomina-grupal
+```
+
+La nómina agrupada conserva una solicitud para el flujo de aprobación, pero
+registra cada pago por fila de Excel. El manifiesto incluye `detalle_nomina_id`,
+`medio_pago`, referencia opcional según el medio, observación y `archivo_campo`.
+Cada trabajador requiere un soporte individual. La operación valida que el
+total de las filas coincida con el total aprobado y es atómica. Los medios
+`TRANSFERENCIA`, `PSE` y `PORTAL` generan movimientos por trabajador; las filas
+`EFECTIVO` y `CONSIGNACION` generan un retiro agregado por su subtotal. La
+solicitud pasa a `PAGADA` cuando todos los pagos quedan registrados.
+
 ---
 
 ## Registrar retiro y pagos
@@ -1653,8 +1683,8 @@ Registra un retiro para pagar una o varias solicitudes con medio de pago
 `PROGRAMADA_PAGO` y pertenecer al mismo proyecto base y fondo.
 
 La solicitud se envía como `multipart/form-data`. El campo `operacion`
-contiene el manifiesto JSON; el soporte general del retiro y cada soporte de
-pago se referencian mediante el nombre de su campo.
+contiene el manifiesto JSON. El soporte general del retiro es opcional; cada
+soporte individual de pago sigue siendo obligatorio.
 
 ```json
 {
@@ -1677,9 +1707,10 @@ El sistema descuenta una sola vez del fondo el valor total retirado. Marcar
 las solicitudes como pagadas no genera descuentos adicionales. Cada pago
 exige soporte y las consignaciones exigen referencia.
 
-El soporte general se registra en `adjunto_retiro_id`; cada soporte individual
-se relaciona mediante `detalles_operacion_efectivo`. La fecha del retiro se
-asigna automáticamente con la hora del servidor al registrar la operación.
+Cuando se adjunta, el soporte general se registra en `adjunto_retiro_id`; de lo
+contrario, ese campo queda nulo. Cada soporte individual se relaciona mediante
+`detalles_operacion_efectivo`. La fecha del retiro se asigna automáticamente
+con la hora del servidor al registrar la operación.
 
 ---
 
