@@ -49,7 +49,7 @@
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(160px, 1fr)) auto;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(130px, 1fr)) auto;
   align-items: end;
   gap: 12px;
   padding: 18px;
@@ -211,6 +211,10 @@
 
 .requestColumn {
   width: 170px;
+}
+
+.itemColumn {
+  width: 64px;
 }
 
 .beneficiaryColumn {
@@ -475,10 +479,10 @@
 }
 
 .batchSummary {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem 1rem;
   min-height: 64px;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
   cursor: pointer;
@@ -519,7 +523,8 @@
 
 .batchComplete,
 .batchPending {
-  flex: 0 0 auto;
+  justify-self: start;
+  white-space: nowrap;
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 12px;
@@ -568,6 +573,12 @@
   border-radius: 6px;
   font: inherit;
   resize: vertical;
+}
+
+.paymentReferenceInput {
+  box-sizing: border-box;
+  height: 42px;
+  min-height: 42px;
 }
 
 .checkField {
@@ -787,7 +798,8 @@
   }
 
   .batchSummary {
-    align-items: flex-start;
+    grid-template-columns: minmax(0, 1fr) 6.5rem 1rem;
+    align-items: center;
     padding: 12px;
   }
 
@@ -1153,6 +1165,14 @@
   font: inherit;
   font-weight: 400;
   resize: vertical;
+}
+
+.returnField input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
 }
 
 .returnActions {

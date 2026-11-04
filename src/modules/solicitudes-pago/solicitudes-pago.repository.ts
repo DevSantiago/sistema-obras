@@ -12,6 +12,7 @@ import type {
   BuscarDuplicadoNominaIndividualInput,
   CrearSolicitudPagoRepositoryInput,
   RegistrarOperacionEfectivoRepositoryInput,
+  RegistrarPagoNominaGrupalRepositoryInput,
   RegistrarTransferenciaRepositoryInput,
   SolicitudPagoListFilters,
   VisibilidadSolicitudesPago,
@@ -75,6 +76,17 @@ const solicitudPagoInclude = {
         select: {
           id: true,
           nombre: true,
+        },
+      },
+      adjuntos: {
+        select: {
+          adjunto: {
+            select: {
+              id: true,
+              nombre_archivo: true,
+              tipo_mime: true,
+            },
+          },
         },
       },
     },
@@ -584,7 +596,18 @@ export async function obtenerAdjuntoSolicitudPagoRepository(
   return prisma.adjuntos.findFirst({
     where: {
       id: adjuntoId,
-      solicitud_pago_id: solicitudId,
+      OR: [
+        { solicitud_pago_id: solicitudId },
+        {
+          adjuntos_devolucion_solicitud: {
+            some: {
+              devolucion: {
+                solicitud_pago_id: solicitudId,
+              },
+            },
+          },
+        },
+      ],
     },
     select: {
       id: true,
@@ -1055,6 +1078,14 @@ export async function devolverSolicitudPagoRepository(input: {
   usuarioId: string;
   fecha: Date;
   liberarReserva: boolean;
+  adjuntos?: Array<{
+    nombre_archivo: string;
+    ruta_archivo: string;
+    nombre_bucket: string;
+    tipo_mime: string | null;
+    tamano_archivo: bigint;
+    subido_por: string;
+  }>;
 }) {
   return prisma.$transaction(async (tx) => {
     const actualizada = await tx.solicitudes_pago.updateMany({
@@ -1076,7 +1107,7 @@ export async function devolverSolicitudPagoRepository(input: {
       throw new SolicitudesPagoCambioConcurrenteError();
     }
 
-    await tx.devoluciones_solicitud_pago.create({
+    const devolucion = await tx.devoluciones_solicitud_pago.create({
       data: {
         solicitud_pago_id: input.solicitudId,
         estado_origen: input.estadoOrigen,
@@ -1086,6 +1117,21 @@ export async function devolverSolicitudPagoRepository(input: {
         creado_en: input.fecha,
       },
     });
+
+    if (input.adjuntos?.length) {
+      const adjuntosCreados = await Promise.all(
+        input.adjuntos.map((adjunto) => tx.adjuntos.create({
+          data: adjunto,
+          select: { id: true },
+        })),
+      );
+      await tx.devoluciones_solicitud_pago_adjuntos.createMany({
+        data: adjuntosCreados.map((adjunto) => ({
+          devolucion_solicitud_pago_id: devolucion.id,
+          adjunto_id: adjunto.id,
+        })),
+      });
+    }
 
     await crearNotificacionesTransicionesRepository(
       {
@@ -1114,8 +1160,25 @@ export async function devolverSolicitudesPagoRepository(input: {
   motivo: string;
   usuarioId: string;
   fecha: Date;
+  adjuntos?: Array<{
+    nombre_archivo: string;
+    ruta_archivo: string;
+    nombre_bucket: string;
+    tipo_mime: string | null;
+    tamano_archivo: bigint;
+    subido_por: string;
+  }>;
 }) {
   return prisma.$transaction(async (tx) => {
+    const adjuntosCreados = input.adjuntos?.length
+      ? await Promise.all(
+          input.adjuntos.map((adjunto) => tx.adjuntos.create({
+            data: adjunto,
+            select: { id: true },
+          })),
+        )
+      : [];
+
     for (const solicitud of input.solicitudes) {
       const actualizada = await tx.solicitudes_pago.updateMany({
         where: {
@@ -1135,7 +1198,7 @@ export async function devolverSolicitudesPagoRepository(input: {
         throw new SolicitudesPagoCambioConcurrenteError();
       }
 
-      await tx.devoluciones_solicitud_pago.create({
+      const devolucion = await tx.devoluciones_solicitud_pago.create({
         data: {
           solicitud_pago_id: solicitud.id,
           estado_origen: solicitud.estadoOrigen,
@@ -1145,6 +1208,15 @@ export async function devolverSolicitudesPagoRepository(input: {
           creado_en: input.fecha,
         },
       });
+
+      if (adjuntosCreados.length > 0) {
+        await tx.devoluciones_solicitud_pago_adjuntos.createMany({
+          data: adjuntosCreados.map((adjunto) => ({
+            devolucion_solicitud_pago_id: devolucion.id,
+            adjunto_id: adjunto.id,
+          })),
+        });
+      }
     }
 
     await crearNotificacionesTransicionesRepository(
@@ -1267,6 +1339,26 @@ export async function eliminarSolicitudPagoRepository(
   return prisma.solicitudes_pago.delete({
     where: {
       id: solicitudPagoId,
+    },
+  });
+}
+
+export async function listarDetallesNominaParaPagosRepository(solicitudIds: string[]) {
+  if (solicitudIds.length === 0) return [];
+  return prisma.detalles_nomina_solicitud.findMany({
+    where: { solicitud_pago_id: { in: solicitudIds } },
+    orderBy: [{ solicitud_pago_id: "asc" }, { numero_fila: "asc" }],
+    select: {
+      id: true,
+      solicitud_pago_id: true,
+      numero_fila: true,
+      beneficiario_id: true,
+      nombre_trabajador: true,
+      tipo_documento: true,
+      numero_documento: true,
+      concepto_nomina: true,
+      medio_pago: true,
+      valor_neto: true,
     },
   });
 }
@@ -1438,6 +1530,211 @@ export async function registrarTransferenciasRepository(input: {
   );
 }
 
+export async function registrarPagoNominaGrupalRepository(input: {
+  solicitudId: string;
+  pagos: RegistrarPagoNominaGrupalRepositoryInput[];
+  usuarioId: string;
+  fechaRegistro: Date;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const solicitud = await tx.solicitudes_pago.findUnique({
+      where: { id: input.solicitudId },
+      include: {
+        proyecto_base: { select: { id: true, nombre: true } },
+        centro_costo: { select: { id: true, nombre: true } },
+        detalles_nomina: {
+          orderBy: { numero_fila: "asc" },
+          select: {
+            id: true,
+            numero_fila: true,
+            nombre_trabajador: true,
+            medio_pago: true,
+            valor_neto: true,
+          },
+        },
+        pagos_nomina_grupal: { select: { id: true } },
+      },
+    });
+
+    if (
+      !solicitud ||
+      solicitud.tipo_solicitud !== "PAGO_NOMINA" ||
+      solicitud.modalidad_nomina !== "AGRUPADA_EXCEL" ||
+      solicitud.estado_actual !== "PROGRAMADA_PAGO"
+    ) {
+      throw new RegistroPagosError(
+        "La nómina grupal ya no está programada para pago.",
+      );
+    }
+
+    const detalles = solicitud.detalles_nomina;
+    const pagosPorDetalle = new Map(
+      input.pagos.map((pago) => [pago.detalle_nomina_id, pago]),
+    );
+
+    if (
+      solicitud.pagos_nomina_grupal.length > 0 ||
+      detalles.length === 0 ||
+      detalles.length !== input.pagos.length ||
+      detalles.some((detalle) => {
+        const pago = pagosPorDetalle.get(detalle.id);
+        return !pago || pago.medio_pago !== detalle.medio_pago;
+      })
+    ) {
+      throw new RegistroPagosError(
+        "Los pagos enviados no coinciden con las filas de la nómina o ya fueron registrados.",
+      );
+    }
+
+    const valorTotalFilas = detalles.reduce(
+      (total, detalle) => total + detalle.valor_neto.toNumber(),
+      0,
+    );
+    if (Math.abs(valorTotalFilas - solicitud.valor_neto.toNumber()) > 0.01) {
+      throw new RegistroPagosError(
+        "El total de las filas de nómina no coincide con el valor aprobado.",
+      );
+    }
+
+    const tiposTransferencia = ["TRANSFERENCIA", "PSE", "PORTAL"];
+    const tiposEfectivo = ["CONSIGNACION", "EFECTIVO"];
+    const totalEfectivo = detalles.reduce((total, detalle) =>
+      tiposEfectivo.includes(detalle.medio_pago)
+        ? total + detalle.valor_neto.toNumber()
+        : total,
+    0);
+
+    if (
+      detalles.some(
+        (detalle) =>
+          !tiposEfectivo.includes(detalle.medio_pago) &&
+          !tiposTransferencia.includes(detalle.medio_pago),
+      )
+    ) {
+      throw new RegistroPagosError(
+        "La nómina contiene una fila con medio de pago no compatible.",
+      );
+    }
+
+    const cambioEstado = await tx.solicitudes_pago.updateMany({
+      where: {
+        id: solicitud.id,
+        estado_actual: "PROGRAMADA_PAGO",
+        modalidad_nomina: "AGRUPADA_EXCEL",
+        pagos_nomina_grupal: { none: {} },
+      },
+      data: {
+        estado_actual: "PAGADA",
+        valor_pagado: valorTotalFilas,
+        valor_reservado: null,
+        pagado_por: input.usuarioId,
+        pagado_en: input.fechaRegistro,
+        actualizado_en: input.fechaRegistro,
+      },
+    });
+    if (cambioEstado.count !== 1) {
+      throw new RegistroPagosError(
+        "La nómina grupal cambió durante el registro de los pagos.",
+      );
+    }
+
+    let operacionEfectivo: { id: string } | null = null;
+    if (totalEfectivo > 0) {
+      operacionEfectivo = await tx.operaciones_efectivo.create({
+        data: {
+          proyecto_base: { connect: { id: solicitud.proyecto_base_id } },
+          fondo: { connect: { id: solicitud.fondo_id } },
+          fecha_retiro: input.fechaRegistro,
+          valor_requerido: totalEfectivo,
+          valor_retirado: totalEfectivo,
+          valor_pagado: totalEfectivo,
+          valor_sobrante: 0,
+          observacion: `Retiro para nómina grupal ${solicitud.numero_solicitud ?? solicitud.id}.`,
+          registrador: { connect: { id: input.usuarioId } },
+          registrado_en: input.fechaRegistro,
+        },
+        select: { id: true },
+      });
+    }
+
+    for (const detalle of detalles) {
+      const pagoInput = pagosPorDetalle.get(detalle.id)!;
+      const soporte = await tx.adjuntos.create({
+        data: {
+          solicitud_pago_id: solicitud.id,
+          ...pagoInput.soporte,
+          subido_por: input.usuarioId,
+          estado_ocr: "NO_PROCESADO",
+        },
+        select: { id: true },
+      });
+      const pago = await tx.pagos_nomina_grupal.create({
+        data: {
+          solicitud_pago_id: solicitud.id,
+          detalle_nomina_id: detalle.id,
+          adjunto_soporte_id: soporte.id,
+          operacion_efectivo_id: tiposEfectivo.includes(detalle.medio_pago)
+            ? operacionEfectivo?.id
+            : null,
+          medio_pago: detalle.medio_pago,
+          fecha_pago: input.fechaRegistro,
+          numero_comprobante: pagoInput.numero_comprobante,
+          observacion: pagoInput.observacion,
+          valor_pagado: detalle.valor_neto,
+          registrado_por: input.usuarioId,
+          registrado_en: input.fechaRegistro,
+        },
+        select: { id: true },
+      });
+
+      if (tiposTransferencia.includes(detalle.medio_pago)) {
+        await registrarMovimientoPago(
+          tx,
+          {
+            fondo_id: solicitud.fondo_id,
+            proyecto_base_id: solicitud.proyecto_base_id,
+            centro_costo_id: solicitud.centro_costo_id,
+            solicitud_pago_id: solicitud.id,
+            pago_nomina_grupal_id: pago.id,
+            tipo_movimiento: "EGRESO_PAGO_NOMINA_GRUPAL",
+            direccion: "EGRESO",
+            valor: detalle.valor_neto.toNumber(),
+            referencia_sistema: pagoInput.numero_comprobante,
+            descripcion: `Pago nómina grupal: ${detalle.nombre_trabajador} · ${solicitud.numero_solicitud ?? solicitud.id}`,
+            registrado_por: input.usuarioId,
+            registrado_en: input.fechaRegistro,
+          },
+          `El fondo del proyecto ${solicitud.proyecto_base.nombre} no tiene saldo suficiente para completar la nómina.`,
+        );
+      }
+    }
+
+    if (operacionEfectivo) {
+      await registrarMovimientoPago(
+        tx,
+        {
+          fondo_id: solicitud.fondo_id,
+          proyecto_base_id: solicitud.proyecto_base_id,
+          operacion_efectivo_id: operacionEfectivo.id,
+          tipo_movimiento: "EGRESO_RETIRO_NOMINA_GRUPAL",
+          direccion: "EGRESO",
+          valor: totalEfectivo,
+          descripcion: `Retiro para pagos de nómina grupal ${solicitud.numero_solicitud ?? solicitud.id}.`,
+          registrado_por: input.usuarioId,
+          registrado_en: input.fechaRegistro,
+        },
+        `El fondo del proyecto ${solicitud.proyecto_base.nombre} no tiene saldo suficiente para completar la nómina.`,
+      );
+    }
+
+    return {
+      solicitud_id: solicitud.id,
+      pagos_registrados: detalles.length,
+      valor_total: valorTotalFilas,
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
 export async function registrarOperacionEfectivoRepository(input: {
   operacion: RegistrarOperacionEfectivoRepositoryInput;
   usuarioId: string;
@@ -1518,18 +1815,26 @@ export async function registrarOperacionEfectivoRepository(input: {
       const valorSobrante =
         input.operacion.valor_retirado - valorRequerido;
 
-      const soporteRetiro = await tx.adjuntos.create({
-        data: {
-          ...input.operacion.soporte_retiro,
-          subido_por: input.usuarioId,
-          estado_ocr: "NO_PROCESADO",
-        },
-      });
+      const soporteRetiro = input.operacion.soporte_retiro
+        ? await tx.adjuntos.create({
+            data: {
+              ...input.operacion.soporte_retiro,
+              subido_por: input.usuarioId,
+              estado_ocr: "NO_PROCESADO",
+            },
+          })
+        : null;
       const operacion = await tx.operaciones_efectivo.create({
         data: {
-          proyecto_base_id: primeraSolicitud.proyecto_base_id,
-          fondo_id: primeraSolicitud.fondo_id,
-          adjunto_retiro_id: soporteRetiro.id,
+          proyecto_base: {
+            connect: { id: primeraSolicitud.proyecto_base_id },
+          },
+          fondo: {
+            connect: { id: primeraSolicitud.fondo_id },
+          },
+          ...(soporteRetiro
+            ? { soporte_retiro: { connect: { id: soporteRetiro.id } } }
+            : {}),
           fecha_retiro: input.operacion.fecha_retiro,
           valor_requerido: valorRequerido,
           valor_retirado: input.operacion.valor_retirado,
@@ -1538,7 +1843,7 @@ export async function registrarOperacionEfectivoRepository(input: {
           sobrante_reintegrado:
             input.operacion.reintegrar_sobrante && valorSobrante > 0,
           observacion: input.operacion.observacion,
-          registrado_por: input.usuarioId,
+          registrador: { connect: { id: input.usuarioId } },
           registrado_en: input.fechaRegistro,
         },
       });

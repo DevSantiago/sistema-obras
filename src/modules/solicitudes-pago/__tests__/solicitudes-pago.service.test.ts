@@ -18,6 +18,7 @@ import {
   listarSolicitudesAprobadasPorUsuarioRepository,
   registrarOperacionEfectivoRepository,
   registrarTransferenciasRepository,
+  registrarPagoNominaGrupalRepository,
   obtenerAccesoActivoUsuarioProyectoLineaRepository,
   obtenerBeneficiarioActivoRepository,
   obtenerCentroCostoActivoRepository,
@@ -43,6 +44,7 @@ import {
   listarSolicitudesPagoService,
   registrarOperacionEfectivoService,
   registrarTransferenciasService,
+  registrarPagoNominaGrupalService,
   registrarAdjuntosSolicitudPagoService,
   devolverSolicitudPagoService,
   devolverSolicitudesPagoService,
@@ -85,6 +87,8 @@ vi.mock("../solicitudes-pago.repository", () => ({
   listarSolicitudesAprobadasPorUsuarioRepository: vi.fn(),
   registrarOperacionEfectivoRepository: vi.fn(),
   registrarTransferenciasRepository: vi.fn(),
+  registrarPagoNominaGrupalRepository: vi.fn(),
+  listarDetallesNominaParaPagosRepository: vi.fn().mockResolvedValue([]),
   obtenerAccesoActivoUsuarioProyectoLineaRepository: vi.fn(),
   obtenerBeneficiarioActivoRepository: vi.fn(),
   obtenerCentroCostoActivoRepository: vi.fn(),
@@ -556,6 +560,53 @@ describe("solicitudes-pago.service - historial de aprobaciones", () => {
     });
   });
 
+  it("debe mantener en pendientes las solicitudes reenviadas a aprobación nivel 2 y no duplicarlas en el historial", async () => {
+    const pendienteN2 = {
+      ...solicitudProveedorBorrador,
+      numero_solicitud: "SOL-PENDIENTE-N2",
+      estado_actual: "PENDIENTE_APROBADOR_2",
+      aprobado_2_por: usuarioAprobador2.id,
+      aprobado_2_en: fechaMock,
+    };
+    vi.mocked(listarSolicitudesPagoRepository).mockResolvedValue([
+      pendienteN2,
+    ] as never);
+    vi.mocked(obtenerFondosPorIdsRepository).mockResolvedValue([
+      { id: solicitudProveedorBorrador.fondo_id, saldo_actual: 1000000 },
+    ] as never);
+    vi.mocked(obtenerReservasPorFondosRepository).mockResolvedValue([] as never);
+    vi.mocked(
+      listarSolicitudesAprobadasPorUsuarioRepository,
+    ).mockResolvedValue([
+      pendienteN2,
+      {
+        ...solicitudProveedorBorrador,
+        numero_solicitud: "SOL-PAGADA",
+        estado_actual: "PAGADA",
+        aprobado_2_por: usuarioAprobador2.id,
+        aprobado_2_en: fechaMock,
+      },
+    ] as never);
+
+    const resultado =
+      await consultarAprobacionesNivel2Service(usuarioAprobador2);
+
+    expect(resultado.status).toBe(200);
+    expect(resultado.body.data?.proyectos).toHaveLength(1);
+    expect(
+      resultado.body.data?.proyectos[0].solicitudes[0].numero_solicitud,
+    ).toBe("SOL-PENDIENTE-N2");
+    expect(resultado.body.data?.historial).toHaveLength(1);
+    expect(resultado.body.data?.historial[0].numero_solicitud).toBe(
+      "SOL-PAGADA",
+    );
+    expect(listarSolicitudesPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: { estado_actual: "PENDIENTE_APROBADOR_2" },
+      }),
+    );
+  });
+
   it("permite al aprobador de nivel 1 consultar el detalle aunque la solicitud haya avanzado a otro estado", async () => {
     vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
       ...solicitudProveedorBorrador,
@@ -903,6 +954,7 @@ describe("solicitudes-pago.service - listarBandejaPagosService", () => {
     vi.clearAllMocks();
     vi.mocked(listarSolicitudesPagoRepository).mockResolvedValue([]);
     vi.mocked(obtenerFondosPorIdsRepository).mockResolvedValue([]);
+    vi.mocked(obtenerBeneficiarioActivoRepository).mockResolvedValue(null);
   });
 
   it("debe consultar únicamente solicitudes programadas para pago", async () => {
@@ -926,6 +978,43 @@ describe("solicitudes-pago.service - listarBandejaPagosService", () => {
         estados_flujo: [],
       },
     });
+  });
+
+  it("ordena por aprobación más reciente, asigna número de ítem y usa el nombre vigente del proveedor", async () => {
+    const anterior = {
+      ...solicitudProveedorBorrador,
+      id: "solicitud-anterior",
+      beneficiario_id: null,
+      aprobado_2_en: new Date("2026-10-01T10:00:00.000Z"),
+      beneficiario: {
+        ...solicitudProveedorBorrador.beneficiario,
+        nombre: "Nombre antiguo",
+      },
+      proveedor: { id: "proveedor-1", nombre: "Nombre vigente" },
+    } as never;
+    const reciente = {
+      ...solicitudProveedorBorrador,
+      id: "solicitud-reciente",
+      numero_solicitud: "SOL-002",
+      beneficiario_id: null,
+      aprobado_2_en: new Date("2026-10-02T10:00:00.000Z"),
+    } as never;
+    vi.mocked(listarSolicitudesPagoRepository).mockResolvedValue([
+      anterior,
+      reciente,
+    ] as never);
+
+    const resultado = await listarBandejaPagosService(usuarioPagos);
+
+    expect(resultado.body.ok).toBe(true);
+    if (!resultado.body.ok) return;
+    expect(resultado.body.data?.solicitudes.map(({ id, numero_item }) => [id, numero_item])).toEqual([
+      ["solicitud-reciente", 1],
+      ["solicitud-anterior", 2],
+    ]);
+    expect(resultado.body.data?.solicitudes[1].beneficiario?.nombre).toBe(
+      "Nombre vigente",
+    );
   });
 
   it("debe permitir al administrador consultar la bandeja de pagos", async () => {
@@ -1147,6 +1236,53 @@ describe("solicitudes-pago.service - registrarOperacionEfectivoService", () => {
           soporte_retiro: expect.not.objectContaining({
             ruta_absoluta: expect.anything(),
           }),
+        }),
+      }),
+    );
+  });
+
+  it("debe registrar el retiro sin soporte general y conservar los soportes de pago", async () => {
+    vi.mocked(storageService.guardarArchivo).mockResolvedValue({
+      nombre_archivo: "pago.pdf",
+      ruta_archivo: "operaciones/pago.pdf",
+      ruta_absoluta: "/storage/operaciones/pago.pdf",
+      nombre_bucket: "LOCAL",
+      tipo_mime: "application/pdf",
+      tamano_archivo: BigInt(10),
+    });
+    vi.mocked(registrarOperacionEfectivoRepository).mockResolvedValue({
+      operacion: {
+        id: "operacion-1",
+        proyecto_base_id: "proyecto-1",
+        proyecto_nombre: "HUMAPO",
+        valor_requerido: 76000,
+        valor_retirado: 80000,
+        valor_pagado: 76000,
+        valor_sobrante: 4000,
+        sobrante_reintegrado: true,
+        saldo_anterior: 100000,
+        saldo_nuevo: 24000,
+      },
+      solicitudes: [solicitudProveedorBorrador],
+    } as never);
+
+    const resultado = await registrarOperacionEfectivoService(
+      usuarioPagos,
+      { ...crearOperacion(), soporte_retiro: null },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(storageService.guardarArchivo).toHaveBeenCalledTimes(1);
+    expect(storageService.guardarArchivo).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre_original: "pago.pdf" }),
+    );
+    expect(registrarOperacionEfectivoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operacion: expect.objectContaining({
+          soporte_retiro: null,
+          detalles: [
+            expect.objectContaining({ solicitud_id: "solicitud-1" }),
+          ],
         }),
       }),
     );
@@ -3982,6 +4118,8 @@ describe("solicitudes-pago.service - devolución de aprobaciones", () => {
     vi.mocked(devolverSolicitudPagoRepository).mockReset();
     vi.mocked(devolverSolicitudesPagoRepository).mockReset();
     vi.mocked(obtenerSolicitudPagoPorIdRepository).mockReset();
+    vi.mocked(storageService.guardarArchivo).mockReset();
+    vi.mocked(storageService.eliminarArchivo).mockReset();
   });
 
   it("debe devolver desde nivel 1 al solicitante sin reserva", async () => {
@@ -4032,6 +4170,67 @@ describe("solicitudes-pago.service - devolución de aprobaciones", () => {
         liberarReserva: false,
       }),
     );
+  });
+
+  it("debe asociar archivos PDF e imagen a la devolución", async () => {
+    vi.mocked(obtenerSolicitudPagoPorIdRepository).mockResolvedValue({
+      ...solicitudProveedorBorrador,
+      estado_actual: "PENDIENTE_APROBADOR_2",
+      numero_solicitud: "SOL-001",
+      valor_reservado: 100000,
+    } as never);
+    vi.mocked(storageService.guardarArchivo).mockResolvedValue({
+      nombre_archivo: "soporte.pdf",
+      ruta_archivo: "solicitudes-pago/devoluciones/soporte.pdf",
+      nombre_bucket: "LOCAL",
+      tipo_mime: "application/pdf",
+      tamano_archivo: BigInt(7),
+    });
+    vi.mocked(devolverSolicitudPagoRepository).mockResolvedValue({ count: 1 });
+
+    const archivo = new File(["soporte"], "soporte.pdf", {
+      type: "application/pdf",
+    });
+    const resultado = await devolverSolicitudPagoService(
+      usuarioAprobador2,
+      "solicitud-1",
+      { motivo: "Revisar los soportes adjuntos", archivos: [archivo] },
+    );
+
+    expect(resultado.status).toBe(200);
+    expect(storageService.guardarArchivo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nombre_original: "soporte.pdf",
+        tipo_mime: "application/pdf",
+        carpeta: "solicitudes-pago/devoluciones",
+      }),
+    );
+    expect(devolverSolicitudPagoRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adjuntos: [
+          expect.objectContaining({
+            nombre_archivo: "soporte.pdf",
+            tipo_mime: "application/pdf",
+            subido_por: usuarioAprobador2.id,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("rechaza adjuntos que no sean PDF o imágenes antes de guardarlos", async () => {
+    const resultado = await devolverSolicitudPagoService(
+      usuarioAprobador2,
+      "solicitud-1",
+      {
+        motivo: "Revisar los soportes adjuntos",
+        archivos: [new File(["texto"], "nota.txt", { type: "text/plain" })],
+      },
+    );
+
+    expect(resultado.status).toBe(400);
+    expect(storageService.guardarArchivo).not.toHaveBeenCalled();
+    expect(devolverSolicitudPagoRepository).not.toHaveBeenCalled();
   });
 
   it("debe permitir que Pagos devuelva una solicitud programada al aprobador 1 con motivo", async () => {
@@ -4183,5 +4382,61 @@ describe("solicitudes-pago.service - anulación en aprobación nivel 1", () => {
 
     expect(resultado.status).toBe(409);
     expect(anularSolicitudesPagoRepository).not.toHaveBeenCalled();
+  });
+
+  it("debe autorizar y guardar comprobantes por fila en nómina grupal", async () => {
+    vi.mocked(storageService.guardarArchivo).mockResolvedValue({
+      nombre_archivo: "soporte.pdf",
+      ruta_archivo: "nomina/soporte.pdf",
+      ruta_absoluta: "/storage/nomina/soporte.pdf",
+      nombre_bucket: "LOCAL",
+      tipo_mime: "application/pdf",
+      tamano_archivo: BigInt(10),
+    });
+    vi.mocked(registrarPagoNominaGrupalRepository).mockResolvedValue({
+      solicitud_id: "solicitud-nomina",
+      pagos_registrados: 1,
+      valor_total: 50000,
+    });
+
+    const resultado = await registrarPagoNominaGrupalService(usuarioPagos, "solicitud-nomina", [
+      {
+        detalle_nomina_id: "fila-1",
+        medio_pago: "EFECTIVO",
+        soporte: new File(["soporte"], "soporte.pdf", { type: "application/pdf" }),
+      },
+    ]);
+
+    expect(resultado.status).toBe(200);
+    expect(registrarPagoNominaGrupalRepository).toHaveBeenCalledWith(
+      expect.objectContaining({
+        solicitudId: "solicitud-nomina",
+        usuarioId: usuarioPagos.id,
+        pagos: [expect.objectContaining({ detalle_nomina_id: "fila-1", medio_pago: "EFECTIVO" })],
+      }),
+    );
+  });
+
+  it("debe rechazar soportes duplicados sin revelar el criterio de validación", async () => {
+    vi.mocked(storageService.guardarArchivo).mockClear();
+    vi.mocked(registrarPagoNominaGrupalRepository).mockClear();
+    const resultado = await registrarPagoNominaGrupalService(usuarioPagos, "solicitud-nomina", [
+      {
+        detalle_nomina_id: "fila-1",
+        medio_pago: "EFECTIVO",
+        soporte: new File(["primero"], "Comprobante.JPG", { type: "image/jpeg" }),
+      },
+      {
+        detalle_nomina_id: "fila-2",
+        medio_pago: "EFECTIVO",
+        soporte: new File(["segundo"], "comprobante.jpg", { type: "image/jpeg" }),
+      },
+    ]);
+
+    expect(resultado.status).toBe(400);
+    expect(resultado.body.message).toBe("Cada pago debe tener un soporte diferente.");
+    expect(resultado.body.message).not.toContain("Comprobante.JPG");
+    expect(storageService.guardarArchivo).not.toHaveBeenCalled();
+    expect(registrarPagoNominaGrupalRepository).not.toHaveBeenCalled();
   });
 });

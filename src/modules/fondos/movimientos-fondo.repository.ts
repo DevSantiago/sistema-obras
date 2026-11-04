@@ -83,6 +83,25 @@ async function validarOrigenMovimiento(
     }
   }
 
+  if (input.pago_nomina_grupal_id) {
+    const pagoValido = await tx.pagos_nomina_grupal.count({
+      where: {
+        id: input.pago_nomina_grupal_id,
+        solicitud_pago: {
+          proyecto_base_id: input.proyecto_base_id,
+          fondo_id: input.fondo_id,
+        },
+      },
+    });
+
+    if (pagoValido !== 1) {
+      throw new MovimientoFondoError(
+        "ORIGEN_INVALIDO",
+        "El pago de nómina no corresponde al proyecto o fondo del movimiento.",
+      );
+    }
+  }
+
   if (input.operacion_efectivo_id) {
     const operacionValida = await tx.operaciones_efectivo.count({
       where: {
@@ -228,6 +247,20 @@ async function validarMovimientoDuplicado(
       throw new MovimientoFondoError(
         "MOVIMIENTO_DUPLICADO",
         "El pago ya tiene un movimiento financiero registrado.",
+      );
+    }
+  }
+
+  if (input.pago_nomina_grupal_id) {
+    const movimientoPago = await tx.movimientos_fondo.findUnique({
+      where: { pago_nomina_grupal_id: input.pago_nomina_grupal_id },
+      select: { id: true },
+    });
+
+    if (movimientoPago) {
+      throw new MovimientoFondoError(
+        "MOVIMIENTO_DUPLICADO",
+        "El pago de nómina ya tiene un movimiento financiero registrado.",
       );
     }
   }
@@ -394,6 +427,7 @@ export async function registrarMovimientoFondoEnTransaccionRepository(
       centro_costo_id: input.centro_costo_id,
       solicitud_pago_id: input.solicitud_pago_id,
       pago_id: input.pago_id,
+      pago_nomina_grupal_id: input.pago_nomina_grupal_id,
       operacion_efectivo_id: input.operacion_efectivo_id,
       anticipo_id: input.anticipo_id,
       prestamo_proyecto_id: input.prestamo_proyecto_id,

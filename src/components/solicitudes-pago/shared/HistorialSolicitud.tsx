@@ -83,6 +83,24 @@ export default function HistorialSolicitud({
                       </time>
                     </div>
                     <p className={styles.description}>{evento.descripcion}</p>
+                    {evento.adjuntos?.length ? (
+                      <div className={styles.attachments}>
+                        <strong>Adjuntos de la devolución</strong>
+                        <ul>
+                          {evento.adjuntos.map((adjunto) => (
+                            <li key={adjunto.id}>
+                              <a
+                                href={`/api/v1/solicitudes-pago/${evento.solicitud_id}/adjuntos/${adjunto.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {adjunto.nombre_archivo}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     <div className={styles.meta}>
                       <span className={styles.actor}>
                         <span className={styles.metaLabel}>Responsable</span>

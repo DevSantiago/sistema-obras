@@ -91,6 +91,27 @@
   font-size: 0.82rem;
 }
 
+.attachments {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.attachments ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.attachments a {
+  color: #1d4ed8;
+  overflow-wrap: anywhere;
+}
+
 .header time {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;

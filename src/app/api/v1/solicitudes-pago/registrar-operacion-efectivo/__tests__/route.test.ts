@@ -100,6 +100,40 @@ describe("POST /api/v1/solicitudes-pago/registrar-operacion-efectivo", () => {
     );
   });
 
+  it("debe aceptar el registro sin soporte general del retiro", async () => {
+    const formData = new FormData();
+    formData.append(
+      "operacion",
+      JSON.stringify({
+        valor_retirado: 80000,
+        reintegrar_sobrante: false,
+        detalles: [
+          {
+            solicitud_id: "solicitud-1",
+            archivo_campo: "soporte_pago_0",
+          },
+        ],
+      }),
+    );
+    formData.append(
+      "soporte_pago_0",
+      new File(["pago"], "pago.pdf", { type: "application/pdf" }),
+    );
+
+    const response = await POST(
+      new Request(
+        "http://localhost/api/v1/solicitudes-pago/registrar-operacion-efectivo",
+        { method: "POST", body: formData },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(registrarOperacionEfectivoServiceMock).toHaveBeenCalledWith(
+      usuarioPagos,
+      expect.objectContaining({ soporte_retiro: null }),
+    );
+  });
+
   it("debe rechazar la operación si falta un soporte", async () => {
     const formData = new FormData();
     formData.append(

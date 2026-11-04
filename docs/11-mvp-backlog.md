@@ -2395,6 +2395,8 @@ Criterios:
 - Exporta en aprobaciones únicamente la selección activa, ordenada por
   proyecto, centro de costo y número de solicitud, con valores y total.
 - Permite minimizar las bandejas de solicitudes pendientes y aprobadas.
+- En aprobaciones de nivel 1 y 2, inicia todos los grupos de proyecto contraídos;
+  el usuario expande únicamente el proyecto que necesita revisar.
 - Presenta el detalle de fondos y movimientos financieros en una vista
   informativa accesible desde cada registro.
 - Agrupa la creación de solicitudes en una sección expandible y evita acciones
@@ -2471,3 +2473,18 @@ Criterios:
 - Respeta las validaciones, permisos y contrato vigente de beneficiarios.
 - Selecciona automáticamente el beneficiario recién creado y permite continuar
   la solicitud.
+
+### HU-2107. Adjuntar soportes al devolver una solicitud
+
+Como aprobador o usuario de pagos, quiero adjuntar imágenes o PDF al devolver
+una solicitud, para que quien la recibe tenga evidencia y contexto suficientes
+para corregirla.
+
+Criterios:
+
+- Permite adjuntar hasta 10 archivos PDF o imágenes de máximo 10 MB cada uno.
+- Conserva el motivo obligatorio y el flujo de estados vigente.
+- Vincula los adjuntos con el evento de devolución correspondiente, también
+  cuando se devuelven varias solicitudes juntas.
+- Muestra los archivos en el historial de la solicitud y permite descargarlos
+  únicamente a usuarios autorizados para consultar esa solicitud.

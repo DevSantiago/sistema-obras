@@ -182,6 +182,7 @@ export default function AprobacionesManager({
   const [solicitudesDevolucion, setSolicitudesDevolucion] =
     useState<SolicitudPagoListado[]>([]);
   const [motivoDevolucion, setMotivoDevolucion] = useState("");
+  const [archivosDevolucion, setArchivosDevolucion] = useState<File[]>([]);
   const [devolviendo, setDevolviendo] = useState(false);
   const [errorDevolucion, setErrorDevolucion] = useState("");
   const [solicitudesAnulacion, setSolicitudesAnulacion] =
@@ -330,14 +331,7 @@ const mensajeSinSolicitudes =
         body.data?.proyectos ?? [];
 
       setProyectos(proyectosPendientes);
-      setProyectoExpandidoId((proyectoActual) =>
-        proyectoActual &&
-        proyectosPendientes.some(
-          (proyecto) => proyecto.fondo_id === proyectoActual,
-        )
-          ? proyectoActual
-          : proyectosPendientes[0]?.fondo_id ?? null,
-      );
+      setProyectoExpandidoId(null);
       setHistorialAprobaciones(body.data?.historial ?? []);
       setIdsSeleccionados(new Set());
       setEstadoCarga("LISTO");
@@ -537,6 +531,15 @@ const mensajeSinSolicitudes =
 
     try {
       const esGrupal = solicitudesDevolucion.length > 1;
+      const datosDevolucion = esGrupal
+        ? {
+            motivo,
+            solicitud_ids: solicitudesDevolucion.map((solicitud) => solicitud.id),
+          }
+        : { motivo };
+      const formData = new FormData();
+      formData.append("datos", JSON.stringify(datosDevolucion));
+      archivosDevolucion.forEach((archivo) => formData.append("archivos", archivo));
       const response = await fetch(
         esGrupal
           ? "/api/v1/solicitudes-pago/devolver"
@@ -544,15 +547,7 @@ const mensajeSinSolicitudes =
         {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            esGrupal
-              ? {
-                  motivo,
-                  solicitud_ids: solicitudesDevolucion.map((solicitud) => solicitud.id),
-                }
-              : { motivo },
-          ),
+          body: formData,
         },
       );
       const body = (await response.json()) as SolicitudesPagoApiResponse<unknown>;
@@ -564,6 +559,7 @@ const mensajeSinSolicitudes =
       const cantidadDevuelta = solicitudesDevolucion.length;
       setSolicitudesDevolucion([]);
       setMotivoDevolucion("");
+      setArchivosDevolucion([]);
       setMensajeExito(
         cantidadDevuelta === 1
           ? nivel === 1
@@ -667,6 +663,9 @@ const mensajeSinSolicitudes =
     <section className={styles.panel}>
       <div className={styles.toolbar}>
         <div>
+          <span className={styles.pendingSectionLabel}>
+            Bandeja pendiente · {solicitudes.length}
+          </span>
           <h2 className={styles.subtitle}>
             Solicitudes pendientes
           </h2>
@@ -1130,6 +1129,7 @@ const mensajeSinSolicitudes =
                     onDevolver={(solicitud) => {
                       setSolicitudesDevolucion([solicitud]);
                       setMotivoDevolucion("");
+                      setArchivosDevolucion([]);
                       setErrorDevolucion("");
                       setSolicitudDetalle(null);
                       setMensajeError("");
@@ -1189,6 +1189,24 @@ const mensajeSinSolicitudes =
                       Escribe al menos 5 caracteres · {motivoDevolucion.length}/500
                     </small>
                   </label>
+                  <label className={styles.returnAttachments}>
+                    <span>Adjuntos (opcional)</span>
+                    <input
+                      type="file"
+                      accept="application/pdf,image/avif,image/heic,image/heif,image/jpeg,image/png,image/webp"
+                      multiple
+                      disabled={devolviendo}
+                      onChange={(event) =>
+                        setArchivosDevolucion(Array.from(event.target.files ?? []))
+                      }
+                    />
+                    <small className={styles.returnHelper}>
+                      PDF o imágenes, hasta 10 archivos de 10 MB cada uno.
+                      {archivosDevolucion.length
+                        ? ` ${archivosDevolucion.length} seleccionados.`
+                        : ""}
+                    </small>
+                  </label>
                   {errorDevolucion ? (
                     <div className={styles.returnError} role="alert">
                       <strong>No se pudo completar la devolución</strong>
@@ -1202,6 +1220,8 @@ const mensajeSinSolicitudes =
                       type="button"
                       onClick={() => {
                         setSolicitudesDevolucion([]);
+                        setArchivosDevolucion([]);
+                        setMotivoDevolucion("");
                         setErrorDevolucion("");
                       }}
                     >

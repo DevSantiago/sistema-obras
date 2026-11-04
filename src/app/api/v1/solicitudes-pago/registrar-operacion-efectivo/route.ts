@@ -44,9 +44,14 @@ function leerOperacion(
     const campoSoporteRetiro = obtenerTexto(
       datos.archivo_retiro_campo,
     );
-    const soporteRetiro = formData.get(campoSoporteRetiro);
+    const soporteRetiro = campoSoporteRetiro
+      ? formData.get(campoSoporteRetiro)
+      : null;
 
-    if (!Array.isArray(detalles) || !(soporteRetiro instanceof File)) {
+    if (
+      !Array.isArray(detalles) ||
+      (soporteRetiro !== null && !(soporteRetiro instanceof File))
+    ) {
       return null;
     }
 
@@ -57,7 +62,7 @@ function leerOperacion(
           : Number.NaN,
       observacion: obtenerTexto(datos.observacion) || null,
       reintegrar_sobrante: datos.reintegrar_sobrante === true,
-      soporte_retiro: soporteRetiro,
+      soporte_retiro: soporteRetiro instanceof File ? soporteRetiro : null,
       detalles: detalles.map((item: DetalleManifest) => {
         const campoArchivo = obtenerTexto(item.archivo_campo);
         const soporte = formData.get(campoArchivo);

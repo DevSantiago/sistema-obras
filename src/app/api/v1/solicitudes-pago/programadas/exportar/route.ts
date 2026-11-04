@@ -4,7 +4,6 @@ import { generarRelacionSolicitudesProgramadasExcel } from "@/modules/solicitude
 import { listarBandejaPagosService } from "@/modules/solicitudes-pago/solicitudes-pago.service";
 import type {
   MedioPagoSolicitud,
-  SolicitudPagoListFilters,
 } from "@/modules/solicitudes-pago/solicitudes-pago.types";
 
 type TipoOperacionExportacion = "TODOS" | "TRANSFERENCIAS" | "RETIRO";
@@ -40,19 +39,33 @@ export async function GET(request: Request) {
     }
     const tipoOperacion = tipoOperacionRaw as TipoOperacionExportacion | undefined;
 
-    const filtros: SolicitudPagoListFilters = {
-      proyecto_base_id:
-        searchParams.get("proyecto_base_id")?.trim() || undefined,
-      centro_costo_id:
-        searchParams.get("centro_costo_id")?.trim() || undefined,
-      medio_pago: searchParams.get("medio_pago")?.trim().toUpperCase() as
-        | MedioPagoSolicitud
-        | undefined,
-      busqueda: searchParams.get("busqueda")?.trim() || undefined,
-    };
+    const proyectoBaseId = searchParams.get("proyecto_base_id")?.trim();
+    const centroCostoId = searchParams.get("centro_costo_id")?.trim();
+    const medioPago = searchParams.get("medio_pago")?.trim().toUpperCase() as
+      | MedioPagoSolicitud
+      | undefined;
+    const busqueda = searchParams.get("busqueda")?.trim().toLocaleLowerCase("es");
+    const numeroItemRaw = searchParams.get("numero_item")?.trim();
+    const numeroItem = numeroItemRaw ? Number(numeroItemRaw) : undefined;
+    if (medioPago && !["TRANSFERENCIA", "PSE", "PORTAL", "CONSIGNACION", "EFECTIVO"].includes(medioPago)) {
+      return Response.json(
+        { ok: false, message: "El medio de pago no es válido." },
+        { status: 400 },
+      );
+    }
+    if (
+      numeroItemRaw &&
+      (!Number.isInteger(numeroItem) || (numeroItem ?? 0) < 1)
+    ) {
+      return Response.json(
+        { ok: false, message: "El número de ítem debe ser un entero positivo." },
+        { status: 400 },
+      );
+    }
+
     const resultado = await listarBandejaPagosService(
       autenticacion.body.data.usuario,
-      filtros,
+      {},
     );
 
     if (!resultado.body.ok || !resultado.body.data) {
@@ -60,6 +73,30 @@ export async function GET(request: Request) {
     }
 
     const solicitudes = resultado.body.data.solicitudes.filter((solicitud) => {
+      const beneficiario =
+        solicitud.tipo_solicitud === "PAGO_PROVEEDOR"
+          ? solicitud.proveedor?.nombre ?? solicitud.beneficiario?.nombre
+          : solicitud.beneficiario?.nombre ?? solicitud.proveedor?.nombre;
+      const textoBusqueda = [
+        solicitud.numero_solicitud,
+        solicitud.descripcion,
+        beneficiario,
+        solicitud.proyecto_base?.nombre,
+        solicitud.centro_costo?.nombre,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase("es");
+
+      if (
+        (proyectoBaseId && solicitud.proyecto_base_id !== proyectoBaseId) ||
+        (centroCostoId && solicitud.centro_costo_id !== centroCostoId) ||
+        (medioPago && solicitud.medio_pago !== medioPago) ||
+        (busqueda && !textoBusqueda.includes(busqueda)) ||
+        (numeroItem !== undefined && solicitud.numero_item !== numeroItem)
+      ) {
+        return false;
+      }
       if (tipoOperacion === "TRANSFERENCIAS") {
         return ["TRANSFERENCIA", "PSE", "PORTAL"].includes(
           solicitud.medio_pago ?? "",
